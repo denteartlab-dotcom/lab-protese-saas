@@ -94,7 +94,6 @@ import {
   servicoTemEtapasNaTabela,
   servicoTemComissoesColaboradoresNaTabela,
   servicoTemComissoesTerceirizadosNaTabela,
-  servicoTemProdutosNaTabela,
   colaboradoresIniciaisFormParaOsServico,
   terceirizadosIniciaisFormParaOsServico,
   comissaoColaboradorNaTabelaServico,
@@ -1112,9 +1111,6 @@ export default function OrdemServicoPage() {
   const produtosOpcoesOs = useMemo(() => {
     return montarProdutosOpcoesOs(categoriasTabelaCompleta, produtos, servicoOsAtual);
   }, [servicoOsAtual, categoriasTabelaCompleta, produtos]);
-  const exibeAbaProdutos =
-    servicoTemProdutosNaTabela(servicoOsAtual) ||
-    produtosOs.some((item) => Boolean(item.produtoId?.trim()));
 
   const modelosEtapasOs = useMemo(() => {
     if (!servicoOsAtual) return [];
@@ -1126,8 +1122,6 @@ export default function OrdemServicoPage() {
       servicoTemEtapasNaTabela(servicoOsAtual) &&
       etapas.some((etapa) => etapa.nome.trim())
   );
-  const exibeAbaColaboradores = servicoTemComissoesColaboradoresNaTabela(servicoOsAtual);
-  const exibeAbaTerceirizados = servicoTemComissoesTerceirizadosNaTabela(servicoOsAtual);
   const colaboradoresComissaoServico = useMemo(
     () => comissoesColaboradoresDoServico(servicoOsAtual),
     [servicoOsAtual]
@@ -1142,6 +1136,15 @@ export default function OrdemServicoPage() {
       return servicoOsAtual.valor * Number(form.quantidade || 1);
     }
     return parseCurrency(form.valor) * Number(form.quantidade || 1);
+  }
+
+  function valorComissaoColaboradorOsTexto(comissao: string) {
+    const percentual =
+      Number(String(comissao || "").replace("%", "").replace(/\./g, "").replace(",", ".")) || 0;
+    return (valorBaseComissaoTerceirizadoOs() * (percentual / 100)).toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
   }
 
   function aplicarComissoesServicoNaOs(servico: ServicoTabelaPrecoOs) {
@@ -1206,22 +1209,6 @@ export default function OrdemServicoPage() {
       return mudou ? proximos : atuais;
     });
   }, [form.repeticao, form.quantidade, form.valor, servicoOsAtual, terceirizadosComissaoServico]);
-
-  useEffect(() => {
-    if (abaServico !== "produtos" || !exibeAbaProdutos) return;
-    if (produtosOs.length > 0) return;
-    setProdutosOs([produtoOsLinhaVazio()]);
-  }, [abaServico, exibeAbaProdutos, produtosOs.length]);
-
-  useEffect(() => {
-    if (
-      (abaServico === "produtos" && !exibeAbaProdutos) ||
-      (abaServico === "colaboradores" && !exibeAbaColaboradores) ||
-      (abaServico === "terceirizados" && !exibeAbaTerceirizados)
-    ) {
-      setAbaServico("etapas");
-    }
-  }, [abaServico, exibeAbaProdutos, exibeAbaColaboradores, exibeAbaTerceirizados]);
 
   useEffect(() => {
     if (!form.categoria) return;
@@ -1769,6 +1756,12 @@ export default function OrdemServicoPage() {
     }
 
     const opcao = opcoesTerceirizados.find((item) => item.nome === nome);
+    const custoCalculado = opcao
+      ? valorComissaoTerceirizado(opcao).toLocaleString("pt-BR", {
+          style: "currency",
+          currency: "BRL",
+        })
+      : "R$ 0,00";
     setTerceirizados((atuais) =>
       atuais.map((item, i) =>
         i === index
@@ -1776,13 +1769,7 @@ export default function OrdemServicoPage() {
               ...item,
               nome,
               servico: opcao?.tipoServico || item.servico,
-              custo:
-                opcao?.origem === "prestador"
-                  ? valorComissaoTerceirizado(opcao).toLocaleString("pt-BR", {
-                      style: "currency",
-                      currency: "BRL",
-                    })
-                  : item.custo,
+              custo: custoCalculado,
             }
           : item
       )
@@ -2526,7 +2513,6 @@ export default function OrdemServicoPage() {
   }
 
   function adicionarLinhaProduto() {
-    if (!exibeAbaProdutos) return;
     setAbaServico("produtos");
     setProdutosOs((atuais) => [...atuais, produtoOsLinhaVazio()]);
   }
@@ -2585,7 +2571,9 @@ export default function OrdemServicoPage() {
               nome,
               comissao:
                 comissaoTabela ||
-                (cadastro ? comissaoColaboradorCadastro(cadastro) : item.comissao),
+                (cadastro
+                  ? exibirComissaoPercentual(comissaoColaboradorCadastro(cadastro)) || "0,00%"
+                  : "0,00%"),
             }
           : item
       )
@@ -4162,7 +4150,6 @@ export default function OrdemServicoPage() {
                 >
                   {t("producao.os.aba.etapas")}
                 </button>
-                {exibeAbaProdutos && (
                 <button
                   type="button"
                   onClick={() => setAbaServico("produtos")}
@@ -4170,8 +4157,6 @@ export default function OrdemServicoPage() {
                 >
                   {t("producao.os.aba.produtos")}
                 </button>
-                )}
-                {exibeAbaColaboradores && (
                 <button
                   type="button"
                   onClick={() => setAbaServico("colaboradores")}
@@ -4179,8 +4164,6 @@ export default function OrdemServicoPage() {
                 >
                   {t("producao.os.aba.colaboradores")}
                 </button>
-                )}
-                {exibeAbaTerceirizados && (
                 <button
                   type="button"
                   onClick={() => setAbaServico("terceirizados")}
@@ -4188,7 +4171,6 @@ export default function OrdemServicoPage() {
                 >
                   {t("producao.os.aba.terceirizados")}
                 </button>
-                )}
               </div>
 
               <div
@@ -4387,18 +4369,6 @@ export default function OrdemServicoPage() {
                 {abaServico === "produtos" && (
                   <div className="space-y-3">
                     <span className="text-sm font-semibold text-slate-800">Produtos</span>
-                    {!exibeAbaProdutos ? (
-                      <p className="text-[11px] text-slate-500">
-                        {servicoOsAtual
-                          ? "Nenhum produto cadastrado no estoque ou na tabela de preços."
-                          : "Selecione um serviço para adicionar produtos."}
-                      </p>
-                    ) : (
-                      <>
-                    <p className="text-[10px] text-slate-500">
-                      Produtos do estoque sincronizados com a tabela de preços quando cadastrados
-                      (ex.: DENTES, insumos).
-                    </p>
                     {produtosOs.map((produtoOs, index) => (
                       <div
                         key={`${produtoOs.produtoId}-${index}`}
@@ -4508,17 +4478,13 @@ export default function OrdemServicoPage() {
                         </button>
                       </div>
                     ))}
-                    {produtosOs.length > 0 && (
                       <button
                         type="button"
                         onClick={adicionarLinhaProduto}
-                        className="w-full rounded bg-primary-600 px-3 py-2 text-xs font-medium text-white hover:bg-primary-700"
+                        className="w-full rounded border border-sky-400 bg-white px-3 py-2.5 text-sm font-medium text-sky-600 hover:bg-sky-50"
                       >
-                        + Adicionar Produto
+                        + Adicionar Campo Produto
                       </button>
-                    )}
-                      </>
-                    )}
                   </div>
                 )}
 
@@ -4527,27 +4493,6 @@ export default function OrdemServicoPage() {
                     <span className="text-sm font-semibold text-slate-800">
                       Colaboradores / Comissões
                     </span>
-                    {!exibeAbaColaboradores ? (
-                      <p className="text-[11px] text-slate-500">
-                        {servicoOsAtual
-                          ? `Nenhum colaborador com comissão cadastrado na tabela de preços do serviço ${servicoOsAtual.nome}.`
-                          : "Selecione um serviço com colaboradores cadastrados na tabela de preços."}
-                      </p>
-                    ) : (
-                      <>
-                    <p className="text-[10px] text-slate-500">
-                      Colaboradores e comissões cadastrados na tabela de preços do serviço{" "}
-                      <span className="font-medium text-slate-700">{servicoOsAtual?.nome}</span>.
-                    </p>
-                    {colaboradores.length === 0 && (
-                      <button
-                        type="button"
-                        onClick={adicionarLinhaColaborador}
-                        className="w-full rounded bg-primary-600 px-3 py-2 text-xs font-medium text-white hover:bg-primary-700"
-                      >
-                        + Adicionar Colaborador
-                      </button>
-                    )}
                     {colaboradores.map((colaborador, index) => (
                       <div
                         key={`${colaborador.nome}-${index}`}
@@ -4556,62 +4501,29 @@ export default function OrdemServicoPage() {
                         <Select
                           label="Colaborador"
                           value={colaborador.nome}
-                          onChange={(e) => selecionarColaboradorOs(index, e.target.value)}
+                          onChange={(e) => selecionarColaboradorOs(index, e.target.value)
+                          }
                         >
                           <option value="">Selecione um colaborador</option>
                           {colaborador.nome &&
-                            !colaboradoresComissaoServico.some((c) => c.nome === colaborador.nome) && (
+                            !colaboradoresOpcoes.some((c) => c.nome === colaborador.nome) && (
                               <option value={colaborador.nome}>{colaborador.nome}</option>
                             )}
-                          {colaboradoresComissaoServico.map((opcao) => (
-                            <option key={opcao.id || opcao.nome} value={opcao.nome}>
+                          {colaboradoresOpcoes.map((opcao) => (
+                            <option key={opcao.id} value={opcao.nome}>
                               {opcao.nome}
                             </option>
                           ))}
                         </Select>
                         <Input
-                          label="Comissão (%)"
-                          value={colaborador.comissao}
-                          onChange={(e) =>
-                            setColaboradores((atuais) =>
-                              atuais.map((item, i) =>
-                                i === index
-                                  ? {
-                                      ...item,
-                                      comissao: formatarComissaoPercentInput(e.target.value),
-                                    }
-                                  : item
-                              )
-                            )
-                          }
-                          placeholder="0,00%"
+                          label="Valor da Comissão"
+                          value={valorComissaoColaboradorOsTexto(colaborador.comissao)}
+                          readOnly
+                          className="cursor-default bg-slate-100 text-slate-700"
+                          placeholder="0,00"
                         />
-                        {modelosEtapasOs.length > 0 ? (
-                          <Select
-                            label="Etapa"
-                            value={colaborador.etapa}
-                            onChange={(e) =>
-                              setColaboradores((atuais) =>
-                                atuais.map((item, i) =>
-                                  i === index ? { ...item, etapa: e.target.value } : item
-                                )
-                              )
-                            }
-                          >
-                            <option value="">Selecione uma etapa</option>
-                            {colaborador.etapa &&
-                              !modelosEtapasOs.some((m) => m.nome === colaborador.etapa) && (
-                                <option value={colaborador.etapa}>{colaborador.etapa}</option>
-                              )}
-                            {modelosEtapasOs.map((modelo) => (
-                              <option key={modelo.id} value={modelo.nome}>
-                                {modelo.nome}
-                              </option>
-                            ))}
-                          </Select>
-                        ) : (
                           <Input
-                            label="Etapa"
+                            label="Observação"
                             value={colaborador.etapa}
                             onChange={(e) =>
                               setColaboradores((atuais) =>
@@ -4620,9 +4532,8 @@ export default function OrdemServicoPage() {
                                 )
                               )
                             }
-                            placeholder="Produção, prova, finalizado..."
+                            placeholder="Observação"
                           />
-                        )}
                         <button
                           type="button"
                           onClick={() => {
@@ -4636,17 +4547,13 @@ export default function OrdemServicoPage() {
                         </button>
                       </div>
                     ))}
-                    {colaboradores.length > 0 && (
                       <button
                         type="button"
                         onClick={adicionarLinhaColaborador}
-                        className="w-full rounded bg-primary-600 px-3 py-2 text-xs font-medium text-white hover:bg-primary-700"
+                        className="w-full rounded border border-sky-400 bg-white px-3 py-2.5 text-sm font-medium text-sky-600 hover:bg-sky-50"
                       >
-                        + Adicionar Colaborador
+                        + Adicionar Campo Colaborador
                       </button>
-                    )}
-                      </>
-                    )}
                   </div>
                 )}
 
@@ -4655,27 +4562,6 @@ export default function OrdemServicoPage() {
                     <span className="text-sm font-semibold text-slate-800">
                       Serviços Terceirizados / Comissões
                     </span>
-                    {!exibeAbaTerceirizados ? (
-                      <p className="text-[11px] text-slate-500">
-                        {servicoOsAtual
-                          ? `Nenhum serviço terceirizado cadastrado na tabela de preços do serviço ${servicoOsAtual.nome}.`
-                          : "Selecione um serviço com terceirizados cadastrados na tabela de preços."}
-                      </p>
-                    ) : (
-                      <>
-                    <p className="text-[10px] text-slate-500">
-                      Serviços terceirizados cadastrados na tabela de preços do serviço{" "}
-                      <span className="font-medium text-slate-700">{servicoOsAtual?.nome}</span>.
-                    </p>
-                    {terceirizados.length === 0 && (
-                      <button
-                        type="button"
-                        onClick={adicionarLinhaTerceirizado}
-                        className="w-full rounded bg-primary-600 px-3 py-2 text-xs font-medium text-white hover:bg-primary-700"
-                      >
-                        + Adicionar Terceirizado
-                      </button>
-                    )}
                     {terceirizados.map((terceiro, index) => (
                       <div
                         key={`${terceiro.nome}-${index}`}
@@ -4688,12 +4574,13 @@ export default function OrdemServicoPage() {
                         >
                           <option value="">Selecione um terceirizado</option>
                           {terceiro.nome &&
-                            !terceirizadosComissaoServico.some((c) => c.nome === terceiro.nome) && (
+                            !opcoesTerceirizados.some((c) => c.nome === terceiro.nome) && (
                               <option value={terceiro.nome}>{terceiro.nome}</option>
                             )}
-                          {terceirizadosComissaoServico.map((opcao) => (
-                            <option key={opcao.id || opcao.nome} value={opcao.nome}>
+                          {opcoesTerceirizados.map((opcao) => (
+                            <option key={opcao.id} value={opcao.nome}>
                               {opcao.nome}
+                              {opcao.origem === "prestador" ? " - Prestador" : " - Fornecedor"}
                             </option>
                           ))}
                         </Select>
@@ -4710,17 +4597,10 @@ export default function OrdemServicoPage() {
                           placeholder="Serviço terceirizado"
                         />
                         <Input
-                          label="Comissão / Custo"
-                          value={terceiro.custo}
-                          onChange={(e) =>
-                            setTerceirizados((atuais) =>
-                              atuais.map((item, i) =>
-                                i === index
-                                  ? { ...item, custo: formatCurrencyInput(e.target.value) }
-                                  : item
-                              )
-                            )
-                          }
+                          label="Valor da Comissão"
+                          value={terceiro.custo || "R$ 0,00"}
+                          readOnly
+                          className="cursor-default bg-slate-100 text-slate-700"
                           placeholder="R$ 0,00"
                         />
                         <button
@@ -4736,17 +4616,13 @@ export default function OrdemServicoPage() {
                         </button>
                       </div>
                     ))}
-                    {terceirizados.length > 0 && (
                       <button
                         type="button"
                         onClick={adicionarLinhaTerceirizado}
-                        className="w-full rounded bg-primary-600 px-3 py-2 text-xs font-medium text-white hover:bg-primary-700"
+                        className="w-full rounded border border-sky-400 bg-white px-3 py-2.5 text-sm font-medium text-sky-600 hover:bg-sky-50"
                       >
-                        + Adicionar Terceirizado
+                        + Adicionar Campo Terceirizado
                       </button>
-                    )}
-                      </>
-                    )}
                   </div>
                 )}
               </div>

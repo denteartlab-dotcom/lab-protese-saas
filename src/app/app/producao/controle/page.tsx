@@ -88,7 +88,6 @@ import {
   servicoTemComissoesColaboradoresNaTabela,
   servicoTemComissoesTerceirizadosNaTabela,
   servicoTemEtapasNaTabela,
-  servicoTemProdutosNaTabela,
   terceirizadosIniciaisFormParaOsServico,
   type CategoriaTabelaPrecoOs,
 } from "@/lib/tabela-precos-os";
@@ -1086,13 +1085,6 @@ export default function ControlePage() {
       servicoTemEtapasNaTabela(servicoOsAtualEdicao) &&
       etapasEdicao.some((etapa) => etapa.nome.trim())
   );
-  const exibeAbaProdutosEdicao =
-    servicoTemProdutosNaTabela(servicoOsAtualEdicao) ||
-    produtosOs.some((item) => Boolean(item.produtoId?.trim()));
-  const exibeAbaColaboradoresEdicao =
-    servicoTemComissoesColaboradoresNaTabela(servicoOsAtualEdicao);
-  const exibeAbaTerceirizadosEdicao =
-    servicoTemComissoesTerceirizadosNaTabela(servicoOsAtualEdicao);
   const [anexoAberto, setAnexoAberto] = useState<AnexoOs | null>(null);
   const [osExcluindo, setOsExcluindo] = useState<Trabalho | null>(null);
   const [avisoExclusaoOs, setAvisoExclusaoOs] = useState<string | null>(null);
@@ -1439,40 +1431,28 @@ export default function ControlePage() {
 
   useEffect(() => {
     if (!editando) return;
-    if (
-      (abaServicoEdicao === "produtos" && !exibeAbaProdutosEdicao) ||
-      (abaServicoEdicao === "colaboradores" && !exibeAbaColaboradoresEdicao) ||
-      (abaServicoEdicao === "terceiros" && !exibeAbaTerceirizadosEdicao)
-    ) {
-      setAbaServicoEdicao("etapas");
-    }
-  }, [
-    editando,
-    abaServicoEdicao,
-    exibeAbaProdutosEdicao,
-    exibeAbaColaboradoresEdicao,
-    exibeAbaTerceirizadosEdicao,
-  ]);
-
-  useEffect(() => {
-    if (!editando || !servicoOsAtualEdicao) return;
-    if (!servicoTemComissoesColaboradoresNaTabela(servicoOsAtualEdicao)) return;
     setColaboradoresEdicao((atuais) => {
       if (atuais.length === 0) return atuais;
       let mudou = false;
       const proximos = atuais.map((item) => {
-        const comissao = comissaoColaboradorNaTabelaServico(
+        if (!item.nome.trim()) return item;
+        const comissaoTabela = comissaoColaboradorNaTabelaServico(
           servicoOsAtualEdicao,
           item.nome,
           Boolean(form?.repeticao)
         );
-        if (!comissao || item.comissao === comissao) return item;
+        const cadastro = colaboradoresOpcoes.find((c) => c.nome === item.nome);
+        const comissao =
+          comissaoTabela ||
+          (cadastro ? comissaoColaboradorCadastroControle(cadastro) : "") ||
+          "0,00%";
+        if (item.comissao === comissao) return item;
         mudou = true;
         return { ...item, comissao };
       });
       return mudou ? proximos : atuais;
     });
-  }, [editando, form?.repeticao, servicoOsAtualEdicao]);
+  }, [editando, form?.repeticao, servicoOsAtualEdicao, colaboradoresOpcoes]);
 
   useEffect(() => {
     if (!editando || !servicoOsAtualEdicao) return;
@@ -1883,6 +1863,21 @@ export default function ControlePage() {
     return exibirComissaoPercentual(bruto) || "0,00%";
   }
 
+  function valorBaseServicoEdicaoComissao() {
+    if (servicoOsAtualEdicao) {
+      return servicoOsAtualEdicao.valor * (Number(form?.quantidade || 1) || 1);
+    }
+    return parseCurrencyBr(form?.valor || "0") * (Number(form?.quantidade || 1) || 1);
+  }
+
+  function valorComissaoColaboradorEdicaoTexto(comissao: string) {
+    const percentual = parsePercentualControle(comissao);
+    return (valorBaseServicoEdicaoComissao() * (percentual / 100)).toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }
+
   function selecionarColaboradorEdicao(index: number, nome: string) {
     if (nome) {
       const duplicata = colaboradoresEdicao.findIndex((item, i) => i !== index && item.nome === nome);
@@ -1905,7 +1900,8 @@ export default function ControlePage() {
               nome,
               comissao:
                 comissaoTabela ||
-                (cadastro ? comissaoColaboradorCadastroControle(cadastro) : item.comissao),
+                (cadastro ? comissaoColaboradorCadastroControle(cadastro) : "0,00%") ||
+                "0,00%",
             }
           : item
       )
@@ -1928,6 +1924,12 @@ export default function ControlePage() {
 
   function selecionarTerceirizadoEdicao(index: number, nome: string) {
     const opcao = opcoesTerceirizados.find((item) => item.nome === nome);
+    const custoCalculado = opcao
+      ? valorComissaoTerceirizadoControle(opcao).toLocaleString("pt-BR", {
+          style: "currency",
+          currency: "BRL",
+        })
+      : "R$ 0,00";
     setTerceirizadosEdicao((atuais) =>
       atuais.map((item, i) =>
         i === index
@@ -1935,13 +1937,7 @@ export default function ControlePage() {
               ...item,
               nome,
               servico: opcao?.tipoServico || item.servico,
-              custo:
-                opcao?.origem === "prestador"
-                  ? valorComissaoTerceirizadoControle(opcao).toLocaleString("pt-BR", {
-                      style: "currency",
-                      currency: "BRL",
-                    })
-                  : item.custo,
+              custo: custoCalculado,
             }
           : item
       )
@@ -4290,23 +4286,13 @@ export default function ControlePage() {
                         >
                   Etapas
                 </button>
-                        {exibeAbaProdutosEdicao && (
                         <button
                           type="button"
-                          onClick={() => {
-                            setAbaServicoEdicao("produtos");
-                            if (produtosOs.length === 0) {
-                              setProdutosOs([
-                                produtoOsVazio(),
-                              ]);
-                            }
-                          }}
+                          onClick={() => setAbaServicoEdicao("produtos")}
                           className={classeAbaEdicao("produtos")}
                         >
                           {abaServicoEdicao === "produtos" ? "Produtos" : "PRODUTOS"}
                 </button>
-                        )}
-                        {exibeAbaColaboradoresEdicao && (
                         <button
                           type="button"
                           onClick={() => abrirAbaComissoesEdicao("colaboradores")}
@@ -4314,8 +4300,6 @@ export default function ControlePage() {
                         >
                   Colaboradores / Comissões
                 </button>
-                        )}
-                        {exibeAbaTerceirizadosEdicao && (
                         <button
                           type="button"
                           onClick={() => abrirAbaComissoesEdicao("terceiros")}
@@ -4323,7 +4307,6 @@ export default function ControlePage() {
                         >
                   Serviços Terceirizados / Comissões
                 </button>
-                        )}
               </div>
                       <div
                         className={cn(
@@ -4353,15 +4336,6 @@ export default function ControlePage() {
                         {abaServicoEdicao === "produtos" && (
                           <div className="space-y-3">
                             <span className="text-sm font-semibold text-slate-800">Produtos</span>
-                            {produtosOs.length === 0 && (
-              <button
-                type="button"
-                                onClick={adicionarLinhaProdutoEdicao}
-                                className="w-full rounded bg-primary-600 px-3 py-2 text-xs font-medium text-white hover:bg-primary-700"
-              >
-                                + Adicionar Produto
-              </button>
-                            )}
                             {produtosOs.map((produtoOs, index) => (
                               <div
                                 key={`${produtoOs.produtoId}-${index}`}
@@ -4443,15 +4417,13 @@ export default function ControlePage() {
                                 </button>
                 </div>
                             ))}
-                            {produtosOs.length > 0 && (
                               <button
                                 type="button"
                                 onClick={adicionarLinhaProdutoEdicao}
-                                className="w-full rounded bg-primary-600 px-3 py-2 text-xs font-medium text-white hover:bg-primary-700"
+                                className="w-full rounded border border-sky-400 bg-white px-3 py-2.5 text-sm font-medium text-sky-600 hover:bg-sky-50"
                               >
-                                + Adicionar Produto
+                                + Adicionar Campo Produto
                               </button>
-                            )}
                 </div>
                         )}
                         {abaServicoEdicao === "colaboradores" && (
@@ -4459,30 +4431,6 @@ export default function ControlePage() {
                             <span className="text-sm font-semibold text-slate-800">
                               Colaboradores / Comissões
                             </span>
-                            {!servicoTemComissoesColaboradoresNaTabela(servicoOsAtualEdicao) ? (
-                              <p className="text-[11px] text-slate-500">
-                                {servicoOsAtualEdicao
-                                  ? `Nenhum colaborador com comissão cadastrado na tabela de preços do serviço ${servicoOsAtualEdicao.nome}.`
-                                  : "Selecione um serviço com colaboradores cadastrados na tabela de preços."}
-                              </p>
-                            ) : (
-                              <>
-                            <p className="text-[10px] text-slate-500">
-                              Colaboradores e comissões cadastrados na tabela de preços do serviço{" "}
-                              <span className="font-medium text-slate-700">
-                                {servicoOsAtualEdicao?.nome}
-                              </span>
-                              .
-                            </p>
-                            {colaboradoresEdicao.length === 0 && (
-                            <button
-                              type="button"
-                                onClick={adicionarLinhaColaboradorEdicao}
-                                className="w-full rounded bg-primary-600 px-3 py-2 text-xs font-medium text-white hover:bg-primary-700"
-                              >
-                                + Adicionar Colaborador
-                              </button>
-                            )}
                             {colaboradoresEdicao.map((colaborador, index) => (
                               <div
                                 key={`${colaborador.nome}-${index}`}
@@ -4498,25 +4446,16 @@ export default function ControlePage() {
                                   >
                                     <option value="">Selecione um colaborador</option>
                                     {colaborador.nome &&
-                                      !comissoesColaboradoresServicoEdicao.some(
-                                        (c) => c.nome === colaborador.nome
-                                      ) &&
                                       !colaboradoresOpcoes.some(
                                         (c) => c.nome === colaborador.nome
                                       ) && (
                                         <option value={colaborador.nome}>{colaborador.nome}</option>
                                       )}
-                                    {comissoesColaboradoresServicoEdicao.length > 0
-                                      ? comissoesColaboradoresServicoEdicao.map((opcao) => (
-                                          <option key={opcao.id || opcao.nome} value={opcao.nome}>
-                                            {opcao.nome}
-                                          </option>
-                                        ))
-                                      : colaboradoresOpcoes.map((opcao) => (
-                                          <option key={opcao.id} value={opcao.nome}>
-                                            {opcao.nome}
-                                          </option>
-                                        ))}
+                                    {colaboradoresOpcoes.map((opcao) => (
+                                      <option key={opcao.id} value={opcao.nome}>
+                                        {opcao.nome}
+                                      </option>
+                                    ))}
                                   </Select>
                                 ) : (
                                   <Input
@@ -4529,50 +4468,14 @@ export default function ControlePage() {
                                   />
                                 )}
                                 <Input
-                                  label="Comissão (%)"
-                                  value={colaborador.comissao}
-                                  onChange={(e) =>
-                                    setColaboradoresEdicao((atuais) =>
-                                      atuais.map((item, i) =>
-                                        i === index
-                                          ? {
-                                              ...item,
-                                              comissao: formatarComissaoPercentInput(e.target.value),
-                                            }
-                                          : item
-                                      )
-                                    )
-                                  }
-                                  placeholder="0,00%"
+                                  label="Valor da Comissão"
+                                  value={valorComissaoColaboradorEdicaoTexto(colaborador.comissao)}
+                                  readOnly
+                                  className="cursor-default bg-slate-100 text-slate-700"
+                                  placeholder="0,00"
                                 />
-                                {modelosEtapasOs.length > 0 ? (
-                                  <Select
-                                    label="Etapa"
-                                    value={colaborador.etapa}
-                                    onChange={(e) =>
-                                      setColaboradoresEdicao((atuais) =>
-                                        atuais.map((item, i) =>
-                                          i === index ? { ...item, etapa: e.target.value } : item
-                                        )
-                                      )
-                                    }
-                                  >
-                                    <option value="">Selecione uma etapa</option>
-                                    {colaborador.etapa &&
-                                      !modelosEtapasOs.some((m) => m.nome === colaborador.etapa) && (
-                                        <option value={colaborador.etapa}>
-                                          {nomeEtapaSemSetor(colaborador.etapa)}
-                                        </option>
-                                      )}
-                                    {modelosEtapasOs.map((modelo) => (
-                                      <option key={modelo.id} value={modelo.nome}>
-                                        {modelo.nome}
-                                      </option>
-                                    ))}
-                                  </Select>
-                                ) : (
                                   <Input
-                                    label="Etapa"
+                                    label="Observação"
                                     value={colaborador.etapa}
                                     onChange={(e) =>
                                       setColaboradoresEdicao((atuais) =>
@@ -4581,9 +4484,8 @@ export default function ControlePage() {
                                         )
                                       )
                                     }
-                                    placeholder="Produção, prova, finalizado..."
+                                    placeholder="Observação"
                                   />
-                                )}
                                 <button
                                   type="button"
                                   onClick={() =>
@@ -4598,17 +4500,13 @@ export default function ControlePage() {
                             </button>
                               </div>
                             ))}
-                            {colaboradoresEdicao.length > 0 && (
                               <button
                                 type="button"
                                 onClick={adicionarLinhaColaboradorEdicao}
-                                className="w-full rounded bg-primary-600 px-3 py-2 text-xs font-medium text-white hover:bg-primary-700"
+                                className="w-full rounded border border-sky-400 bg-white px-3 py-2.5 text-sm font-medium text-sky-600 hover:bg-sky-50"
                               >
-                                + Adicionar Colaborador
+                                + Adicionar Campo Colaborador
                               </button>
-                            )}
-                              </>
-                            )}
                 </div>
                         )}
                         {abaServicoEdicao === "terceiros" && (
@@ -4616,37 +4514,12 @@ export default function ControlePage() {
                             <span className="text-sm font-semibold text-slate-800">
                               Serviços Terceirizados / Comissões
                             </span>
-                            {!servicoTemComissoesTerceirizadosNaTabela(servicoOsAtualEdicao) ? (
-                              <p className="text-[11px] text-slate-500">
-                                {servicoOsAtualEdicao
-                                  ? `Nenhum serviço terceirizado cadastrado na tabela de preços do serviço ${servicoOsAtualEdicao.nome}.`
-                                  : "Selecione um serviço com terceirizados cadastrados na tabela de preços."}
-                              </p>
-                            ) : (
-                              <>
-                            <p className="text-[10px] text-slate-500">
-                              Serviços terceirizados cadastrados na tabela de preços do serviço{" "}
-                              <span className="font-medium text-slate-700">
-                                {servicoOsAtualEdicao?.nome}
-                              </span>
-                              .
-                            </p>
-                            {terceirizadosEdicao.length === 0 && (
-                              <button
-                                type="button"
-                                onClick={adicionarLinhaTerceirizadoEdicao}
-                                className="w-full rounded bg-primary-600 px-3 py-2 text-xs font-medium text-white hover:bg-primary-700"
-                              >
-                                + Adicionar Terceirizado
-                              </button>
-                            )}
                             {terceirizadosEdicao.map((terceiro, index) => (
                               <div
                                 key={`${terceiro.nome}-${index}`}
                                 className="grid gap-3 rounded border border-slate-200 bg-white p-3 md:grid-cols-[1fr_1fr_1fr_auto]"
                               >
-                                {comissoesTerceirizadosServicoEdicao.length > 0 ||
-                                opcoesTerceirizados.length > 0 ? (
+                                {opcoesTerceirizados.length > 0 ? (
                                   <Select
                                     label="Terceirizado"
                                     value={terceiro.nome}
@@ -4656,26 +4529,17 @@ export default function ControlePage() {
                                   >
                                     <option value="">Selecione um terceirizado</option>
                                     {terceiro.nome &&
-                                      !comissoesTerceirizadosServicoEdicao.some(
-                                        (c) => c.nome === terceiro.nome
-                                      ) &&
                                       !opcoesTerceirizados.some((c) => c.nome === terceiro.nome) && (
                                         <option value={terceiro.nome}>{terceiro.nome}</option>
                                       )}
-                                    {comissoesTerceirizadosServicoEdicao.length > 0
-                                      ? comissoesTerceirizadosServicoEdicao.map((opcao) => (
-                                          <option key={opcao.id || opcao.nome} value={opcao.nome}>
-                                            {opcao.nome}
-                                          </option>
-                                        ))
-                                      : opcoesTerceirizados.map((opcao) => (
-                                          <option key={opcao.id} value={opcao.nome}>
-                                            {opcao.nome}
-                                            {opcao.origem === "prestador"
-                                              ? " - Prestador"
-                                              : " - Fornecedor"}
-                                          </option>
-                                        ))}
+                                    {opcoesTerceirizados.map((opcao) => (
+                                      <option key={opcao.id} value={opcao.nome}>
+                                        {opcao.nome}
+                                        {opcao.origem === "prestador"
+                                          ? " - Prestador"
+                                          : " - Fornecedor"}
+                                      </option>
+                                    ))}
                                   </Select>
                                 ) : (
                                   <Input
@@ -4700,20 +4564,10 @@ export default function ControlePage() {
                                   placeholder="Serviço terceirizado"
                                 />
                                 <Input
-                                  label="Comissão / Custo"
-                                  value={terceiro.custo}
-                                  onChange={(e) =>
-                                    setTerceirizadosEdicao((atuais) =>
-                                      atuais.map((item, i) =>
-                                        i === index
-                                          ? {
-                                              ...item,
-                                              custo: formatCurrencyInputControle(e.target.value),
-                                            }
-                                          : item
-                                      )
-                                    )
-                                  }
+                                  label="Valor da Comissão"
+                                  value={terceiro.custo || "R$ 0,00"}
+                                  readOnly
+                                  className="cursor-default bg-slate-100 text-slate-700"
                                   placeholder="R$ 0,00"
                                 />
                                 <button
@@ -4730,17 +4584,13 @@ export default function ControlePage() {
                                 </button>
               </div>
                             ))}
-                            {terceirizadosEdicao.length > 0 && (
                               <button
                                 type="button"
                                 onClick={adicionarLinhaTerceirizadoEdicao}
-                                className="w-full rounded bg-primary-600 px-3 py-2 text-xs font-medium text-white hover:bg-primary-700"
+                                className="w-full rounded border border-sky-400 bg-white px-3 py-2.5 text-sm font-medium text-sky-600 hover:bg-sky-50"
                               >
-                                + Adicionar Terceirizado
+                                + Adicionar Campo Terceirizado
                               </button>
-                            )}
-                              </>
-                            )}
                           </div>
                         )}
                       </div>
