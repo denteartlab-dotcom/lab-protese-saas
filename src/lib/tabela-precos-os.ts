@@ -618,6 +618,11 @@ export function servicoTemComissoesTerceirizadosNaTabela(servico?: ServicoTabela
   return comissoesTerceirizadosDoServico(servico).length > 0;
 }
 
+/** Produtos vinculados ao serviço na tabela de preços (itens de custo). */
+export function servicoTemProdutosNaTabela(servico?: ServicoTabelaPrecoOs | null) {
+  return (servico?.itensCusto || []).some((item) => Boolean(item.produtoId?.trim()));
+}
+
 function formatarPercentualComissaoTabela(value?: string | null) {
   const numero = parseValorMonetarioTabela(value);
   return numero.toLocaleString("pt-BR", {

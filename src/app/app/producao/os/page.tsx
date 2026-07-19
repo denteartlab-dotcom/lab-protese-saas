@@ -94,6 +94,7 @@ import {
   servicoTemEtapasNaTabela,
   servicoTemComissoesColaboradoresNaTabela,
   servicoTemComissoesTerceirizadosNaTabela,
+  servicoTemProdutosNaTabela,
   colaboradoresIniciaisFormParaOsServico,
   terceirizadosIniciaisFormParaOsServico,
   comissaoColaboradorNaTabelaServico,
@@ -1112,7 +1113,8 @@ export default function OrdemServicoPage() {
     return montarProdutosOpcoesOs(categoriasTabelaCompleta, produtos, servicoOsAtual);
   }, [servicoOsAtual, categoriasTabelaCompleta, produtos]);
   const exibeAbaProdutos =
-    Boolean(servicoOsAtual) && produtosOpcoesOs.length > 0;
+    servicoTemProdutosNaTabela(servicoOsAtual) ||
+    produtosOs.some((item) => Boolean(item.produtoId?.trim()));
 
   const modelosEtapasOs = useMemo(() => {
     if (!servicoOsAtual) return [];
@@ -1210,6 +1212,16 @@ export default function OrdemServicoPage() {
     if (produtosOs.length > 0) return;
     setProdutosOs([produtoOsLinhaVazio()]);
   }, [abaServico, exibeAbaProdutos, produtosOs.length]);
+
+  useEffect(() => {
+    if (
+      (abaServico === "produtos" && !exibeAbaProdutos) ||
+      (abaServico === "colaboradores" && !exibeAbaColaboradores) ||
+      (abaServico === "terceirizados" && !exibeAbaTerceirizados)
+    ) {
+      setAbaServico("etapas");
+    }
+  }, [abaServico, exibeAbaProdutos, exibeAbaColaboradores, exibeAbaTerceirizados]);
 
   useEffect(() => {
     if (!form.categoria) return;
@@ -4150,6 +4162,7 @@ export default function OrdemServicoPage() {
                 >
                   {t("producao.os.aba.etapas")}
                 </button>
+                {exibeAbaProdutos && (
                 <button
                   type="button"
                   onClick={() => setAbaServico("produtos")}
@@ -4157,6 +4170,8 @@ export default function OrdemServicoPage() {
                 >
                   {t("producao.os.aba.produtos")}
                 </button>
+                )}
+                {exibeAbaColaboradores && (
                 <button
                   type="button"
                   onClick={() => setAbaServico("colaboradores")}
@@ -4164,6 +4179,8 @@ export default function OrdemServicoPage() {
                 >
                   {t("producao.os.aba.colaboradores")}
                 </button>
+                )}
+                {exibeAbaTerceirizados && (
                 <button
                   type="button"
                   onClick={() => setAbaServico("terceirizados")}
@@ -4171,6 +4188,7 @@ export default function OrdemServicoPage() {
                 >
                   {t("producao.os.aba.terceirizados")}
                 </button>
+                )}
               </div>
 
               <div

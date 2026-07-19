@@ -88,6 +88,7 @@ import {
   servicoTemComissoesColaboradoresNaTabela,
   servicoTemComissoesTerceirizadosNaTabela,
   servicoTemEtapasNaTabela,
+  servicoTemProdutosNaTabela,
   terceirizadosIniciaisFormParaOsServico,
   type CategoriaTabelaPrecoOs,
 } from "@/lib/tabela-precos-os";
@@ -1085,6 +1086,13 @@ export default function ControlePage() {
       servicoTemEtapasNaTabela(servicoOsAtualEdicao) &&
       etapasEdicao.some((etapa) => etapa.nome.trim())
   );
+  const exibeAbaProdutosEdicao =
+    servicoTemProdutosNaTabela(servicoOsAtualEdicao) ||
+    produtosOs.some((item) => Boolean(item.produtoId?.trim()));
+  const exibeAbaColaboradoresEdicao =
+    servicoTemComissoesColaboradoresNaTabela(servicoOsAtualEdicao);
+  const exibeAbaTerceirizadosEdicao =
+    servicoTemComissoesTerceirizadosNaTabela(servicoOsAtualEdicao);
   const [anexoAberto, setAnexoAberto] = useState<AnexoOs | null>(null);
   const [osExcluindo, setOsExcluindo] = useState<Trabalho | null>(null);
   const [avisoExclusaoOs, setAvisoExclusaoOs] = useState<string | null>(null);
@@ -1428,6 +1436,23 @@ export default function ControlePage() {
       return changed ? atualizados : atuais;
     });
   }, [totalItensEdicao, form?.repeticao, opcoesTerceirizados, editando]);
+
+  useEffect(() => {
+    if (!editando) return;
+    if (
+      (abaServicoEdicao === "produtos" && !exibeAbaProdutosEdicao) ||
+      (abaServicoEdicao === "colaboradores" && !exibeAbaColaboradoresEdicao) ||
+      (abaServicoEdicao === "terceiros" && !exibeAbaTerceirizadosEdicao)
+    ) {
+      setAbaServicoEdicao("etapas");
+    }
+  }, [
+    editando,
+    abaServicoEdicao,
+    exibeAbaProdutosEdicao,
+    exibeAbaColaboradoresEdicao,
+    exibeAbaTerceirizadosEdicao,
+  ]);
 
   useEffect(() => {
     if (!editando || !servicoOsAtualEdicao) return;
@@ -4265,6 +4290,7 @@ export default function ControlePage() {
                         >
                   Etapas
                 </button>
+                        {exibeAbaProdutosEdicao && (
                         <button
                           type="button"
                           onClick={() => {
@@ -4279,6 +4305,8 @@ export default function ControlePage() {
                         >
                           {abaServicoEdicao === "produtos" ? "Produtos" : "PRODUTOS"}
                 </button>
+                        )}
+                        {exibeAbaColaboradoresEdicao && (
                         <button
                           type="button"
                           onClick={() => abrirAbaComissoesEdicao("colaboradores")}
@@ -4286,6 +4314,8 @@ export default function ControlePage() {
                         >
                   Colaboradores / Comissões
                 </button>
+                        )}
+                        {exibeAbaTerceirizadosEdicao && (
                         <button
                           type="button"
                           onClick={() => abrirAbaComissoesEdicao("terceiros")}
@@ -4293,6 +4323,7 @@ export default function ControlePage() {
                         >
                   Serviços Terceirizados / Comissões
                 </button>
+                        )}
               </div>
                       <div
                         className={cn(
