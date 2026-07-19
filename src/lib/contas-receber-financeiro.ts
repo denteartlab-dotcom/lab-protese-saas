@@ -47,6 +47,16 @@ export function isCreditoUtilizado(lancamento: { descricao: string }) {
   return descricao.startsWith("crédito utilizado") || descricao.includes("desconto com crédito");
 }
 
+/** Fatura de Contas a Receber: Cobrança OS… ou Cobrança sem O.S.… */
+export function ehDescricaoFaturaContasReceber(descricao: string): boolean {
+  const d = descricao.toLowerCase().trim();
+  return (
+    d.startsWith("cobrança os") ||
+    d.startsWith("cobrança sem o.s") ||
+    d.startsWith("cobrança sem os")
+  );
+}
+
 export function isRecebimentoParcial(lancamento: { descricao: string }) {
   const base = descricaoReceitaSemMeta(lancamento.descricao);
   return /^recebimento parcial\s*-/i.test(base);
@@ -155,7 +165,7 @@ export function contribuiRecebidoCliente(
   if (isCreditoUtilizado(lancamento)) return 0;
   if (isCreditoGerado(lancamento)) return lancamento.valor;
   if (isRecebimentoParcial(lancamento)) return lancamento.valor;
-  if (lancamento.descricao.toLowerCase().startsWith("cobrança os")) {
+  if (ehDescricaoFaturaContasReceber(lancamento.descricao)) {
     if (lancamento.status !== "pago") return 0;
     return valorRecebidoCashNaFaturaPaga(lancamento, lancamentos);
   }
@@ -167,7 +177,7 @@ export function deveExibirNoHistoricoRecebimentos(
   lancamento: LancamentoContasReceber,
   lancamentos: LancamentoContasReceber[]
 ) {
-  if (!lancamento.descricao.toLowerCase().startsWith("cobrança os")) return true;
+  if (!ehDescricaoFaturaContasReceber(lancamento.descricao)) return true;
   if (lancamento.status !== "pago") return false;
   if (!faturaTevePagamentoParcialOuCredito(lancamento, lancamentos)) return true;
   return valorRecebidoCashNaFaturaPaga(lancamento, lancamentos) > 0.009;
@@ -208,7 +218,7 @@ export function observacaoRecebimentoCurta(descricao: string) {
     const os = base.match(/OS\s*([\d,\s]+)/i);
     return os ? `Abatimento de crédito — OS ${os[1]!.trim()}` : "Abatimento de crédito";
   }
-  if (/^cobran[cç]a\s+os/i.test(base)) {
+  if (/^cobran[cç]a\s+os/i.test(base) || /^cobran[cç]a\s+sem\s+o\.?s/i.test(base)) {
     const os = base.match(/OS\s*([\d,\s]+)/i);
     return os ? `Pagamento — OS ${os[1]!.trim()}` : "Pagamento da fatura";
   }
@@ -222,7 +232,7 @@ export function localizarFaturaPorDescricao(
 ) {
   const alvo = descricaoFatura.trim();
   return lancamentos.find((l) => {
-    if (!l.descricao.toLowerCase().startsWith("cobrança os")) return false;
+    if (!ehDescricaoFaturaContasReceber(l.descricao)) return false;
     if (clienteId && l.cliente?.id !== clienteId) return false;
     const desc = descricaoReceitaSemMeta(l.descricao).trim();
     return (
@@ -240,7 +250,7 @@ export function valorHistoricoRecebimentoCliente(
 ) {
   if (isCreditoUtilizado(lancamento)) return -Math.abs(lancamento.valor);
   if (
-    lancamento.descricao.toLowerCase().startsWith("cobrança os") &&
+    ehDescricaoFaturaContasReceber(lancamento.descricao) &&
     lancamento.status === "pago" &&
     faturaTevePagamentoParcialOuCredito(lancamento, lancamentos)
   ) {
@@ -285,7 +295,7 @@ export function isFaturaContasReceber(
   _trabalhos: TrabalhoContasReceber[]
 ) {
   if (isCreditoGerado(lancamento) || isCreditoUtilizado(lancamento)) return false;
-  if (!lancamento.descricao.toLowerCase().startsWith("cobrança os")) return false;
+  if (!ehDescricaoFaturaContasReceber(lancamento.descricao)) return false;
   if (lancamento.formaPagamento?.toLowerCase().includes("crédito")) return false;
   const creditoQuitouFatura =
     creditoUsadoNaFatura(lancamento, lancamentos) > 0 &&
@@ -376,10 +386,10 @@ export function referenciaLancamento(
   if (isRecebimentoParcial(lancamento)) return "Pagamento parcial";
   if (isCreditoUtilizado(lancamento)) {
     const descricao = lancamento.descricao.replace(/^desconto com crédito\s*-\s*/i, "").trim();
-    if (descricao.toLowerCase().startsWith("cobrança os")) return "Pagamento da fatura";
+    if (ehDescricaoFaturaContasReceber(descricao)) return "Pagamento da fatura";
     return descricao || "Abatimento de crédito";
   }
-  if (lancamento.descricao.toLowerCase().startsWith("cobrança os")) {
+  if (ehDescricaoFaturaContasReceber(lancamento.descricao)) {
     if (
       lancamentos &&
       faturaTevePagamentoParcialOuCredito(lancamento, lancamentos) &&
@@ -395,7 +405,7 @@ export function referenciaLancamento(
 /** Texto curto para nota/PDF — evita "Cobrança OS 123, 456 - …". */
 export function descricaoExibicaoCobranca(descricao: string): string {
   const texto = descricao.replace(/@@trab:[a-zA-Z0-9_,-]+@@/gi, "").trim();
-  if (texto.toLowerCase().startsWith("cobrança os")) return "Cobrança";
+  if (ehDescricaoFaturaContasReceber(texto)) return "Cobrança";
   return texto;
 }
 
@@ -431,7 +441,7 @@ export function clienteVisivelContasReceber(totais: TotaisContasReceberCliente):
 /** Fatura Cobrança OS para exibição no painel — inclui quitadas (diferente de isFaturaContasReceber). */
 export function isFaturaExibicaoContasReceber(lancamento: LancamentoContasReceber) {
   if (isCreditoGerado(lancamento) || isCreditoUtilizado(lancamento)) return false;
-  if (!lancamento.descricao.toLowerCase().startsWith("cobrança os")) return false;
+  if (!ehDescricaoFaturaContasReceber(lancamento.descricao)) return false;
   if (lancamento.formaPagamento?.toLowerCase().includes("crédito")) return false;
   return true;
 }
@@ -591,7 +601,7 @@ export function faturaRelacionadaAoRecebimento(
   recebimento: LancamentoContasReceber,
   lancamentos: LancamentoContasReceber[]
 ) {
-  if (recebimento.descricao.toLowerCase().startsWith("cobrança os")) {
+  if (ehDescricaoFaturaContasReceber(recebimento.descricao)) {
     return recebimento;
   }
   const descricaoVinculada = descricaoFaturaVinculadaAoPagamento(recebimento.descricao);
@@ -620,7 +630,7 @@ export function ehFaturaCobrancaOsParaExclusao(
   if (descricao.startsWith("crédito utilizado") || descricao.includes("desconto com crédito")) {
     return false;
   }
-  return descricao.startsWith("cobrança os");
+  return ehDescricaoFaturaContasReceber(descricao);
 }
 
 /** IDs a remover ao excluir fatura em Contas a Receber (fatura + parciais + crédito + saldo restante). */

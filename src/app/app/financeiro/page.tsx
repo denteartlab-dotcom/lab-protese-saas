@@ -103,7 +103,7 @@ import {
   exportarContasReceberClientesCsv,
   gerarContasReceberClientesPdf,
 } from "@/lib/contas-receber-clientes-export";
-import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, isRecebimentoParcial, deveExibirNoHistoricoRecebimentos, valorHistoricoRecebimentoCliente, referenciaLancamento as referenciaHistoricoRecebimento, recebidoNaFatura as recebidoNaFaturaLib, saldoFatura as saldoFaturaLib, classeReferenciaHistoricoRecebimento, faturaExibeSituacaoParcial, faturasExibicaoPainelCliente, faturaQuitada, recebimentosHistoricoCliente, movimentacoesRecebimentoDaFatura, ehFaturaCobrancaOsParaExclusao, idsLancamentosExclusaoAoRemoverFatura, type LancamentoContasReceber } from "@/lib/contas-receber-financeiro";
+import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, isRecebimentoParcial, deveExibirNoHistoricoRecebimentos, valorHistoricoRecebimentoCliente, referenciaLancamento as referenciaHistoricoRecebimento, recebidoNaFatura as recebidoNaFaturaLib, saldoFatura as saldoFaturaLib, classeReferenciaHistoricoRecebimento, faturaExibeSituacaoParcial, faturasExibicaoPainelCliente, faturaQuitada, recebimentosHistoricoCliente, movimentacoesRecebimentoDaFatura, ehFaturaCobrancaOsParaExclusao, idsLancamentosExclusaoAoRemoverFatura, ehDescricaoFaturaContasReceber, type LancamentoContasReceber } from "@/lib/contas-receber-financeiro";
 import { fetchPainelFinanceiro } from "@/lib/financeiro-painel-cliente";
 import type { PainelFinanceiroReceita } from "@/lib/financeiro-painel-types";
 import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
@@ -637,12 +637,18 @@ function FinanceiroReceberConteudo() {
     const texto = desempacotarDespesa(descricao).texto
       .replace(/@@trab:[a-zA-Z0-9_,-]+@@/gi, "")
       .trim();
-    if (!texto.toLowerCase().startsWith("cobrança os")) return texto;
-    return texto
-      .split(" - ")
-      .slice(1)
-      .join(" - ")
-      .trim();
+    const lower = texto.toLowerCase();
+    if (lower.startsWith("cobrança os")) {
+      return texto
+        .split(" - ")
+        .slice(1)
+        .join(" - ")
+        .trim();
+    }
+    if (lower.startsWith("cobrança sem o.s") || lower.startsWith("cobrança sem os")) {
+      return texto.replace(/^cobrança\s+sem\s+o\.?s\.?\s*-?\s*/i, "").trim();
+    }
+    return texto;
   }
 
   function descricaoCobrancaEditada(trabalhosRelacionados: Trabalho[], descricaoAtual: string) {
@@ -953,6 +959,21 @@ function FinanceiroReceberConteudo() {
     setSalvandoLancamento(true);
     try {
     setMensagemLancamento("");
+    if (!form.clienteId?.trim()) {
+      setMensagemLancamentoTipo("erro");
+      setMensagemLancamento("Selecione o cliente para lançar a cobrança.");
+      return;
+    }
+    if (form.semOs && parseDecimal(form.valor || "0") <= 0) {
+      setMensagemLancamentoTipo("erro");
+      setMensagemLancamento("Informe um valor maior que zero.");
+      return;
+    }
+    if (!form.semOs && trabalhosSelecionados.length === 0) {
+      setMensagemLancamentoTipo("erro");
+      setMensagemLancamento("Selecione ao menos uma OS ou marque cobrança sem O.S.");
+      return;
+    }
     const creditoDisponivel = creditoDisponivelCliente(form.clienteId);
     const creditoAplicado =
       abaterCredito && creditoDisponivel > 0
@@ -960,14 +981,16 @@ function FinanceiroReceberConteudo() {
         : 0;
     const totalAReceberComCredito = Math.max(0, totalLiquido - creditoAplicado);
     const deveCriarFaturaReceber = Math.round(totalAReceberComCredito * 100) > 0;
-    const descricaoBase = trabalhosSelecionados.length
-      ? empacotarCobrancaOs(
-          `Cobrança OS ${trabalhosSelecionados.map((trabalho) => trabalho.numeroOs).join(", ")}${
-            form.descricao ? ` - ${form.descricao}` : ""
-          }`,
-          trabalhosSelecionados.map((trabalho) => trabalho.id)
-        )
-      : form.descricao || "Receita sem cobrança";
+    const descricaoBase = form.semOs
+      ? `Cobrança sem O.S.${form.descricao?.trim() ? ` - ${form.descricao.trim()}` : ""}`
+      : trabalhosSelecionados.length
+        ? empacotarCobrancaOs(
+            `Cobrança OS ${trabalhosSelecionados.map((trabalho) => trabalho.numeroOs).join(", ")}${
+              form.descricao ? ` - ${form.descricao}` : ""
+            }`,
+            trabalhosSelecionados.map((trabalho) => trabalho.id)
+          )
+        : form.descricao || "Receita sem cobrança";
     const descricaoCobranca = descricaoReceitaComPlano(descricaoBase, anexos);
     const hojeIso = brShortToIso(dateToBrShort(new Date()));
     const lancamentosCriados: Lancamento[] = [];
@@ -996,7 +1019,10 @@ function FinanceiroReceberConteudo() {
             tipo: "receita",
             clienteId: form.clienteId || undefined,
             descricao: descricaoCobranca,
-            trabalhoId: trabalhosSelecionados.length === 1 ? trabalhosSelecionados[0].id : undefined,
+            trabalhoId:
+              form.semOs || trabalhosSelecionados.length !== 1
+                ? undefined
+                : trabalhosSelecionados[0].id,
             emitirBoleto: formaSelecionadaEhBoleto(parcelas) && !algumRecebido,
             emitirPix: formaSelecionadaEhPix(parcelas) && !algumRecebido,
             parcelas: parcelas.map((p) => ({
@@ -1093,7 +1119,10 @@ function FinanceiroReceberConteudo() {
             data: p?.recebido ? hojeIso : brShortToIso(p?.vencimento || form.vencimento || form.data),
             formaPagamento: formaPagamentoValida(p?.formaPagamento || form.formaPagamento),
             status: p?.recebido ? "pago" : form.status || "pendente",
-            trabalhoId: trabalhosSelecionados.length === 1 ? trabalhosSelecionados[0].id : undefined,
+            trabalhoId:
+              form.semOs || trabalhosSelecionados.length !== 1
+                ? undefined
+                : trabalhosSelecionados[0].id,
             descricao: descricaoCobranca,
             emitirBoleto: formaSelecionadaEhBoleto(parcelas) && !algumRecebido,
             emitirPix: formaSelecionadaEhPix(parcelas) && !algumRecebido,
@@ -1337,7 +1366,7 @@ function FinanceiroReceberConteudo() {
       isCreditoGerado(lancamento) ||
       isRecebimentoParcial(lancamento);
 
-    const ehCobrancaOs = lancamento.descricao.toLowerCase().startsWith("cobrança os");
+      const ehCobrancaOs = ehDescricaoFaturaContasReceber(lancamento.descricao);
     const creditosUtilizados = ehCobrancaOs ? creditosUtilizadosDaFatura(lancamento) : [];
     const saldosRelacionados = ehCobrancaOs ? saldosRestanteDoLancamento(lancamento) : [];
 
@@ -1850,7 +1879,7 @@ function FinanceiroReceberConteudo() {
 
   function isFaturaContasReceber(lancamento: Lancamento) {
     if (isCreditoGerado(lancamento) || isCreditoUtilizado(lancamento)) return false;
-    if (!lancamento.descricao.toLowerCase().startsWith("cobrança os")) return false;
+    if (!ehDescricaoFaturaContasReceber(lancamento.descricao)) return false;
     if (lancamento.formaPagamento?.toLowerCase().includes("crédito")) return false;
     const creditoQuitouFatura =
       creditoUsadoNaFatura(lancamento) > 0 &&
