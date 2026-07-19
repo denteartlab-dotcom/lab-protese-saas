@@ -39,10 +39,13 @@ type PosicaoCalendario = {
   left: number;
 };
 
-function calcularPosicaoCalendario(anchor: HTMLElement): PosicaoCalendario {
+function calcularPosicaoCalendario(
+  anchor: HTMLElement,
+  alinhar: "left" | "right" = "right"
+): PosicaoCalendario {
   const rect = anchor.getBoundingClientRect();
   const zoom = lerZoomDocumento();
-  const gap = 6;
+  const gap = 4;
 
   const espacoAbaixo = (window.innerHeight - rect.bottom) / zoom;
   const espacoAcima = rect.top / zoom;
@@ -50,7 +53,11 @@ function calcularPosicaoCalendario(anchor: HTMLElement): PosicaoCalendario {
     espacoAbaixo < ALTURA_CALENDARIO_ESTIMADA &&
     espacoAcima > ALTURA_CALENDARIO_ESTIMADA;
 
-  let left = rect.left / zoom;
+  // Ancora no ícone: calendário abre logo abaixo dele.
+  let left =
+    alinhar === "right"
+      ? rect.right / zoom - LARGURA_CALENDARIO
+      : rect.left / zoom;
   const maxLeft = window.innerWidth / zoom - LARGURA_CALENDARIO - 8;
   if (left + LARGURA_CALENDARIO > window.innerWidth / zoom - 8) {
     left = Math.max(8, maxLeft);
@@ -105,7 +112,7 @@ export function CampoDataBr({
   const [aberto, setAberto] = useState(false);
   const [mesCalendario, setMesCalendario] = useState(new Date());
   const [posicao, setPosicao] = useState<PosicaoCalendario | null>(null);
-  const anchorRef = useRef<HTMLDivElement>(null);
+  const iconeRef = useRef<HTMLButtonElement>(null);
 
   const usarPortal = calendarPosition === "absolute";
 
@@ -115,9 +122,9 @@ export function CampoDataBr({
   }
 
   const atualizarPosicao = useCallback(() => {
-    if (!anchorRef.current) return;
-    setPosicao(calcularPosicaoCalendario(anchorRef.current));
-  }, []);
+    if (!iconeRef.current) return;
+    setPosicao(calcularPosicaoCalendario(iconeRef.current, iconPosition));
+  }, [iconPosition]);
 
   function definirAberto(proximo: boolean) {
     setAberto(proximo);
@@ -238,7 +245,7 @@ export function CampoDataBr({
       {label ? (
         <label className="block text-sm font-medium text-slate-700">{tr(label)}</label>
       ) : null}
-      <div ref={anchorRef} className="relative">
+      <div className="relative">
         <input
           type="text"
           inputMode="numeric"
@@ -258,6 +265,7 @@ export function CampoDataBr({
           )}
         />
         <button
+          ref={iconeRef}
           type="button"
           disabled={disabled}
           onClick={abrirCalendario}
