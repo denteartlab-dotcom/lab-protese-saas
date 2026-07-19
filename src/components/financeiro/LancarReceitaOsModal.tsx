@@ -982,7 +982,7 @@ export function LancarReceitaOsModal({
             </div>
           </div>
 
-          <p className="mt-5 mb-2 text-center text-[13px] text-[#6b7280]">
+          <p className="mt-5 mb-2 text-center text-[13px] font-medium text-[#4a5568]">
             Escolha a(s) forma(s) de recebimento
           </p>
 
@@ -1022,14 +1022,14 @@ export function LancarReceitaOsModal({
             </p>
           ) : null}
 
-          <div className="rounded-sm border border-[#d0d5dd] bg-white p-3">
-            <div className="mb-3 flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2">
-                <span className="text-[12px] text-[#6b7280]">Parcelas</span>
+          <div className="rounded-sm border border-[#7eb8da] bg-white p-3">
+            <div className="mb-3">
+              <span className="mb-1 block text-[11px] text-[#6b7280]">Parcelas</span>
+              <div className="inline-flex overflow-hidden rounded-sm border border-[#7eb8da]">
                 <button
                   type="button"
                   onClick={() => setNumParcelas((n) => Math.max(1, n - 1))}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-sm border border-[#d1d5db] bg-white text-[#374151] hover:bg-[#f3f4f6]"
+                  className="inline-flex h-8 w-9 items-center justify-center border-r border-[#7eb8da] bg-white text-[#374151] hover:bg-[#f0f7fc]"
                 >
                   <Minus className="h-3.5 w-3.5" />
                 </button>
@@ -1037,79 +1037,83 @@ export function LancarReceitaOsModal({
                   type="text"
                   readOnly
                   value={String(numParcelas)}
-                  className={cn(fieldClass, "h-8 w-14 text-center")}
+                  className="h-8 w-12 border-0 bg-white text-center text-[13px] text-[#374151] outline-none"
                 />
                 <button
                   type="button"
                   onClick={() => setNumParcelas((n) => Math.min(24, n + 1))}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-sm border border-[#d1d5db] bg-white text-[#374151] hover:bg-[#f3f4f6]"
+                  className="inline-flex h-8 w-9 items-center justify-center border-l border-[#7eb8da] bg-white text-[#374151] hover:bg-[#f0f7fc]"
                 >
                   <Plus className="h-3.5 w-3.5" />
                 </button>
               </div>
               {algumaParcelaRecebida ? (
-                <ToggleSmart
-                  checked={imprimirRecibo}
-                  onChange={setImprimirRecibo}
-                  label="Imprimir Recibo"
-                />
+                <div className="mt-2">
+                  <ToggleSmart
+                    checked={imprimirRecibo}
+                    onChange={setImprimirRecibo}
+                    label="Imprimir Recibo"
+                  />
+                </div>
               ) : null}
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full min-w-[920px] border-collapse text-[11px]">
                 <thead>
-                  <tr className="text-[10px] font-semibold uppercase text-[#6b7280]">
-                    <th className="px-2 py-2 text-left">Parcela</th>
-                    <th className="px-2 py-2 text-left">Forma Recebimento</th>
-                    <th className="px-2 py-2 text-left">Conta</th>
-                    <th className="px-2 py-2 text-left">Vencimento</th>
-                    <th className="px-2 py-2 text-left">Valor</th>
-                    <th className="px-2 py-2 text-left">Juros</th>
-                    <th className="px-2 py-2 text-center">Recebido</th>
+                  <tr className="bg-[#f3f4f6] text-[10px] font-semibold uppercase tracking-wide text-[#4a5568]">
+                    <th className="border border-[#7eb8da] px-2 py-2 text-left">Parcela</th>
+                    <th className="border border-[#7eb8da] px-2 py-2 text-left">
+                      Forma Recebimento
+                    </th>
+                    <th className="border border-[#7eb8da] px-2 py-2 text-left">Conta</th>
+                    <th className="border border-[#7eb8da] px-2 py-2 text-left">Vencimento</th>
+                    <th className="border border-[#7eb8da] px-2 py-2 text-left">Valor</th>
+                    <th className="border border-[#7eb8da] px-2 py-2 text-left">Juros</th>
+                    <th className="border border-[#7eb8da] px-2 py-2 text-center">Recebido</th>
                   </tr>
                 </thead>
                 <tbody>
                   {parcelas.map((p, index) => (
-                    <tr key={index} className="border-t border-[#e5e7eb]">
-                      <td className="px-1 py-1">
+                    <tr key={index}>
+                      <td className="border border-[#7eb8da] px-1.5 py-1.5 align-middle">
                         <input
                           type="text"
                           readOnly
-                          value={p.parcela}
-                          className={cn(fieldClass, "h-8 bg-[#f9fafb] text-center")}
+                          value={p.parcela.replace("/", " / ")}
+                          className="h-8 w-full rounded-sm border border-[#d1d5db] bg-white px-1 text-center text-[12px] outline-none"
                         />
                       </td>
-                      <td className="px-1 py-1">
+                      <td className="border border-[#7eb8da] px-1.5 py-1.5 align-middle">
                         <SelectFormaRecebimentoAsaas
                           value={p.formaPagamento}
                           asaasDisponivel={pixAsaasDisponivel}
-                          className={cn(fieldClass, "h-8")}
+                          className="h-8 w-full rounded-sm border border-[#d1d5db] bg-white px-2 text-[12px] outline-none"
                           onChange={(formaPagamento) =>
                             atualizarParcela(index, { formaPagamento })
                           }
                         />
                       </td>
-                      <td className="px-1 py-1">
+                      <td className="border border-[#7eb8da] px-1.5 py-1.5 align-middle">
                         <select
                           value={p.conta}
                           onChange={(e) => atualizarParcela(index, { conta: e.target.value })}
-                          className={cn(fieldClass, "h-8")}
+                          className="h-8 w-full rounded-sm border border-[#d1d5db] bg-white px-2 text-[12px] outline-none"
                         >
                           <option>Caixa Principal</option>
                           <option>Conta Bancária</option>
                         </select>
                       </td>
-                      <td className="px-1 py-1">
+                      <td className="border border-[#7eb8da] px-1.5 py-1.5 align-middle">
                         <CampoDataBr
                           value={p.vencimento}
                           onChange={(v) => atualizarParcela(index, { vencimento: v })}
                           className="space-y-0"
-                          inputClassName={cn(fieldClass, "h-8")}
+                          inputClassName="h-8 w-full rounded-sm border border-[#d1d5db] bg-white px-2 text-[12px] outline-none"
                           calendarPosition="relative"
                         />
                       </td>
-                      <td className="px-1 py-1">
+                      <td className="border border-[#7eb8da] px-1.5 py-1.5 align-middle">
                         <CampoMoedaOuPercentual
                           tipo={p.valorTipo}
                           valor={p.valor}
@@ -1122,9 +1126,10 @@ export function LancarReceitaOsModal({
                           onValorChange={(valor) => atualizarParcela(index, { valor })}
                           formatDecimalInput={formatDecimalInput}
                           formatCurrencyInput={formatCurrencyInput}
+                          className="border-[#d1d5db]"
                         />
                       </td>
-                      <td className="px-1 py-1">
+                      <td className="border border-[#7eb8da] px-1.5 py-1.5 align-middle">
                         <CampoMoedaOuPercentual
                           tipo={p.jurosTipo}
                           valor={p.juros}
@@ -1137,9 +1142,10 @@ export function LancarReceitaOsModal({
                           onValorChange={(juros) => atualizarParcela(index, { juros })}
                           formatDecimalInput={formatDecimalInput}
                           formatCurrencyInput={formatCurrencyInput}
+                          className="border-[#d1d5db]"
                         />
                       </td>
-                      <td className="px-1 py-1 text-center">
+                      <td className="border border-[#7eb8da] px-1.5 py-1.5 text-center align-middle">
                         <button
                           type="button"
                           role="switch"
@@ -1175,7 +1181,7 @@ export function LancarReceitaOsModal({
               value={form.observacoes}
               onChange={(e) => setForm((f) => ({ ...f, observacoes: e.target.value }))}
               rows={3}
-              className="w-full rounded-sm border border-[#d1d5db] bg-white px-3 py-2 text-[13px] outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]"
+              className="w-full rounded-sm border border-[#7eb8da] bg-white px-3 py-2 text-[13px] outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]/60"
             />
           </div>
 
