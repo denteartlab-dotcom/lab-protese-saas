@@ -119,6 +119,8 @@ export type ParcelaFaturaImpressao = {
   pago: string;
   /** Linha de pagamento recebido — destaque verde claro. */
   recebida?: boolean;
+  /** Saldo em aberto após pagamentos parciais / abatimento. */
+  restante?: boolean;
 };
 
 export type DadosFaturaImpressao = {
@@ -345,12 +347,12 @@ function montarParcelasCondicaoPagamentoFatura(params: {
   clienteId?: string;
   clienteNome?: string;
   lancamentos?: LancamentoResumoFatura[];
-  totalServicos: number;
-  totalFinal: number;
+  /** Valor cheio da nota (sem abater crédito). */
+  valorNota: number;
   formatDate: (iso: string) => string;
   money: (n: number) => string;
 }): ParcelaFaturaImpressao[] {
-  const { lancamento, totalServicos, totalFinal, formatDate, money } = params;
+  const { lancamento, valorNota, formatDate, money } = params;
   const parcela = parseParcelaNaDescricao(lancamento.descricao);
   const parcelaTexto = textoParcelaLog(parcela?.numero ?? 1, parcela?.total ?? 1);
   const lancamentos = params.lancamentos || [];
@@ -377,22 +379,39 @@ function montarParcelasCondicaoPagamentoFatura(params: {
 
   const creditoTotal = creditos.reduce((sum, item) => sum + item.valor, 0);
   const parciaisTotal = parciais.reduce((sum, item) => sum + item.valor, 0);
-  const totalPago = creditoTotal + parciaisTotal;
+  const temMovimentos = creditos.length > 0 || parciais.length > 0;
+  const cashNaFatura =
+    lancamento.status === "pago"
+      ? Math.max(
+          0,
+          Math.round((lancamento.valor - parciaisTotal - creditoTotal) * 100) / 100
+        )
+      : 0;
+  const totalPago = creditoTotal + parciaisTotal + cashNaFatura;
   const quitada =
-    lancamento.status === "pago" || totalPago >= Math.max(totalFinal, 0) - 0.009;
+    lancamento.status === "pago" || totalPago >= Math.max(valorNota, 0) - 0.009;
+  const restante = Math.max(
+    0,
+    Math.round((valorNota - totalPago) * 100) / 100
+  );
+
+  // Parcela principal: Valor = nota cheia; Pago = só o que entrou nesta linha (não soma parciais).
+  const pagoParcelaPrincipal = !temMovimentos
+    ? quitada
+      ? valorNota
+      : 0
+    : cashNaFatura;
 
   const parcelas: ParcelaFaturaImpressao[] = [
     {
       parcela: parcelaTexto,
       vencimento: formatDate(lancamento.data),
       forma: lancamento.formaPagamento || "-",
-      valor: money(totalServicos),
-      pago: money(quitada ? totalServicos : totalPago),
-      recebida: quitada,
+      valor: money(valorNota),
+      pago: money(pagoParcelaPrincipal),
+      recebida: pagoParcelaPrincipal > 0.009,
     },
   ];
-
-  if (quitada) return parcelas;
 
   for (const credito of creditos) {
     parcelas.push({
@@ -413,6 +432,18 @@ function montarParcelasCondicaoPagamentoFatura(params: {
       valor: money(parcial.valor),
       pago: money(parcial.valor),
       recebida: true,
+    });
+  }
+
+  if (temMovimentos && restante > 0.009) {
+    parcelas.push({
+      parcela: pl("print.fatura.valoresRestantes"),
+      vencimento: "-",
+      forma: "-",
+      valor: money(restante),
+      pago: money(restante),
+      recebida: false,
+      restante: true,
     });
   }
 
@@ -502,11 +533,12 @@ export function montarDadosFaturaImpressao(params: {
   }
 
   const liquidoItens = Math.max(0, totalServicos - descontoServicos);
-  // Desconto da fatura (form.desconto) já embutido em lancamento.valor; crédito é aparte.
+  // Desconto comercial da fatura (form.desconto) embutido em lancamento.valor.
+  // Abatimento de crédito NÃO reduz o Total (=): aparece em Desconto Fatura e nas condições.
   const descontoFatura = trabalhos.length
     ? Math.max(0, Math.round((liquidoItens - lancamento.valor) * 100) / 100)
     : 0;
-  const totalFinal = Math.max(lancamento.valor - creditoFatura, 0);
+  const totalFinal = Math.max(lancamento.valor, 0);
   const agora = new Date();
 
   return {
@@ -530,8 +562,7 @@ export function montarDadosFaturaImpressao(params: {
       clienteId: params.clienteId,
       clienteNome: params.clienteNome,
       lancamentos: params.lancamentosCliente,
-      totalServicos: totalFinal,
-      totalFinal,
+      valorNota: totalFinal,
       formatDate,
       money,
     }),
@@ -693,6 +724,7 @@ function estilosBaseA4(fs: number, smartModelo1: boolean) {
     .pay td{font-size:${fsTabela}px;line-height:1.35;padding:4px 3px}
     .pay tr.pay-row-received td{color:#5cb85c;background:#fff}
     .pay tr.pay-row-received td.pay-col-pago{font-weight:600}
+    .pay tr.pay-row-restante td{font-weight:700}
     .right{text-align:right}
     .center{text-align:center}
     .totals{width:${smartModelo1 ? "260px" : "270px"};max-width:100%;margin-left:auto;padding-top:4px}
@@ -923,12 +955,18 @@ function htmlCondicaoPagamento(
   const linhas = dados.parcelas
     .map((p) => {
       const verde = Boolean(p.recebida);
-      return `<tr${verde ? ' class="pay-row-received"' : ""}>
+      const restante = Boolean(p.restante);
+      const classe = verde
+        ? ' class="pay-row-received"'
+        : restante
+          ? ' class="pay-row-restante"'
+          : "";
+      return `<tr${classe}>
         <td>${escapeHtml(p.parcela)}</td>
         <td>${escapeHtml(p.vencimento)}</td>
         ${layout.formaPgto ? `<td>${escapeHtml(p.forma)}</td>` : ""}
         <td>${escapeHtml(valorMonetarioSemPrefixo(p.valor))}</td>
-        ${exibirPago ? `<td>${escapeHtml(valorMonetarioSemPrefixo(p.pago))}</td>` : ""}
+        ${exibirPago ? `<td class="pay-col-pago">${escapeHtml(valorMonetarioSemPrefixo(p.pago))}</td>` : ""}
       </tr>`;
     })
     .join("");

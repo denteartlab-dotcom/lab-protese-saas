@@ -510,6 +510,7 @@ function desenharCondicaoPagamento(
       ...linhasPorColuna.map((linhas) => linhas.length * lineHeight)
     );
     const recebida = parcelaRecebidaPdf(parcela);
+    const restante = Boolean(parcela.restante);
 
     x = m.tabelaEsq;
     for (let i = 0; i < cols.length; i++) {
@@ -518,6 +519,9 @@ function desenharCondicaoPagamento(
       if (recebida) {
         pdf.setTextColor(corPago.r, corPago.g, corPago.b);
         pdf.setFont("helvetica", col.titulo === pl("print.fatura.col.pago") ? "bold" : "normal");
+      } else if (restante) {
+        pdf.setTextColor(0, 0, 0);
+        pdf.setFont("helvetica", "bold");
       } else {
         pdf.setTextColor(0, 0, 0);
         pdf.setFont("helvetica", "normal");
