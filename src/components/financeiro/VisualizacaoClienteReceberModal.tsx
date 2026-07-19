@@ -222,6 +222,18 @@ function periodoMesAno(mes: number, ano: number) {
   return { inicio, fim };
 }
 
+/** "Todos" = todas as movimentações do ano selecionado (01/01–31/12). */
+function periodoExtrato(mes: number | "todos", ano: number) {
+  if (mes === "todos") {
+    const inicio = new Date(ano, 0, 1);
+    inicio.setHours(0, 0, 0, 0);
+    const fim = new Date(ano, 11, 31);
+    fim.setHours(23, 59, 59, 999);
+    return { inicio, fim };
+  }
+  return periodoMesAno(mes, ano);
+}
+
 function badgeFormaPagamento(forma: string | null | undefined) {
   if (!forma) return <span className="text-[#9ca3af]">—</span>;
   return (
@@ -329,10 +341,13 @@ export function VisualizacaoClienteReceberModal({
 }: Props) {
   const [mounted, setMounted] = useState(false);
   const [aba, setAba] = useState<"faturas" | "recebimentos" | "extrato">("faturas");
-  const [mes, setMes] = useState(new Date().getMonth());
+  const [mes, setMes] = useState<number | "todos">(new Date().getMonth());
   const [ano, setAno] = useState(new Date().getFullYear());
   const [formaPagamento, setFormaPagamento] = useState("todos");
   const [situacao, setSituacao] = useState("a_receber");
+  const [situacaoFaturasExtrato, setSituacaoFaturasExtrato] = useState("todos");
+  const [situacaoRecebimentosExtrato, setSituacaoRecebimentosExtrato] =
+    useState("todos");
   const [busca, setBusca] = useState("");
   const [extratoModelo, setExtratoModelo] = useState<ExtratoModeloModal>("1");
   const [buscaExtrato, setBuscaExtrato] = useState("");
@@ -349,6 +364,8 @@ export function VisualizacaoClienteReceberModal({
     setBusca("");
     setBuscaExtrato("");
     setExtratoModelo("1");
+    setSituacaoFaturasExtrato("todos");
+    setSituacaoRecebimentosExtrato("todos");
     const { mes: mesIni, ano: anoIni } = mesAnoInicialSincronizado(
       filtrosPainel,
       cliente.lancamentos
@@ -392,11 +409,14 @@ export function VisualizacaoClienteReceberModal({
     return cliente.lancamentos.filter((l) => {
       if (!lancamentoNoPeriodoPainel(l.data, filtrosPainel)) return false;
       const { mes: lm, ano: la } = parseDataMesAno(l.data);
-      if (lm !== mes || la !== ano) return false;
+      if (la !== ano) return false;
+      if (mes !== "todos" && lm !== mes) return false;
       if (formaPagamento !== "todos" && l.formaPagamento !== formaPagamento) return false;
       return true;
     });
   }, [cliente, mes, ano, formaPagamento, filtrosPainel]);
+
+  const periodoSelecionado = useMemo(() => periodoExtrato(mes, ano), [mes, ano]);
 
   const lancamentosFiltrados = useMemo(() => {
     const termo = busca.trim().toLowerCase();
@@ -477,7 +497,7 @@ export function VisualizacaoClienteReceberModal({
 
   const extratoDados = useMemo(() => {
     if (!cliente) return { linhas: [] as LinhaExtratoIndividualComSaldo[], resumo: null };
-    const { inicio, fim } = periodoMesAno(mes, ano);
+    const { inicio, fim } = periodoSelecionado;
     return montarExtratoIndividual(
       cliente.lancamentos as LancamentoContasReceber[],
       trabalhosCliente,
@@ -488,12 +508,28 @@ export function VisualizacaoClienteReceberModal({
         clienteId: cliente.clienteId,
       }
     );
-  }, [cliente, trabalhosCliente, mes, ano]);
+  }, [cliente, trabalhosCliente, periodoSelecionado]);
+
+  const saldoAnteriorExtrato = extratoDados.resumo?.saldoAnterior ?? 0;
 
   const extratoLinhas = useMemo(() => {
     const termo = buscaExtrato.trim().toLowerCase();
-    return extratoDados.linhas.filter((linha) => {
+    const filtradas = extratoDados.linhas.filter((linha) => {
       if (linha.tipo === "saldo_anterior") return false;
+      const ehRecebimento =
+        linha.tipo === "pagamento" || linha.tipo === "desconto";
+      if (situacaoFaturasExtrato === "somente_servicos" && ehRecebimento) {
+        return false;
+      }
+      if (situacaoRecebimentosExtrato === "somente_recebimentos" && !ehRecebimento) {
+        return false;
+      }
+      if (situacaoFaturasExtrato === "ocultar_servicos" && !ehRecebimento) {
+        return false;
+      }
+      if (situacaoRecebimentosExtrato === "ocultar_recebimentos" && ehRecebimento) {
+        return false;
+      }
       if (!termo) return true;
       const texto = [
         linha.dataFatura,
@@ -507,10 +543,25 @@ export function VisualizacaoClienteReceberModal({
         .toLowerCase();
       return texto.includes(termo);
     });
-  }, [extratoDados.linhas, buscaExtrato]);
 
-  const saldoAnteriorExtrato = extratoDados.resumo?.saldoAnterior ?? 0;
-  const saldoFinalExtrato = extratoDados.resumo?.saldoTotal ?? 0;
+    // Recalcula saldo corrido após filtros de situação/busca.
+    let saldo = saldoAnteriorExtrato;
+    return filtradas.map((linha) => {
+      saldo += linha.subtotal;
+      return { ...linha, saldo };
+    });
+  }, [
+    extratoDados.linhas,
+    buscaExtrato,
+    situacaoFaturasExtrato,
+    situacaoRecebimentosExtrato,
+    saldoAnteriorExtrato,
+  ]);
+
+  const saldoFinalExtrato =
+    extratoLinhas.length > 0
+      ? extratoLinhas[extratoLinhas.length - 1]!.saldo
+      : saldoAnteriorExtrato;
 
   const totalRecebimentosMes = useMemo(
     () => recebimentosVisiveis.reduce((s, l) => s + l.valor, 0),
@@ -519,11 +570,11 @@ export function VisualizacaoClienteReceberModal({
 
   const totalLinhaAReceber = cliente?.aReceber ?? 0;
   const adiantamentosCliente = cliente?.adiantamentos ?? 0;
-  const mesLabel = MESES[mes];
+  const mesLabel = mes === "todos" ? "Todos" : MESES[mes];
   const chaveCliente = cliente?.clienteId ?? cliente?.nome ?? "";
 
   function opcoesExtratoModalPdf() {
-    const { inicio, fim } = periodoMesAno(mes, ano);
+    const { inicio, fim } = periodoSelecionado;
     return {
       periodoAtivo: true,
       dataInicio: inicio.toLocaleDateString("pt-BR"),
@@ -596,7 +647,7 @@ export function VisualizacaoClienteReceberModal({
 
   function exportarExtratoExcel() {
     if (!cliente) return;
-    const { inicio, fim } = periodoMesAno(mes, ano);
+    const { inicio, fim } = periodoSelecionado;
     exportarExtratoRelatorioExcel(
       modeloExtratoRelatorio(),
       cliente.lancamentos as LancamentoContasReceber[],
@@ -637,7 +688,14 @@ export function VisualizacaoClienteReceberModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="shrink-0 border-b border-[#e5e7eb] bg-[#f9fafb] px-4 py-3">
-          <div className="grid grid-cols-[1fr_1fr_1fr_1fr_auto] items-end gap-3">
+          <div
+            className={cn(
+              "grid items-end gap-3",
+              aba === "extrato"
+                ? "grid-cols-[1.2fr_1fr_1fr_1fr_auto_auto]"
+                : "grid-cols-[1fr_1fr_1fr_1fr_auto]"
+            )}
+          >
             <div>
               <SelectPesquisavel
                 label="Cliente"
@@ -660,10 +718,14 @@ export function VisualizacaoClienteReceberModal({
               <label className={labelClass}>Período</label>
               <div className="flex gap-1.5">
                 <select
-                  value={mes}
-                  onChange={(e) => setMes(Number(e.target.value))}
+                  value={mes === "todos" ? "todos" : String(mes)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setMes(v === "todos" ? "todos" : Number(v));
+                  }}
                   className={cn(selectClass, "flex-1")}
                 >
+                  <option value="todos">Todos</option>
                   {MESES.map((nome, i) => (
                     <option key={nome} value={i}>
                       {nome}
@@ -683,36 +745,74 @@ export function VisualizacaoClienteReceberModal({
                 </select>
               </div>
             </div>
-            <div>
-              <label className={labelClass}>Condições</label>
-              <select
-                value={formaPagamento}
-                onChange={(e) => setFormaPagamento(e.target.value)}
-                className={selectClass}
-              >
-                <option value="todos">Forma Pagamento</option>
-                {formasDisponiveis
-                  .filter((f) => f !== "todos")
-                  .map((f) => (
-                    <option key={f} value={f}>
-                      {f}
-                    </option>
-                  ))}
-              </select>
-            </div>
-            <div>
-              <label className={labelClass}>Situação</label>
-              <select
-                value={situacao}
-                onChange={(e) => setSituacao(e.target.value)}
-                className={selectClass}
-              >
-                <option value="a_receber">A Receber</option>
-                <option value="recebidas">Recebidas</option>
-                <option value="atraso">Em atraso</option>
-                <option value="todos">Mostrar todos</option>
-              </select>
-            </div>
+            {aba === "extrato" ? (
+              <>
+                <div>
+                  <label className={labelClass}>Situação Faturas</label>
+                  <select
+                    value={situacaoFaturasExtrato}
+                    onChange={(e) => setSituacaoFaturasExtrato(e.target.value)}
+                    className={selectClass}
+                  >
+                    <option value="todos">Todos</option>
+                    <option value="somente_servicos">Somente serviços</option>
+                    <option value="ocultar_servicos">Ocultar serviços</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={labelClass}>Situação Recebimentos</label>
+                  <select
+                    value={situacaoRecebimentosExtrato}
+                    onChange={(e) => setSituacaoRecebimentosExtrato(e.target.value)}
+                    className={selectClass}
+                  >
+                    <option value="todos">Todos</option>
+                    <option value="somente_recebimentos">Somente recebimentos</option>
+                    <option value="ocultar_recebimentos">Ocultar recebimentos</option>
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void onRecarregarDados?.()}
+                  className="mb-0.5 h-[32px] rounded-sm bg-[#4a90d9] px-5 text-[12px] font-semibold text-white hover:bg-[#3a7bc8]"
+                >
+                  Extrato
+                </button>
+              </>
+            ) : (
+              <>
+                <div>
+                  <label className={labelClass}>Condições</label>
+                  <select
+                    value={formaPagamento}
+                    onChange={(e) => setFormaPagamento(e.target.value)}
+                    className={selectClass}
+                  >
+                    <option value="todos">Forma Pagamento</option>
+                    {formasDisponiveis
+                      .filter((f) => f !== "todos")
+                      .map((f) => (
+                        <option key={f} value={f}>
+                          {f}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelClass}>Situação</label>
+                  <select
+                    value={situacao}
+                    onChange={(e) => setSituacao(e.target.value)}
+                    className={selectClass}
+                  >
+                    <option value="a_receber">A Receber</option>
+                    <option value="recebidas">Recebidas</option>
+                    <option value="atraso">Em atraso</option>
+                    <option value="todos">Mostrar todos</option>
+                  </select>
+                </div>
+              </>
+            )}
             <button
               type="button"
               onClick={onClose}
@@ -735,7 +835,10 @@ export function VisualizacaoClienteReceberModal({
             <div key={id} className="flex items-center justify-center">
               <button
                 type="button"
-                onClick={() => setAba(id)}
+                onClick={() => {
+                  setAba(id);
+                  if (id === "extrato") setMes("todos");
+                }}
                 className={cn(
                   "min-w-[7rem] text-center text-[13px] font-medium transition",
                   aba === id
@@ -1076,6 +1179,9 @@ export function VisualizacaoClienteReceberModal({
 
           {aba === "extrato" && (
             <div className="overflow-x-auto border border-[#c5c9cf] bg-white">
+              <div className="flex items-center justify-end bg-[#3b3b4f] px-3 py-2 text-[11px] font-semibold text-white">
+                SALDO ANTERIOR: R$ {money(saldoAnteriorExtrato)}
+              </div>
               <table className="w-full min-w-[980px] border-collapse text-[11px]">
                 <thead>
                   <tr>
@@ -1087,12 +1193,7 @@ export function VisualizacaoClienteReceberModal({
                     <th className={thExtratoClass}>Paciente</th>
                     <th className={thExtratoClass}>Num Dente</th>
                     <th className={cn(thExtratoClass, "text-right")}>Valor</th>
-                    <th className={cn(thExtratoClass, "text-right")}>
-                      <div className="text-[9px] font-normal normal-case opacity-90">
-                        Saldo Anterior: R$ {money(saldoAnteriorExtrato)}
-                      </div>
-                      <div>Saldo</div>
-                    </th>
+                    <th className={cn(thExtratoClass, "text-right")}>Saldo</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1102,7 +1203,9 @@ export function VisualizacaoClienteReceberModal({
                         colSpan={9}
                         className="px-3 py-10 text-center text-[#9ca3af]"
                       >
-                        Nenhuma movimentação encontrada para o período selecionado.
+                        {mes === "todos"
+                          ? `Nenhuma movimentação encontrada em ${ano}.`
+                          : "Nenhuma movimentação encontrada para o período selecionado."}
                       </td>
                     </tr>
                   ) : (
@@ -1112,17 +1215,36 @@ export function VisualizacaoClienteReceberModal({
                       const valor =
                         pagamento ? -Math.abs(linha.subtotal) : linha.subtotal;
                       const cor = pagamento ? "text-[#dc2626]" : "text-[#2563eb]";
+                      const faturaLanc = linha.numFatura
+                        ? cliente.lancamentos.find(
+                            (l) =>
+                              isFaturaContasReceber(l) &&
+                              String(numeroFatura(l)) === String(linha.numFatura)
+                          )
+                        : undefined;
                       return (
                         <tr
-                          key={`${linha.tipo}-${linha.dataFatura}-${linha.os}-${linha.servico}-${linha.saldo}`}
+                          key={`${linha.tipo}-${linha.dataFatura}-${linha.os}-${linha.servico}-${idx}`}
                           className={idx % 2 === 0 ? "bg-white" : "bg-[#f5f5f5]"}
                         >
                           <td className={cn("px-2.5 py-2", cor)}>{linha.dataFatura}</td>
                           <td className={cn("px-2.5 py-2", pagamento ? "text-[#374151]" : cor)}>
-                            {linha.numFatura}
+                            {linha.numFatura && faturaLanc ? (
+                              <button
+                                type="button"
+                                onClick={() => onVisualizarFatura(faturaLanc)}
+                                className="font-medium text-[#2563eb] hover:underline"
+                              >
+                                {linha.numFatura}
+                              </button>
+                            ) : (
+                              linha.numFatura
+                            )}
                           </td>
                           <td className={cn("px-2.5 py-2", pagamento ? "text-[#374151]" : cor)}>
-                            {linha.os}
+                            {linha.os ? (
+                              <span className="font-medium text-[#2563eb]">{linha.os}</span>
+                            ) : null}
                           </td>
                           <td className={cn("px-2.5 py-2", cor)}>
                             {descricaoExtratoModal(linha)}
@@ -1157,7 +1279,7 @@ export function VisualizacaoClienteReceberModal({
                     <tr className="bg-[#3b3b4f] text-white">
                       <td colSpan={8} />
                       <td className="px-2.5 py-2.5 text-right text-[12px] font-bold tabular-nums">
-                        Saldo: R$ {money(saldoFinalExtrato)}
+                        Saldo R$ {money(saldoFinalExtrato)}
                       </td>
                     </tr>
                   </tfoot>
