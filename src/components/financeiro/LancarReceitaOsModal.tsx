@@ -903,7 +903,7 @@ export function LancarReceitaOsModal({
                 <ToggleSmart
                   checked={enviarControleEntrega}
                   onChange={setEnviarControleEntrega}
-                  label="Enviar Contas Originais"
+                  label="Enviar para Controle de Entregas"
                 />
               </div>
             </div>
