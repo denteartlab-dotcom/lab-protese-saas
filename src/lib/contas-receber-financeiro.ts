@@ -125,7 +125,7 @@ export function lancamentoReceitaNoPeriodo(
   return true;
 }
 
-function valorRecebidoCashNaFaturaPaga(
+export function valorRecebidoCashNaFaturaPaga(
   lancamento: LancamentoContasReceber,
   lancamentos: LancamentoContasReceber[]
 ) {
@@ -182,6 +182,37 @@ export function descricaoFaturaVinculadaAoPagamento(descricao: string) {
   const creditoLegado = base.match(/^crédito utilizado\s*-\s*(.+)$/i);
   if (creditoLegado) return creditoLegado[1].trim();
   return null;
+}
+
+/** Observação curta na aba Recebimentos (sem @@CAP@@ / JSON / nomes longos). */
+export function observacaoRecebimentoCurta(descricao: string) {
+  let base = descricaoReceitaSemMeta(descricao);
+  const cap = base.search(/\s*@@CAP@@/i);
+  if (cap >= 0) base = base.slice(0, cap);
+  const rsg = base.search(/\s*@@RSG@@/i);
+  if (rsg >= 0) base = base.slice(0, rsg);
+  base = base
+    .replace(/\s*@@[^@]+@@\s*/g, " ")
+    .replace(/\s*\{[^{}]*\}\s*/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+  if (/^recebimento parcial/i.test(base)) {
+    const os = base.match(/OS\s*([\d,\s]+)/i);
+    return os ? `Pagamento parcial — OS ${os[1]!.trim()}` : "Pagamento parcial";
+  }
+  if (/^adiantamento/i.test(base) || /cr[eé]dito cliente/i.test(base)) {
+    return "Adiantamento / crédito";
+  }
+  if (/desconto com cr[eé]dito|cr[eé]dito utilizado/i.test(base)) {
+    const os = base.match(/OS\s*([\d,\s]+)/i);
+    return os ? `Abatimento de crédito — OS ${os[1]!.trim()}` : "Abatimento de crédito";
+  }
+  if (/^cobran[cç]a\s+os/i.test(base)) {
+    const os = base.match(/OS\s*([\d,\s]+)/i);
+    return os ? `Pagamento — OS ${os[1]!.trim()}` : "Pagamento da fatura";
+  }
+  return base.split("\n")[0]?.trim() || "Recebimento";
 }
 
 export function localizarFaturaPorDescricao(

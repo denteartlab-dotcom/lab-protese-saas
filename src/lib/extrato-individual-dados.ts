@@ -3,16 +3,19 @@ import {
   numerosOsDoLancamentoFatura,
 } from "@/lib/os-faturamento";
 import {
-  chaveAgrupamentoFatura,
   filtrarTrabalhosCliente,
   itensDoTrabalho,
   trabalhosDaFaturaParaExtrato,
+  chaveAgrupamentoFatura,
   type TrabalhoRelatorioFatura,
 } from "@/lib/relatorio-faturas-modelo3-dados";
 import {
   isCreditoGerado,
   isCreditoUtilizado,
+  isRecebimentoParcial,
   numeroFaturaDeLancamento,
+  observacaoRecebimentoCurta,
+  valorRecebidoCashNaFaturaPaga,
   type LancamentoContasReceber,
 } from "@/lib/contas-receber-financeiro";
 import { desempacotarDespesa } from "@/lib/lancamento-despesa";
@@ -92,13 +95,45 @@ function dataFaturaLancamento(l: LancamentoContasReceber) {
 }
 
 function textoPagamento(l: LancamentoContasReceber) {
-  const forma = (l.formaPagamento || "Externo").trim();
-  if (forma.toLowerCase().includes("pix")) return "Pagamento (Pix Externo)";
-  return `Pagamento (${forma})`;
+  const forma = (l.formaPagamento || "").trim();
+  if (!forma) return "Recebimento";
+  if (forma.toLowerCase().includes("pix")) {
+    if (forma.toLowerCase().includes("interno")) return "Recebimento Pix Interno";
+    if (forma.toLowerCase().includes("externo")) return "Recebimento Pix Externo";
+    return `Recebimento ${forma}`;
+  }
+  if (/abatimento|cr[eé]dito/i.test(forma)) return "Abatimento de crédito";
+  return `Recebimento ${forma}`;
 }
 
 function ehReceitaOs(l: LancamentoContasReceber) {
   return ehDescricaoReceitaOs(descricaoBaseReceita(l));
+}
+
+function pushPagamentoExtrato(
+  linhas: LinhaExtratoIndividual[],
+  l: LancamentoContasReceber,
+  valor: number,
+  periodoCampo: "data_lancamento" | "vencimento",
+  servico?: string
+) {
+  if (valor <= 0.009) return;
+  linhas.push({
+    tipo: "pagamento",
+    dataFatura: formatDate(l.data),
+    dataOrdem: dateOnly(l.data),
+    dataOrdemPeriodo: dataRefLancamento(l, periodoCampo),
+    numFatura: "",
+    os: "",
+    servico: servico || textoPagamento(l),
+    qtd: "",
+    paciente: "",
+    numDente: "",
+    dataEntrega: "",
+    valorUn: 0,
+    desconto: 0,
+    subtotal: -Math.abs(valor),
+  });
 }
 
 function lancamentoSemTrabalhosValidos(
@@ -214,48 +249,23 @@ export function montarExtratoIndividual(
   }
 
   const gruposItensProcessados = new Set<string>();
+  const pagamentosFaturaProcessados = new Set<string>();
   const linhasBrutas: LinhaExtratoIndividual[] = [];
 
   for (const l of receitas) {
     if (isCreditoGerado(l)) continue;
 
-    if (lancamentoSemTrabalhosValidos(l, trabalhosCliente, receitas)) {
-      continue;
-    }
-
+    // Abatimento / parcial: só como saída (nunca como serviço).
     if (isCreditoUtilizado(l)) {
-      const { texto, ordem } = dataFaturaLancamento(l);
       const valor = valorNumerico(l.valor);
       linhasBrutas.push({
         tipo: "desconto",
-        dataFatura: texto,
-        dataOrdem: ordem,
-        dataOrdemPeriodo: dataRefLancamento(l, periodoCampo),
-        numFatura: "",
-        os: "",
-        servico: "Desconto com crédito",
-        qtd: "",
-        paciente: "",
-        numDente: "",
-        dataEntrega: "",
-        valorUn: 0,
-        desconto: 0,
-        subtotal: -Math.abs(valor),
-      });
-      continue;
-    }
-
-    if (l.status === "pago") {
-      const valor = valorNumerico(l.valor);
-      const { texto, ordem } = dataFaturaLancamento(l);
-      linhasBrutas.push({
-        tipo: "pagamento",
         dataFatura: formatDate(l.data),
         dataOrdem: dateOnly(l.data),
         dataOrdemPeriodo: dataRefLancamento(l, periodoCampo),
         numFatura: "",
         os: "",
-        servico: textoPagamento(l),
+        servico: observacaoRecebimentoCurta(l.descricao),
         qtd: "",
         paciente: "",
         numDente: "",
@@ -264,10 +274,30 @@ export function montarExtratoIndividual(
         desconto: 0,
         subtotal: -Math.abs(valor),
       });
+      continue;
+    }
+
+    if (isRecebimentoParcial(l)) {
+      pushPagamentoExtrato(
+        linhasBrutas,
+        l,
+        valorNumerico(l.valor),
+        periodoCampo,
+        observacaoRecebimentoCurta(l.descricao)
+      );
+      continue;
+    }
+
+    if (lancamentoSemTrabalhosValidos(l, trabalhosCliente, receitas)) {
+      continue;
     }
 
     if (!ehReceitaOs(l)) {
-      if (l.status !== "pendente" && l.status !== "pago") continue;
+      if (l.status === "pago") {
+        pushPagamentoExtrato(linhasBrutas, l, valorNumerico(l.valor), periodoCampo);
+        continue;
+      }
+      if (l.status !== "pendente") continue;
       const { texto, ordem } = dataFaturaLancamento(l);
       const pack = desempacotarDespesa(l.descricao);
       const subtotal = valorNumerico(l.valor);
@@ -294,36 +324,50 @@ export function montarExtratoIndividual(
     }
 
     const chaveGrupo = chaveAgrupamentoFatura(l);
-    if (gruposItensProcessados.has(chaveGrupo)) continue;
-    gruposItensProcessados.add(chaveGrupo);
+    if (!gruposItensProcessados.has(chaveGrupo)) {
+      gruposItensProcessados.add(chaveGrupo);
 
-    const { texto, ordem } = dataFaturaLancamento(l);
-    const dataOrdemPeriodo = dataRefLancamento(l, periodoCampo);
-    const numFat = String(
-      faturaPorGrupo.get(chaveGrupo) ?? numerosFatura.get(l.id) ?? ""
-    );
-    const relacionados = trabalhosDaFaturaParaExtrato(l, trabalhosCliente, receitas);
-    if (relacionados.length === 0) continue;
-
-    for (const t of relacionados) {
-      for (const item of itensDoTrabalho(t)) {
-        linhasBrutas.push({
-          tipo: "servico",
-          dataFatura: texto,
-          dataOrdem: ordem,
-          dataOrdemPeriodo,
-          numFatura: numFat,
-          os: numeroOsExtrato(item.os),
-          servico: descricaoServicoExtrato(item.descricao),
-          qtd: item.qtd,
-          paciente: item.paciente || "—",
-          numDente: item.numDente && item.numDente !== "—" ? item.numDente : "",
-          dataEntrega: dataEntregaTrabalho(t),
-          valorUn: item.valorUn,
-          desconto: descontoItem(item.qtd, item.valorUn, item.subtotal),
-          subtotal: item.subtotal,
-        });
+      const { texto, ordem } = dataFaturaLancamento(l);
+      const dataOrdemPeriodo = dataRefLancamento(l, periodoCampo);
+      const numFat = String(
+        faturaPorGrupo.get(chaveGrupo) ?? numerosFatura.get(l.id) ?? ""
+      );
+      const relacionados = trabalhosDaFaturaParaExtrato(l, trabalhosCliente, receitas);
+      if (relacionados.length > 0) {
+        for (const t of relacionados) {
+          for (const item of itensDoTrabalho(t)) {
+            linhasBrutas.push({
+              tipo: "servico",
+              dataFatura: texto,
+              dataOrdem: ordem,
+              dataOrdemPeriodo,
+              numFatura: numFat,
+              os: numeroOsExtrato(item.os),
+              servico: descricaoServicoExtrato(item.descricao),
+              qtd: item.qtd,
+              paciente: item.paciente || "—",
+              numDente: item.numDente && item.numDente !== "—" ? item.numDente : "",
+              dataEntrega: dataEntregaTrabalho(t),
+              valorUn: item.valorUn,
+              desconto: descontoItem(item.qtd, item.valorUn, item.subtotal),
+              subtotal: item.subtotal,
+            });
+          }
+        }
       }
+    }
+
+    // Pagamento residual da fatura (sem duplicar parcial/crédito já lançados).
+    if (l.status === "pago" && !pagamentosFaturaProcessados.has(l.id)) {
+      pagamentosFaturaProcessados.add(l.id);
+      const cash = valorRecebidoCashNaFaturaPaga(l, receitas);
+      pushPagamentoExtrato(
+        linhasBrutas,
+        l,
+        cash,
+        periodoCampo,
+        observacaoRecebimentoCurta(l.descricao)
+      );
     }
   }
 

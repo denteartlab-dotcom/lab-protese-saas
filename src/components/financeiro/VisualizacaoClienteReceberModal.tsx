@@ -23,6 +23,12 @@ import {
   montarExtratoIndividual,
   type LinhaExtratoIndividualComSaldo,
 } from "@/lib/extrato-individual-dados";
+import {
+  isCreditoUtilizado,
+  observacaoRecebimentoCurta,
+  recebimentosHistoricoCliente,
+  valorHistoricoRecebimentoCliente,
+} from "@/lib/contas-receber-financeiro";
 import { parseParcelaNaDescricao } from "@/lib/fatura-financeiro-util";
 import { prepararAbaPdf } from "@/lib/pdf-viewer";
 import { abrirPdfBlobGerandoNoVisualizadorUnificado } from "@/lib/pdf-viewer-unificado";
@@ -155,11 +161,14 @@ function observacaoLinha(descricao: string) {
 }
 
 function observacaoRecebimento(descricao: string) {
-  const obs = observacaoLinha(descricao);
-  if (obs) return obs;
-  const texto = descricao.replace(/@@trab:[a-zA-Z0-9_,-]+@@/g, "").trim();
-  if (texto.toLowerCase().startsWith("cobrança os")) return "";
-  return texto;
+  return observacaoRecebimentoCurta(descricao);
+}
+
+function descricaoExtratoModal(linha: LinhaExtratoIndividualComSaldo) {
+  if (linha.tipo === "pagamento" || linha.tipo === "desconto") {
+    return linha.servico || "Recebimento";
+  }
+  return linha.servico;
 }
 
 function parseDataMesAno(iso: string) {
@@ -241,20 +250,6 @@ function badgeFormaPagamento(forma: string | null | undefined) {
       {forma}
     </span>
   );
-}
-
-function descricaoExtratoModal(linha: LinhaExtratoIndividualComSaldo) {
-  if (linha.tipo === "pagamento" || linha.tipo === "desconto") {
-    const forma = (linha.servico || "")
-      .replace(/^Pagamento\s*/i, "")
-      .replace(/[()]/g, "")
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, "_")
-      .replace(/^pix/, "px");
-    return `Recebimento ${forma || "externo"}`;
-  }
-  return linha.servico;
 }
 
 function badgeSituacaoFatura(
@@ -452,14 +447,34 @@ export function VisualizacaoClienteReceberModal({
     [lancamentosFiltrados, isFaturaContasReceber]
   );
 
-  const recebimentosVisiveis = useMemo(
+  const recebimentosVisiveis = useMemo(() => {
+    if (!cliente) return [];
+    const idsPeriodo = new Set(lancamentosMes.map((l) => l.id));
+    const historico = cliente.clienteId
+      ? recebimentosHistoricoCliente(
+          cliente.clienteId,
+          cliente.lancamentos as LancamentoContasReceber[]
+        )
+      : (cliente.lancamentos as LancamentoContasReceber[]).filter(
+          (l) =>
+            l.status === "pago" &&
+            !isCreditoUtilizado(l)
+        );
+
+    return historico.filter((l) => idsPeriodo.has(l.id));
+  }, [cliente, lancamentosMes]);
+
+  const totalRecebimentosMes = useMemo(
     () =>
-      lancamentosMes.filter(
-        (l) =>
-          l.status === "pago" &&
-          !l.descricao.toLowerCase().includes("crédito utilizado")
-      ),
-    [lancamentosMes]
+      recebimentosVisiveis.reduce((s, l) => {
+        const valor = valorHistoricoRecebimentoCliente(
+          l as LancamentoContasReceber,
+          (cliente?.lancamentos ?? []) as LancamentoContasReceber[]
+        );
+        // Total de recebimentos em dinheiro: ignora abatimento de crédito (negativo).
+        return s + Math.max(0, valor);
+      }, 0),
+    [recebimentosVisiveis, cliente?.lancamentos]
   );
 
   const totalAReceber = useMemo(
@@ -563,11 +578,6 @@ export function VisualizacaoClienteReceberModal({
       ? extratoLinhas[extratoLinhas.length - 1]!.saldo
       : saldoAnteriorExtrato;
 
-  const totalRecebimentosMes = useMemo(
-    () => recebimentosVisiveis.reduce((s, l) => s + l.valor, 0),
-    [recebimentosVisiveis]
-  );
-
   const totalLinhaAReceber = cliente?.aReceber ?? 0;
   const adiantamentosCliente = cliente?.adiantamentos ?? 0;
   const mesLabel = mes === "todos" ? "Todos" : MESES[mes];
@@ -669,7 +679,12 @@ export function VisualizacaoClienteReceberModal({
       recebimentosVisiveis.map((l) => [
         formatDate(l.data),
         l.formaPagamento || "",
-        l.valor,
+        Math.abs(
+          valorHistoricoRecebimentoCliente(
+            l as LancamentoContasReceber,
+            (cliente?.lancamentos ?? []) as LancamentoContasReceber[]
+          )
+        ),
         observacaoRecebimento(l.descricao),
       ])
     );
@@ -1151,7 +1166,14 @@ export function VisualizacaoClienteReceberModal({
                       </td>
                     </tr>
                   ) : (
-                    recebimentosVisiveis.map((l) => (
+                    recebimentosVisiveis.map((l) => {
+                      const valorExibido = Math.abs(
+                        valorHistoricoRecebimentoCliente(
+                          l as LancamentoContasReceber,
+                          (cliente?.lancamentos ?? []) as LancamentoContasReceber[]
+                        )
+                      );
+                      return (
                       <tr
                         key={l.id}
                         className="cursor-pointer bg-white hover:bg-[#fafafa]"
@@ -1164,13 +1186,14 @@ export function VisualizacaoClienteReceberModal({
                           {badgeFormaPagamento(l.formaPagamento)}
                         </td>
                         <td className="border-b border-[#f0f0f0] px-4 py-2.5 text-right text-[11px] tabular-nums text-[#374151]">
-                          {money(l.valor)}
+                          {money(valorExibido)}
                         </td>
                         <td className="border-b border-[#f0f0f0] px-4 py-2.5 text-[11px] text-[#6b7280]">
                           {observacaoRecebimento(l.descricao)}
                         </td>
                       </tr>
-                    ))
+                      );
+                    })
                   )}
                 </tbody>
               </table>
