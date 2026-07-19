@@ -691,49 +691,60 @@ export function LancarReceitaOsModal({
 
           {!semOs ? (
             <div className="mt-4 overflow-hidden rounded-sm border border-[#e5e7eb]">
-              {!form.clienteId || !form.situacaoOs ? (
-                <p className="px-4 py-10 text-center text-[13px] text-[#9ca3af]">
-                  Selecione um cliente e uma situação para listar as OS.
-                </p>
-              ) : trabalhosParaReceita.length === 0 ? (
-                <p className="px-4 py-10 text-center text-[13px] text-[#9ca3af]">
-                  Nenhuma OS encontrada para este cliente e situação.
-                </p>
-              ) : (
-                <div className="max-h-[280px] overflow-auto">
-                  <table className="w-full min-w-[980px] border-collapse text-[12px]">
-                    <thead className="sticky top-0 z-[1]">
-                      <tr className="bg-[#f3f4f6] text-[11px] font-semibold uppercase text-[#6b7280]">
-                        <th className="w-16 px-2 py-2.5 text-left">
-                          <div className="flex items-center gap-1.5">
-                            <input
-                              type="checkbox"
-                              checked={todasReceitaSelecionadas}
-                              ref={(el) => {
-                                if (el) {
-                                  el.indeterminate =
-                                    algumasReceitaSelecionadas && !todasReceitaSelecionadas;
-                                }
-                              }}
-                              onChange={toggleSelecionarTodasReceita}
-                              className="h-4 w-4 accent-[#4a90d9]"
-                            />
-                            <span>Todos</span>
-                          </div>
-                        </th>
-                        <th className="px-2 py-2.5 text-left">OS</th>
-                        <th className="px-2 py-2.5 text-left">Entregue</th>
-                        <th className="px-2 py-2.5 text-left">Qtd</th>
-                        <th className="px-2 py-2.5 text-left">Serviço/Produto</th>
-                        <th className="px-2 py-2.5 text-left">Dentista</th>
-                        <th className="px-2 py-2.5 text-left">Paciente</th>
-                        <th className="px-2 py-2.5 text-right">Valor</th>
-                        <th className="px-2 py-2.5 text-left">Situação</th>
-                        <th className="w-12 px-2 py-2.5 text-center">Opções</th>
+              <div className="max-h-[280px] overflow-auto">
+                <table className="w-full min-w-[980px] border-collapse text-[12px]">
+                  <thead className="sticky top-0 z-[1]">
+                    <tr className="bg-[#f3f4f6] text-[11px] font-semibold uppercase text-[#6b7280]">
+                      <th className="w-16 px-2 py-2.5 text-left">
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="checkbox"
+                            checked={todasReceitaSelecionadas}
+                            disabled={!form.clienteId || !form.situacaoOs || trabalhosParaReceita.length === 0}
+                            ref={(el) => {
+                              if (el) {
+                                el.indeterminate =
+                                  algumasReceitaSelecionadas && !todasReceitaSelecionadas;
+                              }
+                            }}
+                            onChange={toggleSelecionarTodasReceita}
+                            className="h-4 w-4 accent-[#4a90d9] disabled:opacity-40"
+                          />
+                          <span>Todos</span>
+                        </div>
+                      </th>
+                      <th className="px-2 py-2.5 text-left">OS</th>
+                      <th className="px-2 py-2.5 text-left">Entregue</th>
+                      <th className="px-2 py-2.5 text-left">Qtd</th>
+                      <th className="px-2 py-2.5 text-left">Serviço/Produto</th>
+                      <th className="px-2 py-2.5 text-left">Dentista</th>
+                      <th className="px-2 py-2.5 text-left">Paciente</th>
+                      <th className="px-2 py-2.5 text-right">Valor</th>
+                      <th className="px-2 py-2.5 text-left">Situação</th>
+                      <th className="w-12 px-2 py-2.5 text-center">Opções</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {!form.clienteId || !form.situacaoOs ? (
+                      <tr>
+                        <td
+                          colSpan={10}
+                          className="px-4 py-10 text-center text-[13px] text-[#9ca3af]"
+                        >
+                          Selecione um cliente e uma situação para listar as OS.
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {trabalhosParaReceita.map((trabalho) => {
+                    ) : trabalhosParaReceita.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={10}
+                          className="px-4 py-10 text-center text-[13px] text-[#9ca3af]"
+                        >
+                          Nenhuma OS encontrada para este cliente e situação.
+                        </td>
+                      </tr>
+                    ) : (
+                      trabalhosParaReceita.map((trabalho) => {
                         const selecionada = osSelecionadas.includes(trabalho.id);
                         const expandida = osExpandidaId === trabalho.id;
                         const det = detalhesLinhaReceitaOs(trabalho, money);
@@ -859,11 +870,11 @@ export function LancarReceitaOsModal({
                             ) : null}
                           </Fragment>
                         );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           ) : null}
 
