@@ -155,9 +155,12 @@ type Trabalho = {
   valor: number;
   dentes?: string | null;
   cor?: string | null;
+  material?: string | null;
+  observacoes?: string | null;
   instrucoes?: string | null;
   dataPrevista?: string | null;
   dataEntrega?: string | null;
+  dataEntrada?: string | null;
   updatedAt?: string | null;
   cliente?: { id?: string; nome?: string | null; cro?: string | null } | null;
   paciente?: { nome?: string | null } | null;

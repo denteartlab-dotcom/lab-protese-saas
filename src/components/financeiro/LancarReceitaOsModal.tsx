@@ -1,9 +1,9 @@
 "use client";
 
 import { I18nPortal } from "@/components/I18nPortal";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Barcode, Minus, Plus, X } from "lucide-react";
+import { Barcode, Eye, Minus, Plus, X } from "lucide-react";
 import { CampoDataBr } from "@/components/campo-data-br";
 import { SelectPesquisavel } from "@/components/SelectPesquisavel";
 import { PlanoContasCategoriaSelect } from "@/components/financeiro/PlanoContasCategoriaSelect";
@@ -27,6 +27,9 @@ import {
   carregarConfiguracoesGerais,
   CONFIG_GERAIS_ATUALIZADA_EVENT,
 } from "@/lib/configuracoes-gerais";
+import { osExternaAgenda } from "@/lib/agenda-producao-grupo";
+import { prazoFromInstructions, prazoTrabalho } from "@/lib/controle-producao-prazos";
+import { itensDoTrabalho } from "@/lib/relatorio-faturas-modelo3-dados";
 
 export type LancarReceitaOsForm = {
   tipo: string;
@@ -55,9 +58,92 @@ export type LancarReceitaOsForm = {
 };
 
 type TrabalhoReceita = TrabalhoSituacaoBadge & {
-  cliente?: { nome?: string | null } | null;
+  valor?: number;
+  dentes?: string | null;
+  cor?: string | null;
+  material?: string | null;
+  observacoes?: string | null;
+  dataPrevista?: string | null;
+  dataEntrega?: string | null;
+  dataEntrada?: string | null;
+  updatedAt?: string | null;
+  cliente?: { id?: string; nome?: string | null; cro?: string | null } | null;
   paciente?: { nome?: string | null } | null;
 };
+
+function formatarDataBrCurta(value?: string | Date | null): string {
+  if (!value) return "";
+  if (typeof value === "string") {
+    if (/^\d{2}\/\d{2}\/\d{4}/.test(value)) return value.slice(0, 10);
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) return `${match[3]}/${match[2]}/${match[1]}`;
+  }
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("pt-BR");
+}
+
+function materialEnviadoDentista(trabalho: TrabalhoReceita) {
+  if (trabalho.material?.trim()) return trabalho.material.trim();
+  const linha = (trabalho.instrucoes || "")
+    .split("\n")
+    .map((l) => l.trim())
+    .find((l) => /^material enviado/i.test(l));
+  return (
+    linha?.replace(/^material enviado(?: pelo dentista)?:\s*/i, "").trim() || ""
+  );
+}
+
+function detalhesLinhaReceitaOs(trabalho: TrabalhoReceita, money: (n: number) => string) {
+  const itens = itensDoTrabalho(trabalho);
+  const item = itens[0];
+  const qtd = itens.reduce((sum, i) => sum + (Number(String(i.qtd).replace(",", ".")) || 0), 0) || 1;
+  const total = itens.reduce((sum, i) => sum + i.subtotal, 0);
+  const valorUnitario = item?.valorUn ?? total / Math.max(qtd, 1);
+  const desconto = item?.descPercent?.trim() || "0,00";
+  const descontoFmt = desconto.includes("%") ? desconto : `% ${desconto}`;
+
+  const prazoLab =
+    prazoTrabalho(
+      {
+        status: trabalho.status,
+        dataEntrada: trabalho.dataEntrada || trabalho.dataPrevista || new Date().toISOString(),
+        dataPrevista: trabalho.dataPrevista,
+        instrucoes: trabalho.instrucoes,
+      },
+      "lab"
+    ) || prazoFromInstructions(trabalho.instrucoes, "lab");
+
+  const prazoDentista =
+    prazoTrabalho(
+      {
+        status: trabalho.status,
+        dataEntrada: trabalho.dataEntrada || trabalho.dataPrevista || new Date().toISOString(),
+        dataPrevista: trabalho.dataPrevista,
+        instrucoes: trabalho.instrucoes,
+      },
+      "dentista"
+    ) || prazoFromInstructions(trabalho.instrucoes, "dentista");
+
+  return {
+    qtd: String(qtd),
+    servico: item?.descricao || trabalho.tipoProtese || "—",
+    dentista: trabalho.cliente?.nome?.trim() || item?.dentista || "",
+    paciente: trabalho.paciente?.nome?.trim() || item?.paciente || "",
+    entregue: formatarDataBrCurta(trabalho.dataEntrega),
+    osExterna: osExternaAgenda(trabalho.instrucoes),
+    prazoLab: prazoLab ? formatarDataBrCurta(prazoLab) : "",
+    prazoDentista: prazoDentista ? formatarDataBrCurta(prazoDentista) : "",
+    finalizado: formatarDataBrCurta(trabalho.dataEntrega || trabalho.updatedAt),
+    numDente: item?.numDente || trabalho.dentes || "",
+    corDente: trabalho.cor?.trim() || "",
+    valorUnitario: money(valorUnitario),
+    desconto: descontoFmt,
+    total: money(total),
+    material: materialEnviadoDentista(trabalho),
+    observacaoInterna: trabalho.observacoes?.trim() || "",
+  };
+}
 
 export type ParcelaLinhaReceita = {
   parcela: string;
@@ -244,6 +330,7 @@ export function LancarReceitaOsModal({
   );
   const [numParcelas, setNumParcelas] = useState(1);
   const [imprimirRecibo, setImprimirRecibo] = useState(false);
+  const [osExpandidaId, setOsExpandidaId] = useState<string | null>(null);
   const [parcelas, setParcelas] = useState<ParcelaLinhaReceita[]>([
     {
       parcela: "1/1",
@@ -313,6 +400,7 @@ export function LancarReceitaOsModal({
     setFeedbackCodigo(null);
     setNumParcelas(1);
     setImprimirRecibo(false);
+    setOsExpandidaId(null);
     const plano = carregarPlanoContas();
     const padrao =
       categoriaPadraoLancamento(plano, "receitas") || "Receitas de Serviços";
@@ -451,7 +539,7 @@ export function LancarReceitaOsModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="lancar-receita-os-titulo"
-        className="relative my-4 flex w-full max-w-[1080px] flex-col rounded-sm border border-[#e5e7eb] bg-white shadow-2xl"
+        className="relative my-4 flex w-full max-w-[1180px] flex-col rounded-sm border border-[#e5e7eb] bg-white shadow-2xl"
       >
         <div className="flex items-center justify-between border-b border-[#e5e7eb] px-5 py-3">
           <h2 id="lancar-receita-os-titulo" className="text-[15px] font-normal text-[#374151]">
@@ -490,7 +578,7 @@ export function LancarReceitaOsModal({
           <div className="mt-4 grid gap-3 md:grid-cols-4">
             <div>
               <SelectPesquisavel
-                label="Cliente"
+                label="Clientes"
                 value={form.clienteId}
                 onChange={(clienteId) => {
                   setForm((f) => ({ ...f, clienteId }));
@@ -559,7 +647,7 @@ export function LancarReceitaOsModal({
             <div className="flex min-w-[240px] flex-1 overflow-hidden rounded-sm border border-[#d1d5db]">
               <input
                 type="text"
-                placeholder="OS, serviço e paciente"
+                placeholder="O.S., serviço ou paciente"
                 value={form.descricao}
                 onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))}
                 className="min-w-0 flex-1 border-0 bg-white px-3 py-2 text-[13px] outline-none"
@@ -612,12 +700,12 @@ export function LancarReceitaOsModal({
                   Nenhuma OS encontrada para este cliente e situação.
                 </p>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[860px] border-collapse text-[12px]">
-                    <thead>
+                <div className="max-h-[280px] overflow-auto">
+                  <table className="w-full min-w-[980px] border-collapse text-[12px]">
+                    <thead className="sticky top-0 z-[1]">
                       <tr className="bg-[#f3f4f6] text-[11px] font-semibold uppercase text-[#6b7280]">
-                        <th className="px-3 py-2.5 text-left">
-                          <div className="flex items-center gap-2">
+                        <th className="w-16 px-2 py-2.5 text-left">
+                          <div className="flex items-center gap-1.5">
                             <input
                               type="checkbox"
                               checked={todasReceitaSelecionadas}
@@ -630,51 +718,150 @@ export function LancarReceitaOsModal({
                               onChange={toggleSelecionarTodasReceita}
                               className="h-4 w-4 accent-[#4a90d9]"
                             />
-                            <span>Selecionar</span>
+                            <span>Todos</span>
                           </div>
                         </th>
-                        <th className="px-3 py-2.5 text-left">OS</th>
-                        <th className="px-3 py-2.5 text-left">Cliente</th>
-                        <th className="px-3 py-2.5 text-left">Paciente</th>
-                        <th className="px-3 py-2.5 text-left">Serviço</th>
-                        <th className="px-3 py-2.5 text-left">Situação</th>
-                        <th className="px-3 py-2.5 text-right">Valor</th>
+                        <th className="px-2 py-2.5 text-left">OS</th>
+                        <th className="px-2 py-2.5 text-left">Entregue</th>
+                        <th className="px-2 py-2.5 text-left">Qtd</th>
+                        <th className="px-2 py-2.5 text-left">Serviço/Produto</th>
+                        <th className="px-2 py-2.5 text-left">Dentista</th>
+                        <th className="px-2 py-2.5 text-left">Paciente</th>
+                        <th className="px-2 py-2.5 text-right">Valor</th>
+                        <th className="px-2 py-2.5 text-left">Situação</th>
+                        <th className="w-12 px-2 py-2.5 text-center">Opções</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {trabalhosParaReceita.map((trabalho) => (
-                        <tr
-                          key={trabalho.id}
-                          className={cn(
-                            "border-t border-[#f3f4f6]",
-                            osSelecionadas.includes(trabalho.id) && "bg-[#eff6ff]"
-                          )}
-                        >
-                          <td className="px-3 py-2">
-                            <input
-                              type="checkbox"
-                              checked={osSelecionadas.includes(trabalho.id)}
-                              onChange={() => toggleOsReceita(trabalho.id)}
-                              className="h-4 w-4 accent-[#4a90d9]"
-                            />
-                          </td>
-                          <td className="px-3 py-2 font-medium text-[#374151]">
-                            {trabalho.numeroOs}
-                          </td>
-                          <td className="px-3 py-2">{trabalho.cliente?.nome || "—"}</td>
-                          <td className="px-3 py-2">{trabalho.paciente?.nome || "—"}</td>
-                          <td className="px-3 py-2">{trabalho.tipoProtese}</td>
-                          <td className="px-3 py-2">
-                            <SituacaoOsBadgeReceita trabalho={trabalho} />
-                          </td>
-                          <td className="px-3 py-2 text-right">{money(valorTrabalho(trabalho))}</td>
-                        </tr>
-                      ))}
+                      {trabalhosParaReceita.map((trabalho) => {
+                        const selecionada = osSelecionadas.includes(trabalho.id);
+                        const expandida = osExpandidaId === trabalho.id;
+                        const det = detalhesLinhaReceitaOs(trabalho, money);
+                        return (
+                          <Fragment key={trabalho.id}>
+                            <tr
+                              onClick={() => toggleOsReceita(trabalho.id)}
+                              className={cn(
+                                "cursor-pointer border-t border-[#e5e7eb] transition-colors",
+                                selecionada ? "bg-[#d4edda]" : "bg-white hover:bg-[#f9fafb]"
+                              )}
+                            >
+                              <td
+                                className="px-2 py-2"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selecionada}
+                                  onChange={() => toggleOsReceita(trabalho.id)}
+                                  className="h-4 w-4 accent-[#28a745]"
+                                />
+                              </td>
+                              <td className="px-2 py-2 font-medium text-[#374151]">
+                                {trabalho.numeroOs}
+                              </td>
+                              <td className="px-2 py-2 text-[#374151]">{det.entregue}</td>
+                              <td className="px-2 py-2 text-[#374151]">{det.qtd}</td>
+                              <td className="px-2 py-2 text-[#374151]">{det.servico}</td>
+                              <td className="px-2 py-2 text-[#374151]">{det.dentista}</td>
+                              <td className="px-2 py-2 text-[#374151]">{det.paciente}</td>
+                              <td className="px-2 py-2 text-right text-[#374151]">
+                                {money(valorTrabalho(trabalho))}
+                              </td>
+                              <td className="px-2 py-2">
+                                <SituacaoOsBadgeReceita trabalho={trabalho} />
+                              </td>
+                              <td
+                                className="px-2 py-2 text-center"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  type="button"
+                                  title="Modo visualização"
+                                  aria-label="Modo visualização"
+                                  aria-pressed={expandida}
+                                  onClick={() =>
+                                    setOsExpandidaId((id) =>
+                                      id === trabalho.id ? null : trabalho.id
+                                    )
+                                  }
+                                  className={cn(
+                                    "inline-flex h-7 w-7 items-center justify-center rounded text-[#6b7280] hover:bg-white/70 hover:text-[#4a90d9]",
+                                    expandida && "bg-white text-[#4a90d9]"
+                                  )}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </button>
+                              </td>
+                            </tr>
+                            {expandida ? (
+                              <tr className="border-t border-[#e5e7eb] bg-[#f3f4f6]">
+                                <td colSpan={10} className="px-4 py-3">
+                                  <div className="grid gap-x-8 gap-y-1 text-[12px] text-[#374151] md:grid-cols-3">
+                                    <div className="space-y-1">
+                                      <p>
+                                        <span className="font-semibold">O.S. Externa:</span>{" "}
+                                        {det.osExterna}
+                                      </p>
+                                      <p>
+                                        <span className="font-semibold">
+                                          Data Prazo Laboratório:
+                                        </span>{" "}
+                                        {det.prazoLab}
+                                      </p>
+                                      <p>
+                                        <span className="font-semibold">Valor Unitário:</span>{" "}
+                                        {det.valorUnitario}
+                                      </p>
+                                      <p>
+                                        <span className="font-semibold">
+                                          Material enviado pelo Dentista:
+                                        </span>{" "}
+                                        {det.material}
+                                      </p>
+                                      <p>
+                                        <span className="font-semibold">Observação Interna:</span>{" "}
+                                        {det.observacaoInterna}
+                                      </p>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <p>
+                                        <span className="font-semibold">Número do Dente:</span>{" "}
+                                        {det.numDente}
+                                      </p>
+                                      <p>
+                                        <span className="font-semibold">Data Prazo Dentista:</span>{" "}
+                                        {det.prazoDentista}
+                                      </p>
+                                      <p>
+                                        <span className="font-semibold">Desconto:</span>{" "}
+                                        {det.desconto}
+                                      </p>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <p>
+                                        <span className="font-semibold">Cor do Dente:</span>{" "}
+                                        {det.corDente}
+                                      </p>
+                                      <p>
+                                        <span className="font-semibold">
+                                          Data Finalizada/Entregue:
+                                        </span>{" "}
+                                        {det.finalizado}
+                                      </p>
+                                      <p>
+                                        <span className="font-semibold">Total:</span> {det.total}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            ) : null}
+                          </Fragment>
+                        );
+                      })}
                     </tbody>
                   </table>
-                  <div className="border-t border-[#f3f4f6] px-3 py-2 text-right text-[12px] font-semibold text-[#374151]">
-                    Total selecionado: {money(valorOsSelecionadas)}
-                  </div>
                 </div>
               )}
             </div>
@@ -697,7 +884,7 @@ export function LancarReceitaOsModal({
               <ToggleSmart
                 checked={enviarControleEntrega}
                 onChange={setEnviarControleEntrega}
-                label="Adicionar automaticamente ao Controle de Entregas"
+                label="Enviar Contas Originais"
               />
             </div>
 
