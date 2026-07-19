@@ -885,15 +885,15 @@ export function LancarReceitaOsModal({
             </div>
           ) : null}
 
-          <div className="mt-3 flex w-full max-w-[420px] flex-col items-start gap-3 self-start">
-            {creditoDisponivelSeguro > 0.009 ? (
-              <ToggleSmart
-                checked={abaterCredito}
-                onChange={setAbaterCredito}
-                label={`Abater do Crédito de ${currency(creditoDisponivelSeguro)}`}
-              />
-            ) : null}
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <div className="mt-3 flex flex-wrap items-start justify-between gap-6">
+            <div className="flex flex-col gap-2.5 pt-1">
+              {creditoDisponivelSeguro > 0.009 ? (
+                <ToggleSmart
+                  checked={abaterCredito}
+                  onChange={setAbaterCredito}
+                  label={`Abater do Crédito de ${currency(creditoDisponivelSeguro)}`}
+                />
+              ) : null}
               <ToggleSmart
                 checked={alterarEntregue}
                 onChange={setAlterarEntregue}
@@ -906,7 +906,7 @@ export function LancarReceitaOsModal({
               />
             </div>
 
-            <div className="w-full max-w-[320px] space-y-0 text-[13px]">
+            <div className="ml-auto w-full max-w-[280px] space-y-0 text-[13px]">
               <div className="flex items-center justify-between border-b border-[#e8eaed] py-2">
                 <span className="text-[#6b7280]">Valor Total</span>
                 {semOs ? (

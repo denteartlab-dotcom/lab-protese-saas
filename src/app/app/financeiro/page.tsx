@@ -7,7 +7,6 @@ import {
   Check,
   Eye,
   FileText,
-  Flag,
   ListTree,
   Pencil,
   Plus,
@@ -2310,94 +2309,85 @@ function FinanceiroReceberConteudo() {
 
   return (
     <div className="space-y-3 text-[11px] text-slate-700">
-      <div className="grid gap-3 md:grid-cols-4">
-        <div className="rounded border border-[#e5edf5] bg-gradient-to-br from-white via-white to-orange-50/50 p-3 shadow-sm">
-          <div className="flex items-start justify-between gap-2">
+      <div
+        className={cn(
+          "grid gap-3",
+          trabalhosNaoFaturadosAtivos.length > 0 ? "md:grid-cols-4" : "md:grid-cols-3"
+        )}
+      >
+        <div className="rounded border border-slate-100 bg-white p-4 shadow-sm">
+          <div className="flex items-start justify-between">
             <div>
-              <p className="text-[17px] font-bold leading-tight text-slate-800">
-                {money(resumoReceber.aReceber)}
-              </p>
-              <p className="mt-0.5 text-[10px] leading-snug text-slate-500">
+              <p className="text-lg font-semibold text-slate-800">{money(resumoReceber.aReceber)}</p>
+              <p className="text-[11px] text-slate-500">
                 {t("financeiro.receber.resumoAdiantamentosAReceber", {
                   adiantamentos: money(resumoReceber.adiantamentos),
                   aReceber: money(resumoReceber.aReceber),
                 })}
               </p>
             </div>
-            <span className="rounded-full bg-gradient-to-br from-orange-300 to-orange-500 p-1.5 text-white shadow-sm">
-              <Flag className="h-3.5 w-3.5" />
+            <span className="rounded-full bg-orange-50 p-2 text-orange-400">
+              <FileText className="h-4 w-4" />
             </span>
           </div>
         </div>
-        <div className="rounded border border-[#e5edf5] bg-gradient-to-br from-white via-white to-rose-50/50 p-3 shadow-sm">
-          <div className="flex items-start justify-between gap-2">
+        <div className="rounded border border-slate-100 bg-white p-4 shadow-sm">
+          <div className="flex items-start justify-between">
             <div>
-              <p className="text-[17px] font-bold leading-tight text-slate-800">
-                {money(resumoReceber.atraso)}
-              </p>
-              <p className="mt-0.5 text-[10px] text-slate-500">
-                {t("financeiro.receber.resumoAtraso")}
-              </p>
+              <p className="text-lg font-semibold text-slate-800">{money(resumoReceber.atraso)}</p>
+              <p className="text-[11px] text-slate-500">{t("financeiro.receber.resumoAtraso")}</p>
             </div>
-            <span className="rounded-full bg-gradient-to-br from-rose-400 to-rose-600 p-1.5 text-white shadow-sm">
-              <AlertTriangle className="h-3.5 w-3.5" />
+            <span className="rounded-full bg-rose-50 p-2 text-rose-400">
+              <AlertTriangle className="h-4 w-4" />
             </span>
           </div>
         </div>
-        <div className="rounded border border-[#e5edf5] bg-gradient-to-br from-white via-white to-emerald-50/50 p-3 shadow-sm">
-          <div className="flex items-start justify-between gap-2">
+        <div className="rounded border border-slate-100 bg-white p-4 shadow-sm">
+          <div className="flex items-start justify-between">
             <div>
-              <p className="text-[17px] font-bold leading-tight text-slate-800">
-                {money(resumoReceber.recebidas)}
-              </p>
-              <p className="mt-0.5 text-[10px] text-slate-500">
-                {t("financeiro.receber.resumoRecebidas")}
-              </p>
+              <p className="text-lg font-semibold text-slate-800">{money(resumoReceber.recebidas)}</p>
+              <p className="text-[11px] text-slate-500">{t("financeiro.receber.resumoRecebidas")}</p>
             </div>
-            <span className="rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 p-1.5 text-white shadow-sm">
-              <Check className="h-3.5 w-3.5" />
+            <span className="rounded-full bg-emerald-50 p-2 text-emerald-500">
+              <Check className="h-4 w-4" />
             </span>
           </div>
         </div>
-        <div className="rounded border border-[#e5edf5] bg-gradient-to-br from-white via-white to-amber-50/50 p-3 shadow-sm">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="text-[17px] font-bold leading-tight text-slate-800">
-                {money(totalNaoFaturados)}
-              </p>
-              <p className="mt-0.5 text-[10px] text-slate-500">
-                {t("financeiro.receber.naoFaturados")}{" "}
-                {trabalhosNaoFaturadosAtivos.length > 0 ? (
+        {trabalhosNaoFaturadosAtivos.length > 0 ? (
+          <div className="rounded border border-slate-100 bg-white p-4 shadow-sm">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-lg font-semibold text-slate-800">
+                  {money(totalNaoFaturados)}
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  {t("financeiro.receber.naoFaturados")}{" "}
                   <button
                     type="button"
                     onClick={() => setModalNaoFaturados(true)}
-                    className="rounded bg-gradient-to-b from-[#5b9bd5] to-[#3b7bc4] px-1.5 py-0.5 text-[9px] font-normal text-white hover:from-[#4a90d9] hover:to-[#2f6aa8]"
+                    className="rounded bg-[#4a90d9] px-1.5 py-0.5 text-[9px] font-normal text-white hover:bg-[#3b7bc4]"
                   >
                     {t("common.ver")}
                   </button>
-                ) : null}
-              </p>
+                </p>
+              </div>
+              <span className="rounded-full bg-amber-50 p-2 text-amber-500">
+                <AlertTriangle className="h-4 w-4" />
+              </span>
             </div>
-            <span className="rounded-full bg-gradient-to-br from-amber-300 to-amber-500 p-1.5 text-white shadow-sm">
-              <AlertTriangle className="h-3.5 w-3.5" />
-            </span>
           </div>
-        </div>
+        ) : null}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button
-          size="sm"
-          className="border-0 bg-gradient-to-b from-[#62c462] to-[#51a351] text-white shadow-sm hover:from-[#5cb85c] hover:to-[#449d44]"
-          onClick={() => setOpen(true)}
-        >
+        <Button size="sm" className="bg-emerald-500 hover:bg-emerald-600" onClick={() => setOpen(true)}>
           <Plus className="h-3.5 w-3.5" />
           {t("financeiro.receber.lancarReceita")}
         </Button>
         <Button
           size="sm"
           variant="outline"
-          className="border-0 bg-gradient-to-b from-[#5b9bd5] to-[#3a7fc0] text-white shadow-sm hover:from-[#4a90d9] hover:to-[#2f6aa8]"
+          className="bg-primary-600 text-white hover:bg-primary-700"
           onClick={() => setRelatorioAberto(true)}
         >
           <FileText className="h-3.5 w-3.5" />
@@ -2410,8 +2400,8 @@ function FinanceiroReceberConteudo() {
         />
       </div>
 
-      <div className="rounded border border-[#7eb8da]/70 bg-white p-2.5 shadow-sm">
-        <div className="grid gap-2 md:grid-cols-[1.2fr_1fr_1fr_1.2fr_1.4fr_auto]">
+      <div className="rounded border border-slate-200 bg-white p-3 shadow-sm">
+        <div className="grid gap-3 md:grid-cols-[1.2fr_1fr_1fr_1.2fr_1.4fr_auto]">
           <Select label={t("financeiro.pagar.filtro.periodo")} value={periodo} onChange={(e) => aplicarPeriodo(e.target.value)}>
             <option value="hoje">{t("financeiro.pagar.filtro.hoje")}</option>
             <option value="semana">{t("financeiro.pagar.filtro.semana")}</option>
@@ -2449,28 +2439,16 @@ function FinanceiroReceberConteudo() {
           </Button>
         </div>
 
-        <div className="mt-2 overflow-x-auto">
-          <table className="w-full min-w-[900px] border-collapse text-[11px]">
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full min-w-[900px] text-[11px]">
             <thead>
-              <tr className="bg-gradient-to-b from-[#f8fafc] to-[#eef2f6] text-[10px] font-semibold uppercase tracking-wide text-slate-600">
-                <th className="border border-[#b8d4e8] px-2 py-1.5 text-left">
-                  {t("financeiro.pagar.col.nome")}
-                </th>
-                <th className="border border-[#b8d4e8] px-2 py-1.5 text-right">
-                  {t("financeiro.receber.col.aReceber")}
-                </th>
-                <th className="border border-[#b8d4e8] px-2 py-1.5 text-right">
-                  {t("financeiro.receber.col.recebido")}
-                </th>
-                <th className="border border-[#b8d4e8] px-2 py-1.5 text-right">
-                  {t("financeiro.receber.col.adiantamentos")}
-                </th>
-                <th className="border border-[#b8d4e8] px-2 py-1.5 text-right">
-                  {t("financeiro.receber.col.naoFaturados")}
-                </th>
-                <th className="border border-[#b8d4e8] px-2 py-1.5 text-center">
-                  {t("common.opcoes")}
-                </th>
+              <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
+                <th className="px-3 py-2 text-left font-semibold uppercase">{t("financeiro.pagar.col.nome")}</th>
+                <th className="px-3 py-2 text-right font-semibold uppercase">{t("financeiro.receber.col.aReceber")}</th>
+                <th className="px-3 py-2 text-right font-semibold uppercase">{t("financeiro.receber.col.recebido")}</th>
+                <th className="px-3 py-2 text-right font-semibold uppercase">{t("financeiro.receber.col.adiantamentos")}</th>
+                <th className="px-3 py-2 text-right font-semibold uppercase">{t("financeiro.receber.col.naoFaturados")}</th>
+                <th className="px-3 py-2 text-center font-semibold uppercase">{t("common.opcoes")}</th>
               </tr>
             </thead>
             <tbody>
@@ -2494,40 +2472,27 @@ function FinanceiroReceberConteudo() {
                         }
                       }}
                       className={cn(
-                        "cursor-pointer border-b border-[#e8eef3]",
+                        "cursor-pointer border-b border-slate-100",
                         aberto && temFatura
-                          ? "bg-blue-50/80"
+                          ? "bg-blue-50/70"
                           : temFatura && clienteTemVencido(cliente)
-                            ? "bg-[#fdeaea]"
+                            ? "bg-red-100/70"
                             : temFatura && clienteTemAVencer(cliente)
-                              ? "bg-[#eef9f1]"
-                              : "bg-white hover:bg-[#f7fbff]"
+                              ? "bg-emerald-100/70"
+                              : "hover:bg-slate-50"
                       )}
                     >
-                      <td className="border-x border-[#d6e8f4] px-2 py-1 text-slate-700">
-                        {cliente.nome}
-                      </td>
-                      <td className="border-x border-[#d6e8f4] px-2 py-1 text-right">
-                        {money(cliente.aReceber)}
-                      </td>
-                      <td className="border-x border-[#d6e8f4] px-2 py-1 text-right">
-                        {money(cliente.recebido)}
-                      </td>
-                      <td className="border-x border-[#d6e8f4] px-2 py-1 text-right">
-                        {money(cliente.adiantamentos)}
-                      </td>
-                      <td className="border-x border-[#d6e8f4] px-2 py-1 text-right">
-                        {money(cliente.naoFaturados)}
-                      </td>
-                      <td
-                        className="border-x border-[#d6e8f4] px-2 py-1"
-                        onClick={(e) => e.stopPropagation()}
-                      >
+                      <td className="px-3 py-2">{cliente.nome}</td>
+                      <td className="px-3 py-2 text-right">{money(cliente.aReceber)}</td>
+                      <td className="px-3 py-2 text-right">{money(cliente.recebido)}</td>
+                      <td className="px-3 py-2 text-right">{money(cliente.adiantamentos)}</td>
+                      <td className="px-3 py-2 text-right">{money(cliente.naoFaturados)}</td>
+                      <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-center gap-1">
                           <button
                             type="button"
                             onClick={() => receberCliente(cliente)}
-                            className="rounded bg-gradient-to-b from-[#5b9bd5] to-[#3a7fc0] px-2.5 py-0.5 text-[10px] font-semibold text-white shadow-sm hover:from-[#4a90d9] hover:to-[#2f6aa8]"
+                            className="rounded bg-primary-600 px-2 py-1 text-[10px] font-semibold text-white hover:bg-primary-700"
                           >
                             {t("financeiro.receber.receber")}
                           </button>
@@ -2536,8 +2501,8 @@ function FinanceiroReceberConteudo() {
                             title={t("financeiro.receber.visualizarFaturas")}
                             onClick={() => setClienteCollapseAberto(aberto ? null : chave)}
                             className={cn(
-                              "rounded p-0.5 hover:bg-slate-100 hover:text-primary-700",
-                              aberto ? "bg-primary-50 text-primary-700" : "text-[#5b9bd5]"
+                              "rounded p-1 hover:bg-slate-100 hover:text-primary-700",
+                              aberto ? "bg-primary-50 text-primary-700" : "text-slate-500"
                             )}
                           >
                             <Eye className="h-3.5 w-3.5" />
@@ -2562,16 +2527,16 @@ function FinanceiroReceberConteudo() {
                               <div className="overflow-x-auto">
                                 <table className="w-full min-w-[850px] text-[11px]">
                                   <thead>
-                                    <tr className="border-b border-slate-200 bg-gradient-to-b from-[#f8fafc] to-[#eef2f6] text-[10px] uppercase text-slate-500">
-                                      <th className="border border-[#b8d4e8] px-2 py-1 text-left">{t("financeiro.pagar.col.vencimento")}</th>
-                                      <th className="border border-[#b8d4e8] px-2 py-1 text-left">{t("financeiro.receber.col.numeroFatura")}</th>
-                                      <th className="border border-[#b8d4e8] px-2 py-1 text-left">{t("financeiro.receber.col.parcela")}</th>
-                                      <th className="border border-[#b8d4e8] px-2 py-1 text-left">{t("financeiro.receber.col.formaRecebimento")}</th>
-                                      <th className="border border-[#b8d4e8] px-2 py-1 text-right">{t("financeiro.pagar.col.valor")}</th>
-                                      <th className="border border-[#b8d4e8] px-2 py-1 text-right">{t("financeiro.receber.col.recebido")}</th>
-                                      <th className="border border-[#b8d4e8] px-2 py-1 text-right">{t("financeiro.receber.col.saldo")}</th>
-                                      <th className="border border-[#b8d4e8] px-2 py-1 text-left">{t("financeiro.receber.filtro.situacao")}</th>
-                                      <th className="border border-[#b8d4e8] px-2 py-1 text-center">{t("common.opcoes")}</th>
+                                    <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
+                                      <th className="px-2 py-2 text-left">{t("financeiro.pagar.col.vencimento")}</th>
+                                      <th className="px-2 py-2 text-left">{t("financeiro.receber.col.numeroFatura")}</th>
+                                      <th className="px-2 py-2 text-left">{t("financeiro.receber.col.parcela")}</th>
+                                      <th className="px-2 py-2 text-left">{t("financeiro.receber.col.formaRecebimento")}</th>
+                                      <th className="px-2 py-2 text-right">{t("financeiro.pagar.col.valor")}</th>
+                                      <th className="px-2 py-2 text-right">{t("financeiro.receber.col.recebido")}</th>
+                                      <th className="px-2 py-2 text-right">{t("financeiro.receber.col.saldo")}</th>
+                                      <th className="px-2 py-2 text-left">{t("financeiro.receber.filtro.situacao")}</th>
+                                      <th className="px-2 py-2 text-center">{t("common.opcoes")}</th>
                                     </tr>
                                   </thead>
                                   <tbody>
@@ -2586,22 +2551,22 @@ function FinanceiroReceberConteudo() {
                                       const situacao = situacaoFatura(l);
                                       const quitada = faturaQuitada(l, data?.lancamentos || []);
                                       return (
-                                        <tr key={l.id} className="border-b border-[#e8eef3]">
-                                          <td className="px-2 py-1">{formatDate(l.data)}</td>
-                                          <td className="px-2 py-1">{numeroFatura(l)}</td>
-                                          <td className="px-2 py-1">1 / 1</td>
-                                          <td className="px-2 py-1">{l.formaPagamento || "-"}</td>
-                                          <td className="px-2 py-1 text-right">{money(l.valor)}</td>
-                                          <td className="px-2 py-1 text-right">
+                                        <tr key={l.id} className="border-b border-slate-100">
+                                          <td className="px-2 py-2">{formatDate(l.data)}</td>
+                                          <td className="px-2 py-2">{numeroFatura(l)}</td>
+                                          <td className="px-2 py-2">1 / 1</td>
+                                          <td className="px-2 py-2">{l.formaPagamento || "-"}</td>
+                                          <td className="px-2 py-2 text-right">{money(l.valor)}</td>
+                                          <td className="px-2 py-2 text-right">
                                             {money(recebidoNaFatura(l))}
                                           </td>
-                                          <td className="px-2 py-1 text-right">{money(saldoFatura(l))}</td>
-                                          <td className="px-2 py-1">
-                                            <span className={`rounded px-2 py-0.5 text-[10px] ${situacao.color}`}>
+                                          <td className="px-2 py-2 text-right">{money(saldoFatura(l))}</td>
+                                          <td className="px-2 py-2">
+                                            <span className={`rounded px-2 py-1 ${situacao.color}`}>
                                               {t(situacao.key)}
                                             </span>
                                           </td>
-                                          <td className="px-2 py-1">
+                                          <td className="px-2 py-2">
                                             <div className="flex items-center justify-center gap-1">
                                               {podeReabrirPixAsaas(l) ? (
                                                 <button
