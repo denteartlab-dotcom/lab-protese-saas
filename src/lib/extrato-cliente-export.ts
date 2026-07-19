@@ -47,7 +47,12 @@ export function linhasExtratoClienteParaExport(
 ): LinhaExtratoClienteExport[] {
   return linhas.map((linha) => {
     const pagamento = linha.tipo === "pagamento" || linha.tipo === "desconto";
-    const valor = pagamento ? -Math.abs(linha.subtotal) : linha.subtotal;
+    const credito = linha.tipo === "credito";
+    const valor = credito
+      ? Math.abs(linha.valorUn)
+      : pagamento
+        ? -Math.abs(linha.subtotal)
+        : linha.subtotal;
     return {
       data: linha.dataFatura,
       fatura: linha.numFatura,

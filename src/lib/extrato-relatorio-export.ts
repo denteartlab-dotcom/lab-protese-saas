@@ -25,17 +25,7 @@ export type OpcoesExtratoRelatorioExport = {
 };
 
 function descricaoExtratoExport(linha: LinhaExtratoIndividualComSaldo) {
-  if (linha.tipo === "pagamento" || linha.tipo === "desconto") {
-    const forma = (linha.servico || "")
-      .replace(/^Pagamento\s*/i, "")
-      .replace(/[()]/g, "")
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, "_")
-      .replace(/^pix/, "px");
-    return `Recebimento ${forma || "externo"}`;
-  }
-  return linha.servico;
+  return linha.servico || "—";
 }
 
 function periodoParaDatas(opcoes: OpcoesExtratoRelatorioExport) {

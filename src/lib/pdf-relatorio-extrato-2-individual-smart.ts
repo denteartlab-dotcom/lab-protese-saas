@@ -274,6 +274,13 @@ function desenharLinhaExtrato(ctx: Ctx, linha: LinhaExtratoIndividualComSaldo) {
     desenharLinhaPagamento(ctx, linha);
     return;
   }
+  if (linha.tipo === "credito") {
+    desenharLinhaServico(ctx, {
+      ...linha,
+      subtotal: Math.abs(linha.valorUn),
+    });
+    return;
+  }
   desenharLinhaServico(ctx, linha);
 }
 

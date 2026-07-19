@@ -259,6 +259,14 @@ function desenharLinhaExtrato(ctx: Ctx, linha: LinhaExtratoIndividualComSaldo) {
     desenharLinhaPagamento(ctx, linha);
     return;
   }
+  if (linha.tipo === "credito") {
+    // Exibe o valor do crédito sem alterar o saldo (subtotal já é 0).
+    desenharLinhaServico(ctx, {
+      ...linha,
+      subtotal: Math.abs(linha.valorUn),
+    });
+    return;
+  }
   desenharLinhaServico(ctx, linha);
 }
 

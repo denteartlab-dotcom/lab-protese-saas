@@ -165,10 +165,7 @@ function observacaoRecebimento(descricao: string) {
 }
 
 function descricaoExtratoModal(linha: LinhaExtratoIndividualComSaldo) {
-  if (linha.tipo === "pagamento" || linha.tipo === "desconto") {
-    return linha.servico || "Recebimento";
-  }
-  return linha.servico;
+  return linha.servico || "Recebimento";
 }
 
 function parseDataMesAno(iso: string) {
@@ -534,17 +531,25 @@ export function VisualizacaoClienteReceberModal({
     const filtradas = extratoDados.linhas.filter((linha) => {
       if (linha.tipo === "saldo_anterior") return false;
       const ehRecebimento =
-        linha.tipo === "pagamento" || linha.tipo === "desconto";
+        linha.tipo === "pagamento" ||
+        linha.tipo === "desconto" ||
+        linha.tipo === "credito";
       if (situacaoFaturasExtrato === "somente_servicos" && ehRecebimento) {
         return false;
       }
-      if (situacaoRecebimentosExtrato === "somente_recebimentos" && !ehRecebimento) {
+      if (
+        situacaoRecebimentosExtrato === "somente_recebimentos" &&
+        linha.tipo === "servico"
+      ) {
         return false;
       }
-      if (situacaoFaturasExtrato === "ocultar_servicos" && !ehRecebimento) {
+      if (situacaoFaturasExtrato === "ocultar_servicos" && linha.tipo === "servico") {
         return false;
       }
-      if (situacaoRecebimentosExtrato === "ocultar_recebimentos" && ehRecebimento) {
+      if (
+        situacaoRecebimentosExtrato === "ocultar_recebimentos" &&
+        ehRecebimento
+      ) {
         return false;
       }
       if (!termo) return true;
@@ -1237,9 +1242,17 @@ export function VisualizacaoClienteReceberModal({
                     extratoLinhas.map((linha, idx) => {
                       const pagamento =
                         linha.tipo === "pagamento" || linha.tipo === "desconto";
-                      const valor =
-                        pagamento ? -Math.abs(linha.subtotal) : linha.subtotal;
-                      const cor = pagamento ? "text-[#dc2626]" : "text-[#2563eb]";
+                      const credito = linha.tipo === "credito";
+                      const valor = credito
+                        ? Math.abs(linha.valorUn)
+                        : pagamento
+                          ? -Math.abs(linha.subtotal)
+                          : linha.subtotal;
+                      const cor = credito
+                        ? "text-[#16a34a]"
+                        : pagamento
+                          ? "text-[#dc2626]"
+                          : "text-[#2563eb]";
                       const faturaLanc = linha.numFatura
                         ? cliente.lancamentos.find(
                             (l) =>
@@ -1253,7 +1266,7 @@ export function VisualizacaoClienteReceberModal({
                           className={idx % 2 === 0 ? "bg-white" : "bg-[#f5f5f5]"}
                         >
                           <td className={cn("px-2.5 py-2", cor)}>{linha.dataFatura}</td>
-                          <td className={cn("px-2.5 py-2", pagamento ? "text-[#374151]" : cor)}>
+                          <td className={cn("px-2.5 py-2", pagamento || credito ? "text-[#374151]" : cor)}>
                             {linha.numFatura && faturaLanc ? (
                               <button
                                 type="button"
@@ -1266,7 +1279,7 @@ export function VisualizacaoClienteReceberModal({
                               linha.numFatura
                             )}
                           </td>
-                          <td className={cn("px-2.5 py-2", pagamento ? "text-[#374151]" : cor)}>
+                          <td className={cn("px-2.5 py-2", pagamento || credito ? "text-[#374151]" : cor)}>
                             {linha.os ? (
                               <span className="font-medium text-[#2563eb]">{linha.os}</span>
                             ) : null}
@@ -1277,19 +1290,21 @@ export function VisualizacaoClienteReceberModal({
                           <td
                             className={cn(
                               "px-2.5 py-2 text-center",
-                              pagamento ? "text-[#374151]" : cor
+                              pagamento || credito ? "text-[#374151]" : cor
                             )}
                           >
                             {linha.qtd}
                           </td>
-                          <td className={cn("px-2.5 py-2", pagamento ? "text-[#374151]" : cor)}>
+                          <td className={cn("px-2.5 py-2", pagamento || credito ? "text-[#374151]" : cor)}>
                             {linha.paciente}
                           </td>
-                          <td className={cn("px-2.5 py-2", pagamento ? "text-[#374151]" : cor)}>
+                          <td className={cn("px-2.5 py-2", pagamento || credito ? "text-[#374151]" : cor)}>
                             {linha.numDente}
                           </td>
                           <td className={cn("px-2.5 py-2 text-right tabular-nums", cor)}>
-                            {pagamento ? `-${money(Math.abs(valor))}` : money(valor)}
+                            {pagamento
+                              ? `-${money(Math.abs(valor))}`
+                              : money(Math.abs(valor))}
                           </td>
                           <td className="px-2.5 py-2 text-right tabular-nums text-[#111827]">
                             {money(linha.saldo)}
