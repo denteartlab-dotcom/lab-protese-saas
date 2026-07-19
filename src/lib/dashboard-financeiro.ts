@@ -1,5 +1,12 @@
 /** Resumo financeiro do Início — mesma lógica de Contas a Receber / Contas a Pagar. */
 
+import {
+  isFaturaContasReceber as isFaturaContasReceberLib,
+  saldoFatura as saldoFaturaLib,
+  type LancamentoContasReceber,
+  type TrabalhoContasReceber,
+} from "@/lib/contas-receber-financeiro";
+
 export type LancamentoFinanceiroResumo = {
   id: string;
   tipo: string;
@@ -38,6 +45,12 @@ export type ResumoFinanceiroDashboard = {
   despesasVencidas: number;
 };
 
+export type OpcoesResumoFinanceiroDashboard = {
+  /** Mês 0–11; quando informado com `ano`, “a receber/a pagar” filtram o vencimento nesse mês. */
+  mes?: number;
+  ano?: number;
+};
+
 function dateOnly(value: string | Date) {
   const raw = typeof value === "string" ? value : value.toISOString();
   const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -48,9 +61,46 @@ function dateOnly(value: string | Date) {
   return date;
 }
 
-function numerosOsDoLancamento(
+function dataIso(value: string | Date) {
+  if (typeof value === "string") {
+    const match = value.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (match) return match[1]!;
+    return value;
+  }
+  const y = value.getFullYear();
+  const m = String(value.getMonth() + 1).padStart(2, "0");
+  const d = String(value.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function toLancamentoContasReceber(
   lancamento: LancamentoFinanceiroResumo
-): number[] {
+): LancamentoContasReceber {
+  return {
+    id: lancamento.id,
+    tipo: lancamento.tipo,
+    descricao: lancamento.descricao,
+    valor: lancamento.valor,
+    data: dataIso(lancamento.data),
+    status: lancamento.status,
+    formaPagamento: lancamento.formaPagamento,
+    cliente: lancamento.clienteId
+      ? { id: lancamento.clienteId, nome: lancamento.clienteNome ?? undefined }
+      : null,
+    trabalho: lancamento.trabalhoId
+      ? {
+          id: lancamento.trabalhoId,
+          numeroOs: lancamento.trabalhoNumeroOs ?? 0,
+        }
+      : null,
+  };
+}
+
+function mapearLancamentos(lancamentos: LancamentoFinanceiroResumo[]) {
+  return lancamentos.map(toLancamentoContasReceber);
+}
+
+function numerosOsDoLancamento(lancamento: LancamentoFinanceiroResumo): number[] {
   const numeros = new Set<number>();
   if (lancamento.trabalhoNumeroOs) numeros.add(lancamento.trabalhoNumeroOs);
   const descricao = lancamento.descricao.replace(/\s+/g, " ");
@@ -79,28 +129,6 @@ function isCreditoUtilizado(lancamento: LancamentoFinanceiroResumo) {
   );
 }
 
-function isFaturaContasReceber(
-  lancamento: LancamentoFinanceiroResumo,
-  _trabalhos: TrabalhoFinanceiroRef[],
-  todosLancamentos: LancamentoFinanceiroResumo[]
-) {
-  if (isCreditoGerado(lancamento) || isCreditoUtilizado(lancamento)) return false;
-  if (!lancamento.descricao.toLowerCase().startsWith("cobrança os")) return false;
-  if (lancamento.formaPagamento?.toLowerCase().includes("crédito")) return false;
-
-  const creditoUsado = todosLancamentos
-    .filter(
-      (item) =>
-        isCreditoUtilizado(item) &&
-        item.clienteId === lancamento.clienteId &&
-        item.descricao.includes(lancamento.descricao)
-    )
-    .reduce((sum, item) => sum + item.valor, 0);
-
-  const saldo = Math.max(lancamento.valor - (lancamento.status === "pago" ? lancamento.valor : Math.min(creditoUsado, lancamento.valor)), 0);
-  return saldo > 0.005;
-}
-
 export function ehCobrancaOsReceita(lancamento: LancamentoFinanceiroResumo) {
   if (lancamento.tipo !== "receita" || lancamento.status === "cancelado") {
     return false;
@@ -109,56 +137,60 @@ export function ehCobrancaOsReceita(lancamento: LancamentoFinanceiroResumo) {
   return lancamento.descricao.toLowerCase().startsWith("cobrança os");
 }
 
+/** Saldo aberto da Cobrança OS (valor − parciais − crédito), igual ao Contas a Receber. */
 export function saldoFaturaCobrancaOs(
   lancamento: LancamentoFinanceiroResumo,
   todosLancamentos: LancamentoFinanceiroResumo[]
 ) {
-  if (lancamento.status === "pago") return 0;
-  const creditoUsado = todosLancamentos
-    .filter(
-      (item) =>
-        isCreditoUtilizado(item) &&
-        item.clienteId === lancamento.clienteId &&
-        item.descricao.includes(lancamento.descricao)
-    )
-    .reduce((sum, item) => sum + item.valor, 0);
-  return Math.max(lancamento.valor - Math.min(creditoUsado, lancamento.valor), 0);
-}
-
-function saldoFatura(
-  lancamento: LancamentoFinanceiroResumo,
-  todosLancamentos: LancamentoFinanceiroResumo[]
-) {
-  return saldoFaturaCobrancaOs(lancamento, todosLancamentos);
+  return saldoFaturaLib(
+    toLancamentoContasReceber(lancamento),
+    mapearLancamentos(todosLancamentos)
+  );
 }
 
 export function calcularResumoFinanceiroDashboard(
   lancamentos: LancamentoFinanceiroResumo[],
-  trabalhos: TrabalhoFinanceiroRef[]
+  trabalhos: TrabalhoFinanceiroRef[],
+  _opcoes?: OpcoesResumoFinanceiroDashboard
 ): ResumoFinanceiroDashboard {
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
+
+  const mapped = mapearLancamentos(lancamentos);
+  const trabalhosMapped = trabalhos as TrabalhoContasReceber[];
 
   let receitasAReceber = 0;
   let receitasInadimplencia = 0;
   let despesasAPagar = 0;
   let despesasVencidas = 0;
 
-  for (const l of lancamentos) {
+  for (let i = 0; i < lancamentos.length; i++) {
+    const raw = lancamentos[i]!;
+    const l = mapped[i]!;
+
     if (l.tipo === "receita") {
-      if (isCreditoGerado(l) || isCreditoUtilizado(l)) continue;
-      if (!isFaturaContasReceber(l, trabalhos, lancamentos)) continue;
-      if (l.status !== "pago") {
-        const saldo = saldoFatura(l, lancamentos);
-        receitasAReceber += saldo;
-        if (dateOnly(l.data) < hoje) receitasInadimplencia += saldo;
+      if (l.status === "cancelado") continue;
+      if (!isFaturaContasReceberLib(l, mapped, trabalhosMapped)) continue;
+      if (l.status === "pago") continue;
+
+      const saldo = saldoFaturaLib(l, mapped);
+      if (saldo <= 0.005) continue;
+
+      const vencimento = dateOnly(raw.data);
+      // Totais iguais ao Contas a Receber (saldo aberto atual).
+      receitasAReceber += saldo;
+      if (vencimento < hoje) {
+        receitasInadimplencia += saldo;
       }
       continue;
     }
 
     if (l.tipo === "despesa" && l.status === "pendente") {
+      const vencimento = dateOnly(raw.data);
       despesasAPagar += l.valor;
-      if (dateOnly(l.data) < hoje) despesasVencidas += l.valor;
+      if (vencimento < hoje) {
+        despesasVencidas += l.valor;
+      }
     }
   }
 
@@ -182,29 +214,33 @@ export function listarFaturasInadimplentes(
 ): FaturaInadimplente[] {
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
+  const mapped = mapearLancamentos(lancamentos);
+  const trabalhosMapped = trabalhos as TrabalhoContasReceber[];
   const lista: FaturaInadimplente[] = [];
 
-  for (const l of lancamentos) {
+  for (let i = 0; i < lancamentos.length; i++) {
+    const raw = lancamentos[i]!;
+    const l = mapped[i]!;
     if (l.status === "cancelado") continue;
     if (l.tipo !== "receita") continue;
-    if (!isFaturaContasReceber(l, trabalhos, lancamentos)) continue;
+    if (!isFaturaContasReceberLib(l, mapped, trabalhosMapped)) continue;
     if (l.status === "pago") continue;
-    if (dateOnly(l.data) >= hoje) continue;
+    if (dateOnly(raw.data) >= hoje) continue;
 
-    const saldo = saldoFatura(l, lancamentos);
+    const saldo = saldoFaturaLib(l, mapped);
     if (saldo <= 0.005) continue;
-    if (!l.clienteId || !l.clienteNome?.trim()) continue;
+    if (!raw.clienteId || !raw.clienteNome?.trim()) continue;
 
-    const numerosOs = numerosOsDoLancamento(l);
+    const numerosOs = numerosOsDoLancamento(raw);
     lista.push({
-      id: l.id,
-      clienteId: l.clienteId || "",
-      clienteNome: l.clienteNome.trim(),
-      descricao: l.descricao,
+      id: raw.id,
+      clienteId: raw.clienteId || "",
+      clienteNome: raw.clienteNome.trim(),
+      descricao: raw.descricao,
       valor: saldo,
-      data: typeof l.data === "string" ? l.data : l.data.toISOString(),
-      dataFormatada: formatarDataBr(l.data),
-      numeroOs: l.trabalhoNumeroOs ?? numerosOs[0] ?? null,
+      data: dataIso(raw.data),
+      dataFormatada: formatarDataBr(raw.data),
+      numeroOs: raw.trabalhoNumeroOs ?? numerosOs[0] ?? null,
     });
   }
 

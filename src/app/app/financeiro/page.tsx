@@ -48,7 +48,7 @@ import {
   Modal,
   Select,
 } from "@/components/ui";
-import { brShortToIso, dateToBrShort, formatDateBr, intervaloMesVigente, parseBrDate } from "@/lib/datas-br";
+import { brShortToIso, dateToBrShort, formatDateBr, parseBrDate } from "@/lib/datas-br";
 import {
   empacotarCobrancaOs,
   idsTrabalhosFaturadosNoLancamento,
@@ -103,7 +103,7 @@ import {
   exportarContasReceberClientesCsv,
   gerarContasReceberClientesPdf,
 } from "@/lib/contas-receber-clientes-export";
-import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, contribuiRecebidoCliente, isRecebimentoParcial, deveExibirNoHistoricoRecebimentos, valorHistoricoRecebimentoCliente, referenciaLancamento as referenciaHistoricoRecebimento, recebidoNaFatura as recebidoNaFaturaLib, saldoFatura as saldoFaturaLib, classeReferenciaHistoricoRecebimento, faturaExibeSituacaoParcial, faturasExibicaoPainelCliente, faturaQuitada, recebimentosHistoricoCliente, movimentacoesRecebimentoDaFatura, ehFaturaCobrancaOsParaExclusao, idsLancamentosExclusaoAoRemoverFatura, type LancamentoContasReceber } from "@/lib/contas-receber-financeiro";
+import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, isRecebimentoParcial, deveExibirNoHistoricoRecebimentos, valorHistoricoRecebimentoCliente, referenciaLancamento as referenciaHistoricoRecebimento, recebidoNaFatura as recebidoNaFaturaLib, saldoFatura as saldoFaturaLib, classeReferenciaHistoricoRecebimento, faturaExibeSituacaoParcial, faturasExibicaoPainelCliente, faturaQuitada, recebimentosHistoricoCliente, movimentacoesRecebimentoDaFatura, ehFaturaCobrancaOsParaExclusao, idsLancamentosExclusaoAoRemoverFatura, type LancamentoContasReceber } from "@/lib/contas-receber-financeiro";
 import { fetchPainelFinanceiro } from "@/lib/financeiro-painel-cliente";
 import type { PainelFinanceiroReceita } from "@/lib/financeiro-painel-types";
 import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
@@ -810,47 +810,26 @@ function FinanceiroReceberConteudo() {
   const resumoReceber = useMemo(() => {
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
-    const { inicio: inicioMes, fim: fimMes } = intervaloMesVigente(hoje);
-    const lancamentos = (data?.lancamentos || []).filter((l) => {
-      if (l.tipo !== "receita") return false;
-      const clienteId = l.cliente?.id;
-      if (clienteId && idsClientesAtivos.size > 0 && !idsClientesAtivos.has(clienteId)) {
-        return false;
-      }
-      return true;
-    });
 
-    return lancamentos.reduce(
-      (acc, l) => {
-        const dataLancamento = dateOnly(l.data);
-        const noMesVigente = dataLancamento >= inicioMes && dataLancamento <= fimMes;
-
-        if (isCreditoGerado(l)) {
-          if (noMesVigente) {
-            acc.adiantamentos += l.valor;
-            if (l.status === "pago") acc.recebidas += l.valor;
+    // KPIs alinhados à tabela visível (evita adiantamento gerado ≠ disponível / recebido).
+    return clientesReceber.reduce(
+      (acc, cliente) => {
+        acc.aReceber += cliente.aReceber;
+        acc.recebidas += cliente.recebido;
+        acc.adiantamentos += cliente.adiantamentos;
+        for (const l of cliente.lancamentos) {
+          if (l.tipo !== "receita" || l.status === "pago" || l.status === "cancelado") {
+            continue;
           }
-          return acc;
-        }
-        if (isCreditoUtilizado(l)) return acc;
-        if (!isFaturaContasReceber(l)) {
-          if (noMesVigente) {
-            acc.recebidas += contribuiRecebidoCliente(l, lancamentos);
-          }
-          return acc;
-        }
-
-        const pendente = l.status !== "pago";
-        if (pendente && noMesVigente) acc.aReceber += saldoFatura(l);
-        if (pendente && dataLancamento < hoje) acc.atraso += saldoFatura(l);
-        if (noMesVigente) {
-          acc.recebidas += contribuiRecebidoCliente(l, lancamentos);
+          if (!isFaturaContasReceber(l)) continue;
+          if (dateOnly(l.data) >= hoje) continue;
+          acc.atraso += saldoFatura(l);
         }
         return acc;
       },
       { aReceber: 0, atraso: 0, recebidas: 0, adiantamentos: 0, naoFaturados: 0 }
     );
-  }, [data, idsClientesAtivos]);
+  }, [clientesReceber]);
 
   const trabalhosSelecionados = useMemo(
     () => trabalhos.filter((trabalho) => osSelecionadas.includes(trabalho.id)),

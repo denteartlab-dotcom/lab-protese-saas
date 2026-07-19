@@ -95,7 +95,6 @@ export async function montarDashboard(params: ParametrosDashboard) {
   const filtroEmpresa = { empresaId };
   const inicioMes = new Date(ano, mes, 1);
   const fimMes = new Date(ano, mes + 1, 0, 23, 59, 59, 999);
-  const inicioFinanceiro = new Date(ano, mes - 23, 1);
   const incluirSecundario = escopo === "completo";
 
   const [
@@ -164,11 +163,10 @@ export async function montarDashboard(params: ParametrosDashboard) {
           },
         })
       : Promise.resolve([]),
+    // Sem recorte de data: saldo de Cobrança OS precisa de parciais/créditos
+    // de qualquer período (mesma base do Contas a Receber).
     prisma.lancamento.findMany({
-      where: {
-        empresaId,
-        data: { gte: inicioFinanceiro, lte: fimMes },
-      },
+      where: { empresaId },
       orderBy: { data: "desc" },
       include: {
         cliente: { select: { id: true, nome: true } },
@@ -246,7 +244,8 @@ export async function montarDashboard(params: ParametrosDashboard) {
       data: l.data,
       status: l.status,
       formaPagamento: l.formaPagamento,
-      clienteId: l.clienteId,
+      clienteId: l.clienteId ?? l.cliente?.id ?? null,
+      clienteNome: l.cliente?.nome ?? null,
       trabalhoId: l.trabalhoId,
       trabalhoNumeroOs: l.trabalho?.numeroOs ?? null,
     })),
@@ -254,7 +253,8 @@ export async function montarDashboard(params: ParametrosDashboard) {
       id: t.id,
       numeroOs: t.numeroOs,
       status: t.status,
-    }))
+    })),
+    { mes, ano }
   );
 
   let aniversariantesMes: AniversarianteMesItem[] | undefined;
