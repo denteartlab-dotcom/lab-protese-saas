@@ -972,11 +972,7 @@ export function LancarReceitaOsModal({
             </div>
           </div>
 
-          <p className="mt-5 mb-2 text-center text-[13px] font-medium text-[#4a5568]">
-            Escolha a(s) forma(s) de recebimento
-          </p>
-
-          <div className="mb-3 flex shrink-0 flex-wrap items-center gap-x-8 gap-y-2">
+          <div className="mt-4 mb-2 flex shrink-0 flex-wrap items-center gap-x-8 gap-y-2">
             <ToggleSmart
               checked={alterarEntregue}
               onChange={setAlterarEntregue}
@@ -988,6 +984,10 @@ export function LancarReceitaOsModal({
               label="Enviar para Controle de Entregas"
             />
           </div>
+
+          <p className="mb-2 text-center text-[13px] font-medium text-[#4a5568]">
+            Escolha a(s) forma(s) de recebimento
+          </p>
 
           {formaSelecionadaEhBoleto(parcelas) ? (
             <p className="mb-3 rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-center text-[11px] text-amber-900">
