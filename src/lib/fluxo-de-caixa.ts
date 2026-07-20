@@ -8,6 +8,7 @@ import { parseBrDate } from "@/lib/datas-br";
 import { lancamentoEfetivadoFinanceiro } from "@/lib/lancamento-financeiro-realizado";
 import { ehDescricaoReceitaOs } from "@/lib/os-faturamento";
 import { descricaoReceitaSemMeta } from "@/lib/receita-conta-bancaria";
+import { lancamentosComMovimentacaoRecebimento } from "@/lib/recebimento-conta-bancaria";
 
 export type LancamentoFluxo = {
   id: string;
@@ -166,10 +167,15 @@ function lancamentoIncluido(
   l: LancamentoFluxo,
   situacao: SituacaoFluxoCaixa
 ) {
-  if (l.tipo === "receita" && ehDescricaoReceitaOs(l.descricao) && l.status !== "pago") {
-    return false;
+  if (situacao === "realizado") {
+    // Cobranças OS só entram no realizado quando efetivamente pagas.
+    if (l.tipo === "receita" && ehDescricaoReceitaOs(l.descricao) && l.status !== "pago") {
+      return false;
+    }
+    return lancamentoEfetivadoFinanceiro(l);
   }
-  if (situacao === "realizado") return lancamentoEfetivadoFinanceiro(l);
+
+  // Previsto: pagos + pendentes (a receber, despesas e descontos futuros).
   return l.status === "pago" || l.status === "pendente";
 }
 
@@ -180,6 +186,8 @@ function movimentosBrutos(
   situacao: SituacaoFluxoCaixa = "realizado"
 ) {
   const contaPorId = new Map(contas.map((c) => [c.id, c]));
+  /** Mesmo dedupe da Conta Bancária: evita contar receita paga + mov-rec-* juntos. */
+  const receitasViaMovimentacao = lancamentosComMovimentacaoRecebimento(movimentacoes);
   const linhas: Array<{
     id: string;
     data: Date;
@@ -192,7 +200,9 @@ function movimentosBrutos(
 
   for (const l of lancamentos) {
     if (!lancamentoIncluido(l, situacao)) continue;
+    if (l.tipo === "receita" && l.id && receitasViaMovimentacao.has(l.id)) continue;
     const data = new Date(l.data);
+    if (Number.isNaN(data.getTime())) continue;
     const conta = contaDeLancamento(l, "Caixa Principal");
     const valor = l.tipo === "receita" ? l.valor : -l.valor;
     linhas.push({
