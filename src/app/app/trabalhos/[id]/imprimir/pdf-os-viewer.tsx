@@ -20,6 +20,7 @@ import {
   carregarLayoutModelo4,
   carregarLayoutModelo5,
   sincronizarConfiguracoesOsDoServidor,
+  CONFIG_OS_ATUALIZADA_EVENT,
   type ConfiguracoesOs,
 } from "@/lib/configuracoes-os";
 import { configParaLabImpressao } from "@/lib/lab-logo";
@@ -35,6 +36,7 @@ import {
   gapRequisicaoMm,
   margensLinhaRequisicao,
   posicaoTotaisRequisicaoPdf,
+  xFimRotuloTotaisOsComprovantePdf,
   OS_MODELO1_BORDA_MARGEM_MM,
   OS_REQUISICAO_BORDA_EXTERNA_MM,
   OS_REQUISICAO_BORDA_PADDING_MM,
@@ -568,6 +570,44 @@ function desenharMetadadosServicoRequisicao(
   }
   if (mostraProd) {
     labelValue(pdf, rotuloOsEspaco("print.os.producao"), data.producao || "", colDesc, y);
+    y += gapMm(4);
+  }
+  return y;
+}
+
+/** Metadados do comprovante após totais — igual ao preview de Configurações (Modelo 3). */
+function desenharMetadadosComprovantePosTotais(
+  pdf: PdfRenderApi,
+  lay: OsModelo1Layout,
+  data: PdfOsData,
+  mx: number,
+  yInicio: number,
+  gapMm: (mm: number) => number
+) {
+  let y = yInicio;
+  const etapasLista = data.etapasLista || [];
+  const mostraColab = colaboradorExibirNoTopoImpressao(lay.colaborador, lay.etapas, etapasLista);
+
+  if (lay.finalizado && data.finalizado?.trim()) {
+    labelValue(pdf, `${pl("print.os.finalizado")}: `, data.finalizado, mx, y);
+    y += gapMm(4);
+  }
+  if (mostraColab) {
+    labelValue(
+      pdf,
+      `${pl("print.os.colaborador")}: `,
+      colaboradorMetadadosImpressao({
+        explicito: data.colaborador,
+        colaboradores: data.colaboradoresLista,
+        etapas: etapasLista,
+      }),
+      mx,
+      y
+    );
+    y += gapMm(4);
+  }
+  if (lay.producao && data.producao?.trim()) {
+    labelValue(pdf, rotuloOsEspaco("print.os.producao"), data.producao, mx, y);
     y += gapMm(4);
   }
   return y;
@@ -1145,23 +1185,18 @@ function renderModeloComprovante(
     y += gapMm(1);
   });
 
-  y = desenharMetadadosServicoRequisicao(pdf, lay, data, colDesc, y, gapMm);
-  y += gapMm(5);
-  y = desenharEtapasOsRequisicao(pdf, lay, data, m.conteudoEsq, y, gapMm, fontBase);
-
-  y += gapMm(1);
-  linhaRequisicaoPdf(pdf, lay, y, pageWidth);
-  y += gapMm(5);
-
   const totalFinal = totalServicos - totalDescontos;
   if (lay.total) {
-    const { xFimRotulo, xValor } = posicaoTotaisRequisicaoPdf(pageWidth);
+    y += gapMm(1);
+    linhaRequisicaoPdf(pdf, lay, y, pageWidth);
+    y += gapMm(4);
+    const xFimRotulo = xFimRotuloTotaisOsComprovantePdf(lay, colUnit, colDescPct);
     const fsTotais = fontBase;
     const linhaTotal = (rotulo: string, valor: string, bold = false) => {
       pdf.setFont("helvetica", bold ? "bold" : "normal");
       pdf.setFontSize(fsTotais);
       pdf.text(rotulo, xFimRotulo, y, { align: "right" });
-      pdf.text(valor, xValor, y, { align: "right" });
+      pdf.text(valor, colSubtotal, y, { align: "right" });
       y += 4.5;
     };
     linhaTotal(pl("print.os.totalServicos"), money(totalServicos));
@@ -1171,10 +1206,13 @@ function renderModeloComprovante(
       money(totalFinal > 0 ? totalFinal : data.valor),
       true
     );
-    y += 1;
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(fontBase);
   }
+
+  y += gapMm(2);
+  y = desenharMetadadosComprovantePosTotais(pdf, lay, data, m.conteudoEsq, y, gapMm);
+  y = desenharEtapasOsRequisicao(pdf, lay, data, m.conteudoEsq, y, gapMm, fontBase);
 
   if (lay.materialRec && data.materiais) {
     pdf.text(rotuloOs("print.os.materiais"), m.conteudoEsq, y);
@@ -2112,14 +2150,13 @@ export function PdfOsViewer({
   const buildPdfSeqRef = useRef(0);
   const nomeArquivoPdf = nomeArquivoOsPdf(data.numeroOs);
 
-  function layoutsOsParaPdf(base: PdfOsData, cfgOs?: ConfiguracoesOs | null) {
-    const remoto = cfgOs ?? base.configuracoesOs;
+  function layoutsOsParaPdf(_base: PdfOsData, _cfgOs?: ConfiguracoesOs | null) {
     return {
-      layoutModelo1: remoto?.layoutModelo1 ?? carregarLayoutModelo1(),
-      layoutModelo2: remoto?.layoutModelo2 ?? carregarLayoutModelo2(),
-      layoutModelo3: remoto?.layoutModelo3 ?? carregarLayoutModelo3(),
-      layoutModelo4: remoto?.layoutModelo4 ?? carregarLayoutModelo4(),
-      layoutModelo5: remoto?.layoutModelo5 ?? carregarLayoutModelo5(),
+      layoutModelo1: carregarLayoutModelo1(),
+      layoutModelo2: carregarLayoutModelo2(),
+      layoutModelo3: carregarLayoutModelo3(),
+      layoutModelo4: carregarLayoutModelo4(),
+      layoutModelo5: carregarLayoutModelo5(),
     };
   }
 
@@ -2213,6 +2250,16 @@ export function PdfOsViewer({
       ativo = false;
     };
   }, [data]);
+
+  useEffect(() => {
+    function atualizarLayoutOs() {
+      const montado = montarDadosPdfDeServidor(dadosPdfRef.current);
+      dadosPdfRef.current = montado;
+      setDadosPdf(montado);
+    }
+    window.addEventListener(CONFIG_OS_ATUALIZADA_EVENT, atualizarLayoutOs);
+    return () => window.removeEventListener(CONFIG_OS_ATUALIZADA_EVENT, atualizarLayoutOs);
+  }, []);
 
   useEffect(() => {
     if (!configOsPronta) return;

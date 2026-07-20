@@ -411,6 +411,17 @@ export function posicaoTotaisRequisicaoPdf(pageWidthMm: number) {
   return { ...m, xValor, xFimRotulo };
 }
 
+/** Fim do rótulo dos totais — colunas Unitário + Desc (Modelo 3 comprovante). */
+export function xFimRotuloTotaisOsComprovantePdf(
+  layout: Pick<OsModelo1Layout, "valorUnit" | "desconto">,
+  colUnit: number,
+  colDescPct: number
+) {
+  if (layout.desconto) return colDescPct;
+  if (layout.valorUnit) return colUnit;
+  return colDescPct;
+}
+
 /** Container dos totais no preview HTML — mesma largura da tabela de itens. */
 export function estiloBlocoTotaisRequisicaoPreview() {
   return {
