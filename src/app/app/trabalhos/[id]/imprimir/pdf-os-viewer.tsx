@@ -1155,12 +1155,12 @@ function renderModeloComprovante(
 
   const totalFinal = totalServicos - totalDescontos;
   if (lay.total) {
-    const { xRotulo, xValor } = posicaoTotaisRequisicaoPdf(pageWidth);
+    const { xFimRotulo, xValor } = posicaoTotaisRequisicaoPdf(pageWidth);
     const fsTotais = fontBase;
     const linhaTotal = (rotulo: string, valor: string, bold = false) => {
       pdf.setFont("helvetica", bold ? "bold" : "normal");
       pdf.setFontSize(fsTotais);
-      pdf.text(rotulo, xRotulo, y);
+      pdf.text(rotulo, xFimRotulo, y, { align: "right" });
       pdf.text(valor, xValor, y, { align: "right" });
       y += 4.5;
     };

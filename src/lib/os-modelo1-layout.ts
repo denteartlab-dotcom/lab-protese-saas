@@ -306,37 +306,131 @@ export function estiloTabelaMargemColunasPreview() {
 /** Largura do bloco de rótulos dos totais (mm) — alinha com coluna Subtotal e fatura Smart. */
 export const OS_REQUISICAO_TOTAIS_LARGURA_MM = 68;
 
+/** Largura da coluna de valores dos totais (mm) — mesma da coluna Subtotal/Desc no PDF. */
+export const OS_REQUISICAO_TOTAIS_COL_VALOR_MM = 22;
+
 /** Coluna de valores no preview HTML (px) — par com grid 1fr + 92px da fatura. */
 export const OS_REQUISICAO_TOTAIS_COL_VALOR_PX = 92;
+
+type ColunaTabelaOsComprovante =
+  | "qtd"
+  | "desc"
+  | "dente"
+  | "cor"
+  | "unit"
+  | "desc_pct"
+  | "subtotal";
+
+const PESO_COLUNA_OS_COMPROVANTE: Record<ColunaTabelaOsComprovante, number> = {
+  qtd: 15.5,
+  desc: 75.5,
+  dente: 20,
+  cor: 26,
+  unit: 26,
+  desc_pct: 22,
+  subtotal: 22,
+};
+
+/** Colunas visíveis da tabela de itens — Modelo 3 comprovante. */
+export function colunasVisiveisOsComprovante(
+  layout: Pick<
+    OsModelo1Layout,
+    "numDente" | "corDente" | "valorUnit" | "desconto" | "subtotal"
+  >
+): ColunaTabelaOsComprovante[] {
+  const cols: ColunaTabelaOsComprovante[] = ["qtd", "desc"];
+  if (layout.numDente) cols.push("dente");
+  if (layout.corDente) cols.push("cor");
+  if (layout.valorUnit) cols.push("unit");
+  if (layout.desconto) cols.push("desc_pct");
+  if (layout.subtotal) cols.push("subtotal");
+  return cols;
+}
+
+/** Coluna do rótulo dos totais (alinhado à direita, antes do Subtotal). */
+export function colunaRotuloTotaisOsComprovante(
+  layout: Pick<OsModelo1Layout, "desconto" | "valorUnit">
+): ColunaTabelaOsComprovante {
+  if (layout.desconto) return "desc_pct";
+  if (layout.valorUnit) return "unit";
+  return "desc";
+}
+
+/** Índices das colunas vazias, rótulo e valor nos totais do comprovante. */
+export function indicesColunasTotaisOsComprovante(
+  layout: Pick<
+    OsModelo1Layout,
+    "numDente" | "corDente" | "valorUnit" | "desconto" | "subtotal"
+  >
+) {
+  const cols = colunasVisiveisOsComprovante(layout);
+  const rotulo = colunaRotuloTotaisOsComprovante(layout);
+  const idxRotulo = cols.indexOf(rotulo);
+  const idxSubtotal = cols.indexOf("subtotal");
+  const colspanEntre =
+    idxRotulo >= 0 && idxSubtotal > idxRotulo + 1 ? idxSubtotal - idxRotulo - 1 : 0;
+  return {
+    colspanAntes: Math.max(0, idxRotulo),
+    colspanEntre,
+    temRotulo: idxRotulo >= 0,
+    temSubtotal: idxSubtotal >= 0,
+  };
+}
+
+/** `<colgroup>` com larguras proporcionais ao PDF Smart. */
+export function largurasColunasOsComprovantePreview(
+  layout: Pick<
+    OsModelo1Layout,
+    "numDente" | "corDente" | "valorUnit" | "desconto" | "subtotal"
+  >
+) {
+  const cols = colunasVisiveisOsComprovante(layout);
+  const total = cols.reduce((s, c) => s + PESO_COLUNA_OS_COMPROVANTE[c], 0);
+  return cols.map((c) => `${((PESO_COLUNA_OS_COMPROVANTE[c] / total) * 100).toFixed(2)}%`);
+}
+
+/** HTML string `<col />` para impressão HTML legada. */
+export function colgroupOsComprovantePreview(
+  layout: Pick<
+    OsModelo1Layout,
+    "numDente" | "corDente" | "valorUnit" | "desconto" | "subtotal"
+  >
+) {
+  return largurasColunasOsComprovantePreview(layout)
+    .map((w) => `<col style="width:${w}" />`)
+    .join("");
+}
 
 /** Posição X dos rótulos e valores dos totais no PDF (mm). */
 export function posicaoTotaisRequisicaoPdf(pageWidthMm: number) {
   const m = margensLinhaRequisicao(pageWidthMm);
   const xValor = m.tabelaDir;
-  const xRotulo = xValor - OS_REQUISICAO_TOTAIS_LARGURA_MM;
-  return { ...m, xRotulo, xValor };
+  const xFimRotulo = xValor - OS_REQUISICAO_TOTAIS_COL_VALOR_MM;
+  return { ...m, xValor, xFimRotulo };
 }
 
-/** Container dos totais no preview HTML — alinhado à direita sob Subtotal. */
+/** Container dos totais no preview HTML — mesma largura da tabela de itens. */
 export function estiloBlocoTotaisRequisicaoPreview() {
   return {
-    width: "260px",
-    maxWidth: "100%",
-    marginLeft: "auto" as const,
-    paddingRight: `${OS_REQUISICAO_COLUNA_MARGEM_MM}mm`,
+    width: "100%",
     boxSizing: "border-box" as const,
   };
 }
 
-/** Linha de totais no preview HTML — rótulo à esquerda, valor à direita. */
+/** Linha de totais no preview HTML — rótulo à direita, valor à direita. */
 export function estiloLinhaTotaisRequisicaoPreview() {
   return {
     display: "grid",
     gridTemplateColumns: `1fr ${OS_REQUISICAO_TOTAIS_COL_VALOR_PX}px`,
-    gap: "8px",
-    padding: "2px 0",
+    gap: "4px",
+    padding: "1px 0",
     alignItems: "baseline" as const,
   };
+}
+
+/** Rótulo dos totais no preview HTML — alinhado à direita antes do valor. */
+export function estiloRotuloTotaisRequisicaoPreview() {
+  return { textAlign: "right" as const, paddingRight: "2px" };
 }
 
 export function hexParaRgb(hex: string): { r: number; g: number; b: number } {

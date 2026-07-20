@@ -728,8 +728,9 @@ function estilosBaseA4(fs: number, smartModelo1: boolean) {
     .pay tr.pay-row-restante td{font-weight:700}
     .right{text-align:right}
     .center{text-align:center}
-    .totals{width:${smartModelo1 ? "260px" : "270px"};max-width:100%;margin-left:auto;padding-top:4px}
-    .totals div{display:grid;grid-template-columns:1fr ${OS_REQUISICAO_TOTAIS_COL_VALOR_PX}px;gap:8px;padding:2px 0;align-items:baseline}
+    .totals{width:28%;min-width:180px;max-width:100%;margin-left:auto;padding-top:4px}
+    .totals div{display:grid;grid-template-columns:1fr 46%;gap:4px;padding:1px 0;align-items:baseline}
+    .totals div span:first-child{text-align:right;padding-right:2px}
     .totals .right{text-align:right;justify-self:end}
     .totals strong{font-weight:bold}
     ${smartTableCss}

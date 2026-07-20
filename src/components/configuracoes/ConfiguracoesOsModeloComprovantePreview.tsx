@@ -18,7 +18,8 @@ import {
   estiloLinhaRequisicaoPreview,
   estiloMolduraOverlayRequisicaoPreview,
   estiloBlocoTotaisRequisicaoPreview,
-  estiloLinhaTotaisRequisicaoPreview,
+  indicesColunasTotaisOsComprovante,
+  largurasColunasOsComprovantePreview,
   estiloPaginaRequisicaoPreview,
   estiloWrapperConteudoRequisicaoPreview,
   gapRequisicaoPreviewMm,
@@ -93,6 +94,7 @@ export function PreviewOsModeloComprovante({
   const totalServicos = amostra.totalServicos;
   const totalDescontos = amostra.totalDescontos;
   const totalFinal = amostra.total;
+  const colsTotais = indicesColunasTotaisOsComprovante(layout);
   const mostraEtapasLista = layout.etapas && PREVIEW_ETAPAS_OS_LISTA.length > 0;
   const mostraColaboradorTopo = colaboradorExibirNoTopoImpressao(
     layout.colaborador,
@@ -223,8 +225,17 @@ export function PreviewOsModeloComprovante({
         <div style={{ marginTop: gap(2), ...estiloLimiteLinhasPaginaPreview() }}>
         <table
           className="w-full border-collapse"
-          style={{ fontSize: `${fsSmall}px`, ...estiloTabelaMargemColunasPreview() }}
+          style={{
+            fontSize: `${fsSmall}px`,
+            tableLayout: "fixed",
+            ...estiloTabelaMargemColunasPreview(),
+          }}
         >
+          <colgroup>
+            {largurasColunasOsComprovantePreview(layout).map((w) => (
+              <col key={w} style={{ width: w }} />
+            ))}
+          </colgroup>
           <thead>
             <tr style={estiloLinhaInferiorRequisicaoPreview()}>
               <th className="py-0.5 pr-2 text-left font-bold">{t("print.os.qtd")}</th>
@@ -340,26 +351,69 @@ export function PreviewOsModeloComprovante({
             <LinhaSeparador marginTop={gap(2)} />
             <div
               style={{
-                fontSize: `${fsSmall}px`,
                 marginTop: gap(1.5),
+                ...estiloLimiteLinhasPaginaPreview(),
                 ...estiloBlocoTotaisRequisicaoPreview(),
-                display: "flex",
-                flexDirection: "column",
-                gap: "2px",
               }}
             >
-              <div style={estiloLinhaTotaisRequisicaoPreview()}>
-                <span>{t("print.fatura.totalServicosIgual").replace(" (=)", "")}</span>
-                <span className="text-right">{money(totalServicos)}</span>
-              </div>
-              <div style={estiloLinhaTotaisRequisicaoPreview()}>
-                <span>{`(-) ${t("print.os.descontosCol")}`}</span>
-                <span className="text-right">{money(totalDescontos)}</span>
-              </div>
-              <div style={estiloLinhaTotaisRequisicaoPreview()}>
-                <span className="font-bold">{t("print.os.totalFinal")}</span>
-                <span className="text-right font-bold">{money(totalFinal)}</span>
-              </div>
+              <table
+                className="w-full border-collapse"
+                style={{
+                  fontSize: `${fsSmall}px`,
+                  tableLayout: "fixed",
+                  ...estiloTabelaMargemColunasPreview(),
+                }}
+              >
+                <colgroup>
+                  {largurasColunasOsComprovantePreview(layout).map((w) => (
+                    <col key={`tot-${w}`} style={{ width: w }} />
+                  ))}
+                </colgroup>
+                <tbody>
+                  <tr>
+                    {colsTotais.colspanAntes > 0 ? (
+                      <td colSpan={colsTotais.colspanAntes} />
+                    ) : null}
+                    {colsTotais.temRotulo ? (
+                      <td className="py-0.5 text-right align-top">{t("print.os.totalServicos")}</td>
+                    ) : null}
+                    {colsTotais.colspanEntre > 0 ? (
+                      <td colSpan={colsTotais.colspanEntre} />
+                    ) : null}
+                    {colsTotais.temSubtotal ? (
+                      <td className="py-0.5 text-right align-top">{money(totalServicos)}</td>
+                    ) : null}
+                  </tr>
+                  <tr>
+                    {colsTotais.colspanAntes > 0 ? (
+                      <td colSpan={colsTotais.colspanAntes} />
+                    ) : null}
+                    {colsTotais.temRotulo ? (
+                      <td className="py-0.5 text-right align-top">{t("print.os.descontos")}</td>
+                    ) : null}
+                    {colsTotais.colspanEntre > 0 ? (
+                      <td colSpan={colsTotais.colspanEntre} />
+                    ) : null}
+                    {colsTotais.temSubtotal ? (
+                      <td className="py-0.5 text-right align-top">{money(totalDescontos)}</td>
+                    ) : null}
+                  </tr>
+                  <tr>
+                    {colsTotais.colspanAntes > 0 ? (
+                      <td colSpan={colsTotais.colspanAntes} />
+                    ) : null}
+                    {colsTotais.temRotulo ? (
+                      <td className="py-0.5 text-right align-top font-bold">{t("print.os.totalFinal")}</td>
+                    ) : null}
+                    {colsTotais.colspanEntre > 0 ? (
+                      <td colSpan={colsTotais.colspanEntre} />
+                    ) : null}
+                    {colsTotais.temSubtotal ? (
+                      <td className="py-0.5 text-right align-top font-bold">{money(totalFinal)}</td>
+                    ) : null}
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </>
         ) : null}

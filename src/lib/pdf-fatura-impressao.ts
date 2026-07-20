@@ -395,13 +395,13 @@ function desenharTotais(
   fsSmall: number
 ) {
   const pageWidth = pdf.internal.pageSize.getWidth();
-  const { xRotulo, xValor } = posicaoTotaisRequisicaoPdf(pageWidth);
+  const { xFimRotulo, xValor } = posicaoTotaisRequisicaoPdf(pageWidth);
   let cursor = y;
 
   pdf.setFontSize(fsSmall);
   const linhaTotal = (rotulo: string, valor: string, bold = false) => {
     pdf.setFont("helvetica", bold ? "bold" : "normal");
-    pdf.text(rotulo, xRotulo, cursor);
+    pdf.text(rotulo, xFimRotulo, cursor, { align: "right" });
     pdf.text(valor, xValor, cursor, { align: "right" });
     cursor += 4.5;
   };
