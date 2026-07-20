@@ -34,6 +34,7 @@ import {
   escalaEspacamentoRequisicao,
   gapRequisicaoMm,
   margensLinhaRequisicao,
+  posicaoTotaisRequisicaoPdf,
   OS_MODELO1_BORDA_MARGEM_MM,
   OS_REQUISICAO_BORDA_EXTERNA_MM,
   OS_REQUISICAO_BORDA_PADDING_MM,
@@ -1154,18 +1155,23 @@ function renderModeloComprovante(
 
   const totalFinal = totalServicos - totalDescontos;
   if (lay.total) {
-    const blocoTotalX = 118;
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(fontBase + 1);
-    pdf.text(pl("print.os.totalServicos"), blocoTotalX, y);
-    pdf.text(money(totalServicos), m.tabelaDir, y, { align: "right" });
-    y += gapMm(4);
-    pdf.text(pl("print.os.descontos"), blocoTotalX, y);
-    pdf.text(money(totalDescontos), m.tabelaDir, y, { align: "right" });
-    y += gapMm(4);
-    pdf.text(pl("print.os.totalFinal"), blocoTotalX, y);
-    pdf.text(money(totalFinal > 0 ? totalFinal : data.valor), m.tabelaDir, y, { align: "right" });
-    y += gapMm(4);
+    const { xRotulo, xValor } = posicaoTotaisRequisicaoPdf(pageWidth);
+    const fsTotais = fontBase;
+    const linhaTotal = (rotulo: string, valor: string, bold = false) => {
+      pdf.setFont("helvetica", bold ? "bold" : "normal");
+      pdf.setFontSize(fsTotais);
+      pdf.text(rotulo, xRotulo, y);
+      pdf.text(valor, xValor, y, { align: "right" });
+      y += 4.5;
+    };
+    linhaTotal(pl("print.os.totalServicos"), money(totalServicos));
+    linhaTotal(pl("print.os.descontos"), money(totalDescontos));
+    linhaTotal(
+      pl("print.os.totalFinal"),
+      money(totalFinal > 0 ? totalFinal : data.valor),
+      true
+    );
+    y += 1;
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(fontBase);
   }

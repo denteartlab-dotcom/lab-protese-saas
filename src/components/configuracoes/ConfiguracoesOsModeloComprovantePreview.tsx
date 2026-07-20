@@ -17,6 +17,8 @@ import {
   estiloLinhaInferiorRequisicaoPreview,
   estiloLinhaRequisicaoPreview,
   estiloMolduraOverlayRequisicaoPreview,
+  estiloBlocoTotaisRequisicaoPreview,
+  estiloLinhaTotaisRequisicaoPreview,
   estiloPaginaRequisicaoPreview,
   estiloWrapperConteudoRequisicaoPreview,
   gapRequisicaoPreviewMm,
@@ -337,27 +339,27 @@ export function PreviewOsModeloComprovante({
           <>
             <LinhaSeparador marginTop={gap(2)} />
             <div
-              className="text-right"
               style={{
                 fontSize: `${fsSmall}px`,
                 marginTop: gap(1.5),
+                ...estiloBlocoTotaisRequisicaoPreview(),
                 display: "flex",
                 flexDirection: "column",
-                gap: gap(0.5),
+                gap: "2px",
               }}
             >
-              <p>
-                <span className="font-bold">{`${t("print.fatura.totalServicosIgual").replace(" (=)", "")} `}</span>
-                {money(totalServicos)}
-              </p>
-              <p>
-                <span className="font-bold">{`(-) ${t("print.os.descontosCol")} `}</span>
-                {money(totalDescontos)}
-              </p>
-              <p>
-                <span className="font-bold">{`${t("print.os.totalFinal")} `}</span>
-                {money(totalFinal)}
-              </p>
+              <div style={estiloLinhaTotaisRequisicaoPreview()}>
+                <span>{t("print.fatura.totalServicosIgual").replace(" (=)", "")}</span>
+                <span className="text-right">{money(totalServicos)}</span>
+              </div>
+              <div style={estiloLinhaTotaisRequisicaoPreview()}>
+                <span>{`(-) ${t("print.os.descontosCol")}`}</span>
+                <span className="text-right">{money(totalDescontos)}</span>
+              </div>
+              <div style={estiloLinhaTotaisRequisicaoPreview()}>
+                <span className="font-bold">{t("print.os.totalFinal")}</span>
+                <span className="text-right font-bold">{money(totalFinal)}</span>
+              </div>
             </div>
           </>
         ) : null}

@@ -27,6 +27,7 @@ import {
 import {
   hexParaRgb,
   margensLinhaRequisicao,
+  posicaoTotaisRequisicaoPdf,
   normalizarCorBorda,
   OS_ASSINATURA_LINHA_PRODUCAO_MM,
   OS_MODELO1_BORDA_MARGEM_MM,
@@ -394,10 +395,7 @@ function desenharTotais(
   fsSmall: number
 ) {
   const pageWidth = pdf.internal.pageSize.getWidth();
-  const m = margensLinhaRequisicao(pageWidth);
-  const largura = 68;
-  const xValor = m.conteudoDir;
-  const xRotulo = xValor - largura;
+  const { xRotulo, xValor } = posicaoTotaisRequisicaoPdf(pageWidth);
   let cursor = y;
 
   pdf.setFontSize(fsSmall);

@@ -303,6 +303,42 @@ export function estiloTabelaMargemColunasPreview() {
   };
 }
 
+/** Largura do bloco de rótulos dos totais (mm) — alinha com coluna Subtotal e fatura Smart. */
+export const OS_REQUISICAO_TOTAIS_LARGURA_MM = 68;
+
+/** Coluna de valores no preview HTML (px) — par com grid 1fr + 92px da fatura. */
+export const OS_REQUISICAO_TOTAIS_COL_VALOR_PX = 92;
+
+/** Posição X dos rótulos e valores dos totais no PDF (mm). */
+export function posicaoTotaisRequisicaoPdf(pageWidthMm: number) {
+  const m = margensLinhaRequisicao(pageWidthMm);
+  const xValor = m.tabelaDir;
+  const xRotulo = xValor - OS_REQUISICAO_TOTAIS_LARGURA_MM;
+  return { ...m, xRotulo, xValor };
+}
+
+/** Container dos totais no preview HTML — alinhado à direita sob Subtotal. */
+export function estiloBlocoTotaisRequisicaoPreview() {
+  return {
+    width: "260px",
+    maxWidth: "100%",
+    marginLeft: "auto" as const,
+    paddingRight: `${OS_REQUISICAO_COLUNA_MARGEM_MM}mm`,
+    boxSizing: "border-box" as const,
+  };
+}
+
+/** Linha de totais no preview HTML — rótulo à esquerda, valor à direita. */
+export function estiloLinhaTotaisRequisicaoPreview() {
+  return {
+    display: "grid",
+    gridTemplateColumns: `1fr ${OS_REQUISICAO_TOTAIS_COL_VALOR_PX}px`,
+    gap: "8px",
+    padding: "2px 0",
+    alignItems: "baseline" as const,
+  };
+}
+
 export function hexParaRgb(hex: string): { r: number; g: number; b: number } {
   const normalizado = normalizarCorBorda(hex).replace("#", "");
   const expandido =

@@ -58,6 +58,7 @@ import {
   OS_REQUISICAO_LINHA_PREVIEW_PX,
   OS_REQUISICAO_MARGEM_CONTEUDO_MM,
   OS_REQUISICAO_PREVIEW_INSET_MM,
+  OS_REQUISICAO_TOTAIS_COL_VALOR_PX,
 } from "@/lib/os-modelo1-layout";
 export type OpcoesHtmlFaturaImpressao = {
   formato: "a4" | "termica";
@@ -728,7 +729,7 @@ function estilosBaseA4(fs: number, smartModelo1: boolean) {
     .right{text-align:right}
     .center{text-align:center}
     .totals{width:${smartModelo1 ? "260px" : "270px"};max-width:100%;margin-left:auto;padding-top:4px}
-    .totals div{display:grid;grid-template-columns:1fr 92px;gap:8px;padding:2px 0;align-items:baseline}
+    .totals div{display:grid;grid-template-columns:1fr ${OS_REQUISICAO_TOTAIS_COL_VALOR_PX}px;gap:8px;padding:2px 0;align-items:baseline}
     .totals .right{text-align:right;justify-self:end}
     .totals strong{font-weight:bold}
     ${smartTableCss}
