@@ -36,6 +36,12 @@ import { VisualizadorAnexoDespesa } from "@/components/financeiro/VisualizadorAn
 import type { LancarReceitaPayload } from "@/components/financeiro/LancarReceitaModal";
 import {
   ANEXOS_FINANCEIRO_VAZIOS,
+  desempacotarDespesa,
+  descricaoDespesaComParcela,
+  empacotarDespesa,
+  itensDespesaParaMeta,
+  lerFornecedoresStorage,
+  montarTextoDespesaComItens,
   type AnexoDespesa,
   type DespesaMeta,
   type EntidadeDespesa,
@@ -64,16 +70,6 @@ import {
 } from "@/lib/financeiro-events";
 import { fetchPainelFinanceiro } from "@/lib/financeiro-painel-cliente";
 import type { PainelFinanceiroBoletos } from "@/lib/financeiro-painel-types";
-import {
-  desempacotarDespesa,
-  descricaoDespesaComParcela,
-  empacotarDespesa,
-  itensDespesaParaMeta,
-  lerFornecedoresStorage,
-  montarTextoDespesaComItens,
-  type DespesaMeta,
-  type EntidadeDespesa,
-} from "@/lib/lancamento-despesa";
 import { debounceCallback } from "@/lib/debounce-callback";
 import {
   labelGrupoBoleto,
