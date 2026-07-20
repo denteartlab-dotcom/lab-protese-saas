@@ -68,7 +68,11 @@ import {
   desempacotarDespesa,
   descricaoDespesaComParcela,
   empacotarDespesa,
+  itensDespesaParaMeta,
   lerFornecedoresStorage,
+  montarTextoDespesaComItens,
+  type DespesaMeta,
+  type EntidadeDespesa,
 } from "@/lib/lancamento-despesa";
 import { debounceCallback } from "@/lib/debounce-callback";
 import {
@@ -453,10 +457,7 @@ export function ControleBoletosConteudo() {
     salvarRef.current = true;
     setSalvando(true);
     const nomeEntidade = payload.entidadeNome || payload.clienteId || "Fornecedor";
-    const descricaoItens = payload.itens
-      .map((item) => [item.produto, item.descricao].filter(Boolean).join(" - "))
-      .filter(Boolean)
-      .join("; ");
+    const itensMeta = itensDespesaParaMeta(payload.itens);
     const meta: DespesaMeta = {
       entidade: payload.tipoCliente as EntidadeDespesa,
       categoria: payload.categoria,
@@ -464,11 +465,11 @@ export function ControleBoletosConteudo() {
       parcela: String(payload.parcelas.length),
       referencia: payload.notaFiscalRef,
       nome: nomeEntidade,
+      ...(itensMeta.length ? { itens: itensMeta } : {}),
       ...(payload.anexos?.length ? { anexos: payload.anexos } : {}),
     };
     const descricaoBase = empacotarDespesa(
-      [descricaoItens, payload.observacoes].filter(Boolean).join(" | ") ||
-        nomeEntidade,
+      montarTextoDespesaComItens(itensMeta, payload.observacoes, nomeEntidade),
       meta
     );
 

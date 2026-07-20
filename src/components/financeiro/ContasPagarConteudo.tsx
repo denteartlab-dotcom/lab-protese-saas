@@ -60,8 +60,10 @@ import {
   descricaoDespesaComParcela,
   empacotarDespesa,
   atualizarMetaDespesa,
+  itensDespesaParaMeta,
   lerFornecedoresStorage,
   lerNomesStorage,
+  montarTextoDespesaComItens,
   type EntidadeDespesa,
   type DespesaMeta,
 } from "@/lib/lancamento-despesa";
@@ -845,13 +847,12 @@ export function ContasPagarConteudo() {
     setSalvando(true);
     const nomeEntidade = payload.entidadeNome || payload.clienteId || "Fornecedor";
 
-    const descricaoItens = payload.itens
-      .map((item) => [item.produto, item.descricao].filter(Boolean).join(" - "))
-      .filter(Boolean)
-      .join("; ");
-    const textoDespesa =
-      [descricaoItens, payload.observacoes].filter(Boolean).join(" | ") ||
-      nomeEntidade;
+    const itensMeta = itensDespesaParaMeta(payload.itens);
+    const textoDespesa = montarTextoDespesaComItens(
+      itensMeta,
+      payload.observacoes,
+      nomeEntidade
+    );
 
     const metaEdicao = editando
       ? desempacotarDespesa(editando.descricao).meta
@@ -873,6 +874,7 @@ export function ContasPagarConteudo() {
         parcela: String(payload.parcelas.length),
         referencia: payload.notaFiscalRef,
         nome: nomeEntidade,
+        ...(itensMeta.length ? { itens: itensMeta } : {}),
         ...(payload.anexos?.length ? { anexos: payload.anexos } : {}),
       };
       if (!despesaFixaAtiva || !mesReferencia || !grupoFixaId) return base;

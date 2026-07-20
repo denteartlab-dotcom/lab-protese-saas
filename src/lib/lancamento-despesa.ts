@@ -42,6 +42,13 @@ export type AnexoDespesa = {
   url: string;
 };
 
+export type ItemDespesaMeta = {
+  produto: string;
+  descricao: string;
+  quantidade: string;
+  custoUnitario: string;
+};
+
 export type DespesaMeta = {
   entidade?: EntidadeDespesa;
   categoria?: string;
@@ -51,6 +58,8 @@ export type DespesaMeta = {
   nome?: string;
   /** Recibos e comprovantes — imagens ou PDF (máx. 5). */
   anexos?: AnexoDespesa[];
+  /** Itens do formulário (produto, qtd e custo unitário) para reabrir na edição. */
+  itens?: ItemDespesaMeta[];
   /** Despesa fixa recorrente mensal. */
   fixa?: boolean;
   fixaGrupoId?: string;
@@ -332,15 +341,125 @@ function descricaoSemParcela(texto: string) {
   return texto.replace(/\s*\(\d+\s*\/\s*\d+\)\s*$/, "").trim();
 }
 
-function parseItensDespesaSalva(texto: string, valorTotal: number) {
+/** Normaliza itens do formulário para gravar na meta da despesa. */
+export function itensDespesaParaMeta(
+  itens: Array<{
+    produto: string;
+    descricao: string;
+    quantidade: string;
+    custoUnitario: string;
+  }>
+): ItemDespesaMeta[] {
+  return itens
+    .filter((item) => item.produto.trim() || item.descricao.trim())
+    .map((item) => ({
+      produto: item.produto.trim(),
+      descricao: item.descricao.trim(),
+      quantidade: (item.quantidade || "1").trim() || "1",
+      custoUnitario: (item.custoUnitario || "0,00").trim() || "0,00",
+    }));
+}
+
+/** Linha legível: "Produto - Desc (12 x 12,50)". */
+export function formatarLinhaItemDespesa(item: ItemDespesaMeta): string {
+  const label =
+    [item.produto, item.descricao].filter(Boolean).join(" - ") || "Item";
+  const qtd = (item.quantidade || "1").trim() || "1";
+  const unit = (item.custoUnitario || "0,00").trim() || "0,00";
+  return `${label} (${qtd} x ${unit})`;
+}
+
+export function montarTextoDespesaComItens(
+  itens: ItemDespesaMeta[],
+  observacoes: string,
+  fallbackNome: string
+): string {
+  const descricaoItens = itens.map(formatarLinhaItemDespesa).join("; ");
+  return (
+    [descricaoItens, observacoes.trim()].filter(Boolean).join(" | ") ||
+    fallbackNome
+  );
+}
+
+function observacoesDoTextoDespesa(texto: string) {
   const partes = texto.split("|").map((p) => p.trim()).filter(Boolean);
-  let observacoes = "";
-  let corpo = texto;
-  if (partes.length > 1) {
-    observacoes = partes[partes.length - 1];
-    corpo = partes.slice(0, -1).join(" | ");
+  if (partes.length <= 1) return "";
+  return partes[partes.length - 1];
+}
+
+function corpoItensDoTextoDespesa(texto: string) {
+  const partes = texto.split("|").map((p) => p.trim()).filter(Boolean);
+  if (partes.length <= 1) return texto.trim();
+  return partes.slice(0, -1).join(" | ");
+}
+
+function parseLinhaItemDespesa(
+  seg: string,
+  index: number,
+  valorTotal: number,
+  segmentosLen: number
+): ItemDespesaVisualizacao {
+  const comQtd = seg.match(
+    /^(.*?)\s*\(\s*([\d]+(?:[.,]\d+)?)\s*[x×]\s*([\d.,]+)\s*\)\s*$/i
+  );
+  if (comQtd) {
+    const label = comQtd[1].trim();
+    const dashIdx = label.indexOf(" - ");
+    return {
+      id: `item-${index}`,
+      produto: dashIdx >= 0 ? label.slice(0, dashIdx).trim() : label,
+      descricao: dashIdx >= 0 ? label.slice(dashIdx + 3).trim() : label,
+      quantidade: comQtd[2].includes(",")
+        ? comQtd[2]
+        : comQtd[2].replace(".", ","),
+      custoUnitario: (() => {
+        const raw = comQtd[3].trim();
+        const n = Number(raw.replace(/\./g, "").replace(",", "."));
+        return Number.isFinite(n) ? moneyBr(n) : raw;
+      })(),
+    };
   }
 
+  const dashIdx = seg.indexOf(" - ");
+  if (dashIdx >= 0) {
+    return {
+      id: `item-${index}`,
+      produto: seg.slice(0, dashIdx).trim(),
+      descricao: seg.slice(dashIdx + 3).trim(),
+      quantidade: "1",
+      custoUnitario: segmentosLen === 1 ? moneyBr(valorTotal) : "0,00",
+    };
+  }
+  return {
+    id: `item-${index}`,
+    produto: "",
+    descricao: seg,
+    quantidade: "1",
+    custoUnitario: segmentosLen === 1 ? moneyBr(valorTotal) : "0,00",
+  };
+}
+
+function parseItensDespesaSalva(
+  texto: string,
+  valorTotal: number,
+  itensMeta?: ItemDespesaMeta[] | null
+) {
+  const observacoes = observacoesDoTextoDespesa(texto);
+
+  if (itensMeta && itensMeta.length > 0) {
+    return {
+      itens: itensMeta.map((item, index) => ({
+        id: `item-${index}`,
+        produto: item.produto || "",
+        descricao: item.descricao || "",
+        quantidade: (item.quantidade || "1").trim() || "1",
+        custoUnitario: (item.custoUnitario || "0,00").trim() || "0,00",
+      })),
+      observacoes,
+    };
+  }
+
+  const corpo = corpoItensDoTextoDespesa(texto);
   const segmentos = corpo.split(";").map((s) => s.trim()).filter(Boolean);
   if (!segmentos.length) {
     return {
@@ -357,33 +476,14 @@ function parseItensDespesaSalva(texto: string, valorTotal: number) {
     };
   }
 
-  const itens = segmentos.map((seg, index) => {
-    const dashIdx = seg.indexOf(" - ");
-    if (dashIdx >= 0) {
-      return {
-        id: `item-${index}`,
-        produto: seg.slice(0, dashIdx).trim(),
-        descricao: seg.slice(dashIdx + 3).trim(),
-        quantidade: "1",
-        custoUnitario:
-          segmentos.length === 1 ? moneyBr(valorTotal) : "0,00",
-      };
-    }
-    return {
-      id: `item-${index}`,
-      produto: "",
-      descricao: seg,
-      quantidade: "1",
-      custoUnitario: segmentos.length === 1 ? moneyBr(valorTotal) : "0,00",
-    };
-  });
+  const itens = segmentos.map((seg, index) =>
+    parseLinhaItemDespesa(seg, index, valorTotal, segmentos.length)
+  );
 
   const somaItens = itens.reduce((sum, item) => {
     const qtd = Number(item.quantidade.replace(",", ".")) || 0;
     const unit =
-      Number(
-        item.custoUnitario.replace(/\./g, "").replace(",", ".")
-      ) || 0;
+      Number(item.custoUnitario.replace(/\./g, "").replace(",", ".")) || 0;
     return sum + qtd * unit;
   }, 0);
 
@@ -532,7 +632,11 @@ export function extrairDadosVisualizacaoDespesa(
 ): DadosVisualizacaoDespesa {
   const pack = desempacotarDespesa(lancamento.descricao);
   const textoBase = descricaoSemParcela(pack.texto);
-  const { itens, observacoes } = parseItensDespesaSalva(textoBase, lancamento.valor);
+  const { itens, observacoes } = parseItensDespesaSalva(
+    textoBase,
+    lancamento.valor,
+    pack.meta.itens
+  );
   const { parcela, numParcelas } = rotuloParcelaDespesa(pack.texto, pack.parcela);
 
   const referencia =
