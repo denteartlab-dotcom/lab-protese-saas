@@ -95,7 +95,7 @@ import {
   carregarColaboradoresListagem,
   type ColaboradorListagem,
 } from "@/lib/colaboradores-listagem";
-import { comissaoCadastroColaborador } from "@/lib/colaborador-remuneracao";
+import { comissaoCadastroColaborador, calcularComissaoSobreServicos, formatarComissaoCalculadaExibicao } from "@/lib/colaborador-remuneracao";
 import {
   carregarEtapasCadastro,
   colaboradoresParaExibicaoControle,
@@ -1885,6 +1885,66 @@ export default function ControlePage() {
       Boolean(form?.repeticao)
     );
     return formatarComissaoComTipo(tipo, bruto);
+  }
+
+  /** Base da comissão: só o serviço atual (nunca produto nem transporte). */
+  function valorBaseComissaoColaboradorEdicao() {
+    if (painelEdicaoItem === "servico" && form) {
+      const subtotal =
+        parseCurrencyBr(form.valor) * (Number(form.quantidade || 1) || 1);
+      return valorComDescontoControle(subtotal, form.descontoTipo, form.desconto);
+    }
+    const servicoSelecionado = itemSelecionadoId
+      ? editItems.find(
+          (item) => item.id === itemSelecionadoId && classificarItemOs(item) === "servico"
+        )
+      : undefined;
+    const servico =
+      servicoSelecionado ||
+      editItems.find((item) => classificarItemOs(item) === "servico");
+    if (!servico) return 0;
+    return valorComDescontoControle(servico.valor, servico.descontoTipo, servico.desconto);
+  }
+
+  function exibicaoComissaoColaboradorCalculada(colaborador: {
+    nome: string;
+    comissao: string;
+  }) {
+    const cadastro = colaboradoresOpcoes.find((item) => item.nome === colaborador.nome);
+    const comissaoTabela = comissaoColaboradorNaTabelaServico(
+      servicoOsAtualEdicao,
+      colaborador.nome,
+      Boolean(form?.repeticao)
+    );
+    let tipo: "%" | "R$" = tipoComissaoDeTexto(colaborador.comissao);
+    let taxa = colaborador.comissao;
+    if (comissaoTabela) {
+      tipo = "%";
+      taxa = comissaoTabela;
+    } else if (cadastro) {
+      const tipoRaw = form?.repeticao
+        ? cadastro.tipoValorComissaoRepeticao
+        : cadastro.tipoValorComissao;
+      tipo = tipoRaw === "R$" ? "R$" : "%";
+      taxa = comissaoCadastroColaborador(
+        {
+          tipoContratacao: cadastro.tipoContratacao,
+          valorComissao: cadastro.comissaoPercentual,
+          comissaoRepeticao: cadastro.comissaoRepeticao,
+        },
+        cadastro.comissaoPercentual,
+        Boolean(form?.repeticao)
+      );
+    }
+    const calculado = calcularComissaoSobreServicos(
+      valorBaseComissaoColaboradorEdicao(),
+      taxa,
+      tipo
+    );
+    return {
+      tipo: "R$" as const,
+      valor: formatarComissaoCalculadaExibicao(calculado),
+    };
   }
 
   function comissaoTerceirizadoCadastroControle(opcao: TerceirizadoOpcao) {
@@ -4475,7 +4535,7 @@ export default function ControlePage() {
                                   />
                                 )}
                                 <CampoValorComissaoReadonly
-                                  {...exibicaoComissaoDeTexto(colaborador.comissao)}
+                                  {...exibicaoComissaoColaboradorCalculada(colaborador)}
                                 />
                                   <Input
                                     label="Observação"

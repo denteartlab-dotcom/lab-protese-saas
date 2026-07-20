@@ -31,6 +31,24 @@ export function calcularComissaoTrabalho(
   return valorTrabalho * (parseValorNumericoBr(valorTexto) / 100);
 }
 
+/** Comissão monetária sobre o total de serviços (sem produtos/transporte). */
+export function calcularComissaoSobreServicos(
+  valorTotalServicos: number,
+  valorCadastro: string,
+  tipo: string
+): number {
+  const base = Math.max(0, Number(valorTotalServicos) || 0);
+  return calcularComissaoTrabalho(base, valorCadastro || "0", tipo === "R$" ? "R$" : "%");
+}
+
+/** Exibe o valor calculado da comissão (sempre em R$). */
+export function formatarComissaoCalculadaExibicao(valorCalculado: number): string {
+  return Math.max(0, valorCalculado).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
 export function formatarValorMonetarioBr(valor: number): string {
   return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
