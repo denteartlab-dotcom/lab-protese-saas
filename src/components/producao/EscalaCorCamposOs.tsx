@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronDown, Plus, Trash2 } from "lucide-react";
 import { Button, Input, Modal } from "@/components/ui";
+import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import {
   adicionarCorOsCadastro,
   carregarCoresOsCadastro,
@@ -180,6 +181,11 @@ export function EscalaCorCamposOs({
   const [modalEscalaAberto, setModalEscalaAberto] = useState(false);
   const [novaCor, setNovaCor] = useState("");
   const [novaEscala, setNovaEscala] = useState("");
+  const [exclusaoPendente, setExclusaoPendente] = useState<{
+    tipo: "escala" | "cor";
+    opcao: OpcaoLista;
+  } | null>(null);
+  const [alertaMsg, setAlertaMsg] = useState<string | null>(null);
 
   const recarregarEscala = useCallback(() => {
     setProdutosEscala(produtosEscalaOs(categoriasTabela));
@@ -225,19 +231,28 @@ export function EscalaCorCamposOs({
   }));
 
   function excluirEscala(opcao: OpcaoLista) {
-    if (!window.confirm(`Excluir a escala "${opcao.nome}" da tabela de preços?`)) return;
-    if (excluirProdutoEscalaOs(nomeTabelaPreco, opcao.id)) {
-      recarregarEscala();
-      onTabelaPrecoAlterada?.();
-      if (escala === opcao.nome) onEscalaChange("");
-    }
+    setExclusaoPendente({ tipo: "escala", opcao });
   }
 
   function excluirCor(opcao: OpcaoLista) {
-    if (!window.confirm(`Excluir a cor "${opcao.nome}"?`)) return;
-    const proximas = removerCorOsCadastro(opcao.nome, cores);
-    setCores(proximas);
-    if (cor === opcao.nome) onCorChange("");
+    setExclusaoPendente({ tipo: "cor", opcao });
+  }
+
+  function confirmarExclusao() {
+    if (!exclusaoPendente) return;
+    const { tipo, opcao } = exclusaoPendente;
+    if (tipo === "escala") {
+      if (excluirProdutoEscalaOs(nomeTabelaPreco, opcao.id)) {
+        recarregarEscala();
+        onTabelaPrecoAlterada?.();
+        if (escala === opcao.nome) onEscalaChange("");
+      }
+    } else {
+      const proximas = removerCorOsCadastro(opcao.nome, cores);
+      setCores(proximas);
+      if (cor === opcao.nome) onCorChange("");
+    }
+    setExclusaoPendente(null);
   }
 
   async function salvarNovaCor() {
@@ -250,7 +265,7 @@ export function EscalaCorCamposOs({
       setNovaCor("");
       setModalCorAberto(false);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Não foi possível salvar a cor.");
+      setAlertaMsg(err instanceof Error ? err.message : "Não foi possível salvar a cor.");
     }
   }
 
@@ -259,7 +274,7 @@ export function EscalaCorCamposOs({
     if (!nome) return;
     const criado = adicionarProdutoEscalaOs(nomeTabelaPreco, nome);
     if (!criado) {
-      alert("Esta escala já existe na categoria DENTES.");
+      setAlertaMsg("Esta escala já existe na categoria DENTES.");
       return;
     }
     recarregarEscala();
@@ -368,6 +383,29 @@ export function EscalaCorCamposOs({
           </div>
         </div>
       </Modal>
+
+      <ConfirmacaoExclusaoModal
+        open={exclusaoPendente !== null}
+        titulo={
+          exclusaoPendente?.tipo === "escala" ? "Excluir escala" : "Excluir cor"
+        }
+        mensagem={
+          exclusaoPendente?.tipo === "escala"
+            ? `Excluir a escala "${exclusaoPendente.opcao.nome}" da tabela de preços?`
+            : `Excluir a cor "${exclusaoPendente?.opcao.nome || ""}"?`
+        }
+        onClose={() => setExclusaoPendente(null)}
+        onConfirm={confirmarExclusao}
+      />
+
+      <ConfirmacaoExclusaoModal
+        open={Boolean(alertaMsg)}
+        titulo="Atenção"
+        mensagem={alertaMsg || ""}
+        modo="alerta"
+        onClose={() => setAlertaMsg(null)}
+        onConfirm={() => setAlertaMsg(null)}
+      />
     </>
   );
 }

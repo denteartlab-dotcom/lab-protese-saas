@@ -118,6 +118,9 @@ export function DisparosWhatsappConteudo() {
   const [campanhas, setCampanhas] = useState<CampanhaPublica[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [wizardReset, setWizardReset] = useState(0);
+  const [confirmacaoWhatsapp, setConfirmacaoWhatsapp] = useState<
+    "resetar" | "desconectar" | null
+  >(null);
   const [campanhaAtiva, setCampanhaAtiva] = useState<CampanhaPublica | null>(null);
   const [progresso, setProgresso] = useState<{
     percentual: number;
@@ -471,19 +474,29 @@ export function DisparosWhatsappConteudo() {
   }
 
   async function resetarSessaoWhatsapp() {
-    if (!window.confirm("Resetar sessão WhatsApp? Será necessário escanear QR novamente.")) return;
-    await gerarQr(true);
+    setConfirmacaoWhatsapp("resetar");
   }
 
   async function desconectar() {
-    if (!window.confirm("Desconectar o WhatsApp deste laboratório?")) return;
-    setProcessando(true);
-    try {
-      await fetch("/api/disparos-whatsapp/conexao/desconectar", { method: "POST" });
-      toast("sucesso", "WhatsApp desconectado.");
-      void recarregar();
-    } finally {
-      setProcessando(false);
+    setConfirmacaoWhatsapp("desconectar");
+  }
+
+  async function confirmarAcaoWhatsapp() {
+    if (confirmacaoWhatsapp === "resetar") {
+      setConfirmacaoWhatsapp(null);
+      await gerarQr(true);
+      return;
+    }
+    if (confirmacaoWhatsapp === "desconectar") {
+      setConfirmacaoWhatsapp(null);
+      setProcessando(true);
+      try {
+        await fetch("/api/disparos-whatsapp/conexao/desconectar", { method: "POST" });
+        toast("sucesso", "WhatsApp desconectado.");
+        void recarregar();
+      } finally {
+        setProcessando(false);
+      }
     }
   }
 
@@ -1008,6 +1021,24 @@ export function DisparosWhatsappConteudo() {
           toast("sucesso", "Campanha excluída.");
           void recarregar();
         }}
+      />
+
+      <ConfirmacaoExclusaoModal
+        open={confirmacaoWhatsapp !== null}
+        titulo={
+          confirmacaoWhatsapp === "resetar"
+            ? "Resetar sessão WhatsApp"
+            : "Desconectar WhatsApp"
+        }
+        mensagem={
+          confirmacaoWhatsapp === "resetar"
+            ? "Resetar sessão WhatsApp? Será necessário escanear QR novamente."
+            : "Desconectar o WhatsApp deste laboratório?"
+        }
+        onClose={() => setConfirmacaoWhatsapp(null)}
+        onConfirm={() => void confirmarAcaoWhatsapp()}
+        processando={processando}
+        tipoConfirmacao={confirmacaoWhatsapp === "desconectar" ? "exclusao" : "primario"}
       />
 
       <Modal

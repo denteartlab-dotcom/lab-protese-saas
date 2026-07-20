@@ -14,6 +14,7 @@ import { fetchPortalPublico } from "@/lib/portal-publico-cliente";
 import type { PortalPublicoPaginaAcompanhamento } from "@/lib/portal-publico-types";
 import { normalizarChaveStatusOs } from "@/lib/status-os";
 import { Modal } from "@/components/ui";
+import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { cn, formatDate } from "@/lib/utils";
 
 const POLL_MS = 12_000;
@@ -59,6 +60,7 @@ export default function AcompanhamentoClientePage() {
     null
   );
   const [excluindoObservacaoId, setExcluindoObservacaoId] = useState<string | null>(null);
+  const [observacaoExcluirId, setObservacaoExcluirId] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
   const [filtroSituacao, setFiltroSituacao] = useState("todos");
 
@@ -239,8 +241,6 @@ export default function AcompanhamentoClientePage() {
   const excluirObservacao = useCallback(
     async (observacaoId: string) => {
       if (!observacaoId || excluindoObservacaoId) return;
-      const confirmar = window.confirm(t("acompanhamento.observacaoExcluirConfirmar"));
-      if (!confirmar) return;
 
       setExcluindoObservacaoId(observacaoId);
       setObservacaoMsg(null);
@@ -268,6 +268,7 @@ export default function AcompanhamentoClientePage() {
         setObservacaoMsg(t("acompanhamento.observacaoExcluirErro"));
       } finally {
         setExcluindoObservacaoId(null);
+        setObservacaoExcluirId(null);
       }
     },
     [token, excluindoObservacaoId, observacaoDetalhe, t, carregar]
@@ -278,6 +279,13 @@ export default function AcompanhamentoClientePage() {
     [dados, observacaoTrabalhoId]
   );
   const historicoObservacoes = trabalhoObservacao?.historicoObservacoes ?? [];
+  const observacaoParaExcluir =
+    historicoObservacoes.find((item) => item.id === observacaoExcluirId) ||
+    (observacaoDetalhe?.id === observacaoExcluirId ? observacaoDetalhe : null) ||
+    dados?.trabalhos
+      .flatMap((trabalho) => trabalho.historicoObservacoes || [])
+      .find((item) => item.id === observacaoExcluirId) ||
+    null;
 
   const opcoesSituacao = useMemo(
     () => (dados ? opcoesFiltroSituacaoAcompanhamento(dados.trabalhos) : []),
@@ -399,30 +407,6 @@ export default function AcompanhamentoClientePage() {
           ) : null}
 
           <div className="min-w-0 flex-1 space-y-4">
-        {urgenteMsg ? (
-          <p
-            className={cn(
-              "rounded-lg border px-4 py-2 text-[12px]",
-              urgenteErro
-                ? "border-red-200 bg-red-50 text-red-800"
-                : "border-emerald-200 bg-emerald-50 text-emerald-800"
-            )}
-          >
-            {urgenteMsg}
-          </p>
-        ) : null}
-        {observacaoMsg ? (
-          <p
-            className={cn(
-              "rounded-lg border px-4 py-2 text-[12px]",
-              observacaoErro
-                ? "border-red-200 bg-red-50 text-red-800"
-                : "border-emerald-200 bg-emerald-50 text-emerald-800"
-            )}
-          >
-            {observacaoMsg}
-          </p>
-        ) : null}
         {dados.trabalhos.length > 0 ? (
           <>
             <p className="text-[11px] text-slate-500">
@@ -727,7 +711,7 @@ export default function AcompanhamentoClientePage() {
                         disabled={excluindoObservacaoId === item.id}
                         onClick={(e) => {
                           e.stopPropagation();
-                          void excluirObservacao(item.id);
+                          setObservacaoExcluirId(item.id);
                         }}
                         className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-400 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
                         title={t("acompanhamento.observacaoExcluir")}
@@ -797,7 +781,7 @@ export default function AcompanhamentoClientePage() {
               <button
                 type="button"
                 disabled={excluindoObservacaoId === observacaoDetalhe.id}
-                onClick={() => void excluirObservacao(observacaoDetalhe.id)}
+                onClick={() => setObservacaoExcluirId(observacaoDetalhe.id)}
                 className="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
                 title={t("acompanhamento.observacaoExcluir")}
                 aria-label={t("acompanhamento.observacaoExcluir")}
@@ -871,6 +855,56 @@ export default function AcompanhamentoClientePage() {
           </button>
         </div>
       </Modal>
+
+      <ConfirmacaoExclusaoModal
+        open={observacaoExcluirId !== null}
+        titulo={t("acompanhamento.observacaoExcluir")}
+        mensagem={t("acompanhamento.observacaoExcluirConfirmar")}
+        detalhe={observacaoParaExcluir?.texto}
+        onClose={() => setObservacaoExcluirId(null)}
+        onConfirm={() => {
+          if (observacaoExcluirId) void excluirObservacao(observacaoExcluirId);
+        }}
+        processando={excluindoObservacaoId !== null}
+      />
+
+      <ConfirmacaoExclusaoModal
+        open={Boolean(observacaoMsg)}
+        titulo={
+          observacaoErro
+            ? t("acompanhamento.avisoTituloErro")
+            : t("acompanhamento.avisoTitulo")
+        }
+        mensagem={observacaoMsg || ""}
+        modo="alerta"
+        onClose={() => {
+          setObservacaoMsg(null);
+          setObservacaoErro(false);
+        }}
+        onConfirm={() => {
+          setObservacaoMsg(null);
+          setObservacaoErro(false);
+        }}
+      />
+
+      <ConfirmacaoExclusaoModal
+        open={Boolean(urgenteMsg)}
+        titulo={
+          urgenteErro
+            ? t("acompanhamento.avisoTituloErro")
+            : t("acompanhamento.avisoTitulo")
+        }
+        mensagem={urgenteMsg || ""}
+        modo="alerta"
+        onClose={() => {
+          setUrgenteMsg(null);
+          setUrgenteErro(false);
+        }}
+        onConfirm={() => {
+          setUrgenteMsg(null);
+          setUrgenteErro(false);
+        }}
+      />
     </div>
   );
 }

@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { CampoDataBr } from "@/components/campo-data-br";
 import { useI18n } from "@/components/i18n-provider";
+import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { Modal } from "@/components/ui";
 import { brShortToIso, dateToBrShort, parseBrDate } from "@/lib/datas-br";
 import {
@@ -57,6 +58,8 @@ export function LiberarEspacoConteudo() {
   const [pagina, setPagina] = useState(1);
   const [dataInicio, setDataInicio] = useState(inicioAnoBr);
   const [dataFim, setDataFim] = useState(hojeBr);
+  const [pathsExcluir, setPathsExcluir] = useState<string[] | null>(null);
+  const [alertaMsg, setAlertaMsg] = useState<string | null>(null);
 
   const recarregarLista = useCallback(async () => {
     setCarregando(true);
@@ -156,20 +159,12 @@ export function LiberarEspacoConteudo() {
 
   async function excluirArquivos(paths: string[]) {
     if (paths.length === 0) return;
-    const msg =
-      paths.length === 1
-        ? t("liberarEspaco.confirmarExcluirUm")
-        : t("liberarEspaco.confirmarExcluirVarios", {
-            n: paths.length,
-            mb: formatarMbExclusao(
-            paths.reduce((s, p) => {
-              const arq = arquivos.find((a) => a.relativePath === p);
-              return s + (arq?.bytes ?? 0);
-            }, 0)
-          ),
-          });
-    if (!confirm(msg)) return;
+    setPathsExcluir(paths);
+  }
 
+  async function confirmarExclusaoArquivos() {
+    const paths = pathsExcluir || [];
+    if (paths.length === 0) return;
     setExcluindo(true);
     try {
       const res = await fetch("/api/uploads/arquivos", {
@@ -182,14 +177,30 @@ export function LiberarEspacoConteudo() {
         erros?: string[];
       };
       if (!res.ok || (data.erros?.length ?? 0) > 0) {
-        alert(t("liberarEspaco.erroExcluir"));
+        setAlertaMsg(t("liberarEspaco.erroExcluir"));
       }
       await recarregarLista();
       notificarUploadsAtualizados();
     } finally {
       setExcluindo(false);
+      setPathsExcluir(null);
     }
   }
+
+  const mensagemExclusaoArquivos = useMemo(() => {
+    const paths = pathsExcluir || [];
+    if (paths.length === 0) return "";
+    if (paths.length === 1) return t("liberarEspaco.confirmarExcluirUm");
+    return t("liberarEspaco.confirmarExcluirVarios", {
+      n: paths.length,
+      mb: formatarMbExclusao(
+        paths.reduce((s, p) => {
+          const arq = arquivos.find((a) => a.relativePath === p);
+          return s + (arq?.bytes ?? 0);
+        }, 0)
+      ),
+    });
+  }, [pathsExcluir, arquivos, t]);
 
   function aplicarPeriodoRapido(tipo: "ano" | "mes" | "todos") {
     const hoje = new Date();
@@ -481,6 +492,24 @@ export function LiberarEspacoConteudo() {
           </div>
         ) : null}
       </Modal>
+
+      <ConfirmacaoExclusaoModal
+        open={pathsExcluir !== null}
+        titulo={t("liberarEspaco.titulo")}
+        mensagem={mensagemExclusaoArquivos}
+        onClose={() => setPathsExcluir(null)}
+        onConfirm={() => void confirmarExclusaoArquivos()}
+        processando={excluindo}
+      />
+
+      <ConfirmacaoExclusaoModal
+        open={Boolean(alertaMsg)}
+        titulo={t("acompanhamento.avisoTituloErro")}
+        mensagem={alertaMsg || ""}
+        modo="alerta"
+        onClose={() => setAlertaMsg(null)}
+        onConfirm={() => setAlertaMsg(null)}
+      />
     </div>
   );
 }

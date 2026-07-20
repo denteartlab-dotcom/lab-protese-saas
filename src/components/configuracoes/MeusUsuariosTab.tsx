@@ -12,6 +12,7 @@ import {
 import type { CotasUsuariosEmpresa } from "@/lib/limite-usuarios-empresa";
 import { cn, exibirTexto } from "@/lib/utils";
 import { useI18n } from "@/components/i18n-provider";
+import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 
 const thClass =
   "px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[#6b7280] dark:text-slate-400";
@@ -27,6 +28,7 @@ export function MeusUsuariosTab() {
   const [mostrarExcluidos, setMostrarExcluidos] = useState(false);
   const [podeGerenciar, setPodeGerenciar] = useState(false);
   const [erro, setErro] = useState("");
+  const [usuarioExcluir, setUsuarioExcluir] = useState<UsuarioListagem | null>(null);
 
   const carregarUsuarios = useCallback(async () => {
     setCarregando(true);
@@ -88,7 +90,6 @@ export function MeusUsuariosTab() {
   }, [busca, usuarios]);
 
   async function excluir(usuario: UsuarioListagem) {
-    if (!window.confirm(t("settings.usuariosConfirmarExcluir", { nome: usuario.name }))) return;
     setSalvando(true);
     try {
       const res = await fetch(`/api/usuarios/${usuario.id}`, { method: "DELETE" });
@@ -100,6 +101,7 @@ export function MeusUsuariosTab() {
       await carregarUsuarios();
     } finally {
       setSalvando(false);
+      setUsuarioExcluir(null);
     }
   }
 
@@ -330,7 +332,7 @@ export function MeusUsuariosTab() {
                               type="button"
                               title={t("settings.usuariosExcluir")}
                               disabled={salvando}
-                              onClick={() => void excluir(usuario)}
+                              onClick={() => setUsuarioExcluir(usuario)}
                               className="inline-flex h-7 w-7 items-center justify-center rounded text-[#6b7280] hover:bg-red-50 hover:text-red-600"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
@@ -346,6 +348,19 @@ export function MeusUsuariosTab() {
           </table>
         )}
       </div>
+
+      <ConfirmacaoExclusaoModal
+        open={usuarioExcluir !== null}
+        titulo={t("settings.usuariosExcluir")}
+        mensagem={t("settings.usuariosConfirmarExcluir", {
+          nome: usuarioExcluir?.name || "",
+        })}
+        onClose={() => setUsuarioExcluir(null)}
+        onConfirm={() => {
+          if (usuarioExcluir) void excluir(usuarioExcluir);
+        }}
+        processando={salvando}
+      />
     </div>
   );
 }
