@@ -17,7 +17,6 @@ import {
   estiloLinhaInferiorRequisicaoPreview,
   estiloLinhaRequisicaoPreview,
   estiloMolduraOverlayRequisicaoPreview,
-  estiloBlocoTotaisRequisicaoPreview,
   indicesColunasTotaisOsComprovante,
   largurasColunasOsComprovantePreview,
   estiloPaginaRequisicaoPreview,
@@ -295,6 +294,54 @@ export function PreviewOsModeloComprovante({
               </tr>
             ))}
           </tbody>
+          {layout.total ? (
+            <tfoot>
+              <tr style={estiloLinhaRequisicaoPreview()}>
+                {colsTotais.colspanAntes > 0 ? (
+                  <td colSpan={colsTotais.colspanAntes} className="p-0" />
+                ) : null}
+                <td
+                  colSpan={colsTotais.colspanRotulo}
+                  className="whitespace-nowrap py-1 text-right align-top"
+                >
+                  {t("print.os.totalServicos")}
+                </td>
+                {colsTotais.temSubtotal ? (
+                  <td className="whitespace-nowrap py-1 text-right align-top">{money(totalServicos)}</td>
+                ) : null}
+              </tr>
+              <tr>
+                {colsTotais.colspanAntes > 0 ? (
+                  <td colSpan={colsTotais.colspanAntes} className="p-0" />
+                ) : null}
+                <td
+                  colSpan={colsTotais.colspanRotulo}
+                  className="whitespace-nowrap py-0.5 text-right align-top"
+                >
+                  {t("print.os.descontos")}
+                </td>
+                {colsTotais.temSubtotal ? (
+                  <td className="whitespace-nowrap py-0.5 text-right align-top">{money(totalDescontos)}</td>
+                ) : null}
+              </tr>
+              <tr>
+                {colsTotais.colspanAntes > 0 ? (
+                  <td colSpan={colsTotais.colspanAntes} className="p-0" />
+                ) : null}
+                <td
+                  colSpan={colsTotais.colspanRotulo}
+                  className="whitespace-nowrap py-0.5 text-right align-top font-bold"
+                >
+                  {t("print.os.totalFinal")}
+                </td>
+                {colsTotais.temSubtotal ? (
+                  <td className="whitespace-nowrap py-0.5 text-right align-top font-bold">
+                    {money(totalFinal)}
+                  </td>
+                ) : null}
+              </tr>
+            </tfoot>
+          ) : null}
         </table>
         </div>
 
@@ -344,78 +391,6 @@ export function PreviewOsModeloComprovante({
             exibirColaborador={layout.colaborador}
             exibirDatas={layout.etapasComDatas}
           />
-        ) : null}
-
-        {layout.total ? (
-          <>
-            <LinhaSeparador marginTop={gap(2)} />
-            <div
-              style={{
-                marginTop: gap(1.5),
-                ...estiloLimiteLinhasPaginaPreview(),
-                ...estiloBlocoTotaisRequisicaoPreview(),
-              }}
-            >
-              <table
-                className="w-full border-collapse"
-                style={{
-                  fontSize: `${fsSmall}px`,
-                  tableLayout: "fixed",
-                  ...estiloTabelaMargemColunasPreview(),
-                }}
-              >
-                <colgroup>
-                  {largurasColunasOsComprovantePreview(layout).map((w) => (
-                    <col key={`tot-${w}`} style={{ width: w }} />
-                  ))}
-                </colgroup>
-                <tbody>
-                  <tr>
-                    {colsTotais.colspanAntes > 0 ? (
-                      <td colSpan={colsTotais.colspanAntes} />
-                    ) : null}
-                    {colsTotais.temRotulo ? (
-                      <td className="py-0.5 text-right align-top">{t("print.os.totalServicos")}</td>
-                    ) : null}
-                    {colsTotais.colspanEntre > 0 ? (
-                      <td colSpan={colsTotais.colspanEntre} />
-                    ) : null}
-                    {colsTotais.temSubtotal ? (
-                      <td className="py-0.5 text-right align-top">{money(totalServicos)}</td>
-                    ) : null}
-                  </tr>
-                  <tr>
-                    {colsTotais.colspanAntes > 0 ? (
-                      <td colSpan={colsTotais.colspanAntes} />
-                    ) : null}
-                    {colsTotais.temRotulo ? (
-                      <td className="py-0.5 text-right align-top">{t("print.os.descontos")}</td>
-                    ) : null}
-                    {colsTotais.colspanEntre > 0 ? (
-                      <td colSpan={colsTotais.colspanEntre} />
-                    ) : null}
-                    {colsTotais.temSubtotal ? (
-                      <td className="py-0.5 text-right align-top">{money(totalDescontos)}</td>
-                    ) : null}
-                  </tr>
-                  <tr>
-                    {colsTotais.colspanAntes > 0 ? (
-                      <td colSpan={colsTotais.colspanAntes} />
-                    ) : null}
-                    {colsTotais.temRotulo ? (
-                      <td className="py-0.5 text-right align-top font-bold">{t("print.os.totalFinal")}</td>
-                    ) : null}
-                    {colsTotais.colspanEntre > 0 ? (
-                      <td colSpan={colsTotais.colspanEntre} />
-                    ) : null}
-                    {colsTotais.temSubtotal ? (
-                      <td className="py-0.5 text-right align-top font-bold">{money(totalFinal)}</td>
-                    ) : null}
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </>
         ) : null}
 
         {layout.materialRec ? (

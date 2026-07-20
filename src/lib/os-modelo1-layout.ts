@@ -347,13 +347,15 @@ export function colunasVisiveisOsComprovante(
   return cols;
 }
 
-/** Coluna do rótulo dos totais (alinhado à direita, antes do Subtotal). */
-export function colunaRotuloTotaisOsComprovante(
-  layout: Pick<OsModelo1Layout, "desconto" | "valorUnit">
-): ColunaTabelaOsComprovante {
-  if (layout.desconto) return "desc_pct";
-  if (layout.valorUnit) return "unit";
-  return "desc";
+/** Colunas que o rótulo dos totais ocupa (Unitário + Desc — estilo Smart Prótese). */
+export function colunasRotuloTotaisOsComprovante(
+  layout: Pick<OsModelo1Layout, "valorUnit" | "desconto">
+): ColunaTabelaOsComprovante[] {
+  const rotulo: ColunaTabelaOsComprovante[] = [];
+  if (layout.valorUnit) rotulo.push("unit");
+  if (layout.desconto) rotulo.push("desc_pct");
+  if (!rotulo.length) rotulo.push("desc");
+  return rotulo;
 }
 
 /** Índices das colunas vazias, rótulo e valor nos totais do comprovante. */
@@ -364,15 +366,15 @@ export function indicesColunasTotaisOsComprovante(
   >
 ) {
   const cols = colunasVisiveisOsComprovante(layout);
-  const rotulo = colunaRotuloTotaisOsComprovante(layout);
-  const idxRotulo = cols.indexOf(rotulo);
+  const rotuloCols = colunasRotuloTotaisOsComprovante(layout).filter((c) =>
+    cols.includes(c)
+  );
+  const primeiroRotulo = rotuloCols[0] ?? "desc";
+  const idxPrimeiroRotulo = cols.indexOf(primeiroRotulo);
   const idxSubtotal = cols.indexOf("subtotal");
-  const colspanEntre =
-    idxRotulo >= 0 && idxSubtotal > idxRotulo + 1 ? idxSubtotal - idxRotulo - 1 : 0;
   return {
-    colspanAntes: Math.max(0, idxRotulo),
-    colspanEntre,
-    temRotulo: idxRotulo >= 0,
+    colspanAntes: Math.max(0, idxPrimeiroRotulo),
+    colspanRotulo: Math.max(1, rotuloCols.length),
     temSubtotal: idxSubtotal >= 0,
   };
 }

@@ -185,7 +185,7 @@ export function ConfiguracoesOsModelo4Conteudo() {
 
   if (carregando || !cfg) {
     return (
-      <div className="flex h-screen items-center justify-center bg-[#4a4f56]">
+      <div className="flex h-[100dvh] items-center justify-center bg-[#4a4f56]">
         <p className="text-sm text-slate-300">{t("common.carregando")}</p>
       </div>
     );
@@ -194,8 +194,8 @@ export function ConfiguracoesOsModelo4Conteudo() {
   const corLinha = normalizarCorBorda(layout.bordas);
 
   return (
-    <div className="flex h-screen w-full flex-col overflow-hidden lg:flex-row">
-      <aside className="flex h-full w-full shrink-0 flex-col border-b border-slate-300 bg-[#d9dde3] lg:w-[360px] lg:border-b-0 lg:border-r">
+    <div className="flex h-[100dvh] w-full flex-col overflow-hidden lg:flex-row">
+      <aside className="flex h-full w-full shrink-0 flex-col border-b border-slate-300 bg-[#d9dde3] lg:h-[100dvh] lg:w-[360px] lg:border-b-0 lg:border-r">
         <div className="flex-1 space-y-3 overflow-y-auto p-4">
           <CampoNumero
             label={t("settings.tamanhoLogoPx")}
@@ -299,15 +299,17 @@ export function ConfiguracoesOsModelo4Conteudo() {
         </div>
       </aside>
 
-      <div className="flex min-h-0 flex-1 flex-col bg-[#4a4f56]">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[#4a4f56] lg:h-[100dvh]">
         {mensagem ? (
           <div className="shrink-0 bg-[#5cb85c] px-4 py-2.5 text-center text-[13px] font-medium text-white">
             {mensagem}
           </div>
         ) : null}
         <ConfiguracoesOsBarraEditor modeloAtivo="modelo4" />
-        <div className="min-h-0 flex-1 overflow-auto p-6">
-          <PreviewOsModelo4Termica cfg={cfg} layout={layout} />
+        <div className="flex min-h-0 flex-1 justify-center overflow-auto p-2 sm:p-4">
+          <div className="shrink-0">
+            <PreviewOsModelo4Termica cfg={cfg} layout={layout} />
+          </div>
         </div>
       </div>
     </div>
