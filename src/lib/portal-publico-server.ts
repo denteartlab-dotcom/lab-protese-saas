@@ -25,6 +25,7 @@ import type {
   TipoPortalPublico,
 } from "@/lib/portal-publico-types";
 import { carregarStoreRecebimentosCliente } from "@/lib/recebimento-cliente";
+import { carregarStoreObservacoesCliente } from "@/lib/observacao-cliente-trabalho";
 import {
   buscarClientePublicoPorToken,
   buscarOrcamentoPublicoPorToken,
@@ -57,12 +58,13 @@ async function montarAcompanhamento(token: string): Promise<PortalPublicoPagina>
   }
 
   const { cliente, trabalhos, labNome, mapaEtapas } = resultado;
-  const [storeUrgencias, storeRecebimentos, lab] = await runWithTenantContext(
+  const [storeUrgencias, storeRecebimentos, storeObservacoes, lab] = await runWithTenantContext(
     cliente.empresaId,
     () =>
       Promise.all([
         carregarStoreUrgenciasCliente(cliente.empresaId),
         carregarStoreRecebimentosCliente(cliente.empresaId),
+        carregarStoreObservacoesCliente(cliente.empresaId),
         brandingParaEmpresa(cliente.empresaId),
       ])
   );
@@ -78,7 +80,8 @@ async function montarAcompanhamento(token: string): Promise<PortalPublicoPagina>
     labNome,
     mapaEtapas,
     storeUrgencias.eventos,
-    storeRecebimentos.eventos
+    storeRecebimentos.eventos,
+    storeObservacoes.eventos.filter((evento) => evento.clienteId === cliente.id)
   );
 
   return {

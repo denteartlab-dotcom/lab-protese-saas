@@ -87,6 +87,12 @@ export type HistoricoRecebimentoPublico = {
   registradoEm: string;
 };
 
+export type HistoricoObservacaoPublico = {
+  id: string;
+  texto: string;
+  criadoEm: string;
+};
+
 export type LimitesUrgenciaCliente = {
   maxAtivos: number;
   maxPorDia: number;
@@ -118,6 +124,7 @@ export type TrabalhoAcompanhamentoPublico = {
   podeRemoverUrgente: boolean;
   podeConfirmarRecebido: boolean;
   historicoRecebimento: HistoricoRecebimentoPublico | null;
+  historicoObservacoes: HistoricoObservacaoPublico[];
 };
 
 export type ClienteAcompanhamentoPublico = {

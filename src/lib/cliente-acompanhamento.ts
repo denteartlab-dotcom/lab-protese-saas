@@ -33,6 +33,10 @@ import {
   podeConfirmarRecebimentoCliente,
   type EventoRecebimentoCliente,
 } from "@/lib/recebimento-cliente";
+import {
+  historicoObservacoesPorTrabalho,
+  type EventoObservacaoClienteTrabalho,
+} from "@/lib/observacao-cliente-trabalho";
 
 export {
   compararTrabalhosAcompanhamento,
@@ -122,7 +126,8 @@ export function montarAcompanhamentoPublico(
   labNome: string,
   mapaEtapas: Record<string, number[]> = {},
   eventosUrgencia: EventoUrgenciaCliente[] = [],
-  eventosRecebimento: EventoRecebimentoCliente[] = []
+  eventosRecebimento: EventoRecebimentoCliente[] = [],
+  eventosObservacao: EventoObservacaoClienteTrabalho[] = []
 ): ClienteAcompanhamentoPublico {
   const limitesUrgencia = calcularLimitesUrgenciaCliente(
     eventosUrgencia,
@@ -194,6 +199,11 @@ export function montarAcompanhamentoPublico(
       principal.id,
       principal.numeroOs
     );
+    const historicoObservacoes = historicoObservacoesPorTrabalho(
+      eventosObservacao,
+      principal.id,
+      principal.numeroOs
+    );
 
     publicos.push({
       id: principal.id,
@@ -215,6 +225,7 @@ export function montarAcompanhamentoPublico(
       podeRemoverUrgente,
       podeConfirmarRecebido,
       historicoRecebimento,
+      historicoObservacoes,
     });
   }
 

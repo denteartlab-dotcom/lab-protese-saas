@@ -7,6 +7,7 @@ import {
 import { runWithTenantContext } from "@/lib/db";
 import { carregarStoreUrgenciasCliente } from "@/lib/urgencia-cliente";
 import { carregarStoreRecebimentosCliente } from "@/lib/recebimento-cliente";
+import { carregarStoreObservacoesCliente } from "@/lib/observacao-cliente-trabalho";
 
 type Params = { params: Promise<{ token: string }> };
 
@@ -23,12 +24,13 @@ export async function GET(_request: Request, { params }: Params) {
   }
 
   const { cliente, trabalhos, labNome, mapaEtapas } = resultado;
-  const [storeUrgencias, storeRecebimentos] = await runWithTenantContext(
+  const [storeUrgencias, storeRecebimentos, storeObservacoes] = await runWithTenantContext(
     cliente.empresaId,
     () =>
       Promise.all([
         carregarStoreUrgenciasCliente(cliente.empresaId),
         carregarStoreRecebimentosCliente(cliente.empresaId),
+        carregarStoreObservacoesCliente(cliente.empresaId),
       ])
   );
 
@@ -43,7 +45,8 @@ export async function GET(_request: Request, { params }: Params) {
     labNome,
     mapaEtapas,
     storeUrgencias.eventos,
-    storeRecebimentos.eventos
+    storeRecebimentos.eventos,
+    storeObservacoes.eventos.filter((evento) => evento.clienteId === cliente.id)
   );
 
   return NextResponse.json(payload);

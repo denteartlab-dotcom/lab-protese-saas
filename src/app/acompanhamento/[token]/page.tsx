@@ -53,6 +53,7 @@ export default function AcompanhamentoClientePage() {
   const [observacaoEnviando, setObservacaoEnviando] = useState(false);
   const [observacaoMsg, setObservacaoMsg] = useState<string | null>(null);
   const [observacaoErro, setObservacaoErro] = useState(false);
+  const [mostrarHistoricoObservacoes, setMostrarHistoricoObservacoes] = useState(false);
   const [busca, setBusca] = useState("");
   const [filtroSituacao, setFiltroSituacao] = useState("todos");
 
@@ -219,15 +220,22 @@ export default function AcompanhamentoClientePage() {
       }
       setObservacaoErro(false);
       setObservacaoMsg(json.message || t("acompanhamento.sucessoObservacao"));
-      setObservacaoTrabalhoId(null);
       setTextoObservacao("");
+      setMostrarHistoricoObservacoes(true);
+      await carregar(true);
     } catch {
       setObservacaoErro(true);
       setObservacaoMsg(t("acompanhamento.erroObservacao"));
     } finally {
       setObservacaoEnviando(false);
     }
-  }, [token, observacaoTrabalhoId, textoObservacao, t]);
+  }, [token, observacaoTrabalhoId, textoObservacao, t, carregar]);
+
+  const trabalhoObservacao = useMemo(
+    () => dados?.trabalhos.find((trabalho) => trabalho.id === observacaoTrabalhoId) ?? null,
+    [dados, observacaoTrabalhoId]
+  );
+  const historicoObservacoes = trabalhoObservacao?.historicoObservacoes ?? [];
 
   const opcoesSituacao = useMemo(
     () => (dados ? opcoesFiltroSituacaoAcompanhamento(dados.trabalhos) : []),
@@ -546,6 +554,9 @@ export default function AcompanhamentoClientePage() {
                       setTextoObservacao("");
                       setObservacaoMsg(null);
                       setObservacaoErro(false);
+                      setMostrarHistoricoObservacoes(
+                        (trabalho.historicoObservacoes?.length ?? 0) > 0
+                      );
                     }}
                     className="inline-flex items-center gap-1 rounded-full border border-blue-300 bg-blue-50 px-3 py-1.5 text-[11px] font-semibold text-blue-800 shadow-sm transition hover:bg-blue-100"
                     title={t("acompanhamento.observacaoTitulo")}
@@ -607,6 +618,7 @@ export default function AcompanhamentoClientePage() {
           if (observacaoEnviando) return;
           setObservacaoTrabalhoId(null);
           setTextoObservacao("");
+          setMostrarHistoricoObservacoes(false);
         }}
         title={t("acompanhamento.observacaoModalTitulo")}
         size="sm"
@@ -621,7 +633,7 @@ export default function AcompanhamentoClientePage() {
             onChange={(e) => setTextoObservacao(e.target.value)}
             placeholder={t("acompanhamento.observacaoPlaceholder")}
             maxLength={1000}
-            rows={6}
+            rows={5}
             autoFocus
             className="mt-1 w-full resize-y rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"
             disabled={observacaoEnviando}
@@ -630,6 +642,53 @@ export default function AcompanhamentoClientePage() {
         <p className="mt-1 text-right text-[11px] text-slate-400">
           {textoObservacao.length}/1000
         </p>
+
+        <div className="mt-4 border-t border-slate-100 pt-3">
+          <button
+            type="button"
+            onClick={() => setMostrarHistoricoObservacoes((atual) => !atual)}
+            className="inline-flex w-full items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-left text-[12px] font-semibold text-slate-700 transition hover:bg-slate-100"
+          >
+            <span>
+              {t("acompanhamento.observacaoHistoricoTitulo")}
+              {historicoObservacoes.length > 0
+                ? ` (${historicoObservacoes.length})`
+                : ""}
+            </span>
+            <span className="text-[11px] font-medium text-[#4a90d9]">
+              {mostrarHistoricoObservacoes
+                ? t("acompanhamento.observacaoHistoricoOcultar")
+                : t("acompanhamento.observacaoHistoricoVer")}
+            </span>
+          </button>
+
+          {mostrarHistoricoObservacoes ? (
+            <div className="mt-3 max-h-48 space-y-2 overflow-y-auto pr-1">
+              {historicoObservacoes.length === 0 ? (
+                <p className="rounded-lg border border-dashed border-slate-200 bg-white px-3 py-4 text-center text-[12px] text-slate-400">
+                  {t("acompanhamento.observacaoHistoricoVazio")}
+                </p>
+              ) : (
+                historicoObservacoes.map((item) => (
+                  <article
+                    key={item.id}
+                    className="rounded-lg border border-slate-200 bg-white px-3 py-2.5"
+                  >
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                      {t("acompanhamento.observacaoEnviadaEm", {
+                        data: formatarDataHora(item.criadoEm),
+                      })}
+                    </p>
+                    <p className="mt-1 whitespace-pre-wrap text-[12px] leading-relaxed text-slate-700">
+                      {item.texto}
+                    </p>
+                  </article>
+                ))
+              )}
+            </div>
+          ) : null}
+        </div>
+
         <div className="mt-5 flex justify-end gap-2">
           <button
             type="button"
@@ -637,6 +696,7 @@ export default function AcompanhamentoClientePage() {
             onClick={() => {
               setObservacaoTrabalhoId(null);
               setTextoObservacao("");
+              setMostrarHistoricoObservacoes(false);
             }}
             className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-60"
           >

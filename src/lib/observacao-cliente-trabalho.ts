@@ -103,3 +103,26 @@ export async function registrarObservacaoClienteTrabalho(params: {
 
   return { ok: true as const, evento };
 }
+
+/** Observações enviadas pelo cliente para uma OS (mais recentes primeiro). */
+export function historicoObservacoesPorTrabalho(
+  eventos: EventoObservacaoClienteTrabalho[],
+  trabalhoId: string,
+  numeroOs?: number
+) {
+  return eventos
+    .filter(
+      (evento) =>
+        evento.trabalhoId === trabalhoId ||
+        (numeroOs != null && evento.numeroOs === numeroOs)
+    )
+    .sort(
+      (a, b) =>
+        new Date(b.criadoEm).getTime() - new Date(a.criadoEm).getTime()
+    )
+    .map((evento) => ({
+      id: evento.id,
+      texto: evento.texto,
+      criadoEm: evento.criadoEm,
+    }));
+}
