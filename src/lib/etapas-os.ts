@@ -383,7 +383,9 @@ export function parseColaboradoresInstrucoes(instrucoes?: string | null): Colabo
     .map((line) => {
       const match = line
         .trim()
-        .match(/^Colaborador\s+(.+?):\s*comiss[aã]o\s*([\d.,]+)\s*%?(?:\s*-\s*etapa\s*(.*))?$/i);
+        .match(
+          /^Colaborador\s+(.+?):\s*comiss[aã]o\s*((?:R\$\s*)?[\d.,]+\s*%?)(?:\s*-\s*etapa\s*(.*))?$/i
+        );
       if (!match) return null;
       const nome = match[1].trim();
       if (!nome || nome === "-") return null;
@@ -397,7 +399,45 @@ export function parseColaboradoresInstrucoes(instrucoes?: string | null): Colabo
 }
 
 export function comissaoPercentualSemSufixo(value: string) {
-  return (value || "").replace(/%/g, "").trim();
+  return (value || "")
+    .replace(/R\$\s*/gi, "")
+    .replace(/%/g, "")
+    .replace(/^\$\s*/, "")
+    .trim();
+}
+
+export type TipoComissaoOs = "%" | "R$";
+
+export function tipoComissaoDeTexto(value?: string | null): TipoComissaoOs {
+  const raw = String(value || "").trim();
+  if (/R\$/i.test(raw) || raw.startsWith("$")) return "R$";
+  return "%";
+}
+
+export function valorNumericoComissaoTexto(value?: string | null): string {
+  const limpo = comissaoPercentualSemSufixo(String(value || ""));
+  if (!limpo) return "0,00";
+  const numero = Number(limpo.replace(/\./g, "").replace(",", "."));
+  if (!Number.isFinite(numero)) return limpo;
+  return numero.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+export function formatarComissaoComTipo(tipo: TipoComissaoOs, valor?: string | null): string {
+  const num = valorNumericoComissaoTexto(valor);
+  return tipo === "R$" ? `R$ ${num}` : `${num}%`;
+}
+
+export function exibicaoComissaoDeTexto(value?: string | null): {
+  tipo: TipoComissaoOs;
+  valor: string;
+} {
+  return {
+    tipo: tipoComissaoDeTexto(value),
+    valor: valorNumericoComissaoTexto(value),
+  };
 }
 
 /** Exibe comissão sempre com sufixo % (ex.: 10,00%). */
@@ -428,9 +468,10 @@ export function formatarComissaoPercentInput(value: string) {
 
 export function formatarLinhaColaborador(colaborador: ColaboradorOsLinha) {
   if (!colaborador.nome.trim()) return "";
-  const comissao = comissaoPercentualSemSufixo(colaborador.comissao || "0");
+  const tipo = tipoComissaoDeTexto(colaborador.comissao);
+  const comissaoTexto = formatarComissaoComTipo(tipo, colaborador.comissao);
   const etapaParte = colaborador.etapa.trim() ? ` - etapa ${colaborador.etapa.trim()}` : "";
-  return `Colaborador ${colaborador.nome.trim()}: comissão ${comissao}%${etapaParte}`;
+  return `Colaborador ${colaborador.nome.trim()}: comissão ${comissaoTexto}${etapaParte}`;
 }
 
 /** Colaboradores da aba OS + responsáveis das etapas (sem duplicar nomes). */

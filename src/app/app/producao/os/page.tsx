@@ -117,6 +117,8 @@ import {
   deduplicarEtapas,
   exibirComissaoPercentual,
   formatarComissaoPercentInput,
+  formatarComissaoComTipo,
+  exibicaoComissaoDeTexto,
   formatarLinhaColaborador,
   formatarLinhaEtapaComTempo,
   nomeEtapaSemSetor,
@@ -124,6 +126,7 @@ import {
   parseComplementosInstrucoesGrupo,
   removerComplementosOsDoCorpo,
   prazoVencimentoEtapaOs,
+  tipoComissaoDeTexto,
   type EtapaCadastro,
 } from "@/lib/etapas-os";
 import {
@@ -280,6 +283,33 @@ function parseMoney(value: string) {
     .replace(/\./g, "")
     .replace(",", ".");
   return Number(normalized) || 0;
+}
+
+function CampoValorComissaoReadonly({
+  label = "Valor da Comissão",
+  tipo,
+  valor,
+}: {
+  label?: string;
+  tipo: "%" | "R$";
+  valor: string;
+}) {
+  return (
+    <div className="space-y-1">
+      <label className="block text-sm font-medium text-slate-700">{label}</label>
+      <div className="flex overflow-hidden rounded-lg border border-slate-300 bg-slate-100 shadow-sm">
+        <span className="flex w-12 shrink-0 items-center justify-center border-r border-slate-300 bg-slate-200/70 px-1 text-sm font-medium text-slate-600">
+          {tipo === "R$" ? "R$" : "%"}
+        </span>
+        <input
+          readOnly
+          value={valor || "0,00"}
+          className="w-full cursor-default bg-slate-100 px-3 py-2 text-sm text-slate-700 outline-none"
+          placeholder="0,00"
+        />
+      </div>
+    </div>
+  );
 }
 
 type ProdutoOsLinha = {
@@ -963,7 +993,7 @@ export default function OrdemServicoPage() {
       setColaboradores(
         complementos.colaboradores.map((item) => ({
           nome: item.nome,
-          comissao: exibirComissaoPercentual(item.comissao),
+          comissao: formatarComissaoComTipo(tipoComissaoDeTexto(item.comissao), item.comissao),
           etapa: item.etapa,
         }))
       );
@@ -1138,13 +1168,29 @@ export default function OrdemServicoPage() {
     return parseCurrency(form.valor) * Number(form.quantidade || 1);
   }
 
-  function valorComissaoColaboradorOsTexto(comissao: string) {
-    const percentual =
-      Number(String(comissao || "").replace("%", "").replace(/\./g, "").replace(",", ".")) || 0;
-    return (valorBaseComissaoTerceirizadoOs() * (percentual / 100)).toLocaleString("pt-BR", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
+  function comissaoColaboradorCadastroOs(cadastro: ColaboradorListagem) {
+    const tipoRaw = form.repeticao
+      ? cadastro.tipoValorComissaoRepeticao
+      : cadastro.tipoValorComissao;
+    const tipo = tipoRaw === "R$" ? "R$" : "%";
+    const bruto = comissaoCadastroColaborador(
+      {
+        tipoContratacao: cadastro.tipoContratacao,
+        valorComissao: cadastro.comissaoPercentual,
+        comissaoRepeticao: cadastro.comissaoRepeticao,
+      },
+      cadastro.comissaoPercentual,
+      Boolean(form.repeticao)
+    );
+    return formatarComissaoComTipo(tipo, bruto);
+  }
+
+  function comissaoTerceirizadoCadastroOs(opcao: {
+    valorComissao?: string;
+    valorComissaoRepeticao?: string;
+  }) {
+    const raw = form.repeticao ? opcao.valorComissaoRepeticao : opcao.valorComissao;
+    return formatarComissaoComTipo(tipoComissaoDeTexto(raw), raw || "0,00");
   }
 
   function aplicarComissoesServicoNaOs(servico: ServicoTabelaPrecoOs) {
@@ -1168,47 +1214,66 @@ export default function OrdemServicoPage() {
   }
 
   useEffect(() => {
-    if (!servicoOsAtual || !servicoTemComissoesColaboradoresNaTabela(servicoOsAtual)) return;
     setColaboradores((atuais) => {
       if (atuais.length === 0) return atuais;
       let mudou = false;
       const proximos = atuais.map((item) => {
-        const comissao = comissaoColaboradorNaTabelaServico(
+        if (!item.nome.trim()) return item;
+        const comissaoTabela = comissaoColaboradorNaTabelaServico(
           servicoOsAtual,
           item.nome,
           form.repeticao
         );
-        if (!comissao || item.comissao === comissao) return item;
+        const cadastro = colaboradoresOpcoes.find((c) => c.nome === item.nome);
+        const comissao = comissaoTabela
+          ? formatarComissaoComTipo("%", comissaoTabela)
+          : cadastro
+            ? comissaoColaboradorCadastroOs(cadastro)
+            : formatarComissaoComTipo("%", "0,00");
+        if (item.comissao === comissao) return item;
         mudou = true;
         return { ...item, comissao };
       });
       return mudou ? proximos : atuais;
     });
-  }, [form.repeticao, servicoOsAtual]);
+  }, [form.repeticao, servicoOsAtual, colaboradoresOpcoes]);
 
   useEffect(() => {
-    if (!servicoOsAtual || !servicoTemComissoesTerceirizadosNaTabela(servicoOsAtual)) return;
     setTerceirizados((atuais) => {
       if (atuais.length === 0) return atuais;
-      const base = valorBaseComissaoTerceirizadoOs();
       let mudou = false;
       const proximos = atuais.map((item) => {
+        if (!item.nome.trim()) return item;
+        const opcao = opcoesTerceirizados.find((terceirizado) => terceirizado.nome === item.nome);
+        if (opcao) {
+          const custo = comissaoTerceirizadoCadastroOs(opcao);
+          if (item.custo === custo) return item;
+          mudou = true;
+          return { ...item, custo };
+        }
+        if (!servicoOsAtual || !servicoTemComissoesTerceirizadosNaTabela(servicoOsAtual)) {
+          return item;
+        }
         const linha = terceirizadosComissaoServico.find(
           (terceiro) => terceiro.nome.trim() === item.nome.trim()
         );
         if (!linha) return item;
-        const percentual = parseMoney(
-          form.repeticao ? linha.valorRepeticao || "0" : linha.valor || "0"
+        const custo = formatarComissaoComTipo(
+          "%",
+          form.repeticao ? linha.valorRepeticao : linha.valor
         );
-        const custo = (base * percentual) / 100;
-        const custoFmt = custo.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-        if (item.custo === custoFmt) return item;
+        if (item.custo === custo) return item;
         mudou = true;
-        return { ...item, custo: custoFmt };
+        return { ...item, custo };
       });
       return mudou ? proximos : atuais;
     });
-  }, [form.repeticao, form.quantidade, form.valor, servicoOsAtual, terceirizadosComissaoServico]);
+  }, [
+    form.repeticao,
+    servicoOsAtual,
+    terceirizadosComissaoServico,
+    opcoesTerceirizados,
+  ]);
 
   useEffect(() => {
     if (!form.categoria) return;
@@ -1720,23 +1785,27 @@ export default function OrdemServicoPage() {
     produtosOs,
   ]);
 
-  function valorComissaoTerceirizado(opcao: TerceirizadoOpcao) {
-    const percentual = parsePercentual(
-      form.repeticao ? opcao.valorComissaoRepeticao : opcao.valorComissao
-    );
-    const base = totalLinhaServico > 0 ? totalLinhaServico : totalItensOs;
-    return base * (percentual / 100);
-  }
-
   function selecionarTerceirizado(index: number, nome: string) {
     const linhaTabela = terceirizadosComissaoServico.find(
       (item) => item.nome.trim() === nome.trim()
     );
-    if (linhaTabela && servicoOsAtual) {
-      const percentual = parseMoney(
-        form.repeticao ? linhaTabela.valorRepeticao || "0" : linhaTabela.valor || "0"
+    const opcao = opcoesTerceirizados.find((item) => item.nome === nome);
+    if (opcao) {
+      setTerceirizados((atuais) =>
+        atuais.map((item, i) =>
+          i === index
+            ? {
+                ...item,
+                nome,
+                servico: opcao.tipoServico || item.servico,
+                custo: comissaoTerceirizadoCadastroOs(opcao),
+              }
+            : item
+        )
       );
-      const custoNum = (valorBaseComissaoTerceirizadoOs() * percentual) / 100;
+      return;
+    }
+    if (linhaTabela && servicoOsAtual) {
       setTerceirizados((atuais) =>
         atuais.map((item, i) =>
           i === index
@@ -1744,32 +1813,23 @@ export default function OrdemServicoPage() {
                 ...item,
                 nome,
                 servico: servicoOsAtual.nome,
-                custo: custoNum.toLocaleString("pt-BR", {
-                  style: "currency",
-                  currency: "BRL",
-                }),
+                custo: formatarComissaoComTipo(
+                  "%",
+                  form.repeticao ? linhaTabela.valorRepeticao : linhaTabela.valor
+                ),
               }
             : item
         )
       );
       return;
     }
-
-    const opcao = opcoesTerceirizados.find((item) => item.nome === nome);
-    const custoCalculado = opcao
-      ? valorComissaoTerceirizado(opcao).toLocaleString("pt-BR", {
-          style: "currency",
-          currency: "BRL",
-        })
-      : "R$ 0,00";
     setTerceirizados((atuais) =>
       atuais.map((item, i) =>
         i === index
           ? {
               ...item,
               nome,
-              servico: opcao?.tipoServico || item.servico,
-              custo: custoCalculado,
+              custo: formatarComissaoComTipo("%", "0,00"),
             }
           : item
       )
@@ -1780,23 +1840,17 @@ export default function OrdemServicoPage() {
     setTerceirizados((atuais) => {
       let changed = false;
       const atualizados = atuais.map((item) => {
-        const opcao = opcoesTerceirizados.find(
-          (terceirizado) => terceirizado.nome === item.nome && terceirizado.origem === "prestador"
-        );
+        if (!item.nome.trim()) return item;
+        const opcao = opcoesTerceirizados.find((terceirizado) => terceirizado.nome === item.nome);
         if (!opcao) return item;
-
-        const custo = valorComissaoTerceirizado(opcao).toLocaleString("pt-BR", {
-          style: "currency",
-          currency: "BRL",
-        });
+        const custo = comissaoTerceirizadoCadastroOs(opcao);
         if (item.custo === custo) return item;
         changed = true;
         return { ...item, custo };
       });
-
       return changed ? atualizados : atuais;
     });
-  }, [totalItensOs, totalLinhaServico, form.repeticao, opcoesTerceirizados]);
+  }, [form.repeticao, opcoesTerceirizados]);
 
   const previews = useMemo(
     () =>
@@ -2542,15 +2596,7 @@ export default function OrdemServicoPage() {
   }
 
   function comissaoColaboradorCadastro(cadastro: ColaboradorListagem) {
-    return comissaoCadastroColaborador(
-      {
-        tipoContratacao: cadastro.tipoContratacao,
-        valorComissao: cadastro.comissaoPercentual,
-        comissaoRepeticao: cadastro.comissaoRepeticao,
-      },
-      cadastro.comissaoPercentual,
-      Boolean(form.repeticao)
-    );
+    return comissaoColaboradorCadastroOs(cadastro);
   }
 
   function selecionarColaboradorOs(index: number, nome: string) {
@@ -2569,11 +2615,11 @@ export default function OrdemServicoPage() {
           ? {
               ...item,
               nome,
-              comissao:
-                comissaoTabela ||
-                (cadastro
-                  ? exibirComissaoPercentual(comissaoColaboradorCadastro(cadastro)) || "0,00%"
-                  : "0,00%"),
+              comissao: comissaoTabela
+                ? formatarComissaoComTipo("%", comissaoTabela)
+                : cadastro
+                  ? comissaoColaboradorCadastroOs(cadastro)
+                  : formatarComissaoComTipo("%", "0,00"),
             }
           : item
       )
@@ -4517,12 +4563,8 @@ export default function OrdemServicoPage() {
                             </option>
                           ))}
                         </Select>
-                        <Input
-                          label="Valor da Comissão"
-                          value={valorComissaoColaboradorOsTexto(colaborador.comissao)}
-                          readOnly
-                          className="cursor-default bg-slate-100 text-slate-700"
-                          placeholder="0,00"
+                        <CampoValorComissaoReadonly
+                          {...exibicaoComissaoDeTexto(colaborador.comissao)}
                         />
                           <Input
                             label="Observação"
@@ -4600,12 +4642,8 @@ export default function OrdemServicoPage() {
                           }
                           placeholder="Serviço terceirizado"
                         />
-                        <Input
-                          label="Valor da Comissão"
-                          value={terceiro.custo || "R$ 0,00"}
-                          readOnly
-                          className="cursor-default bg-slate-100 text-slate-700"
-                          placeholder="R$ 0,00"
+                        <CampoValorComissaoReadonly
+                          {...exibicaoComissaoDeTexto(terceiro.custo)}
                         />
                         <button
                           type="button"

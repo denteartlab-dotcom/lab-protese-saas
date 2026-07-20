@@ -103,6 +103,8 @@ import {
   deduplicarTerceirizados,
   exibirComissaoPercentual,
   formatarComissaoPercentInput,
+  formatarComissaoComTipo,
+  exibicaoComissaoDeTexto,
   formatarLinhaColaborador,
   formatarLinhaEtapa,
   nomeEtapaSemSetor,
@@ -110,6 +112,7 @@ import {
   parseEtapasInstrucoes,
   removerComplementosOsDoCorpo,
   resumoColaboradorControle,
+  tipoComissaoDeTexto,
   type ColaboradorOsLinha,
   type EtapaCadastro,
   type TerceirizadoOsLinha,
@@ -479,6 +482,33 @@ function montarInstrucoesSegmentoControle(
 
 function parsePercentualControle(value = "") {
   return Number(value.replace("%", "").replace(/\./g, "").replace(",", ".")) || 0;
+}
+
+function CampoValorComissaoReadonly({
+  label = "Valor da Comissão",
+  tipo,
+  valor,
+}: {
+  label?: string;
+  tipo: "%" | "R$";
+  valor: string;
+}) {
+  return (
+    <div className="space-y-1">
+      <label className="block text-sm font-medium text-slate-700">{label}</label>
+      <div className="flex overflow-hidden rounded-lg border border-slate-300 bg-slate-100 shadow-sm">
+        <span className="flex w-12 shrink-0 items-center justify-center border-r border-slate-300 bg-slate-200/70 px-1 text-sm font-medium text-slate-600">
+          {tipo === "R$" ? "R$" : "%"}
+        </span>
+        <input
+          readOnly
+          value={valor || "0,00"}
+          className="w-full cursor-default bg-slate-100 px-3 py-2 text-sm text-slate-700 outline-none"
+          placeholder="0,00"
+        />
+      </div>
+    </div>
+  );
 }
 
 function carregarOpcoesTerceirizadosControle(): TerceirizadoOpcao[] {
@@ -1410,24 +1440,17 @@ export default function ControlePage() {
     setTerceirizadosEdicao((atuais) => {
       let changed = false;
       const atualizados = atuais.map((item) => {
-        const opcao = opcoesTerceirizados.find(
-          (terceirizado) => terceirizado.nome === item.nome && terceirizado.origem === "prestador"
-        );
+        if (!item.nome.trim()) return item;
+        const opcao = opcoesTerceirizados.find((terceirizado) => terceirizado.nome === item.nome);
         if (!opcao) return item;
-        const percentual = parsePercentualControle(
-          form.repeticao ? opcao.valorComissaoRepeticao : opcao.valorComissao
-        );
-        const custo = (totalItensEdicao * (percentual / 100)).toLocaleString("pt-BR", {
-          style: "currency",
-          currency: "BRL",
-        });
+        const custo = comissaoTerceirizadoCadastroControle(opcao);
         if (item.custo === custo) return item;
         changed = true;
         return { ...item, custo };
       });
       return changed ? atualizados : atuais;
     });
-  }, [totalItensEdicao, form?.repeticao, opcoesTerceirizados, editando]);
+  }, [form?.repeticao, opcoesTerceirizados, editando]);
 
   useEffect(() => {
     if (!editando) return;
@@ -1442,10 +1465,11 @@ export default function ControlePage() {
           Boolean(form?.repeticao)
         );
         const cadastro = colaboradoresOpcoes.find((c) => c.nome === item.nome);
-        const comissao =
-          comissaoTabela ||
-          (cadastro ? comissaoColaboradorCadastroControle(cadastro) : "") ||
-          "0,00%";
+        const comissao = comissaoTabela
+          ? formatarComissaoComTipo("%", comissaoTabela)
+          : cadastro
+            ? comissaoColaboradorCadastroControle(cadastro)
+            : formatarComissaoComTipo("%", "0,00");
         if (item.comissao === comissao) return item;
         mudou = true;
         return { ...item, comissao };
@@ -1459,34 +1483,30 @@ export default function ControlePage() {
     if (!servicoTemComissoesTerceirizadosNaTabela(servicoOsAtualEdicao)) return;
     setTerceirizadosEdicao((atuais) => {
       if (atuais.length === 0) return atuais;
-      const base =
-        servicoOsAtualEdicao.valor * (Number(form?.quantidade || 1) || 1);
       let mudou = false;
       const proximos = atuais.map((item) => {
         const linha = comissoesTerceirizadosServicoEdicao.find(
           (terceiro) => terceiro.nome.trim() === item.nome.trim()
         );
         if (!linha) return item;
-        const percentual = parsePercentualControle(
+        const opcao = opcoesTerceirizados.find((terceirizado) => terceirizado.nome === item.nome);
+        if (opcao) return item;
+        const custo = formatarComissaoComTipo(
+          "%",
           form?.repeticao ? linha.valorRepeticao : linha.valor
         );
-        const custo = (base * percentual) / 100;
-        const custoFmt = custo.toLocaleString("pt-BR", {
-          style: "currency",
-          currency: "BRL",
-        });
-        if (item.custo === custoFmt) return item;
+        if (item.custo === custo) return item;
         mudou = true;
-        return { ...item, custo: custoFmt };
+        return { ...item, custo };
       });
       return mudou ? proximos : atuais;
     });
   }, [
     editando,
     form?.repeticao,
-    form?.quantidade,
     servicoOsAtualEdicao,
     comissoesTerceirizadosServicoEdicao,
+    opcoesTerceirizados,
   ]);
 
   const clientes = Array.from(
@@ -1837,7 +1857,7 @@ export default function ControlePage() {
     setColaboradoresEdicao(
       complementos.colaboradores.map((item) => ({
         nome: item.nome,
-        comissao: exibirComissaoPercentual(item.comissao),
+        comissao: formatarComissaoComTipo(tipoComissaoDeTexto(item.comissao), item.comissao),
         etapa: item.etapa,
       }))
     );
@@ -1851,6 +1871,10 @@ export default function ControlePage() {
   }
 
   function comissaoColaboradorCadastroControle(cadastro: ColaboradorListagem) {
+    const tipoRaw = form?.repeticao
+      ? cadastro.tipoValorComissaoRepeticao
+      : cadastro.tipoValorComissao;
+    const tipo = tipoRaw === "R$" ? "R$" : "%";
     const bruto = comissaoCadastroColaborador(
       {
         tipoContratacao: cadastro.tipoContratacao,
@@ -1860,22 +1884,13 @@ export default function ControlePage() {
       cadastro.comissaoPercentual,
       Boolean(form?.repeticao)
     );
-    return exibirComissaoPercentual(bruto) || "0,00%";
+    return formatarComissaoComTipo(tipo, bruto);
   }
 
-  function valorBaseServicoEdicaoComissao() {
-    if (servicoOsAtualEdicao) {
-      return servicoOsAtualEdicao.valor * (Number(form?.quantidade || 1) || 1);
-    }
-    return parseCurrencyBr(form?.valor || "0") * (Number(form?.quantidade || 1) || 1);
-  }
-
-  function valorComissaoColaboradorEdicaoTexto(comissao: string) {
-    const percentual = parsePercentualControle(comissao);
-    return (valorBaseServicoEdicaoComissao() * (percentual / 100)).toLocaleString("pt-BR", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
+  function comissaoTerceirizadoCadastroControle(opcao: TerceirizadoOpcao) {
+    const raw = form?.repeticao ? opcao.valorComissaoRepeticao : opcao.valorComissao;
+    const tipo = tipoComissaoDeTexto(raw);
+    return formatarComissaoComTipo(tipo, raw || "0,00");
   }
 
   function selecionarColaboradorEdicao(index: number, nome: string) {
@@ -1898,10 +1913,11 @@ export default function ControlePage() {
           ? {
               ...item,
               nome,
-              comissao:
-                comissaoTabela ||
-                (cadastro ? comissaoColaboradorCadastroControle(cadastro) : "0,00%") ||
-                "0,00%",
+              comissao: comissaoTabela
+                ? formatarComissaoComTipo("%", comissaoTabela)
+                : cadastro
+                  ? comissaoColaboradorCadastroControle(cadastro)
+                  : formatarComissaoComTipo("%", "0,00"),
             }
           : item
       )
@@ -1915,21 +1931,8 @@ export default function ControlePage() {
     setColaboradoresEdicao((atuais) => [...atuais, { nome: "", comissao: "", etapa: "" }]);
   }
 
-  function valorComissaoTerceirizadoControle(opcao: TerceirizadoOpcao) {
-    const percentual = parsePercentualControle(
-      form?.repeticao ? opcao.valorComissaoRepeticao : opcao.valorComissao
-    );
-    return totalItensEdicao * (percentual / 100);
-  }
-
   function selecionarTerceirizadoEdicao(index: number, nome: string) {
     const opcao = opcoesTerceirizados.find((item) => item.nome === nome);
-    const custoCalculado = opcao
-      ? valorComissaoTerceirizadoControle(opcao).toLocaleString("pt-BR", {
-          style: "currency",
-          currency: "BRL",
-        })
-      : "R$ 0,00";
     setTerceirizadosEdicao((atuais) =>
       atuais.map((item, i) =>
         i === index
@@ -1937,7 +1940,9 @@ export default function ControlePage() {
               ...item,
               nome,
               servico: opcao?.tipoServico || item.servico,
-              custo: custoCalculado,
+              custo: opcao
+                ? comissaoTerceirizadoCadastroControle(opcao)
+                : formatarComissaoComTipo("%", "0,00"),
             }
           : item
       )
@@ -4469,12 +4474,8 @@ export default function ControlePage() {
                                     placeholder="Nome do colaborador"
                                   />
                                 )}
-                                <Input
-                                  label="Valor da Comissão"
-                                  value={valorComissaoColaboradorEdicaoTexto(colaborador.comissao)}
-                                  readOnly
-                                  className="cursor-default bg-slate-100 text-slate-700"
-                                  placeholder="0,00"
+                                <CampoValorComissaoReadonly
+                                  {...exibicaoComissaoDeTexto(colaborador.comissao)}
                                 />
                                   <Input
                                     label="Observação"
@@ -4567,12 +4568,8 @@ export default function ControlePage() {
                                   }
                                   placeholder="Serviço terceirizado"
                                 />
-                                <Input
-                                  label="Valor da Comissão"
-                                  value={terceiro.custo || "R$ 0,00"}
-                                  readOnly
-                                  className="cursor-default bg-slate-100 text-slate-700"
-                                  placeholder="R$ 0,00"
+                                <CampoValorComissaoReadonly
+                                  {...exibicaoComissaoDeTexto(terceiro.custo)}
                                 />
                                 <button
                                   type="button"
