@@ -11,10 +11,20 @@
     zoom: var(--site-zoom);
   }
 
+  html.site-zoom-full {
+    --site-zoom: 1;
+    zoom: 1;
+  }
+
   body {
     @apply bg-slate-50 text-slate-900 antialiased;
     min-height: calc(100vh / var(--site-zoom));
     min-height: calc(100dvh / var(--site-zoom));
+  }
+
+  body.site-editor-tela-cheia {
+    overflow: hidden;
+    min-height: 100dvh;
   }
 
   .dark body {

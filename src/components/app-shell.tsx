@@ -273,6 +273,23 @@ function AppShellInner({
       "";
     if (slug) salvarLogoLaboratorioLogin(slug, lab.logoDataUrl);
   }, [montado, lab.logoDataUrl, pathname]);
+
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    if (isPrint) {
+      html.classList.add("site-zoom-full");
+      body.classList.add("site-editor-tela-cheia");
+    } else {
+      html.classList.remove("site-zoom-full");
+      body.classList.remove("site-editor-tela-cheia");
+    }
+    return () => {
+      html.classList.remove("site-zoom-full");
+      body.classList.remove("site-editor-tela-cheia");
+    };
+  }, [isPrint]);
+
   function podeVerMenu(href: string) {
     return podeVerHref(acessoTotal, permissoesModulos, href);
   }
@@ -613,7 +630,9 @@ function AppShellInner({
     <div
       className={cn(
         "flex min-h-0 flex-1 flex-col transition-colors",
-        isModuloTv
+        isPrint
+          ? "fixed inset-0 z-40 h-[100dvh] w-full max-w-none overflow-hidden bg-[#4a4f56]"
+          : isModuloTv
           ? "h-[100vh] w-[100vw] max-w-none overflow-hidden bg-[#070b12]"
           : isRelatorioImersivo
             ? "min-h-[100vh] w-full bg-[#f4f6f8] dark:bg-slate-950"
@@ -1406,8 +1425,8 @@ function AppShellInner({
 
       <main
         className={cn(
-          (isModuloTv || isRelatorioImersivo) &&
-            "h-full min-h-0 w-full max-w-none flex-1 overflow-auto"
+          (isModuloTv || isRelatorioImersivo || isPrint) &&
+            "h-full min-h-0 w-full max-w-none flex-1 overflow-hidden"
         )}
       >
         <div
@@ -1415,7 +1434,7 @@ function AppShellInner({
             isPrint || isModuloImersivo
               ? isRelatorioImersivo
                 ? "h-full min-h-[100vh] w-full max-w-none overflow-auto p-0 m-0"
-                : "h-[100vh] w-[100vw] max-w-none min-h-0 overflow-hidden p-0 m-0"
+                : "h-full min-h-0 w-full max-w-none overflow-hidden p-0 m-0"
               : cn(
                   "min-h-screen px-3 py-4 sm:px-5",
                   mostrarFaixaAssinatura && "pb-16"
