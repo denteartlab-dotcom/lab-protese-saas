@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { MessageSquare, PackageCheck, Search } from "lucide-react";
+import { MessageSquare, PackageCheck, Search, Trash2 } from "lucide-react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useI18n } from "@/components/i18n-provider";
 import {
   compararTrabalhosAcompanhamento,
   opcoesFiltroSituacaoAcompanhamento,
   type ClienteAcompanhamentoPublico,
+  type HistoricoObservacaoPublico,
 } from "@/lib/cliente-acompanhamento-cliente";
 import { fetchPortalPublico } from "@/lib/portal-publico-cliente";
 import type { PortalPublicoPaginaAcompanhamento } from "@/lib/portal-publico-types";
@@ -54,6 +55,10 @@ export default function AcompanhamentoClientePage() {
   const [observacaoMsg, setObservacaoMsg] = useState<string | null>(null);
   const [observacaoErro, setObservacaoErro] = useState(false);
   const [mostrarHistoricoObservacoes, setMostrarHistoricoObservacoes] = useState(false);
+  const [observacaoDetalhe, setObservacaoDetalhe] = useState<HistoricoObservacaoPublico | null>(
+    null
+  );
+  const [excluindoObservacaoId, setExcluindoObservacaoId] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
   const [filtroSituacao, setFiltroSituacao] = useState("todos");
 
@@ -230,6 +235,43 @@ export default function AcompanhamentoClientePage() {
       setObservacaoEnviando(false);
     }
   }, [token, observacaoTrabalhoId, textoObservacao, t, carregar]);
+
+  const excluirObservacao = useCallback(
+    async (observacaoId: string) => {
+      if (!observacaoId || excluindoObservacaoId) return;
+      const confirmar = window.confirm(t("acompanhamento.observacaoExcluirConfirmar"));
+      if (!confirmar) return;
+
+      setExcluindoObservacaoId(observacaoId);
+      setObservacaoMsg(null);
+      setObservacaoErro(false);
+      try {
+        const res = await fetch(`/api/clientes/public/${token}/observacao`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ observacaoId }),
+        });
+        const json = (await res.json()) as { message?: string };
+        if (!res.ok) {
+          setObservacaoErro(true);
+          setObservacaoMsg(json.message || t("acompanhamento.observacaoExcluirErro"));
+          return;
+        }
+        if (observacaoDetalhe?.id === observacaoId) {
+          setObservacaoDetalhe(null);
+        }
+        setObservacaoErro(false);
+        setObservacaoMsg(json.message || t("acompanhamento.observacaoExcluirSucesso"));
+        await carregar(true);
+      } catch {
+        setObservacaoErro(true);
+        setObservacaoMsg(t("acompanhamento.observacaoExcluirErro"));
+      } finally {
+        setExcluindoObservacaoId(null);
+      }
+    },
+    [token, excluindoObservacaoId, observacaoDetalhe, t, carregar]
+  );
 
   const trabalhoObservacao = useMemo(
     () => dados?.trabalhos.find((trabalho) => trabalho.id === observacaoTrabalhoId) ?? null,
@@ -674,14 +716,36 @@ export default function AcompanhamentoClientePage() {
                     key={item.id}
                     className="rounded-lg border border-slate-200 bg-white px-3 py-2.5"
                   >
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                      {t("acompanhamento.observacaoEnviadaEm", {
-                        data: formatarDataHora(item.criadoEm),
-                      })}
-                    </p>
-                    <p className="mt-1 whitespace-pre-wrap text-[12px] leading-relaxed text-slate-700">
-                      {item.texto}
-                    </p>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                        {t("acompanhamento.observacaoEnviadaEm", {
+                          data: formatarDataHora(item.criadoEm),
+                        })}
+                      </p>
+                      <button
+                        type="button"
+                        disabled={excluindoObservacaoId === item.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void excluirObservacao(item.id);
+                        }}
+                        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-400 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                        title={t("acompanhamento.observacaoExcluir")}
+                        aria-label={t("acompanhamento.observacaoExcluir")}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setObservacaoDetalhe(item)}
+                      className="mt-1 w-full rounded-md px-0 py-0.5 text-left transition hover:bg-slate-50"
+                      title={t("acompanhamento.observacaoVerDetalhe")}
+                    >
+                      <p className="line-clamp-2 whitespace-pre-wrap text-[12px] leading-relaxed text-slate-700">
+                        {item.texto}
+                      </p>
+                    </button>
                   </article>
                 ))
               )}
@@ -713,6 +777,48 @@ export default function AcompanhamentoClientePage() {
               : t("acompanhamento.observacaoEnviar")}
           </button>
         </div>
+      </Modal>
+
+      <Modal
+        open={observacaoDetalhe !== null}
+        onClose={() => setObservacaoDetalhe(null)}
+        title={t("acompanhamento.observacaoDetalheTitulo")}
+        size="sm"
+        layerClassName="z-[60]"
+      >
+        {observacaoDetalhe ? (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                {t("acompanhamento.observacaoEnviadaEm", {
+                  data: formatarDataHora(observacaoDetalhe.criadoEm),
+                })}
+              </p>
+              <button
+                type="button"
+                disabled={excluindoObservacaoId === observacaoDetalhe.id}
+                onClick={() => void excluirObservacao(observacaoDetalhe.id)}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                title={t("acompanhamento.observacaoExcluir")}
+                aria-label={t("acompanhamento.observacaoExcluir")}
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-sm leading-relaxed text-slate-800">
+              {observacaoDetalhe.texto}
+            </p>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setObservacaoDetalhe(null)}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50"
+              >
+                {t("cadastros.comum.fechar")}
+              </button>
+            </div>
+          </div>
+        ) : null}
       </Modal>
 
       <Modal

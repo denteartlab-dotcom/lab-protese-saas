@@ -104,6 +104,36 @@ export async function registrarObservacaoClienteTrabalho(params: {
   return { ok: true as const, evento };
 }
 
+/** Remove observação enviada pelo próprio cliente (token público). */
+export async function excluirObservacaoClienteTrabalho(params: {
+  empresaId: string;
+  clienteId: string;
+  observacaoId: string;
+}) {
+  const store = await carregarStoreObservacoesCliente(params.empresaId);
+  const evento = store.eventos.find((item) => item.id === params.observacaoId);
+  if (!evento) {
+    return {
+      ok: false as const,
+      code: "nao_encontrada",
+      message: "Observação não encontrada.",
+    };
+  }
+  if (evento.clienteId !== params.clienteId) {
+    return {
+      ok: false as const,
+      code: "nao_autorizado",
+      message: "Você não pode excluir esta observação.",
+    };
+  }
+
+  await salvarJsonStoreTenant(params.empresaId, JSON_STORE_OBSERVACOES_CLIENTE, {
+    eventos: store.eventos.filter((item) => item.id !== params.observacaoId),
+  });
+
+  return { ok: true as const, observacaoId: params.observacaoId };
+}
+
 /** Observações enviadas pelo cliente para uma OS (mais recentes primeiro). */
 export function historicoObservacoesPorTrabalho(
   eventos: EventoObservacaoClienteTrabalho[],
