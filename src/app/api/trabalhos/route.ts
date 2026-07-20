@@ -113,7 +113,7 @@ export async function GET(request: Request) {
       },
       orderBy: { createdAt: "desc" },
       include: {
-        cliente: { select: { id: true, nome: true, cro: true } },
+        cliente: { select: { id: true, nome: true, cro: true, ativo: true } },
         paciente: { select: { id: true, nome: true } },
       },
     })

@@ -13,8 +13,11 @@ import {
 import {
   lancamentoFaturaOsAtivo,
   MENSAGEM_OS_FATURADA_NAO_EXCLUI,
+  clienteAusenteOuInativoPermiteExcluirOsFaturada,
   osEstaFaturadaContasReceber,
+  trabalhoEstaFaturado,
 } from "@/lib/os-faturamento";
+import { excluirFaturaCobrancaOsServidor } from "@/lib/fatura-exclusao-servidor";
 import { sincronizarContasReceberAposAlteracaoTrabalho } from "@/lib/os-faturamento-sync-servidor";
 import { grupoOsIdOf, segmentoEfetivoTrabalho, whereGrupoOs } from "@/lib/trabalho-os-segmento";
 import { STATUS_TRABALHO } from "@/lib/utils";
@@ -377,7 +380,7 @@ export async function DELETE(
   try {
     const atual = await prisma.trabalho.findFirst({
       where: { id, empresaId: ctx.empresaId },
-      include: { cliente: true },
+      include: { cliente: { select: { id: true, nome: true, ativo: true } } },
     });
     if (!atual) return NextResponse.json({ ok: true });
 
@@ -385,24 +388,58 @@ export async function DELETE(
       where: whereGrupoOs(atual),
       select: { id: true, numeroOs: true },
     });
+    const idsGrupo = grupo.map((t) => t.id);
     const lancamentos = await prisma.lancamento.findMany({
-      where: { tipo: "receita" },
+      where: { empresaId: ctx.empresaId, tipo: "receita" },
       select: {
         id: true,
+        tipo: true,
         status: true,
         descricao: true,
+        valor: true,
+        clienteId: true,
         trabalho: { select: { id: true, numeroOs: true } },
       },
     });
     const cobrancasAtivas = lancamentos.filter((l) => lancamentoFaturaOsAtivo(l));
-    if (
-      osEstaFaturadaContasReceber(
-        atual.numeroOs,
-        grupo.map((t) => t.id),
-        cobrancasAtivas
-      )
-    ) {
+    const faturada = osEstaFaturadaContasReceber(
+      atual.numeroOs,
+      idsGrupo,
+      cobrancasAtivas
+    );
+    const clientePermiteExcluirFaturada = clienteAusenteOuInativoPermiteExcluirOsFaturada(
+      atual.cliente
+    );
+
+    if (faturada && !clientePermiteExcluirFaturada) {
       return NextResponse.json({ error: MENSAGEM_OS_FATURADA_NAO_EXCLUI }, { status: 409 });
+    }
+
+    // Cliente inativo/ausente: remove faturas vinculadas (não aparecem mais no Financeiro).
+    if (faturada && clientePermiteExcluirFaturada) {
+      const faturasDaOs = cobrancasAtivas.filter((lancamento) =>
+        idsGrupo.some((trabalhoId) =>
+          trabalhoEstaFaturado(
+            { id: trabalhoId, numeroOs: atual.numeroOs },
+            [lancamento]
+          )
+        )
+      );
+      const idsFaturasJaRemovidas = new Set<string>();
+      for (const fatura of faturasDaOs) {
+        if (idsFaturasJaRemovidas.has(fatura.id)) continue;
+        try {
+          const { idsExcluidos } = await excluirFaturaCobrancaOsServidor(
+            ctx.empresaId,
+            fatura
+          );
+          for (const idExcluido of idsExcluidos) {
+            idsFaturasJaRemovidas.add(idExcluido);
+          }
+        } catch (err) {
+          console.error("[trabalhos DELETE] exclusão fatura OS cliente inativo", err);
+        }
+      }
     }
 
     await registrarLogAuditoria({

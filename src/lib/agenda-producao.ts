@@ -20,7 +20,7 @@ export type TrabalhoAgenda = {
   dataEntrada: string | Date;
   dataPrevista?: string | null | Date;
   instrucoes?: string | null;
-  cliente?: { nome?: string | null };
+  cliente?: { nome?: string | null; ativo?: boolean | null };
   paciente?: { nome?: string | null };
 };
 

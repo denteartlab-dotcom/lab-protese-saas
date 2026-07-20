@@ -132,6 +132,7 @@ import {
 } from "@/lib/listagem-config";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
 import {
+  clienteAusenteOuInativoPermiteExcluirOsFaturada,
   grupoOsEstaFaturado,
   MENSAGEM_OS_FATURADA_NAO_EXCLUI,
   type LancamentoFaturaOs,
@@ -211,7 +212,13 @@ type Trabalho = {
   dataEntrega?: string | null;
   observacoes?: string | null;
   instrucoes?: string | null;
-  cliente?: { id?: string; nome?: string | null; cro?: string | null; observacoes?: string | null };
+  cliente?: {
+    id?: string;
+    nome?: string | null;
+    cro?: string | null;
+    observacoes?: string | null;
+    ativo?: boolean | null;
+  };
   paciente?: { id?: string; nome?: string | null };
 };
 
@@ -1088,6 +1095,11 @@ export default function ControlePage() {
 
   function trabalhoGrupoFaturado(trabalho: Trabalho) {
     return grupoOsEstaFaturado(trabalho, trabalhos, lancamentosFatura);
+  }
+
+  function bloqueiaExclusaoOsFaturada(trabalho: Trabalho) {
+    if (!trabalhoGrupoFaturado(trabalho)) return false;
+    return !clienteAusenteOuInativoPermiteExcluirOsFaturada(trabalho.cliente);
   }
 
   const servicosDaCategoriaEdicao = useMemo(
@@ -3274,7 +3286,7 @@ export default function ControlePage() {
   async function confirmarExclusaoOs() {
     const trabalho = osExcluindo;
     if (!trabalho) return;
-    if (trabalhoGrupoFaturado(trabalho)) {
+    if (bloqueiaExclusaoOsFaturada(trabalho)) {
       setOsExcluindo(null);
       setAvisoExclusaoOs(MENSAGEM_OS_FATURADA_NAO_EXCLUI);
       return;
@@ -3570,7 +3582,7 @@ export default function ControlePage() {
                         <button
                           type="button"
                           onClick={() => {
-                            if (trabalhoGrupoFaturado(trabalho)) {
+                            if (bloqueiaExclusaoOsFaturada(trabalho)) {
                               setAvisoExclusaoOs(MENSAGEM_OS_FATURADA_NAO_EXCLUI);
                               return;
                             }

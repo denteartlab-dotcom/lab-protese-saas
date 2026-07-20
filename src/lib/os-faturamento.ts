@@ -142,6 +142,17 @@ export function trabalhoEstaFaturado(
 export const MENSAGEM_OS_FATURADA_NAO_EXCLUI =
   "Esta ordem de serviço já foi faturada. Exclua primeiro o lançamento em Financeiro › Contas a Receber.";
 
+/**
+ * Cliente inativo/excluído some do Contas a Receber — nesse caso permite excluir a OS
+ * mesmo faturada (não há como remover o lançamento pela tela financeira).
+ */
+export function clienteAusenteOuInativoPermiteExcluirOsFaturada(
+  cliente: { ativo?: boolean | null } | null | undefined
+): boolean {
+  if (!cliente) return true;
+  return cliente.ativo === false;
+}
+
 export function chaveGrupoOsTrabalho(trabalho: { id: string; grupoOsId?: string | null }) {
   return trabalho.grupoOsId || trabalho.id;
 }

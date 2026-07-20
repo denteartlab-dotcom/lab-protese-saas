@@ -37,6 +37,7 @@ import {
 } from "@/lib/agenda-producao";
 import { prazoTrabalho } from "@/lib/controle-producao-prazos";
 import {
+  clienteAusenteOuInativoPermiteExcluirOsFaturada,
   grupoOsEstaFaturado,
   MENSAGEM_OS_FATURADA_NAO_EXCLUI,
   type LancamentoFaturaOs,
@@ -290,6 +291,11 @@ export default function AgendaPage() {
     return grupoOsEstaFaturado(linha.principal, trabalhos, lancamentosFatura);
   }
 
+  function bloqueiaExclusaoOsFaturada(linha: LinhaAgendaGrupoOs) {
+    if (!linhaGrupoFaturada(linha)) return false;
+    return !clienteAusenteOuInativoPermiteExcluirOsFaturada(linha.principal.cliente);
+  }
+
   function abrirEdicao(linha: LinhaAgendaGrupoOs) {
     setEditandoId(editIdLinha(linha));
   }
@@ -302,7 +308,7 @@ export default function AgendaPage() {
   async function confirmarExclusaoOs() {
     const linha = osExcluindo;
     if (!linha) return;
-    if (linhaGrupoFaturada(linha)) {
+    if (bloqueiaExclusaoOsFaturada(linha)) {
       setOsExcluindo(null);
       setAvisoExclusaoOs(MENSAGEM_OS_FATURADA_NAO_EXCLUI);
       return;
@@ -575,7 +581,7 @@ export default function AgendaPage() {
                           <button
                             type="button"
                             onClick={() => {
-                              if (linhaGrupoFaturada(linha)) {
+                              if (bloqueiaExclusaoOsFaturada(linha)) {
                                 setAvisoExclusaoOs(MENSAGEM_OS_FATURADA_NAO_EXCLUI);
                                 return;
                               }
