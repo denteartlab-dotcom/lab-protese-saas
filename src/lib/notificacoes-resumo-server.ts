@@ -43,6 +43,12 @@ import {
 } from "@/lib/urgencia-cliente";
 import { carregarStoreObservacoesCliente } from "@/lib/observacao-cliente-trabalho";
 import { calcularResumoEstoqueDashboardServer } from "@/lib/dashboard-estoque-server";
+import {
+  ALERTA_ARMAZENAMENTO_GB,
+  armazenamentoGaleriaEmAlerta,
+  formatarTamanhoArmazenamento,
+} from "@/lib/uploads-armazenamento";
+import { calcularArmazenamentoGaleria } from "@/lib/uploads-armazenamento-server";
 
 function vencimentoBr(data: Date) {
   return data.toLocaleDateString("pt-BR", {
@@ -67,13 +73,17 @@ export type NotificacaoApi = {
     | "urgente_cliente"
     | "observacao_cliente"
     | "boleto_vencido"
-    | "boleto_vencendo";
+    | "boleto_vencendo"
+    | "armazenamento_quase_cheio";
   href: string;
   params: Record<string, string | number>;
   criadoEm: string;
 };
 
-export async function montarNotificacoesEmpresa(empresaId: string) {
+export async function montarNotificacoesEmpresa(
+  empresaId: string,
+  opts?: { empresaSlug?: string; empresaNome?: string }
+) {
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
 
@@ -386,6 +396,27 @@ export async function montarNotificacoesEmpresa(empresaId: string) {
   // Observações enviadas pelo cliente precisam aparecer primeiro no sino.
   lista.unshift(...notificacoesObservacoes);
 
+  if (opts?.empresaSlug) {
+    const armazenamento = await calcularArmazenamentoGaleria(
+      empresaId,
+      opts.empresaSlug,
+      opts.empresaNome
+    );
+    if (armazenamentoGaleriaEmAlerta(armazenamento.bytesUsados)) {
+      lista.unshift({
+        id: "armazenamento-quase-cheio",
+        kind: "armazenamento_quase_cheio",
+        href: "/app/liberar-espaco",
+        params: {
+          usado: formatarTamanhoArmazenamento(armazenamento.bytesUsados),
+          limiteGb: ALERTA_ARMAZENAMENTO_GB,
+          totalGb: armazenamento.limiteGb,
+        },
+        criadoEm: new Date().toISOString(),
+      });
+    }
+  }
+
   const unicos = new Map<string, NotificacaoApi>();
   for (const n of lista) {
     if (!unicos.has(n.id)) unicos.set(n.id, n);
@@ -398,9 +429,12 @@ export async function montarNotificacoesEmpresa(empresaId: string) {
   };
 }
 
-export async function montarNotificacoesResumoCompleto(empresaId: string) {
+export async function montarNotificacoesResumoCompleto(
+  empresaId: string,
+  opts?: { empresaSlug?: string; empresaNome?: string }
+) {
   const [base, estoque, produtos] = await Promise.all([
-    montarNotificacoesEmpresa(empresaId),
+    montarNotificacoesEmpresa(empresaId, opts),
     calcularResumoEstoqueDashboardServer(empresaId),
     prisma.produto.findMany({
       where: { empresaId, ativo: true },

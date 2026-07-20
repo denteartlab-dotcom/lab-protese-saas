@@ -16,7 +16,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
-  const dados = await montarNotificacoesResumoCompleto(ctx.empresaId);
+  const dados = await montarNotificacoesResumoCompleto(ctx.empresaId, {
+    empresaSlug: ctx.empresaSlug,
+    empresaNome: ctx.empresaNome,
+  });
   const etag = etagCorpo(dados);
   const ifNoneMatch = request.headers.get("if-none-match");
 

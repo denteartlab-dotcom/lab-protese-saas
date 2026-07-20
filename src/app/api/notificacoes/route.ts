@@ -13,6 +13,9 @@ export async function GET() {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
-  const dados = await montarNotificacoesEmpresa(ctx.empresaId);
+  const dados = await montarNotificacoesEmpresa(ctx.empresaId, {
+    empresaSlug: ctx.empresaSlug,
+    empresaNome: ctx.empresaNome,
+  });
   return NextResponse.json(dados);
 }

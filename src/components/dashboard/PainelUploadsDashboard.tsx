@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useI18n } from "@/components/i18n-provider";
 import {
+  armazenamentoGaleriaEmAlerta,
   formatarTamanhoMbCard,
   LIMITE_ARMAZENAMENTO_BYTES,
   type UploadsResumoArmazenamento,
@@ -41,9 +42,15 @@ export function PainelUploadsDashboard({
   const textoUsado = formatarTamanhoMbCard(resumo.bytesUsados);
   const textoLivre = formatarTamanhoMbCard(bytesLivres);
   const galeriaEsgotada = bytesLivres <= 0;
+  const galeriaEmAlerta = armazenamentoGaleriaEmAlerta(resumo.bytesUsados);
 
   return (
-    <section className="rounded border border-slate-200 bg-white shadow-sm">
+    <section
+      className={cn(
+        "rounded border bg-white shadow-sm",
+        galeriaEmAlerta ? "border-red-200" : "border-slate-200"
+      )}
+    >
       <div className="flex min-h-10 items-center justify-between border-b border-slate-100 px-4 py-2">
         <h2 className="text-sm font-medium text-slate-700">{titulo}</h2>
         <span className="text-[11px] font-semibold text-slate-600">
@@ -53,7 +60,12 @@ export function PainelUploadsDashboard({
       <div className="p-4">
         <div className="mb-3 flex items-center justify-between gap-2 text-[11px]">
           <span className="text-slate-500">
-            <span className="font-semibold text-sky-700">
+            <span
+              className={cn(
+                "font-semibold",
+                galeriaEmAlerta ? "text-red-500" : "text-sky-700"
+              )}
+            >
               {t("dashboard.usadoValor", { valor: textoUsado })}
             </span>
             <span className="mx-1 text-slate-300">·</span>
@@ -70,7 +82,17 @@ export function PainelUploadsDashboard({
         </div>
         <div className="mb-4 flex gap-4 text-[11px]">
           <span className="flex items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-sky-500" /> {t("dashboard.usado")}
+            <span
+              className={cn(
+                "h-2 w-2 rounded-full",
+                galeriaEsgotada
+                  ? "bg-red-500"
+                  : galeriaEmAlerta
+                    ? "bg-red-300"
+                    : "bg-sky-500"
+              )}
+            />{" "}
+            {t("dashboard.usado")}
           </span>
           <span className="flex items-center gap-1">
             <span className="h-2 w-2 rounded-full bg-emerald-500" /> {t("dashboard.livre")}
@@ -80,7 +102,11 @@ export function PainelUploadsDashboard({
           <div
             className={cn(
               "shrink-0 transition-all duration-300",
-              galeriaEsgotada ? "bg-red-500" : "bg-sky-500"
+              galeriaEsgotada
+                ? "bg-red-500"
+                : galeriaEmAlerta
+                  ? "bg-red-300"
+                  : "bg-sky-500"
             )}
             style={{
               width: `${pctUsado}%`,
@@ -95,6 +121,14 @@ export function PainelUploadsDashboard({
         {galeriaEsgotada ? (
           <p className="mt-2 text-[11px] font-medium text-red-600">
             {t("dashboard.espacoEsgotado")}{" "}
+            <Link href="/app/liberar-espaco" className="text-[#4a90d9] hover:underline">
+              {t("dashboard.liberarEspaco")}
+            </Link>{" "}
+            {t("dashboard.paraExcluirArquivos")}
+          </p>
+        ) : galeriaEmAlerta ? (
+          <p className="mt-2 text-[11px] font-medium text-red-500">
+            {t("dashboard.espacoQuaseCheio")}{" "}
             <Link href="/app/liberar-espaco" className="text-[#4a90d9] hover:underline">
               {t("dashboard.liberarEspaco")}
             </Link>{" "}

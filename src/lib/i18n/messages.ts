@@ -671,6 +671,8 @@ export const messages = {
     "dashboard.usadoValor": "Usado: {valor}",
     "dashboard.livreValor": "Livre: {valor}",
     "dashboard.espacoEsgotado": "Espaço esgotado — novos uploads estão bloqueados.",
+    "dashboard.espacoQuaseCheio":
+      "Armazenamento quase cheio (18 GB ou mais usados) — libere espaço antes que acabe.",
     "dashboard.paraExcluirArquivos": "para excluir arquivos.",
     "dashboard.verLink": "ver",
     "dashboard.pdfErro": "Não foi possível gerar o PDF. Tente novamente.",
@@ -763,6 +765,7 @@ export const messages = {
     "notif.titulo.urgente_cliente": "Urgência do cliente",
     "notif.titulo.observacao_cliente": "Observação do cliente",
     "notif.titulo.anotacao_lembrete": "Lembrete",
+    "notif.titulo.armazenamento_quase_cheio": "Armazenamento quase cheio",
     "notif.titulo.geral": "Aviso",
     "notif.estoque_zerado": "Produto \"{produto}\" está com estoque zerado.",
     "notif.estoque_baixo": "Produto \"{produto}\" com estoque baixo ({qtd} un.).",
@@ -784,6 +787,8 @@ export const messages = {
     "notif.observacao_cliente":
       "{cliente} adicionou uma observação na OS {numeroOs} — {servico} (Paciente: {paciente}): “{texto}”",
     "notif.anotacao_lembrete": "{texto}",
+    "notif.armazenamento_quase_cheio":
+      "Uploads com {usado} usados (alerta a partir de {limiteGb} GB de {totalGb} GB). Libere espaço para evitar bloqueio.",
     ...messagesProducaoPt,
     ...messagesProducaoSubPt,
     ...messagesFinanceiroPt,
@@ -1424,6 +1429,8 @@ export const messages = {
     "dashboard.usadoValor": "Used: {valor}",
     "dashboard.livreValor": "Free: {valor}",
     "dashboard.espacoEsgotado": "Storage full — new uploads are blocked.",
+    "dashboard.espacoQuaseCheio":
+      "Storage almost full (18 GB or more used) — free up space before it runs out.",
     "dashboard.paraExcluirArquivos": "to delete files.",
     "dashboard.verLink": "view",
     "dashboard.pdfErro": "Could not generate the PDF. Try again.",
@@ -1516,6 +1523,7 @@ export const messages = {
     "notif.titulo.urgente_cliente": "Client urgent request",
     "notif.titulo.observacao_cliente": "Client note",
     "notif.titulo.anotacao_lembrete": "Reminder",
+    "notif.titulo.armazenamento_quase_cheio": "Storage almost full",
     "notif.titulo.geral": "Alert",
     "notif.estoque_zerado": "Product \"{produto}\" is out of stock.",
     "notif.estoque_baixo": "Product \"{produto}\" low stock ({qtd} units).",
@@ -1537,6 +1545,8 @@ export const messages = {
     "notif.observacao_cliente":
       "{cliente} added a note to WO {numeroOs} — {servico} (Patient: {paciente}): “{texto}”",
     "notif.anotacao_lembrete": "{texto}",
+    "notif.armazenamento_quase_cheio":
+      "Uploads using {usado} (alert from {limiteGb} GB of {totalGb} GB). Free up space to avoid blocking.",
     ...messagesProducaoEn,
     ...messagesProducaoSubEn,
     ...messagesFinanceiroEn,
@@ -2178,6 +2188,8 @@ export const messages = {
     "dashboard.usadoValor": "Usado: {valor}",
     "dashboard.livreValor": "Libre: {valor}",
     "dashboard.espacoEsgotado": "Espacio agotado — las nuevas subidas están bloqueadas.",
+    "dashboard.espacoQuaseCheio":
+      "Almacenamiento casi lleno (18 GB o más usados) — libere espacio antes de que se agote.",
     "dashboard.paraExcluirArquivos": "para eliminar archivos.",
     "dashboard.verLink": "ver",
     "dashboard.pdfErro": "No fue posible generar el PDF. Intente nuevamente.",
@@ -2270,6 +2282,7 @@ export const messages = {
     "notif.titulo.urgente_cliente": "Urgencia del cliente",
     "notif.titulo.observacao_cliente": "Observación del cliente",
     "notif.titulo.anotacao_lembrete": "Recordatorio",
+    "notif.titulo.armazenamento_quase_cheio": "Almacenamiento casi lleno",
     "notif.titulo.geral": "Aviso",
     "notif.estoque_zerado": "Producto \"{produto}\" sin stock.",
     "notif.estoque_baixo": "Producto \"{produto}\" con stock bajo ({qtd} u.).",
@@ -2291,6 +2304,8 @@ export const messages = {
     "notif.observacao_cliente":
       "{cliente} agregó una observación en la OS {numeroOs} — {servico} (Paciente: {paciente}): “{texto}”",
     "notif.anotacao_lembrete": "{texto}",
+    "notif.armazenamento_quase_cheio":
+      "Subidas con {usado} usados (alerta desde {limiteGb} GB de {totalGb} GB). Libere espacio para evitar bloqueo.",
     ...messagesProducaoEs,
     ...messagesProducaoSubEs,
     ...messagesFinanceiroEs,

@@ -1,7 +1,10 @@
 /** Constantes e formatação — seguro para importar no cliente. */
 
 export const LIMITE_GALERIA_GB = 20;
+/** Alerta visual/notificação no Início quando o uso atinge este limiar. */
+export const ALERTA_ARMAZENAMENTO_GB = 18;
 export const LIMITE_ARMAZENAMENTO_BYTES = LIMITE_GALERIA_GB * 1024 ** 3;
+export const ALERTA_ARMAZENAMENTO_BYTES = ALERTA_ARMAZENAMENTO_GB * 1024 ** 3;
 export const UPLOADS_ATUALIZADO_EVENT = "labProteseUploadsAtualizado";
 
 export type UploadsResumoArmazenamento = {
@@ -18,6 +21,11 @@ export const MENSAGEM_LIMITE_GALERIA_ESGOTADO =
 
 export function armazenamentoGaleriaEsgotado(bytesLivres: number): boolean {
   return bytesLivres <= 0;
+}
+
+/** Quase cheio: ≥ 18 GB usados (de 20 GB). Volta ao normal ao liberar espaço. */
+export function armazenamentoGaleriaEmAlerta(bytesUsados: number): boolean {
+  return bytesUsados >= ALERTA_ARMAZENAMENTO_BYTES;
 }
 
 export function somaBytesArquivos(arquivos: Iterable<File>): number {

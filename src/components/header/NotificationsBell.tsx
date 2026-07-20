@@ -21,6 +21,7 @@ import {
   salvarNotificacoesLidas,
   type NotificacaoUi,
 } from "@/lib/notificacoes-client";
+import { UPLOADS_ATUALIZADO_EVENT } from "@/lib/uploads-armazenamento";
 import { cn } from "@/lib/utils";
 
 function formatarDataNotificacao(iso: string, locale: Locale) {
@@ -88,10 +89,12 @@ export function NotificationsBell() {
     const interval = window.setInterval(() => void carregar(), 120_000);
     window.addEventListener(PRODUTOS_ESTOQUE_EVENT, carregar);
     window.addEventListener(ANOTACOES_ATUALIZADO_EVENT, carregar);
+    window.addEventListener(UPLOADS_ATUALIZADO_EVENT, carregar);
     return () => {
       window.clearInterval(interval);
       window.removeEventListener(PRODUTOS_ESTOQUE_EVENT, carregar);
       window.removeEventListener(ANOTACOES_ATUALIZADO_EVENT, carregar);
+      window.removeEventListener(UPLOADS_ATUALIZADO_EVENT, carregar);
     };
   }, [carregar, jaCarregou]);
 
