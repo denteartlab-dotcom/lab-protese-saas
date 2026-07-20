@@ -4417,13 +4417,15 @@ export default function ControlePage() {
                                 </button>
                 </div>
                             ))}
+                              <div className="md:grid md:grid-cols-[1.4fr_0.7fr_1fr_1fr_auto] md:gap-3">
                               <button
                                 type="button"
                                 onClick={adicionarLinhaProdutoEdicao}
-                                className="w-full rounded border border-sky-400 bg-white px-3 py-2.5 text-sm font-medium text-sky-600 hover:bg-sky-50"
+                                className="inline-flex w-fit items-center rounded border border-sky-400 bg-white px-3 py-1.5 text-xs font-medium text-sky-600 hover:bg-sky-50"
                               >
                                 + Adicionar Campo Produto
                               </button>
+                              </div>
                 </div>
                         )}
                         {abaServicoEdicao === "colaboradores" && (
@@ -4500,13 +4502,15 @@ export default function ControlePage() {
                             </button>
                               </div>
                             ))}
+                              <div className="md:grid md:grid-cols-[1fr_1fr_1fr_auto] md:gap-3">
                               <button
                                 type="button"
                                 onClick={adicionarLinhaColaboradorEdicao}
-                                className="w-full rounded border border-sky-400 bg-white px-3 py-2.5 text-sm font-medium text-sky-600 hover:bg-sky-50"
+                                className="inline-flex w-fit items-center rounded border border-sky-400 bg-white px-3 py-1.5 text-xs font-medium text-sky-600 hover:bg-sky-50"
                               >
                                 + Adicionar Campo Colaborador
                               </button>
+                              </div>
                 </div>
                         )}
                         {abaServicoEdicao === "terceiros" && (
@@ -4584,13 +4588,15 @@ export default function ControlePage() {
                                 </button>
               </div>
                             ))}
+                              <div className="md:grid md:grid-cols-[1fr_1fr_1fr_auto] md:gap-3">
                               <button
                                 type="button"
                                 onClick={adicionarLinhaTerceirizadoEdicao}
-                                className="w-full rounded border border-sky-400 bg-white px-3 py-2.5 text-sm font-medium text-sky-600 hover:bg-sky-50"
+                                className="inline-flex w-fit items-center rounded border border-sky-400 bg-white px-3 py-1.5 text-xs font-medium text-sky-600 hover:bg-sky-50"
                               >
                                 + Adicionar Campo Terceirizado
                               </button>
+                              </div>
                           </div>
                         )}
                       </div>
