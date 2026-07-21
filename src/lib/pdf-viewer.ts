@@ -120,6 +120,14 @@ function limparSegmentoNomeArquivo(texto: string) {
     .slice(0, 120);
 }
 
+/** PDF do painel: clientes que não solicitam serviço há X dias. */
+export function nomeArquivoClientesSemServicoPdf(dias: number) {
+  const base = limparSegmentoNomeArquivo(
+    pl("print.comum.arquivoClientesSemServico", { dias })
+  );
+  return base.toLowerCase().endsWith(".pdf") ? base : `${base}.pdf`;
+}
+
 /** Nome sugerido para salvar PDF de fatura (ex.: Fatura 49 - Dr João Silva.pdf). */
 export function nomeArquivoFaturaPdf(numeroFatura: number, clienteNome?: string | null) {
   const cliente = limparSegmentoNomeArquivo(clienteNome ?? "");
@@ -403,10 +411,13 @@ export async function abrirPdfNoVisualizadorPagina(
     janela?: Window | null;
     imprimirAoCarregar?: boolean;
     subtitulo?: string;
+    /** Mantém título/nome legível na aba (iframe) em vez do UUID do blob. */
+    preferirTituloAba?: boolean;
   }
 ) {
   await abrirPdfBlobDiretoNaAba(gerar, titulo, nomeArquivo, {
     janela: opcoes?.janela,
+    preferirTituloAba: opcoes?.preferirTituloAba,
   });
 }
 
@@ -414,10 +425,15 @@ export async function abrirPdfGerandoNoVisualizadorPagina(
   gerar: () => Promise<Blob>,
   titulo: string,
   nomeArquivo = pl("print.comum.documentoPdf"),
-  opcoes?: { janela?: Window | null; subtitulo?: string }
+  opcoes?: {
+    janela?: Window | null;
+    subtitulo?: string;
+    preferirTituloAba?: boolean;
+  }
 ) {
   await abrirPdfBlobDiretoNaAba(gerar, titulo, nomeArquivo, {
     janela: opcoes?.janela,
+    preferirTituloAba: opcoes?.preferirTituloAba,
   });
 }
 
@@ -429,13 +445,17 @@ export async function abrirPdfBlobDiretoNaAba(
   gerar: () => Promise<Blob>,
   titulo: string,
   nomeArquivo = pl("print.comum.documentoPdf"),
-  opcoes?: { janela?: Window | null }
+  opcoes?: { janela?: Window | null; preferirTituloAba?: boolean }
 ) {
   const janela = consumirJanelaReservada(opcoes?.janela) ?? prepararAbaPdf();
+  const tituloAba =
+    titulo?.trim() ||
+    nomeArquivo.replace(/\.pdf$/i, "").trim() ||
+    pl("print.comum.documento");
   try {
     if (janela && !janela.closed) {
       try {
-        janela.document.title = pl("print.comum.gerandoTitulo", { titulo });
+        janela.document.title = pl("print.comum.gerandoTitulo", { titulo: tituloAba });
         const gerando = textoGerandoPdf();
         janela.document.body.innerHTML =
           `<div style='font-family:system-ui,sans-serif;padding:32px;color:#334155'>${gerando}</div>`;
@@ -449,8 +469,12 @@ export async function abrirPdfBlobDiretoNaAba(
     agendarRevogarUrl(url);
 
     if (janela && !janela.closed) {
+      if (opcoes?.preferirTituloAba) {
+        abrirPdfNaJanelaComTitulo(janela, url, tituloAba);
+        return;
+      }
       try {
-        janela.document.title = titulo;
+        janela.document.title = tituloAba;
       } catch {
         /* ignore */
       }
@@ -458,21 +482,25 @@ export async function abrirPdfBlobDiretoNaAba(
       if (navegarAbaPdf(janela, url)) {
         return;
       }
-      abrirPdfNaJanelaComTitulo(janela, url, titulo);
+      abrirPdfNaJanelaComTitulo(janela, url, tituloAba);
       return;
     }
 
     const aberta = window.open("about:blank", "_blank");
     if (aberta) {
+      if (opcoes?.preferirTituloAba) {
+        abrirPdfNaJanelaComTitulo(aberta, url, tituloAba);
+        return;
+      }
       try {
-        aberta.document.title = titulo;
+        aberta.document.title = tituloAba;
       } catch {
         /* ignore */
       }
       if (navegarAbaPdf(aberta, url)) {
         return;
       }
-      abrirPdfNaJanelaComTitulo(aberta, url, titulo);
+      abrirPdfNaJanelaComTitulo(aberta, url, tituloAba);
     } else {
       baixarPdfBlob(blob, nomeArquivo);
     }

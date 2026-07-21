@@ -21,9 +21,11 @@ export const messagesPrintPt = {
   "print.comum.erroCarregarPdfImpressao": "Não foi possível carregar o PDF para impressão.",
   "print.comum.erroAbrirPopups": "Não foi possível abrir o documento. Verifique o bloqueio de pop-ups.",
   "print.comum.erroPrepararCanvas": "Não foi possível preparar o canvas.",
-  "print.comum.arquivoOs": "OS {n}.pdf",
-  "print.comum.arquivoFatura": "Fatura {n}.pdf",
-  "print.comum.arquivoFaturaCliente": "Fatura {n} - {cliente}.pdf",
+    "print.comum.arquivoOs": "OS {n}.pdf",
+    "print.comum.arquivoFatura": "Fatura {n}.pdf",
+    "print.comum.arquivoFaturaCliente": "Fatura {n} - {cliente}.pdf",
+    "print.comum.arquivoClientesSemServico":
+      "Clientes sem servico ha mais de {dias} dias.pdf",
   "print.fatura.titulo": "Fatura",
   "print.fatura.data": "Data",
   "print.fatura.usuario": "Usuário",
@@ -344,6 +346,8 @@ export const messagesPrintEn: Record<keyof typeof messagesPrintPt, string> = {
   "print.comum.arquivoOs": "WO {n}.pdf",
   "print.comum.arquivoFatura": "Invoice {n}.pdf",
   "print.comum.arquivoFaturaCliente": "Invoice {n} - {cliente}.pdf",
+  "print.comum.arquivoClientesSemServico":
+    "Clients without service for more than {dias} days.pdf",
   "print.fatura.titulo": "Invoice",
   "print.fatura.data": "Date",
   "print.fatura.usuario": "User",
@@ -664,6 +668,8 @@ export const messagesPrintEs: Record<keyof typeof messagesPrintPt, string> = {
   "print.comum.arquivoOs": "OS {n}.pdf",
   "print.comum.arquivoFatura": "Factura {n}.pdf",
   "print.comum.arquivoFaturaCliente": "Factura {n} - {cliente}.pdf",
+  "print.comum.arquivoClientesSemServico":
+    "Clientes sin servicio hace mas de {dias} dias.pdf",
   "print.fatura.titulo": "Factura",
   "print.fatura.data": "Date",
   "print.fatura.usuario": "User",
