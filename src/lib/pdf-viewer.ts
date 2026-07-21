@@ -121,11 +121,12 @@ function limparSegmentoNomeArquivo(texto: string) {
 }
 
 /** PDF do painel: clientes que não solicitam serviço há X dias. */
-export function nomeArquivoClientesSemServicoPdf(dias: number) {
-  const base = limparSegmentoNomeArquivo(
-    pl("print.comum.arquivoClientesSemServico", { dias })
-  );
-  return base.toLowerCase().endsWith(".pdf") ? base : `${base}.pdf`;
+export function nomeArquivoClientesSemServicoPdf(_dias?: number) {
+  return pl("print.comum.arquivoClientesSemServico");
+}
+
+export function tituloAbaClientesSemServicoPdf() {
+  return pl("print.comum.tituloAbaClientesSemServico");
 }
 
 /** Nome sugerido para salvar PDF de fatura (ex.: Fatura 49 - Dr João Silva.pdf). */
@@ -435,6 +436,72 @@ export async function abrirPdfGerandoNoVisualizadorPagina(
     janela: opcoes?.janela,
     preferirTituloAba: opcoes?.preferirTituloAba,
   });
+}
+
+/**
+ * Gera o PDF, publica em URL com nome legível e abre na aba.
+ * Assim o Chrome mostra o nome do arquivo (não o UUID do blob).
+ */
+export async function abrirPdfGerandoComNomeNaUrl(
+  gerar: () => Promise<Blob>,
+  tituloAba: string,
+  nomeArquivo: string,
+  opcoes?: { janela?: Window | null }
+) {
+  const janela = consumirJanelaReservada(opcoes?.janela) ?? prepararAbaPdf();
+  const titulo = tituloAba.trim() || nomeArquivo.replace(/\.pdf$/i, "") || pl("print.comum.documento");
+  const nome = limparSegmentoNomeArquivo(nomeArquivo).replace(/\s+/g, "-");
+  const nomeFinal = nome.toLowerCase().endsWith(".pdf") ? nome : `${nome}.pdf`;
+
+  try {
+    if (janela && !janela.closed) {
+      try {
+        janela.document.title = pl("print.comum.gerandoTitulo", { titulo });
+        const gerando = textoGerandoPdf();
+        janela.document.body.innerHTML =
+          `<div style='font-family:system-ui,sans-serif;padding:32px;color:#334155'>${gerando}</div>`;
+      } catch {
+        /* ignore */
+      }
+    }
+
+    const blob = await gerar();
+    const res = await fetch(
+      `/api/pdf-documento?nome=${encodeURIComponent(nomeFinal)}`,
+      {
+        method: "POST",
+        body: blob,
+        headers: { "Content-Type": "application/pdf" },
+        cache: "no-store",
+      }
+    );
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(data.error || pl("print.comum.erroAbrirPdfImpressao"));
+    }
+    const data = (await res.json()) as { url?: string };
+    if (!data.url) {
+      throw new Error(pl("print.comum.erroAbrirPdfImpressao"));
+    }
+
+    const urlAbsoluta = new URL(data.url, window.location.origin).toString();
+    if (janela && !janela.closed) {
+      // Iframe: aba = título legível; URL do PDF termina com .pdf → Chrome mostra o nome do arquivo.
+      abrirPdfNaJanelaComTitulo(janela, urlAbsoluta, titulo);
+      return;
+    }
+
+    const aberta = window.open("about:blank", "_blank");
+    if (!aberta) {
+      baixarPdfBlob(blob, nomeFinal);
+      return;
+    }
+    abrirPdfNaJanelaComTitulo(aberta, urlAbsoluta, titulo);
+  } catch (err) {
+    fecharJanela(janela);
+    console.error("abrir PDF com nome na URL", err);
+    throw err;
+  }
 }
 
 /**

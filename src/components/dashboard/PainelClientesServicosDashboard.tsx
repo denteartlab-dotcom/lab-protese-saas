@@ -8,7 +8,11 @@ import {
   ordenarClientesSemServicoPorMenosTempo,
   type ClienteSemServicoItem,
 } from "@/lib/dashboard-clientes-servico";
-import { abrirPdfGerandoNoVisualizadorPagina, nomeArquivoClientesSemServicoPdf } from "@/lib/pdf-viewer";
+import {
+  abrirPdfGerandoComNomeNaUrl,
+  nomeArquivoClientesSemServicoPdf,
+  tituloAbaClientesSemServicoPdf,
+} from "@/lib/pdf-viewer";
 import { gerarClientesSemServicoPdf } from "@/lib/relatorio-clientes-sem-servico-pdf";
 import { formatDate } from "@/lib/utils";
 
@@ -65,16 +69,10 @@ export function PainelClientesServicosDashboard({
         ? await carregarListaImpressao()
         : lista;
       const listaImpressao = ordenarClientesSemServicoPorMenosTempo(bruta);
-      const subtitulo = t("dashboard.naoSolicitaServico", { dias: diasMinimos });
-      const nomeArquivo = nomeArquivoClientesSemServicoPdf(diasMinimos);
-      await abrirPdfGerandoNoVisualizadorPagina(
+      await abrirPdfGerandoComNomeNaUrl(
         () => gerarClientesSemServicoPdf(titulo, diasMinimos, listaImpressao),
-        subtitulo,
-        nomeArquivo,
-        {
-          subtitulo,
-          preferirTituloAba: true,
-        }
+        tituloAbaClientesSemServicoPdf(),
+        nomeArquivoClientesSemServicoPdf()
       );
     } catch (err) {
       console.error("[clientes-sem-servico] imprimir", err);
