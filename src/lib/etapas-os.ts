@@ -262,7 +262,8 @@ const linhaEstruturadaOs = (line: string) => {
     /^Prioridade:/i.test(t) ||
     /^Data laboratório:/i.test(t) ||
     /^Data dentista:/i.test(t) ||
-    /^Item adicionado:/i.test(t)
+    /^Item adicionado:/i.test(t) ||
+    /^Historico situacao:/i.test(t)
   );
 };
 

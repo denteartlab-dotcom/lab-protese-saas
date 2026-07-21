@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
 import { AgendaVerProdutosModal } from "@/components/producao/AgendaVerProdutosModal";
@@ -19,6 +19,11 @@ import {
   type LinhaAgendaGrupoOs,
 } from "@/lib/agenda-producao-grupo";
 import { instrucoesTextoLivre } from "@/lib/etapas-os";
+import {
+  parseHistoricoSituacao,
+  textoHistoricoSituacaoExibicao,
+} from "@/lib/historico-situacao-os";
+import { labelStatusTrabalho } from "@/lib/i18n/status-trabalho-i18n";
 import { exibirTexto } from "@/lib/utils";
 
 type Props = {
@@ -34,12 +39,20 @@ export function AgendaOsDetalheExpandido({
   onAnexoAberto,
   onAdicionarImagem,
 }: Props) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [produtosAbertos, setProdutosAbertos] = useState(false);
   const { principal } = linha;
   const instrucoes = instrucoesConsolidadasGrupo(linha);
   const anexos = anexosAgendaGrupo(linha);
   const produtos = produtosAgendaGrupo(linha);
+  const historicoSituacao = useMemo(() => {
+    const entradas = parseHistoricoSituacao(instrucoes);
+    return textoHistoricoSituacaoExibicao(
+      entradas,
+      (status) => labelStatusTrabalho(t, status),
+      locale
+    );
+  }, [instrucoes, t, locale]);
 
   return (
     <>
@@ -102,6 +115,10 @@ export function AgendaOsDetalheExpandido({
           <OsDetalheCampo
             label={t("producao.controle.detalhe.total")}
             value={totalAgendaGrupo(linha)}
+          />
+          <OsDetalheCampo
+            label={t("producao.controle.detalhe.historicoSituacao")}
+            value={historicoSituacao}
           />
         </div>
       </div>

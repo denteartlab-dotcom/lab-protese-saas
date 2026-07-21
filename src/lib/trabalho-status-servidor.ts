@@ -21,6 +21,9 @@ import { STATUS_TRABALHO_FINALIZADO_IMPRESSAO } from "@/lib/os-itens-impressao";
 import { segmentoEfetivoTrabalho } from "@/lib/trabalho-os-segmento";
 import { notificarTvOrdensEmpresaVarios } from "@/lib/tv/notificar-tv-ordens";
 import { sincronizarTempoProducaoPorMudancaStatus } from "@/lib/tempo-producao-status-servidor";
+import {
+  adicionarHistoricoSituacaoInstrucoes,
+} from "@/lib/historico-situacao-os";
 import { removerUrgenciaOs } from "@/lib/urgencia-cliente";
 import { STATUS_TRABALHO } from "@/lib/utils";
 import type { SessionUser } from "@/lib/auth";
@@ -177,7 +180,10 @@ export async function aplicarMudancaStatusTrabalho(
     };
   }
 
-  const payload: { status: string; dataEntrega?: Date } = { status: novoStatus };
+  const payload: { status: string; dataEntrega?: Date; instrucoes?: string } = {
+    status: novoStatus,
+    instrucoes: adicionarHistoricoSituacaoInstrucoes(atual.instrucoes, novoStatus),
+  };
   if (STATUS_TRABALHO_FINALIZADO_IMPRESSAO.has(novoStatus) && !atual.dataEntrega) {
     payload.dataEntrega = dataHojeMeioDia();
   }

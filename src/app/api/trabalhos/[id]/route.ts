@@ -30,6 +30,10 @@ import {
 import { notificarTvOrdensEmpresa } from "@/lib/tv/notificar-tv-ordens";
 import { sincronizarTempoProducaoPorMudancaStatus } from "@/lib/tempo-producao-status-servidor";
 import {
+  adicionarHistoricoSituacaoInstrucoes,
+  mesclarPreservandoHistoricoSituacao,
+} from "@/lib/historico-situacao-os";
+import {
   adicionarTrabalhoControleEntregasAutomaticoServidor,
   deveAdicionarControleEntregasPorStatus,
   deveRemoverControleEntregasPorStatus,
@@ -138,7 +142,12 @@ export async function PUT(
     if (data.valor != null) payload.valor = data.valor;
     if (data.status != null && data.status !== "") payload.status = data.status;
     if (data.observacoes !== undefined) payload.observacoes = data.observacoes;
-    if (data.instrucoes !== undefined) payload.instrucoes = data.instrucoes;
+    if (data.instrucoes !== undefined) {
+      payload.instrucoes = mesclarPreservandoHistoricoSituacao(
+        data.instrucoes,
+        atual.instrucoes
+      );
+    }
 
     if (data.dataPrevista === null) payload.dataPrevista = null;
     else if (data.dataPrevista) payload.dataPrevista = parseDateOnly(data.dataPrevista);
@@ -155,6 +164,14 @@ export async function PUT(
           payload.dataEntrega = dataHojeMeioDia();
         }
       }
+      const instrucoesBase =
+        typeof payload.instrucoes === "string"
+          ? payload.instrucoes
+          : atual.instrucoes;
+      payload.instrucoes = adicionarHistoricoSituacaoInstrucoes(
+        instrucoesBase,
+        novoStatus
+      );
     }
 
     const trabalho = await prisma.trabalho.update({
