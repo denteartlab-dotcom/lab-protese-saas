@@ -20,8 +20,8 @@ import {
 } from "@/lib/agenda-producao-grupo";
 import { instrucoesTextoLivre } from "@/lib/etapas-os";
 import {
+  formatarDataHistoricoSituacao,
   parseHistoricoSituacao,
-  textoHistoricoSituacaoExibicao,
 } from "@/lib/historico-situacao-os";
 import { labelStatusTrabalho } from "@/lib/i18n/status-trabalho-i18n";
 import { exibirTexto } from "@/lib/utils";
@@ -45,14 +45,10 @@ export function AgendaOsDetalheExpandido({
   const instrucoes = instrucoesConsolidadasGrupo(linha);
   const anexos = anexosAgendaGrupo(linha);
   const produtos = produtosAgendaGrupo(linha);
-  const historicoSituacao = useMemo(() => {
-    const entradas = parseHistoricoSituacao(instrucoes);
-    return textoHistoricoSituacaoExibicao(
-      entradas,
-      (status) => labelStatusTrabalho(t, status),
-      locale
-    );
-  }, [instrucoes, t, locale]);
+  const historicoSituacao = useMemo(
+    () => parseHistoricoSituacao(instrucoes),
+    [instrucoes]
+  );
 
   return (
     <>
@@ -116,10 +112,23 @@ export function AgendaOsDetalheExpandido({
             label={t("producao.controle.detalhe.total")}
             value={totalAgendaGrupo(linha)}
           />
-          <OsDetalheCampo
-            label={t("producao.controle.detalhe.historicoSituacao")}
-            value={historicoSituacao}
-          />
+          <div>
+            <p className="font-semibold text-slate-500">
+              {t("producao.controle.detalhe.historicoSituacao")}:
+            </p>
+            {historicoSituacao.length === 0 ? (
+              <p className="text-slate-700" />
+            ) : (
+              <div className="mt-0.5 flex flex-wrap items-center gap-x-4 gap-y-1">
+                {historicoSituacao.map((entrada, index) => (
+                  <span key={`${entrada.data}-${entrada.status}-${index}`} className="text-slate-700">
+                    {formatarDataHistoricoSituacao(entrada.data, locale)}:{" "}
+                    {labelStatusTrabalho(t, entrada.status)}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
