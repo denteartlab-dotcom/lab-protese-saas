@@ -396,12 +396,12 @@ function montarParcelasCondicaoPagamentoFatura(params: {
     Math.round((valorNota - totalPago) * 100) / 100
   );
 
-  // Parcela principal: Valor = nota cheia; Pago = só o que entrou nesta linha (não soma parciais).
-  const pagoParcelaPrincipal = !temMovimentos
-    ? quitada
+  // Parcela principal: Valor = nota cheia; Pago = total já quitado (crédito + parciais + cash).
+  const pagoParcelaPrincipal = temMovimentos
+    ? totalPago
+    : quitada
       ? valorNota
-      : 0
-    : cashNaFatura;
+      : 0;
 
   const parcelas: ParcelaFaturaImpressao[] = [
     {
