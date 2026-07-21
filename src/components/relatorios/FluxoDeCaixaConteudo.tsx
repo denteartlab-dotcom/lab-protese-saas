@@ -3,8 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
-  ChevronLeft,
-  ChevronRight,
   DollarSign,
   FileSpreadsheet,
   Flag,
@@ -22,6 +20,7 @@ import {
 import { localeMoeda, nomeMesLocale } from "@/lib/i18n/relatorio-comum-i18n";
 import { iniciarImpressaoRelatorio } from "@/lib/i18n/print-relatorio-helpers";
 import { CampoDataBr } from "@/components/campo-data-br";
+import { PaginacaoLista } from "@/components/listagem/PaginacaoLista";
 import { RelatorioCabecalho } from "@/components/relatorios/RelatorioCabecalho";
 import {
   carregarContasBancarias,
@@ -676,32 +675,33 @@ export function FluxoDeCaixaConteudo() {
         )}
 
         {modo === "diario" && (
-        <div className="flex items-center justify-center gap-3 py-4 print:hidden">
-          <button
-            type="button"
-            disabled={pagina <= 1}
-            onClick={() => setPagina((p) => Math.max(1, p - 1))}
-            className="text-[#9ca3af] hover:text-[#6b7280] disabled:opacity-30"
-            aria-label={t("relatorio.comum.paginaAnterior")}
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </button>
-          <button
-            type="button"
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-[#4a90d9] text-[12px] font-semibold text-white"
-          >
-            {pagina}
-          </button>
-          <button
-            type="button"
-            disabled={pagina >= totalPaginas}
-            onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
-            className="text-[#9ca3af] hover:text-[#6b7280] disabled:opacity-30"
-            aria-label={t("relatorio.comum.proximaPagina")}
-          >
-            <ChevronRight className="h-5 w-5" />
-          </button>
-        </div>
+          <div className="print:hidden">
+            {totalPaginas > 1 ? (
+              <>
+                <p className="px-3 pt-3 text-center text-[11px] text-slate-500">
+                  {t("relatorio.comum.paginaDe", {
+                    pagina,
+                    total: totalPaginas,
+                  })}
+                </p>
+                <PaginacaoLista
+                  pagina={pagina}
+                  totalPaginas={totalPaginas}
+                  onPagina={setPagina}
+                  className="border-t-0"
+                />
+              </>
+            ) : (
+              <div className="flex items-center justify-center gap-2 border-t border-slate-100 py-3">
+                <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-primary-600 px-2 text-[11px] font-semibold text-white">
+                  1
+                </span>
+                <span className="text-[11px] text-slate-500">
+                  {t("relatorio.comum.paginaDe", { pagina: 1, total: 1 })}
+                </span>
+              </div>
+            )}
+          </div>
         )}
       </div>
 
