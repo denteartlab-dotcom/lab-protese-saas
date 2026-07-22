@@ -252,20 +252,28 @@ export function FluxoDeCaixaConteudo() {
     [t]
   );
 
+  /** Índice cronológico do cálculo de saldo (não reordenar por data/id). */
+  const ordemCronologicaPorId = useMemo(() => {
+    const mapa = new Map<string, number>();
+    resultadoDiario.linhas.forEach((linha, index) => {
+      mapa.set(linha.id, index);
+    });
+    return mapa;
+  }, [resultadoDiario.linhas]);
+
+  const comparadoresFluxo = useMemo(
+    () => ({
+      data: (a: LinhaFluxoCaixa, b: LinhaFluxoCaixa) =>
+        (ordemCronologicaPorId.get(a.id) ?? 0) - (ordemCronologicaPorId.get(b.id) ?? 0),
+    }),
+    [ordemCronologicaPorId]
+  );
+
   const listagem = useListagemPaginada<LinhaFluxoCaixa, CampoOrdenacaoFluxo>({
     storageKey: "fluxo-de-caixa",
     itens: resultadoDiario.linhas,
     padrao: { ordenarPor: "data", direcao: "desc", porPagina: 20 },
-    comparadores: {
-      data: (a, b) => {
-        // Saldo inicial fica no extremo antigo → com desc vai para o fim.
-        if (a.kind === "saldo_inicial" && b.kind !== "saldo_inicial") return -1;
-        if (b.kind === "saldo_inicial" && a.kind !== "saldo_inicial") return 1;
-        const porData = a.data.getTime() - b.data.getTime();
-        if (porData !== 0) return porData;
-        return a.id.localeCompare(b.id);
-      },
-    },
+    comparadores: comparadoresFluxo,
   });
 
   useEffect(() => {
