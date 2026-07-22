@@ -1,4 +1,5 @@
 import {
+  ehDescricaoFaturaContasReceber,
   saldoFatura,
   type LancamentoContasReceber,
 } from "@/lib/contas-receber-financeiro";
@@ -76,10 +77,6 @@ export function formatarSaldoAnteriorDebitoFatura(
   return `${valorMonetarioSemPrefixo(debito, money)} D`;
 }
 
-function ehFaturaCobrancaOs(descricao: string) {
-  return descricao.toLowerCase().startsWith("cobrança os");
-}
-
 /** Saldo em aberto de outras faturas do cliente (exclui a fatura atual). */
 export function calcularDebitoAbertoOutrasFaturas(
   lancamentos: LancamentoResumoFatura[],
@@ -94,7 +91,7 @@ export function calcularDebitoAbertoOutrasFaturas(
         l.cliente?.id === clienteId &&
         l.tipo === "receita" &&
         l.id !== excluirLancamentoId &&
-        ehFaturaCobrancaOs(l.descricao) &&
+        ehDescricaoFaturaContasReceber(l.descricao) &&
         l.status !== "pago"
     )
     .reduce((sum, l) => sum + saldoFatura(l, refs), 0);
@@ -145,31 +142,38 @@ export function calcularUltimoPagamentoClienteFatura(params: {
 
 export function calcularSaldoAnteriorCreditoFatura(
   creditoDisponivel: number,
-  creditoUsadoNaFaturaAtual: number,
+  _creditoUsadoNaFaturaAtual: number,
   money: (n: number) => string
 ) {
-  const saldo = Math.max(creditoDisponivel + creditoUsadoNaFaturaAtual, 0);
-  return formatarSaldoAnteriorCreditoFatura(saldo, money);
+  // Só adiantamento ainda disponível — o já abatido aparece em Desconto Fatura.
+  return formatarSaldoAnteriorCreditoFatura(Math.max(creditoDisponivel, 0), money);
 }
 
-/** Saldo anterior na fatura — crédito (`C`) ou débito (`D`) no formato Smart. */
+/**
+ * Saldo anterior na fatura — formato Smart:
+ * - saldo ainda em aberto → `1.070,00 D`
+ * - adiantamento disponível → `- 1.000,00 C`
+ * - ambos → líquido (débito − crédito)
+ */
 export function calcularSaldoAnteriorFatura(params: {
   creditoDisponivel: number;
-  creditoUsadoNaFaturaAtual: number;
+  /** @deprecated Ignorado — crédito já usado vai em Desconto Fatura. */
+  creditoUsadoNaFaturaAtual?: number;
   lancamentos: LancamentoResumoFatura[];
   clienteId?: string;
   excluirLancamentoId?: string;
+  /** Saldo em aberto da fatura atual (valores restantes). */
+  saldoAbertoFaturaAtual?: number;
   money: (n: number) => string;
 }) {
-  const credito = Math.max(
-    params.creditoDisponivel + params.creditoUsadoNaFaturaAtual,
-    0
-  );
-  const debito = calcularDebitoAbertoOutrasFaturas(
+  const credito = Math.max(params.creditoDisponivel, 0);
+  const debitoOutras = calcularDebitoAbertoOutrasFaturas(
     params.lancamentos,
     params.clienteId,
     params.excluirLancamentoId
   );
+  const debitoAtual = Math.max(params.saldoAbertoFaturaAtual ?? 0, 0);
+  const debito = debitoOutras + debitoAtual;
 
   if (credito <= 0.009 && debito <= 0.009) return "0,00";
   if (credito > 0.009 && debito <= 0.009) {

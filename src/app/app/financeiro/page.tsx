@@ -3379,10 +3379,10 @@ function FinanceiroReceberConteudo() {
                 }),
                 saldoAnterior: calcularSaldoAnteriorFatura({
                   creditoDisponivel,
-                  creditoUsadoNaFaturaAtual: creditoUsado,
                   lancamentos: lancamentosCliente,
                   clienteId,
                   excluirLancamentoId: lancamento.id,
+                  saldoAbertoFaturaAtual: saldoFatura(lancamento),
                   money,
                 }),
                 formatDate,
@@ -3421,10 +3421,10 @@ function FinanceiroReceberConteudo() {
                 }),
                 saldoAnterior: calcularSaldoAnteriorFatura({
                   creditoDisponivel,
-                  creditoUsadoNaFaturaAtual: creditoUsado,
                   lancamentos: lancamentosCliente,
                   clienteId,
                   excluirLancamentoId: lancamento.id,
+                  saldoAbertoFaturaAtual: saldoFatura(lancamento),
                   money,
                 }),
                 formatDate,
