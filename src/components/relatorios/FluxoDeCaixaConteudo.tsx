@@ -1,27 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  CalendarDays,
-  DollarSign,
-  FileSpreadsheet,
-  Flag,
-  List,
-  Printer,
-} from "lucide-react";
-import { useI18n } from "@/components/i18n-provider";
-import {
-  labelLinhaFluxoMensal,
-  labelOpcaoFormaPagamentoFluxo,
-  traduzirContaFluxo,
-  traduzirDescricaoFluxo,
-  traduzirFormaPagamentoFluxo,
-} from "@/lib/i18n/relatorio-fluxo-i18n";
-import { localeMoeda, nomeMesLocale } from "@/lib/i18n/relatorio-comum-i18n";
-import { iniciarImpressaoRelatorio } from "@/lib/i18n/print-relatorio-helpers";
 import { CampoDataBr } from "@/components/campo-data-br";
+import { ConfiguracaoListaGear } from "@/components/listagem/ConfiguracaoListaGear";
 import { PaginacaoLista } from "@/components/listagem/PaginacaoLista";
 import { RelatorioCabecalho } from "@/components/relatorios/RelatorioCabecalho";
+import { useListagemPaginada } from "@/hooks/use-listagem-paginada";
 import {
   carregarContasBancarias,
   carregarMovimentacoesConta,
@@ -40,6 +23,7 @@ import {
   exportarMatrizFluxoCsv,
   MESES_FLUXO_CAIXA,
   type LancamentoFluxo,
+  type LinhaFluxoCaixa,
   type ModoFluxoCaixa,
   type SituacaoFluxoCaixa,
 } from "@/lib/fluxo-de-caixa";
@@ -52,6 +36,27 @@ import {
   gerarRelatorioMovimentacaoPdf,
   labelPeriodoFluxoCaixa,
 } from "@/lib/relatorio-movimentacao-pdf";
+import {
+  CalendarDays,
+  DollarSign,
+  FileSpreadsheet,
+  Flag,
+  List,
+  Printer,
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useI18n } from "@/components/i18n-provider";
+import {
+  labelLinhaFluxoMensal,
+  labelOpcaoFormaPagamentoFluxo,
+  traduzirContaFluxo,
+  traduzirDescricaoFluxo,
+  traduzirFormaPagamentoFluxo,
+} from "@/lib/i18n/relatorio-fluxo-i18n";
+import { localeMoeda, nomeMesLocale } from "@/lib/i18n/relatorio-comum-i18n";
+import { iniciarImpressaoRelatorio } from "@/lib/i18n/print-relatorio-helpers";
+
+type CampoOrdenacaoFluxo = "data";
 
 const selectClass =
   "h-[34px] w-full rounded-sm border border-[#d1d5db] bg-white px-2 text-[12px] text-[#374151] outline-none focus:border-[#4a90d9]";
@@ -92,7 +97,6 @@ export function FluxoDeCaixaConteudo() {
   const [periodo, setPeriodo] = useState("mes");
   const [dataInicio, setDataInicio] = useState(periodoMesInicial.inicio);
   const [dataFinal, setDataFinal] = useState(periodoMesInicial.fim);
-  const [pagina, setPagina] = useState(1);
   const [anoMensal, setAnoMensal] = useState(new Date().getFullYear());
   const [situacao, setSituacao] = useState<SituacaoFluxoCaixa>(() => {
     const prefs = lerPreferenciasCookie();
@@ -100,7 +104,6 @@ export function FluxoDeCaixaConteudo() {
   });
   const [pdfCarregando, setPdfCarregando] = useState(false);
   const [pdfProgresso, setPdfProgresso] = useState(0);
-  const porPagina = 20;
 
   const anosDisponiveis = useMemo(() => {
     const atual = new Date().getFullYear();
@@ -244,18 +247,36 @@ export function FluxoDeCaixaConteudo() {
     salvarPreferenciasCookie({ fluxoSituacao: situacao, fluxoPeriodo: periodo });
   }, [situacao, periodo]);
 
-  useEffect(() => {
-    setPagina(1);
-  }, [conta, tipo, formaPagamento, dataInicio, dataFinal, modo, periodo]);
+  const opcoesOrdenacaoFluxo = useMemo(
+    () => [{ valor: "data" as const, label: t("relatorio.fluxo.colunaData") }],
+    [t]
+  );
 
-  const totalPaginas = Math.max(
-    1,
-    Math.ceil(resultadoDiario.linhas.length / porPagina)
-  );
-  const linhasPagina = resultadoDiario.linhas.slice(
-    (pagina - 1) * porPagina,
-    pagina * porPagina
-  );
+  const listagem = useListagemPaginada<LinhaFluxoCaixa, CampoOrdenacaoFluxo>({
+    storageKey: "fluxo-de-caixa",
+    itens: resultadoDiario.linhas,
+    padrao: { ordenarPor: "data", direcao: "desc", porPagina: 20 },
+    comparadores: {
+      data: (a, b) => {
+        // Saldo inicial fica no extremo antigo → com desc vai para o fim.
+        if (a.kind === "saldo_inicial" && b.kind !== "saldo_inicial") return -1;
+        if (b.kind === "saldo_inicial" && a.kind !== "saldo_inicial") return 1;
+        const porData = a.data.getTime() - b.data.getTime();
+        if (porData !== 0) return porData;
+        return a.id.localeCompare(b.id);
+      },
+    },
+  });
+
+  useEffect(() => {
+    listagem.setPagina(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só resetar página ao mudar filtros
+  }, [conta, tipo, formaPagamento, dataInicio, dataFinal, modo, periodo, situacao]);
+
+  const totalPaginas = listagem.totalPaginas;
+  const linhasPagina = listagem.itensPagina;
+  const pagina = listagem.pagina;
+  const setPagina = listagem.setPagina;
 
   async function imprimirRelatorio() {
     if (modo !== "diario") {
@@ -280,7 +301,7 @@ export function FluxoDeCaixaConteudo() {
       await abrirPdfBlobGerandoNoVisualizadorUnificado(
         () =>
           gerarRelatorioMovimentacaoPdf({
-            linhas: resultadoDiario.linhas,
+            linhas: listagem.itensProcessados,
             contaLabel,
             periodoLabel: labelPeriodoFluxoCaixa(periodo, dataInicio, dataFinal, locale),
             dataImpressao: dataImpressaoHoje(),
@@ -306,7 +327,7 @@ export function FluxoDeCaixaConteudo() {
     const csv =
       modo === "mensal"
         ? exportarMatrizFluxoCsv(resultadoMensal.linhas, anoMensal)
-        : exportarFluxoCaixaCsv(resultadoDiario.linhas);
+        : exportarFluxoCaixaCsv(listagem.itensProcessados);
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -477,6 +498,21 @@ export function FluxoDeCaixaConteudo() {
             />
           </div>
           <div className="flex items-end gap-2">
+            <ConfiguracaoListaGear
+              aberto={listagem.configAberto}
+              onToggle={() =>
+                listagem.configAberto ? listagem.fecharConfig() : listagem.abrirConfig()
+              }
+              onFechar={listagem.fecharConfig}
+              rascunho={listagem.rascunho}
+              opcoesOrdenacao={opcoesOrdenacaoFluxo}
+              onAlterarOrdenarPor={(valor) => listagem.atualizarRascunho({ ordenarPor: valor })}
+              onAlterarDirecao={(valor) => listagem.atualizarRascunho({ direcao: valor })}
+              onAlterarPorPagina={(valor) => listagem.atualizarRascunho({ porPagina: valor })}
+              onGravar={listagem.gravarConfig}
+              alinharMenu="direita"
+              className="print:hidden"
+            />
             <button
               type="button"
               title={

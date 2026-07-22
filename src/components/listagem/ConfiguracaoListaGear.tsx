@@ -26,6 +26,8 @@ type Props<C extends string> = {
   className?: string;
   /** Botão compacto do Controle de Produção (quadrado, sem seta). */
   variante?: "padrao" | "controle";
+  /** Alinha o painel sob a engrenagem (útil à direita da toolbar). */
+  alinharMenu?: "esquerda" | "direita";
 };
 
 export function ConfiguracaoListaGear<C extends string>({
@@ -42,6 +44,7 @@ export function ConfiguracaoListaGear<C extends string>({
   onGravar,
   className = "",
   variante = "padrao",
+  alinharMenu = "esquerda",
 }: Props<C>) {
   const { t } = useI18n();
   const ref = useRef<HTMLDivElement>(null);
@@ -80,7 +83,11 @@ export function ConfiguracaoListaGear<C extends string>({
         <div
           role="dialog"
           aria-label={t("producao.listagem.configTitulo")}
-          className="absolute left-0 top-full z-50 mt-1 w-[min(100vw-2rem,220px)] rounded border border-slate-200 bg-white p-3 shadow-lg"
+          className={
+            alinharMenu === "direita"
+              ? "absolute right-0 top-full z-50 mt-1 w-[min(100vw-2rem,220px)] rounded border border-slate-200 bg-white p-3 shadow-lg"
+              : "absolute left-0 top-full z-50 mt-1 w-[min(100vw-2rem,220px)] rounded border border-slate-200 bg-white p-3 shadow-lg"
+          }
         >
           <div className="space-y-3">
             <div>
