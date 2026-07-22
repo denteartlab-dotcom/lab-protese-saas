@@ -1366,8 +1366,8 @@ function FinanceiroReceberConteudo() {
       isCreditoGerado(lancamento) ||
       isRecebimentoParcial(lancamento);
 
-      const ehCobrancaOs = ehDescricaoFaturaContasReceber(lancamento.descricao);
-    const creditosUtilizados = ehCobrancaOs ? creditosUtilizadosDaFatura(lancamento) : [];
+    const ehCobrancaOs = ehDescricaoFaturaContasReceber(lancamento.descricao);
+    // Só limpa lançamentos "Saldo restante" órfãos — abatimento de crédito e parciais ficam.
     const saldosRelacionados = ehCobrancaOs ? saldosRestanteDoLancamento(lancamento) : [];
 
     setConfirmacaoExclusao({
@@ -1377,13 +1377,14 @@ function FinanceiroReceberConteudo() {
         if (exclusaoSomente) {
           await fetch(`/api/financeiro/${lancamento.id}`, { method: "DELETE" });
         } else if (ehCobrancaOs) {
+          // Desfaz só o pagamento restante (reabre a fatura). Crédito/parciais permanecem.
           await fetch(`/api/financeiro/${lancamento.id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ status: "pendente" }),
           });
           await Promise.all(
-            [...saldosRelacionados, ...creditosUtilizados].map((item) =>
+            saldosRelacionados.map((item) =>
               fetch(`/api/financeiro/${item.id}`, { method: "DELETE" })
             )
           );
