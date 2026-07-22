@@ -397,6 +397,7 @@ function montarParcelasCondicaoPagamentoFatura(params: {
   );
 
   // Parcela principal: Valor = nota cheia; Pago = total já quitado (crédito + parciais + cash).
+  // Verde só quando a fatura estiver 100% paga; com quitação, some o detalhe de recebimentos.
   const pagoParcelaPrincipal = temMovimentos
     ? totalPago
     : quitada
@@ -409,43 +410,45 @@ function montarParcelasCondicaoPagamentoFatura(params: {
       vencimento: formatDate(lancamento.data),
       forma: lancamento.formaPagamento || "-",
       valor: money(valorNota),
-      pago: money(pagoParcelaPrincipal),
-      recebida: pagoParcelaPrincipal > 0.009,
+      pago: money(quitada ? valorNota : pagoParcelaPrincipal),
+      recebida: quitada,
     },
   ];
 
-  for (const credito of creditos) {
-    parcelas.push({
-      parcela: FORMA_PAGAMENTO_ABATIMENTO_CREDITO,
-      vencimento: formatDate(credito.data),
-      forma: FORMA_PAGAMENTO_ABATIMENTO_CREDITO,
-      valor: money(credito.valor),
-      pago: money(credito.valor),
-      recebida: true,
-    });
-  }
+  if (!quitada) {
+    for (const credito of creditos) {
+      parcelas.push({
+        parcela: FORMA_PAGAMENTO_ABATIMENTO_CREDITO,
+        vencimento: formatDate(credito.data),
+        forma: FORMA_PAGAMENTO_ABATIMENTO_CREDITO,
+        valor: money(credito.valor),
+        pago: money(credito.valor),
+        recebida: true,
+      });
+    }
 
-  for (const parcial of parciais) {
-    parcelas.push({
-      parcela: pl("print.fatura.pagamentoParcial"),
-      vencimento: formatDate(parcial.data),
-      forma: parcial.formaPagamento || "-",
-      valor: money(parcial.valor),
-      pago: money(parcial.valor),
-      recebida: true,
-    });
-  }
+    for (const parcial of parciais) {
+      parcelas.push({
+        parcela: pl("print.fatura.pagamentoParcial"),
+        vencimento: formatDate(parcial.data),
+        forma: parcial.formaPagamento || "-",
+        valor: money(parcial.valor),
+        pago: money(parcial.valor),
+        recebida: true,
+      });
+    }
 
-  if (temMovimentos && restante > 0.009) {
-    parcelas.push({
-      parcela: pl("print.fatura.valoresRestantes"),
-      vencimento: "-",
-      forma: "-",
-      valor: money(restante),
-      pago: money(restante),
-      recebida: false,
-      restante: true,
-    });
+    if (temMovimentos && restante > 0.009) {
+      parcelas.push({
+        parcela: pl("print.fatura.valoresRestantes"),
+        vencimento: "-",
+        forma: "-",
+        valor: money(restante),
+        pago: money(restante),
+        recebida: false,
+        restante: true,
+      });
+    }
   }
 
   return parcelas;
