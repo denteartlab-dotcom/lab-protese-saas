@@ -1,5 +1,6 @@
 import { dateToBrShort, parseBrDate } from "@/lib/datas-br";
 import { parseCurrencyBr } from "@/lib/cliente-financeiro";
+import { isCreditoUtilizado } from "@/lib/contas-receber-financeiro";
 import {
   ehCobrancaOsReceita,
   saldoFaturaCobrancaOs,
@@ -9,28 +10,31 @@ import {
   nomeEtapaSemSetor,
   parseComplementosInstrucoesGrupo,
 } from "@/lib/etapas-os";
+import {
+  calcularFinanceiroLancamentosPeriodo,
+  type FinanceiroLancamentosPeriodo,
+  type LancamentoRelatorioFinanceiro,
+} from "@/lib/financeiro-lancamentos-relatorio";
 import { itensDaOsModulo, type TrabalhoModuloOs } from "@/lib/modulo-producao-os";
 import { indiceEtapaAtualDeConcluidas } from "@/lib/modulo-producao-etapas";
+import {
+  idsTrabalhosFaturadosNoLancamento,
+  lancamentoFaturaOsAtivo,
+  numerosOsDoLancamentoFatura,
+  trabalhoEstaFaturado,
+  type LancamentoFaturaOs,
+} from "@/lib/os-faturamento";
+import { valorTrabalho } from "@/lib/relatorio-faturas-modelo3-dados";
 import { normalizarChaveStatusOs, labelStatusOs } from "@/lib/status-os";
 import {
   classificarItemOs,
+  listarTrabalhosNaoFaturados,
   parseDescontoTipoLinhaItem,
   parseItensAdicionadosLinhas,
   segmentoEfetivoTrabalho,
   valorLiquidoDeLinhaItemAdicionado,
   valorLiquidoItemOs,
 } from "@/lib/trabalho-os-segmento";
-import {
-  idsTrabalhosFaturadosNoLancamento,
-  lancamentoFaturaOsAtivo,
-  numerosOsDoLancamentoFatura,
-  type LancamentoFaturaOs,
-} from "@/lib/os-faturamento";
-import {
-  calcularFinanceiroLancamentosPeriodo,
-  type FinanceiroLancamentosPeriodo,
-  type LancamentoRelatorioFinanceiro,
-} from "@/lib/financeiro-lancamentos-relatorio";
 
 export const MESES_FINANCEIRO_GERAL = [
   "Jan",
@@ -116,8 +120,21 @@ export type MesValorFinanceiroGeral = {
   ticketMedio: number;
 };
 
+/** Não finalizados + finalizados não faturados + valor bruto do mês. */
+export type MesProducaoBrutaFinanceiroGeral = {
+  mes: string;
+  mesIdx: number;
+  ano: number;
+  naoFinalizados: number;
+  finalizadosNaoFaturados: number;
+  valorBruto: number;
+  quantidadeNaoFinalizados: number;
+  quantidadeFinalizados: number;
+};
+
 export type RelatorioFinanceiroGeralPayload = {
   resumo: {
+    /** Soma dos serviços ainda no laboratório (não finalizados). */
     valorBrutoTotal: number;
     quantidadeTotal: number;
     ticketMedio: number;
@@ -139,6 +156,8 @@ export type RelatorioFinanceiroGeralPayload = {
     concluidos: { quantidade: number; valor: number; percentual: number };
   };
   tabelaPorMes: MesValorFinanceiroGeral[];
+  /** Trabalhos não finalizados e finalizados não faturados, somados no valor bruto do mês. */
+  tabelaProducaoBrutaMes: MesProducaoBrutaFinanceiroGeral[];
   tabelaPorTipo: {
     servico: CategoriaTipoServico;
     quantidade: number;
@@ -189,16 +208,6 @@ export function statusEfetivoTrabalhoFinanceiro(trabalho: TrabalhoFinanceiroGera
   }
 
   return statusSalvo;
-}
-
-function temCobrancaOsTrabalho(
-  trabalho: Pick<TrabalhoFinanceiroGeralInput, "id" | "numeroOs">,
-  lancamentos: LancamentoRelatorioFinanceiro[]
-) {
-  return lancamentos.some((lancamento) => {
-    const l = toLancamentoResumo(lancamento);
-    return ehCobrancaOsReceita(l) && faturaLigadaAoTrabalho(l, trabalho);
-  });
 }
 
 const META_TRABALHOS_COBRANCA = /@@trab:([a-zA-Z0-9_,-]+)@@/;
@@ -434,69 +443,6 @@ export function valorAReceberNumeroOsCompleto(
   return saldoFaturas + valorNaoFaturado;
 }
 
-function valorLinhaConcluidaFinanceiro(
-  trabalho: TrabalhoFinanceiroGeralInput,
-  todosTrabalhos: TrabalhoFinanceiroGeralInput[],
-  lancamentos: LancamentoRelatorioFinanceiro[],
-  primeiroServicoIdPorOs: Map<number, string>
-): number {
-  const totalOs = valorAReceberNumeroOsCompleto(
-    trabalho.numeroOs,
-    todosTrabalhos,
-    lancamentos
-  );
-
-  if (primeiroServicoIdPorOs.get(trabalho.numeroOs) !== trabalho.id) {
-    return valorAReceberTrabalhoFinanceiro(trabalho, lancamentos);
-  }
-
-  const outrosServicos = todosTrabalhos.filter(
-    (t) =>
-      t.numeroOs === trabalho.numeroOs &&
-      t.id !== trabalho.id &&
-      segmentoEfetivoTrabalho(t) === "servico" &&
-      servicoConcluidoFinanceiro(statusEfetivoTrabalhoFinanceiro(t)) &&
-      normalizarChaveStatusOs(t.status) !== "cancelado"
-  );
-
-  const recebivelOutros = outrosServicos.reduce(
-    (s, t) => s + valorAReceberTrabalhoFinanceiro(t, lancamentos),
-    0
-  );
-
-  return Math.max(0, totalOs - recebivelOutros);
-}
-
-function valorConcluidoLinhaFinanceiro(
-  trabalho: TrabalhoFinanceiroGeralInput,
-  todosTrabalhos: TrabalhoFinanceiroGeralInput[],
-  lancamentos: LancamentoRelatorioFinanceiro[],
-  primeiroServicoIdPorOs: Map<number, string>
-): number {
-  const valor = valorLinhaConcluidaFinanceiro(
-    trabalho,
-    todosTrabalhos,
-    lancamentos,
-    primeiroServicoIdPorOs
-  );
-  if (valor > 0.005) return valor;
-  if (temCobrancaOsTrabalho(trabalho, lancamentos)) return valor;
-
-  if (primeiroServicoIdPorOs.get(trabalho.numeroOs) === trabalho.id) {
-    const totalOs = valorAReceberNumeroOsCompleto(
-      trabalho.numeroOs,
-      todosTrabalhos,
-      lancamentos
-    );
-    if (totalOs > 0.005) return totalOs;
-  }
-
-  const aReceber = valorAReceberTrabalhoFinanceiro(trabalho, lancamentos);
-  if (aReceber > 0.005) return aReceber;
-
-  return valorServicoTrabalhoFinanceiro(trabalho);
-}
-
 function dataConclusaoTrabalho(trabalho: TrabalhoFinanceiroGeralInput) {
   const status = statusEfetivoTrabalhoFinanceiro(trabalho);
   if (!servicoConcluidoFinanceiro(status)) return null;
@@ -640,6 +586,21 @@ export function montarLinhasDetalhe(
     }
   }
 
+  /** Mesma base do Contas a Receber: finalizados/entregues ainda sem fatura. */
+  const cobrancasAtivas = lancamentos
+    .map(toLancamentoFaturaOs)
+    .filter((l) => lancamentoFaturaOsAtivo(l) || isCreditoUtilizado(l));
+  const naoFaturados = listarTrabalhosNaoFaturados(trabalhos, (t) =>
+    trabalhoEstaFaturado(t, cobrancasAtivas)
+  );
+  const valorNaoFaturadoPorOs = new Map<number, number>();
+  for (const t of naoFaturados) {
+    valorNaoFaturadoPorOs.set(
+      t.numeroOs,
+      (valorNaoFaturadoPorOs.get(t.numeroOs) ?? 0) + valorTrabalho(t)
+    );
+  }
+
   return trabalhos
     .filter(
       (t) =>
@@ -658,7 +619,9 @@ export function montarLinhasDetalhe(
       const { etapaAtual, responsavel } = resolverEtapaResponsavel(t, mapaEtapas);
       const valorProducao = valorServicoTrabalhoFinanceiro(t);
       const valor = concluido
-        ? valorConcluidoLinhaFinanceiro(t, trabalhos, lancamentos, primeiroServicoIdPorOs)
+        ? primeiroServicoIdPorOs.get(t.numeroOs) === t.id
+          ? (valorNaoFaturadoPorOs.get(t.numeroOs) ?? 0)
+          : 0
         : valorProducao;
       return {
         id: t.id,
@@ -705,12 +668,16 @@ export function calcularRelatorioFinanceiroGeral(
 
   const linhas = todasLinhas.filter((l) => passaFiltros(l, filtros));
 
-  const valorBrutoTotal = linhas.reduce((s, l) => s + l.valor, 0);
-  const quantidadeTotal = linhas.length;
-  const ticketMedio = quantidadeTotal > 0 ? valorBrutoTotal / quantidadeTotal : 0;
-
   const naoConcluidos = linhas.filter((l) => !l.concluido);
-  const concluidos = linhas.filter((l) => l.concluido);
+  const concluidos = linhas.filter((l) => l.concluido && l.valor > 0.005);
+
+  const naoConcluidosValor = naoConcluidos.reduce((s, l) => s + l.valor, 0);
+  const concluidosValor = concluidos.reduce((s, l) => s + l.valor, 0);
+  /** Valor bruto total = serviços ainda no laboratório (não finalizados). */
+  const valorBrutoTotal = naoConcluidosValor;
+  const quantidadeTotal = naoConcluidos.length;
+  const ticketMedio = quantidadeTotal > 0 ? valorBrutoTotal / quantidadeTotal : 0;
+  const baseStatus = naoConcluidosValor + concluidosValor;
 
   const mesesPeriodo = mesesNoPeriodo(inicio, fim);
   const valorMedioMensal =
@@ -721,7 +688,11 @@ export function calcularRelatorioFinanceiroGeral(
       (l) => !l.concluido && l.anoEntrada === ano && l.mesEntrada === mesIdx
     );
     const doMesSim = linhas.filter(
-      (l) => l.concluido && l.anoConclusao === ano && l.mesConclusao === mesIdx
+      (l) =>
+        l.concluido &&
+        l.valor > 0.005 &&
+        l.anoConclusao === ano &&
+        l.mesConclusao === mesIdx
     );
     const valorNao = doMesNao.reduce((s, l) => s + l.valor, 0);
     const valorSim = doMesSim.reduce((s, l) => s + l.valor, 0);
@@ -739,11 +710,31 @@ export function calcularRelatorioFinanceiroGeral(
     };
   });
 
+  const tabelaProducaoBrutaMes: MesProducaoBrutaFinanceiroGeral[] = evolucaoMensal.map((m) => ({
+    mes: m.mes,
+    mesIdx: m.mesIdx,
+    ano: m.ano,
+    naoFinalizados: m.naoConcluido,
+    finalizadosNaoFaturados: m.concluido,
+    valorBruto: m.total,
+    quantidadeNaoFinalizados: linhas.filter(
+      (l) => !l.concluido && l.anoEntrada === m.ano && l.mesEntrada === m.mesIdx
+    ).length,
+    quantidadeFinalizados: linhas.filter(
+      (l) =>
+        l.concluido &&
+        l.valor > 0.005 &&
+        l.anoConclusao === m.ano &&
+        l.mesConclusao === m.mesIdx
+    ).length,
+  }));
+
   const mapaTipo = new Map<CategoriaTipoServico, { quantidade: number; valor: number }>();
   for (const cat of CATEGORIAS_TIPO_SERVICO) {
     mapaTipo.set(cat, { quantidade: 0, valor: 0 });
   }
-  for (const linha of linhas) {
+  // Distribuição por tipo: serviços em produção no laboratório.
+  for (const linha of naoConcluidos) {
     const atual = mapaTipo.get(linha.categoriaServico)!;
     atual.quantidade += 1;
     atual.valor += linha.valor;
@@ -760,7 +751,7 @@ export function calcularRelatorioFinanceiroGeral(
     };
   }).filter((d) => d.quantidade > 0 || d.valor > 0);
 
-  const pct = (valor: number) => (valorBrutoTotal > 0 ? (valor / valorBrutoTotal) * 100 : 0);
+  const pct = (valor: number) => (baseStatus > 0 ? (valor / baseStatus) * 100 : 0);
 
   const clientesOpcoes = [
     ...new Set(todasLinhas.map((l) => l.cliente).filter(Boolean)),
@@ -782,25 +773,26 @@ export function calcularRelatorioFinanceiroGeral(
       ticketMedio,
       valorMedioMensal,
       naoConcluidosQtd: naoConcluidos.length,
-      naoConcluidosValor: naoConcluidos.reduce((s, l) => s + l.valor, 0),
+      naoConcluidosValor,
       concluidosQtd: concluidos.length,
-      concluidosValor: concluidos.reduce((s, l) => s + l.valor, 0),
+      concluidosValor,
     },
     evolucaoMensal,
     distribuicaoTipo,
     statusResumo: {
       naoConcluidos: {
         quantidade: naoConcluidos.length,
-        valor: naoConcluidos.reduce((s, l) => s + l.valor, 0),
-        percentual: pct(naoConcluidos.reduce((s, l) => s + l.valor, 0)),
+        valor: naoConcluidosValor,
+        percentual: pct(naoConcluidosValor),
       },
       concluidos: {
         quantidade: concluidos.length,
-        valor: concluidos.reduce((s, l) => s + l.valor, 0),
-        percentual: pct(concluidos.reduce((s, l) => s + l.valor, 0)),
+        valor: concluidosValor,
+        percentual: pct(concluidosValor),
       },
     },
     tabelaPorMes: evolucaoMensal,
+    tabelaProducaoBrutaMes,
     tabelaPorTipo: distribuicaoTipo.map((d) => ({
       servico: d.tipo,
       quantidade: d.quantidade,

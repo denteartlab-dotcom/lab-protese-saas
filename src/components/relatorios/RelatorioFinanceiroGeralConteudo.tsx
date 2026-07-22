@@ -223,7 +223,7 @@ export function RelatorioFinanceiroGeralConteudo() {
 
   const linhasConcluidosModal = useMemo(() => {
     if (!dados || !detalheConcluidosMes) return [];
-    let lista = dados.detalhes.filter((l) => l.concluido);
+    let lista = dados.detalhes.filter((l) => l.concluido && l.valor > 0.005);
     if (detalheConcluidosMes.tipo === "mes") {
       lista = lista.filter(
         (l) =>
@@ -910,11 +910,96 @@ export function RelatorioFinanceiroGeralConteudo() {
                         )}
                       </td>
                       <td className="px-3 py-2 text-right text-[#8e44ad]">
-                        {formatarMoedaFinanceiroGeral(dados.resumo.valorBrutoTotal)}
+                        {formatarMoedaFinanceiroGeral(
+                          dados.resumo.naoConcluidosValor + dados.resumo.concluidosValor
+                        )}
                       </td>
-                      <td className="px-3 py-2 text-center">{dados.resumo.quantidadeTotal}</td>
+                      <td className="px-3 py-2 text-center">
+                        {dados.resumo.naoConcluidosQtd + dados.resumo.concluidosQtd}
+                      </td>
                       <td className="px-3 py-2 text-right">
                         {formatarMoedaFinanceiroGeral(dados.resumo.ticketMedio)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </CardGrafico>
+
+            <CardGrafico titulo={t("relatorio.financeiro.producaoBrutaMes")}>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[640px] text-left text-[12px]">
+                  <thead>
+                    <tr className="border-b border-[#e5e7eb] dark:border-slate-700 bg-[#f9fafb] dark:bg-slate-800/70 text-[11px] uppercase tracking-wide text-[#6b7280] dark:text-slate-400">
+                      <th className="px-3 py-2">{t("relatorio.comum.mes")}</th>
+                      <th className="px-3 py-2 text-right">
+                        {t("relatorio.financeiro.naoFinalizadosCol")}
+                      </th>
+                      <th className="px-3 py-2 text-center">
+                        {t("relatorio.financeiro.qtdNaoFinalizadosCol")}
+                      </th>
+                      <th className="px-3 py-2 text-right">
+                        {t("relatorio.financeiro.finalizadosNaoFaturadosCol")}
+                      </th>
+                      <th className="px-3 py-2 text-center">
+                        {t("relatorio.financeiro.qtdFinalizadosCol")}
+                      </th>
+                      <th className="px-3 py-2 text-right">
+                        {t("relatorio.financeiro.valorBrutoMesCol")}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dados.tabelaProducaoBrutaMes.map((m) => (
+                      <tr key={`prod-${m.mes}-${m.ano}`} className="border-b border-[#f3f4f6]">
+                        <td className="px-3 py-2 font-medium">
+                          {m.mes}/{m.ano}
+                        </td>
+                        <td className="px-3 py-2 text-right text-[#3498db]">
+                          {formatarMoedaFinanceiroGeral(m.naoFinalizados)}
+                        </td>
+                        <td className="px-3 py-2 text-center">{m.quantidadeNaoFinalizados}</td>
+                        <td className="px-3 py-2 text-right text-[#2ecc71]">
+                          {m.finalizadosNaoFaturados > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setDetalheConcluidosMes({
+                                  tipo: "mes",
+                                  mes: m.mes,
+                                  ano: m.ano,
+                                  mesIdx: m.mesIdx,
+                                })
+                              }
+                              className="font-medium text-[#2ecc71] underline decoration-[#2ecc71]/40 underline-offset-2 transition hover:text-[#27ae60] hover:decoration-[#27ae60]"
+                              title={t("relatorio.financeiro.verOsConcluidasMes")}
+                            >
+                              {formatarMoedaFinanceiroGeral(m.finalizadosNaoFaturados)}
+                            </button>
+                          ) : (
+                            formatarMoedaFinanceiroGeral(m.finalizadosNaoFaturados)
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-center">{m.quantidadeFinalizados}</td>
+                        <td className="px-3 py-2 text-right font-semibold text-[#8e44ad]">
+                          {formatarMoedaFinanceiroGeral(m.valorBruto)}
+                        </td>
+                      </tr>
+                    ))}
+                    <tr className="bg-[#f9fafb] dark:bg-slate-800/70 font-bold">
+                      <td className="px-3 py-2">{t("relatorio.kpi.total")}</td>
+                      <td className="px-3 py-2 text-right text-[#3498db]">
+                        {formatarMoedaFinanceiroGeral(dados.resumo.naoConcluidosValor)}
+                      </td>
+                      <td className="px-3 py-2 text-center">{dados.resumo.naoConcluidosQtd}</td>
+                      <td className="px-3 py-2 text-right text-[#2ecc71]">
+                        {formatarMoedaFinanceiroGeral(dados.resumo.concluidosValor)}
+                      </td>
+                      <td className="px-3 py-2 text-center">{dados.resumo.concluidosQtd}</td>
+                      <td className="px-3 py-2 text-right text-[#8e44ad]">
+                        {formatarMoedaFinanceiroGeral(
+                          dados.resumo.naoConcluidosValor + dados.resumo.concluidosValor
+                        )}
                       </td>
                     </tr>
                   </tbody>
