@@ -19,6 +19,7 @@ import {
   valorRecebidoCashNaFaturaPaga,
   type LancamentoContasReceber,
 } from "@/lib/contas-receber-financeiro";
+import { calcularCreditoDisponivelClienteFaturaAte } from "@/lib/fatura-cliente-financeiro";
 import { desempacotarDespesa } from "@/lib/lancamento-despesa";
 import { formatDate } from "@/lib/utils";
 
@@ -53,6 +54,8 @@ export type LinhaExtratoIndividualComSaldo = LinhaExtratoIndividual & {
 
 export type ResumoExtratoIndividual = {
   saldoAnterior: number;
+  /** Adiantamento disponível na abertura do período (para exibir Saldo Anterior em C). */
+  creditoAbertura: number;
   totalServicos: number;
   totalPagamentos: number;
   totalDescontos: number;
@@ -367,23 +370,14 @@ export function montarExtratoIndividual(
       if (isCreditoGerado(mov)) continue; // já listado como crédito (não altera saldo)
 
       if (isCreditoUtilizado(mov)) {
-        const valor = valorNumerico(mov.valor);
-        linhasBrutas.push({
-          tipo: "desconto",
-          dataFatura: formatDate(mov.data),
-          dataOrdem: dateOnly(mov.data),
-          dataOrdemPeriodo: dataRefLancamento(mov, periodoCampo),
-          numFatura: "",
-          os: "",
-          servico: observacaoRecebimentoCurta(mov.descricao),
-          qtd: "",
-          paciente: "",
-          numDente: "",
-          dataEntrega: "",
-          valorUn: 0,
-          desconto: 0,
-          subtotal: -Math.abs(valor),
-        });
+        // Abatimento de crédito conta como pagamento (não como desconto).
+        pushPagamentoExtrato(
+          linhasBrutas,
+          mov,
+          valorNumerico(mov.valor),
+          periodoCampo,
+          observacaoRecebimentoCurta(mov.descricao)
+        );
         continue;
       }
 
@@ -433,6 +427,11 @@ export function montarExtratoIndividual(
       .reduce((s, l) => s + l.subtotal, 0);
   }
   saldoAnterior = saldoAnterior ?? 0;
+  const creditoAbertura = calcularCreditoDisponivelClienteFaturaAte(
+    receitas,
+    opcoes?.clienteId ?? undefined,
+    inicio
+  );
 
   const linhasPeriodo = linhasBrutas.filter((l) => {
     const ref = l.dataOrdemPeriodo ?? l.dataOrdem;
@@ -476,6 +475,7 @@ export function montarExtratoIndividual(
     linhas: comSaldo,
     resumo: {
       saldoAnterior,
+      creditoAbertura,
       totalServicos,
       totalPagamentos,
       totalDescontos,

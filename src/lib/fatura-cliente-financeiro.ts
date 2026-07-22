@@ -101,15 +101,34 @@ export function calcularCreditoDisponivelClienteFatura(
   lancamentos: LancamentoResumoFatura[],
   clienteId?: string
 ) {
+  return calcularCreditoDisponivelClienteFaturaAte(lancamentos, clienteId, null);
+}
+
+/** Crédito de adiantamento disponível até a data (exclusive). Sem data = saldo atual. */
+export function calcularCreditoDisponivelClienteFaturaAte(
+  lancamentos: LancamentoResumoFatura[],
+  clienteId?: string,
+  ateExclusive?: Date | null
+) {
   if (!clienteId) return 0;
+  const noLimite = (l: LancamentoResumoFatura) => {
+    if (!ateExclusive) return true;
+    const d = Date.parse(l.data);
+    if (!Number.isFinite(d)) return false;
+    const dia = new Date(d);
+    dia.setHours(0, 0, 0, 0);
+    return dia.getTime() < ateExclusive.getTime();
+  };
   const creditos = lancamentos
     .filter(
-      (l) => l.cliente?.id === clienteId && isCreditoGeradoFatura(l.descricao)
+      (l) =>
+        l.cliente?.id === clienteId && isCreditoGeradoFatura(l.descricao) && noLimite(l)
     )
     .reduce((sum, l) => sum + l.valor, 0);
   const usados = lancamentos
     .filter(
-      (l) => l.cliente?.id === clienteId && isCreditoUtilizadoFatura(l.descricao)
+      (l) =>
+        l.cliente?.id === clienteId && isCreditoUtilizadoFatura(l.descricao) && noLimite(l)
     )
     .reduce((sum, l) => sum + l.valor, 0);
   return Math.max(creditos - usados, 0);
@@ -191,4 +210,37 @@ export function calcularSaldoAnteriorFatura(params: {
     return formatarSaldoAnteriorCreditoFatura(Math.abs(liquido), params.money);
   }
   return "0,00";
+}
+
+/**
+ * Formata saldo do extrato / cabeçalho:
+ * débito em aberto → `1.070,00 D`; adiantamento disponível → `- 1.000,00 C`.
+ */
+export function formatarSaldoDebitoOuCreditoExtrato(
+  saldo: number,
+  creditoDisponivel: number,
+  money: (n: number) => string
+) {
+  if (saldo < -0.009) {
+    return formatarSaldoAnteriorCreditoFatura(
+      Math.abs(saldo) + Math.max(creditoDisponivel, 0),
+      money
+    );
+  }
+  return calcularSaldoAnteriorFatura({
+    creditoDisponivel,
+    saldoAbertoFaturaAtual: Math.max(saldo, 0),
+    lancamentos: [],
+    money,
+  });
+}
+
+/** Mesmo texto com prefixo `R$` quando ainda não houver. */
+export function textoSaldoExtratoComPrefixo(
+  saldo: number,
+  creditoDisponivel: number,
+  money: (n: number) => string
+) {
+  const texto = formatarSaldoDebitoOuCreditoExtrato(saldo, creditoDisponivel, money);
+  return /^R\$/i.test(texto) ? texto : `R$ ${texto}`;
 }

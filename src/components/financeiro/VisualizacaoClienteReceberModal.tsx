@@ -23,6 +23,7 @@ import {
   montarExtratoIndividual,
   type LinhaExtratoIndividualComSaldo,
 } from "@/lib/extrato-individual-dados";
+import { textoSaldoExtratoComPrefixo } from "@/lib/fatura-cliente-financeiro";
 import {
   isCreditoUtilizado,
   observacaoRecebimentoCurta,
@@ -525,6 +526,12 @@ export function VisualizacaoClienteReceberModal({
   }, [cliente, trabalhosCliente, periodoSelecionado]);
 
   const saldoAnteriorExtrato = extratoDados.resumo?.saldoAnterior ?? 0;
+  const creditoAberturaExtrato = extratoDados.resumo?.creditoAbertura ?? 0;
+  const saldoAnteriorExtratoTexto = textoSaldoExtratoComPrefixo(
+    saldoAnteriorExtrato,
+    creditoAberturaExtrato,
+    money
+  );
 
   const extratoLinhas = useMemo(() => {
     const termo = buscaExtrato.trim().toLowerCase();
@@ -1210,7 +1217,7 @@ export function VisualizacaoClienteReceberModal({
           {aba === "extrato" && (
             <div className="overflow-x-auto border border-[#c5c9cf] bg-white">
               <div className="flex items-center justify-end bg-[#3b3b4f] px-3 py-2 text-[11px] font-semibold text-white">
-                SALDO ANTERIOR: R$ {money(saldoAnteriorExtrato)}
+                SALDO ANTERIOR: {saldoAnteriorExtratoTexto}
               </div>
               <table className="w-full min-w-[980px] border-collapse text-[11px]">
                 <thead>
@@ -1319,7 +1326,7 @@ export function VisualizacaoClienteReceberModal({
                     <tr className="bg-[#3b3b4f] text-white">
                       <td colSpan={8} />
                       <td className="px-2.5 py-2.5 text-right text-[12px] font-bold tabular-nums">
-                        Saldo R$ {money(saldoFinalExtrato)}
+                        Saldo {textoSaldoExtratoComPrefixo(saldoFinalExtrato, 0, money)}
                       </td>
                     </tr>
                   </tfoot>

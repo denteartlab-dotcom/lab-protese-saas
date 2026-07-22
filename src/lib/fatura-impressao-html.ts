@@ -146,10 +146,10 @@ export type DadosFaturaImpressao = {
   totalFinal: number;
 };
 
-/** Valor exibido em «Desconto Fatura»: crédito utilizado + desconto da fatura. */
+/** Valor exibido em «Desconto Fatura»: só desconto comercial (não inclui abatimento de crédito). */
 export function descontoFaturaImpressaoTotal(dados: DadosFaturaImpressao) {
-  return Math.max(0, (dados.creditoFatura || 0) + (dados.descontoFatura || 0));
-};
+  return Math.max(0, dados.descontoFatura || 0);
+}
 
 function escapeHtml(texto: string) {
   return texto
@@ -538,7 +538,7 @@ export function montarDadosFaturaImpressao(params: {
 
   const liquidoItens = Math.max(0, totalServicos - descontoServicos);
   // Desconto comercial da fatura (form.desconto) embutido em lancamento.valor.
-  // Abatimento de crédito NÃO reduz o Total (=): aparece em Desconto Fatura e nas condições.
+  // Abatimento de crédito NÃO entra em Desconto Fatura — conta como pagamento nas condições.
   const descontoFatura = trabalhos.length
     ? Math.max(0, Math.round((liquidoItens - lancamento.valor) * 100) / 100)
     : 0;

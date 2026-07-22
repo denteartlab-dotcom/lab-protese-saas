@@ -18,10 +18,15 @@ import {
   type ResumoExtrato3,
 } from "@/lib/extrato-3-paciente-dados";
 import { labImpressaoFromConfig } from "@/lib/lab-logo";
+import { textoSaldoExtratoComPrefixo } from "@/lib/fatura-cliente-financeiro";
 import { moneyBr, PRETO } from "@/lib/pdf-relatorio-faturas-smart-comum";
 import type { TrabalhoRelatorioFatura } from "@/lib/relatorio-faturas-modelo3-dados";
 import { parseBrDate } from "@/lib/datas-br";
 import type { jsPDF } from "jspdf";
+
+function textoSaldoExtratoPdf(saldo: number, creditoAbertura: number) {
+  return textoSaldoExtratoComPrefixo(saldo, creditoAbertura, moneyBr);
+}
 
 export type OpcoesExtrato3PacientePdf = {
   periodoAtivo?: boolean;
@@ -227,14 +232,23 @@ function desenharCabecalhoColunas(ctx: Ctx) {
   ctx.y += 2.4;
 }
 
-function desenharLinhaSaldoAnterior(ctx: Ctx, linha: LinhaExtrato3ComSaldo) {
+function desenharLinhaSaldoAnterior(
+  ctx: Ctx,
+  linha: LinhaExtrato3ComSaldo,
+  creditoAbertura = 0
+) {
   novaPagina(ctx, ctx.rowH + 2);
   const y = yTexto(ctx);
   const xDir = ctx.colX[IDX_SALDO] + ctx.colunas[IDX_SALDO].larguraMm - 0.8;
   ctx.pdf.setFont("helvetica", "normal");
   ctx.pdf.setFontSize(8);
   ctx.pdf.setTextColor(...PRETO);
-  ctx.pdf.text(`Saldo Anterior ${moneyCell(linha.saldo)}`, xDir, y, { align: "right" });
+  ctx.pdf.text(
+    `Saldo Anterior ${textoSaldoExtratoPdf(linha.saldo, creditoAbertura).replace(/^R\$\s*/i, "")}`,
+    xDir,
+    y,
+    { align: "right" }
+  );
   avancarLinha(ctx);
 }
 
@@ -303,10 +317,10 @@ function desenharLinhaSubtotal(ctx: Ctx, linha: LinhaExtrato3ComSaldo) {
   desenharDivisoriaRegistro(ctx);
 }
 
-function desenharLinha(ctx: Ctx, linha: LinhaExtrato3ComSaldo) {
+function desenharLinha(ctx: Ctx, linha: LinhaExtrato3ComSaldo, creditoAbertura = 0) {
   switch (linha.tipo) {
     case "saldo_anterior":
-      desenharLinhaSaldoAnterior(ctx, linha);
+      desenharLinhaSaldoAnterior(ctx, linha, creditoAbertura);
       break;
     case "pagamento":
     case "desconto":
@@ -335,22 +349,26 @@ function desenharResumo(ctx: Ctx, resumo: ResumoExtrato3) {
   const xValor = ctx.margin + 52;
   const rowH = 5.5;
 
-  const itens: [string, number, boolean][] = [
-    [pl("print.extrato.resumoSaldoAnterior"), resumo.saldoAnterior, false],
-    [pl("print.extrato.resumoTotalServicos"), resumo.totalServicos, false],
-    [pl("print.extrato.resumoTotalPagamentos"), resumo.totalPagamentos, false],
-    [pl("print.extrato.resumoTotalDescontos"), resumo.totalDescontos, false],
-    [pl("print.extrato.resumoSaldoTotal"), resumo.saldoTotal, true],
+  const itens: [string, string, boolean][] = [
+    [
+      pl("print.extrato.resumoSaldoAnterior"),
+      textoSaldoExtratoPdf(resumo.saldoAnterior, resumo.creditoAbertura),
+      false,
+    ],
+    [pl("print.extrato.resumoTotalServicos"), `R$ ${moneyBr(resumo.totalServicos)}`, false],
+    [pl("print.extrato.resumoTotalPagamentos"), `R$ ${moneyBr(resumo.totalPagamentos)}`, false],
+    [pl("print.extrato.resumoTotalDescontos"), `R$ ${moneyBr(resumo.totalDescontos)}`, false],
+    [pl("print.extrato.resumoSaldoTotal"), textoSaldoExtratoPdf(resumo.saldoTotal, 0), true],
   ];
 
-  for (const [rotulo, valor, bold] of itens) {
+  for (const [rotulo, valorTexto, bold] of itens) {
     novaPagina(ctx, rowH + 1);
     const y = yTexto(ctx);
     ctx.pdf.setFont("helvetica", bold ? "bold" : "normal");
     ctx.pdf.setFontSize(9);
     ctx.pdf.setTextColor(...PRETO);
     ctx.pdf.text(rotulo, xLabel, y);
-    ctx.pdf.text(`R$ ${moneyBr(valor)}`, xValor, y, { align: "right" });
+    ctx.pdf.text(valorTexto, xValor, y, { align: "right" });
     avancarLinha(ctx, rowH);
   }
 }
@@ -388,7 +406,7 @@ export async function gerarRelatorioExtrato3PacienteSmartPdf(
   desenharCabecalhoColunas(ctx);
 
   for (const linha of linhas) {
-    desenharLinha(ctx, linha);
+    desenharLinha(ctx, linha, resumo.creditoAbertura);
   }
 
   desenharResumo(ctx, resumo);

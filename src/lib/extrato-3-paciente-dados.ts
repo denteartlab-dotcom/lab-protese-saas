@@ -12,6 +12,7 @@ import {
   numeroFaturaDeLancamento,
   type LancamentoContasReceber,
 } from "@/lib/contas-receber-financeiro";
+import { calcularCreditoDisponivelClienteFaturaAte } from "@/lib/fatura-cliente-financeiro";
 import { desempacotarDespesa } from "@/lib/lancamento-despesa";
 import { formatDate } from "@/lib/utils";
 import {
@@ -48,6 +49,7 @@ export type LinhaExtrato3ComSaldo = LinhaExtrato3 & { saldo: number };
 
 export type ResumoExtrato3 = {
   saldoAnterior: number;
+  creditoAbertura: number;
   totalServicos: number;
   totalPagamentos: number;
   totalDescontos: number;
@@ -233,11 +235,11 @@ export function montarExtrato3Paciente(
         tipo: "movimento",
         ordem: seq++,
         dataOrdem: ordem,
-        linha: linhaVazia3("desconto", {
+        linha: linhaVazia3("pagamento", {
           dataFatura: texto,
           dataOrdem: ordem,
           dataOrdemPeriodo: dataRefLancamento(l, periodoCampo),
-          servico: "Desconto com crédito",
+          servico: "Abatimento de crédito",
           valor: -Math.abs(valor),
         }),
       });
@@ -459,6 +461,11 @@ export function montarExtrato3Paciente(
       }, 0);
   }
   saldoAnterior = saldoAnterior ?? 0;
+  const creditoAbertura = calcularCreditoDisponivelClienteFaturaAte(
+    receitas,
+    opcoes?.clienteId ?? undefined,
+    inicio
+  );
 
   const linhasPeriodo = linhasBrutas.filter((l) => {
     if (l.tipo === "fatura" || l.tipo === "paciente" || l.tipo === "os") {
@@ -514,6 +521,7 @@ export function montarExtrato3Paciente(
     linhas: comSaldo,
     resumo: {
       saldoAnterior,
+      creditoAbertura,
       totalServicos,
       totalPagamentos,
       totalDescontos,

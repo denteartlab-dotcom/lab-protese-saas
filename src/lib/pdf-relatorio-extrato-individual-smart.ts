@@ -18,10 +18,15 @@ import {
   type ResumoExtratoIndividual,
 } from "@/lib/extrato-individual-dados";
 import { labImpressaoFromConfig } from "@/lib/lab-logo";
+import { textoSaldoExtratoComPrefixo } from "@/lib/fatura-cliente-financeiro";
 import { moneyBr, PRETO } from "@/lib/pdf-relatorio-faturas-smart-comum";
 import type { TrabalhoRelatorioFatura } from "@/lib/relatorio-faturas-modelo3-dados";
 import { parseBrDate } from "@/lib/datas-br";
 import type { jsPDF } from "jspdf";
+
+function textoSaldoExtratoPdf(saldo: number, creditoAbertura: number) {
+  return textoSaldoExtratoComPrefixo(saldo, creditoAbertura, moneyBr);
+}
 
 export type OpcoesExtratoIndividualPdf = {
   periodoAtivo?: boolean;
@@ -204,11 +209,17 @@ function desenharCabecalhoColunas(ctx: Ctx) {
   ctx.y += 2.4;
 }
 
-function desenharLinhaSaldoAnterior(ctx: Ctx, linha: LinhaExtratoIndividualComSaldo) {
+function desenharLinhaSaldoAnterior(
+  ctx: Ctx,
+  linha: LinhaExtratoIndividualComSaldo,
+  creditoAbertura = 0
+) {
   novaPagina(ctx, ctx.rowH + 2);
   const y = ctx.y + 3.8;
   desenharTexto(ctx, IDX_VALOR, pl("print.extrato.saldoAnterior"), y, { bold: true, align: "right" });
-  desenharTexto(ctx, IDX_SALDO, moneyCell(linha.saldo), y, { align: "right" });
+  desenharTexto(ctx, IDX_SALDO, textoSaldoExtratoPdf(linha.saldo, creditoAbertura).replace(/^R\$\s*/i, ""), y, {
+    align: "right",
+  });
   ctx.y += ctx.rowH;
   desenharDivisoriaRegistro(ctx);
 }
@@ -250,9 +261,13 @@ function desenharLinhaServico(ctx: Ctx, linha: LinhaExtratoIndividualComSaldo) {
   desenharDivisoriaRegistro(ctx);
 }
 
-function desenharLinhaExtrato(ctx: Ctx, linha: LinhaExtratoIndividualComSaldo) {
+function desenharLinhaExtrato(
+  ctx: Ctx,
+  linha: LinhaExtratoIndividualComSaldo,
+  creditoAbertura = 0
+) {
   if (linha.tipo === "saldo_anterior") {
-    desenharLinhaSaldoAnterior(ctx, linha);
+    desenharLinhaSaldoAnterior(ctx, linha, creditoAbertura);
     return;
   }
   if (linha.tipo === "pagamento" || linha.tipo === "desconto") {
@@ -279,18 +294,26 @@ function desenharResumo(ctx: Ctx, resumo: ResumoExtratoIndividual) {
   const valorW = 30;
   const x0 = ctx.margin;
 
-  const itens: [string, number, boolean][] = [
-    [pl("print.extrato.resumoSaldoAnterior"), resumo.saldoAnterior, false],
-    [pl("print.extrato.resumoTotalServicos"), resumo.totalServicos, false],
-    [pl("print.extrato.resumoTotalPagamentos"), resumo.totalPagamentos, false],
-    [pl("print.extrato.resumoTotalDescontos"), resumo.totalDescontos, false],
-    [pl("print.extrato.resumoSaldoTotal"), resumo.saldoTotal, true],
+  const itens: [string, string, boolean][] = [
+    [
+      pl("print.extrato.resumoSaldoAnterior"),
+      textoSaldoExtratoPdf(resumo.saldoAnterior, resumo.creditoAbertura),
+      false,
+    ],
+    [pl("print.extrato.resumoTotalServicos"), `R$ ${moneyBr(resumo.totalServicos)}`, false],
+    [pl("print.extrato.resumoTotalPagamentos"), `R$ ${moneyBr(resumo.totalPagamentos)}`, false],
+    [pl("print.extrato.resumoTotalDescontos"), `R$ ${moneyBr(resumo.totalDescontos)}`, false],
+    [
+      pl("print.extrato.resumoSaldoTotal"),
+      textoSaldoExtratoPdf(resumo.saldoTotal, 0),
+      true,
+    ],
   ];
 
   ctx.pdf.setDrawColor(...CINZA_BORDA);
   ctx.pdf.setLineWidth(0.2);
 
-  for (const [rotulo, valor, bold] of itens) {
+  for (const [rotulo, valorTexto, bold] of itens) {
     novaPagina(ctx, rowH + 2);
     const yTop = ctx.y;
     const yText = ctx.y + 4.2;
@@ -302,7 +325,7 @@ function desenharResumo(ctx: Ctx, resumo: ResumoExtratoIndividual) {
     ctx.pdf.setFontSize(9);
     ctx.pdf.setTextColor(...PRETO);
     ctx.pdf.text(rotulo, x0 + 2, yText);
-    ctx.pdf.text(`R$ ${moneyBr(valor)}`, x0 + labelW + valorW - 2, yText, {
+    ctx.pdf.text(valorTexto, x0 + labelW + valorW - 2, yText, {
       align: "right",
     });
 
@@ -343,7 +366,7 @@ export async function gerarRelatorioExtratoIndividualSmartPdf(
   desenharCabecalhoColunas(ctx);
 
   for (const linha of linhas) {
-    desenharLinhaExtrato(ctx, linha);
+    desenharLinhaExtrato(ctx, linha, resumo.creditoAbertura);
   }
 
   desenharResumo(ctx, resumo);
