@@ -9,7 +9,11 @@ import {
 import {
   isCreditoGerado,
   isCreditoUtilizado,
+  isRecebimentoParcial,
+  movimentacoesRecebimentoDaFatura,
   numeroFaturaDeLancamento,
+  observacaoRecebimentoCurta,
+  valorRecebidoCashNaFaturaPaga,
   type LancamentoContasReceber,
 } from "@/lib/contas-receber-financeiro";
 import { calcularCreditoDisponivelClienteFaturaAte } from "@/lib/fatura-cliente-financeiro";
@@ -214,7 +218,10 @@ export function montarExtrato3Paciente(
   let seq = 0;
 
   for (const l of receitas) {
-    if (isCreditoGerado(l)) continue;
+    // Adiantamento, parcial e abatimento: só via movimentos da fatura (abaixo).
+    if (isCreditoGerado(l) || isCreditoUtilizado(l) || isRecebimentoParcial(l)) {
+      continue;
+    }
 
     if (ehCobrancaOs(l) && trabalhosDaFaturaParaExtrato(l, trabalhosCliente, receitas).length === 0) {
       continue;
@@ -228,43 +235,11 @@ export function montarExtrato3Paciente(
       continue;
     }
 
-    if (isCreditoUtilizado(l)) {
-      const { texto, ordem } = dataFaturaLancamento(l);
-      const valor = valorNumerico(l.valor);
-      eventos.push({
-        tipo: "movimento",
-        ordem: seq++,
-        dataOrdem: ordem,
-        linha: linhaVazia3("pagamento", {
-          dataFatura: texto,
-          dataOrdem: ordem,
-          dataOrdemPeriodo: dataRefLancamento(l, periodoCampo),
-          servico: "Abatimento de crédito",
-          valor: -Math.abs(valor),
-        }),
-      });
-      continue;
-    }
-
-    if (l.status === "pago" && !ehCobrancaOs(l)) {
-      const valor = valorNumerico(l.valor);
-      const ordem = dateOnly(l.data);
-      eventos.push({
-        tipo: "movimento",
-        ordem: seq++,
-        dataOrdem: ordem,
-        linha: linhaVazia3("pagamento", {
-          dataFatura: formatDate(l.data),
-          dataOrdem: ordem,
-          dataOrdemPeriodo: dataRefLancamento(l, periodoCampo),
-          servico: textoPagamentoExtrato3(l),
-          valor: -Math.abs(valor),
-        }),
-      });
-    }
-
     if (!ehCobrancaOs(l)) {
       if (l.status !== "pendente" && l.status !== "pago") continue;
+      // Receita avulsa paga já entra como pagamento abaixo se for movimento de fatura;
+      // aqui só monta bloco de serviço quando ainda é cobrança de serviço (não recebimento).
+      if (l.status === "pago") continue;
       const { texto, ordem } = dataFaturaLancamento(l);
       const pack = desempacotarDespesa(l.descricao);
       const subtotal = valorNumerico(l.valor);
@@ -338,23 +313,6 @@ export function montarExtrato3Paciente(
       .sort(([a], [b]) => a.localeCompare(b, "pt-BR"))
       .map(([nome, itens]) => ({ nome, itens }));
 
-    if (l.status === "pago") {
-      const valor = valorNumerico(l.valor);
-      const ordemPag = dateOnly(l.data);
-      eventos.push({
-        tipo: "movimento",
-        ordem: seq++,
-        dataOrdem: ordemPag,
-        linha: linhaVazia3("pagamento", {
-          dataFatura: formatDate(l.data),
-          dataOrdem: ordemPag,
-          dataOrdemPeriodo: dataRefLancamento(l, periodoCampo),
-          servico: textoPagamentoExtrato3(l),
-          valor: -Math.abs(valor),
-        }),
-      });
-    }
-
     eventos.push({
       tipo: "bloco",
       ordem: seq++,
@@ -367,6 +325,55 @@ export function montarExtrato3Paciente(
         pacientes,
       },
     });
+  }
+
+  // Pagamentos/abatimentos alinhados ao Contas a Receber (mesma base dos modelos 1 e 2).
+  const movimentosPagamentoVistos = new Set<string>();
+  for (const fatura of receitas) {
+    if (!ehCobrancaOs(fatura)) continue;
+    for (const mov of movimentacoesRecebimentoDaFatura(fatura, receitas)) {
+      if (movimentosPagamentoVistos.has(mov.id)) continue;
+      movimentosPagamentoVistos.add(mov.id);
+
+      if (isCreditoGerado(mov)) continue;
+
+      if (isCreditoUtilizado(mov) || isRecebimentoParcial(mov)) {
+        const valor = valorNumerico(mov.valor);
+        if (valor <= 0.009) continue;
+        const ordem = dateOnly(mov.data);
+        eventos.push({
+          tipo: "movimento",
+          ordem: seq++,
+          dataOrdem: ordem,
+          linha: linhaVazia3("pagamento", {
+            dataFatura: formatDate(mov.data),
+            dataOrdem: ordem,
+            dataOrdemPeriodo: dataRefLancamento(mov, periodoCampo),
+            servico: observacaoRecebimentoCurta(mov.descricao),
+            valor: -Math.abs(valor),
+          }),
+        });
+        continue;
+      }
+
+      if (mov.id === fatura.id && fatura.status === "pago") {
+        const cash = valorRecebidoCashNaFaturaPaga(fatura, receitas);
+        if (cash <= 0.009) continue;
+        const ordem = dateOnly(fatura.data);
+        eventos.push({
+          tipo: "movimento",
+          ordem: seq++,
+          dataOrdem: ordem,
+          linha: linhaVazia3("pagamento", {
+            dataFatura: formatDate(fatura.data),
+            dataOrdem: ordem,
+            dataOrdemPeriodo: dataRefLancamento(fatura, periodoCampo),
+            servico: textoPagamentoExtrato3(fatura),
+            valor: -Math.abs(cash),
+          }),
+        });
+      }
+    }
   }
 
   eventos.sort((a, b) => {
