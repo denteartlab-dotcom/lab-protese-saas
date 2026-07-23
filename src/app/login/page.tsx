@@ -3,7 +3,6 @@ import { Suspense } from "react";
 import { I18nProvider } from "@/components/i18n-provider";
 import { getSession } from "@/lib/auth";
 import { obterDestinoPosLogin } from "@/lib/contexto-assinatura-vencida";
-import { obterAppBuildIdServidor } from "@/lib/app-build-id-servidor";
 import { obterEmpresaContexto } from "@/lib/empresa-context";
 import { carregarBrandingLoginServidor } from "@/lib/login-branding-servidor";
 import { LoginForm } from "./LoginForm";
@@ -44,7 +43,6 @@ export default async function LoginPage({ searchParams }: Props) {
 
   const { brandingInicial, brandingLaboratorio, jaEntrou } =
     await carregarBrandingLoginServidor(params);
-  const buildId = obterAppBuildIdServidor();
 
   return (
     <I18nProvider>
@@ -54,7 +52,6 @@ export default async function LoginPage({ searchParams }: Props) {
             brandingInicial={brandingInicial}
             brandingLaboratorio={brandingLaboratorio}
             jaEntrouInicial={jaEntrou}
-            versaoSeloAsaas={buildId}
           />
         </div>
       </Suspense>
