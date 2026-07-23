@@ -56,7 +56,7 @@ export async function GET(request: Request) {
           dataEntrega: true,
           updatedAt: true,
           instrucoes: true,
-          cliente: { select: { nome: true } },
+          cliente: { select: { id: true, nome: true, ativo: true } },
           paciente: { select: { nome: true } },
         },
       }),
@@ -91,7 +91,9 @@ export async function GET(request: Request) {
       dataEntrega: t.dataEntrega?.toISOString() ?? null,
       updatedAt: t.updatedAt?.toISOString() ?? null,
       instrucoes: t.instrucoes,
+      clienteId: t.cliente?.id ?? null,
       clienteNome: t.cliente?.nome?.trim() || "—",
+      clienteAtivo: t.cliente?.ativo ?? null,
       pacienteNome: t.paciente?.nome?.trim() || "—",
     }));
 

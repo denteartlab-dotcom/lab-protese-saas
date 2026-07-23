@@ -56,6 +56,7 @@ import {
   trabalhoEstaFaturado,
   trabalhosRelacionadosLancamentoFatura,
 } from "@/lib/os-faturamento";
+import { calcularNaoFaturadosContasReceber } from "@/lib/nao-faturados-contas-receber";
 import {
   filtrarTrabalhoPorSituacaoFaturamento,
   listarTrabalhosNaoFaturados,
@@ -856,8 +857,9 @@ function FinanceiroReceberConteudo() {
   );
   const totalNaoFaturados = useMemo(
     () =>
-      trabalhosNaoFaturadosAtivos.reduce((sum, trabalho) => sum + valorTrabalho(trabalho), 0),
-    [trabalhosNaoFaturadosAtivos]
+      calcularNaoFaturadosContasReceber(trabalhosNaoFaturadosAtivos, cobrancasAtivas)
+        .valor,
+    [trabalhosNaoFaturadosAtivos, cobrancasAtivas]
   );
   const valorOsSelecionadas = trabalhosSelecionados.reduce((sum, trabalho) => sum + valorTrabalho(trabalho), 0);
   const valorBruto = form.semOs ? parseDecimal(form.valor || "0") : valorOsSelecionadas;

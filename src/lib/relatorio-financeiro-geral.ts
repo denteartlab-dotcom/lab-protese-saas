@@ -1,6 +1,5 @@
 import { dateToBrShort, parseBrDate } from "@/lib/datas-br";
 import { parseCurrencyBr } from "@/lib/cliente-financeiro";
-import { isCreditoUtilizado } from "@/lib/contas-receber-financeiro";
 import {
   ehCobrancaOsReceita,
   saldoFaturaCobrancaOs,
@@ -17,18 +16,16 @@ import {
 } from "@/lib/financeiro-lancamentos-relatorio";
 import { itensDaOsModulo, type TrabalhoModuloOs } from "@/lib/modulo-producao-os";
 import { indiceEtapaAtualDeConcluidas } from "@/lib/modulo-producao-etapas";
+import { calcularNaoFaturadosContasReceber } from "@/lib/nao-faturados-contas-receber";
 import {
   idsTrabalhosFaturadosNoLancamento,
   lancamentoFaturaOsAtivo,
   numerosOsDoLancamentoFatura,
-  trabalhoEstaFaturado,
   type LancamentoFaturaOs,
 } from "@/lib/os-faturamento";
-import { valorTrabalho } from "@/lib/relatorio-faturas-modelo3-dados";
 import { normalizarChaveStatusOs, labelStatusOs } from "@/lib/status-os";
 import {
   classificarItemOs,
-  listarTrabalhosNaoFaturados,
   parseDescontoTipoLinhaItem,
   parseItensAdicionadosLinhas,
   segmentoEfetivoTrabalho,
@@ -84,7 +81,9 @@ export type TrabalhoFinanceiroGeralInput = {
   dataEntrega: string | null;
   updatedAt?: string | null;
   instrucoes: string | null;
+  clienteId?: string | null;
   clienteNome: string;
+  clienteAtivo?: boolean | null;
   pacienteNome: string;
 };
 
@@ -608,20 +607,12 @@ export function montarLinhasDetalhe(
     }
   }
 
-  /** Mesma base do Contas a Receber: finalizados/entregues ainda sem fatura. */
-  const cobrancasAtivas = lancamentos
-    .map(toLancamentoFaturaOs)
-    .filter((l) => lancamentoFaturaOsAtivo(l) || isCreditoUtilizado(l));
-  const naoFaturados = listarTrabalhosNaoFaturados(trabalhos, (t) =>
-    trabalhoEstaFaturado(t, cobrancasAtivas)
+  /** Mesma base do Contas a Receber: serviço + produto + transporte não faturados. */
+  const naoFaturadosResumo = calcularNaoFaturadosContasReceber(
+    trabalhos,
+    lancamentos.map(toLancamentoFaturaOs)
   );
-  const valorNaoFaturadoPorOs = new Map<number, number>();
-  for (const t of naoFaturados) {
-    valorNaoFaturadoPorOs.set(
-      t.numeroOs,
-      (valorNaoFaturadoPorOs.get(t.numeroOs) ?? 0) + valorTrabalho(t)
-    );
-  }
+  const valorNaoFaturadoPorOs = naoFaturadosResumo.valorPorOs;
 
   /** Produção em aberto: serviço + produto + transporte (sem contar embutidos em dobro). */
   const valorProducaoPorOs = new Map<number, number>();
@@ -710,7 +701,10 @@ export function calcularRelatorioFinanceiroGeral(
     parseBrDate(filtros.dataFim) ?? new Date(new Date().getFullYear(), 11, 31);
   fim.setHours(23, 59, 59, 999);
 
-  const todasLinhasBase = montarLinhasDetalhe(trabalhos, mapaEtapas, lancamentos);
+  // Igual Contas a Receber: cliente inativo/excluído não entra.
+  const trabalhosEscopo = trabalhos.filter((t) => t.clienteAtivo !== false);
+
+  const todasLinhasBase = montarLinhasDetalhe(trabalhosEscopo, mapaEtapas, lancamentos);
   const todasLinhas = todasLinhasBase.filter((linha) =>
     linhaNoPeriodo(linha, inicio, fim)
   );
@@ -721,7 +715,25 @@ export function calcularRelatorioFinanceiroGeral(
   const concluidos = linhas.filter((l) => l.concluido && l.valor > 0.005);
 
   const naoConcluidosValor = naoConcluidos.reduce((s, l) => s + l.valor, 0);
-  const concluidosValor = concluidos.reduce((s, l) => s + l.valor, 0);
+
+  /** Fonte única com Contas a Receber (serviço + produto + transporte). */
+  const naoFaturadosResumo = calcularNaoFaturadosContasReceber(
+    trabalhosEscopo,
+    lancamentos.map(toLancamentoFaturaOs)
+  );
+
+  const usaFiltroExtra =
+    (filtros.cliente && filtros.cliente !== "Todos") ||
+    (filtros.tipoServico && filtros.tipoServico !== "Todos") ||
+    (filtros.status && filtros.status !== "Todos");
+
+  const concluidosValor = usaFiltroExtra
+    ? concluidos.reduce((s, l) => s + l.valor, 0)
+    : naoFaturadosResumo.valor;
+  const concluidosQtd = usaFiltroExtra
+    ? concluidos.length
+    : naoFaturadosResumo.quantidadeOs;
+
   /** Valor bruto total = tudo em produção no lab (exceto finalizados/entregues). */
   const valorBrutoTotal = naoConcluidosValor;
   const quantidadeTotal = naoConcluidos.length;
@@ -848,7 +860,7 @@ export function calcularRelatorioFinanceiroGeral(
       valorMedioMensal,
       naoConcluidosQtd: naoConcluidos.length,
       naoConcluidosValor,
-      concluidosQtd: concluidos.length,
+      concluidosQtd,
       concluidosValor,
     },
     evolucaoMensal,
@@ -860,7 +872,7 @@ export function calcularRelatorioFinanceiroGeral(
         percentual: pct(naoConcluidosValor),
       },
       concluidos: {
-        quantidade: concluidos.length,
+        quantidade: concluidosQtd,
         valor: concluidosValor,
         percentual: pct(concluidosValor),
       },
