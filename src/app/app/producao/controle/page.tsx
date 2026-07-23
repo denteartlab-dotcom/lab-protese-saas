@@ -2938,6 +2938,10 @@ export default function ControlePage() {
     }
 
     const itensSalvar = prepararItensParaSalvarControle([...editItems]);
+    if (itensSalvar.length === 0) {
+      alert("Adicione ao menos um serviço, produto ou transporte antes de gravar.");
+      return;
+    }
 
     const blocosSalvar = planejarBlocosSalvarOs(itensSalvar);
     const dividir = blocosSalvar.length > 1 || deveDividirOs(itensSalvar);
@@ -3029,9 +3033,9 @@ export default function ControlePage() {
           ];
 
     const promessas: Promise<Response>[] = [];
+    const idsUsados = new Set<string>();
 
     if (dividir) {
-      const idsUsados = new Set<string>();
       let dadosPost = dadosPostGrupoOsDeTrabalho(editando);
 
       if (!dadosPost) {
@@ -3126,6 +3130,7 @@ export default function ControlePage() {
       const servicoUnico =
         segmentoUnico === "servico" && itensUnicos.length === 1;
       if (alvo) {
+        idsUsados.add(alvo.id);
         promessas.push(
           salvarSegmentoExistente(alvo.id, segmentoUnico, itensUnicos, {
             linhasEtapas: servicoUnico
@@ -3148,6 +3153,25 @@ export default function ControlePage() {
     if (falha) {
       alert("Não foi possível salvar a OS. Verifique os dados e tente novamente.");
       return;
+    }
+
+    // Remove segmentos órfãos (serviço/produto/transporte removidos na edição).
+    const idsOrfaos = registros
+      .map((r) => r.id)
+      .filter((id) => id && !idsUsados.has(id));
+    if (idsOrfaos.length > 0) {
+      const exclusoes = await Promise.all(
+        idsOrfaos.map((id) =>
+          fetch(`/api/trabalhos/${id}?somenteEste=1`, { method: "DELETE" })
+        )
+      );
+      if (exclusoes.some((res) => !res.ok)) {
+        alert(
+          "A OS foi gravada, mas um item removido não pôde ser excluído. Atualize a lista e tente novamente."
+        );
+        void load();
+        return;
+      }
     }
 
     await persistirEtapaAtualEdicaoOs();

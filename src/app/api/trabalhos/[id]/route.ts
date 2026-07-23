@@ -385,7 +385,7 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const ctx = await requireEmpresaContext().catch(() => null);
@@ -394,6 +394,10 @@ export async function DELETE(
   if (negado) return negado;
 
   const { id } = await params;
+  const somenteEste =
+    new URL(request.url).searchParams.get("somenteEste") === "1" ||
+    new URL(request.url).searchParams.get("somenteEste") === "true";
+
   try {
     const atual = await prisma.trabalho.findFirst({
       where: { id, empresaId: ctx.empresaId },
@@ -433,7 +437,8 @@ export async function DELETE(
     }
 
     // Cliente inativo/ausente: remove faturas vinculadas (não aparecem mais no Financeiro).
-    if (faturada && clientePermiteExcluirFaturada) {
+    // Só ao excluir a OS inteira — ao remover um segmento órfão, preserva cobranças.
+    if (faturada && clientePermiteExcluirFaturada && !somenteEste) {
       const faturasDaOs = cobrancasAtivas.filter((lancamento) =>
         idsGrupo.some((trabalhoId) =>
           trabalhoEstaFaturado(
@@ -474,15 +479,15 @@ export async function DELETE(
       usuarioNome: await nomeUsuarioParaLogAuditoria(ctx.user),
     });
 
-    if (atual.grupoOsId) {
+    if (somenteEste || !atual.grupoOsId) {
+      await prisma.trabalho.delete({ where: { id } });
+    } else {
       await prisma.trabalho.deleteMany({
         where: {
           empresaId: ctx.empresaId,
           grupoOsId: grupoOsIdOf(atual),
         },
       });
-    } else {
-      await prisma.trabalho.delete({ where: { id } });
     }
   } catch {
     return NextResponse.json({ ok: true });
