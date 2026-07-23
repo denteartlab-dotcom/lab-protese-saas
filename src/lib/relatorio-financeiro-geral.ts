@@ -139,7 +139,7 @@ export type RelatorioFinanceiroGeralPayload = {
     valorBrutoTotal: number;
     /** Quantidade de OS ainda em produção no laboratório. */
     quantidadeTotal: number;
-    /** Quantidade de OS geradas (entrada) no período do filtro. */
+    /** Quantidade total de OS geradas no laboratório. */
     quantidadeOsGeradas: number;
     ticketMedio: number;
     valorMedioMensal: number;
@@ -728,16 +728,9 @@ export function calcularRelatorioFinanceiroGeral(
   const ticketMedio = quantidadeTotal > 0 ? valorBrutoTotal / quantidadeTotal : 0;
   const baseStatus = naoConcluidosValor + concluidosValor;
 
-  /** OS geradas no laboratório: entrada no período do filtro (únicas por número). */
+  /** OS geradas no laboratório (únicas por número), independentemente do período. */
   const quantidadeOsGeradas = new Set(
-    todasLinhasBase
-      .filter((l) => passaFiltros(l, filtros))
-      .filter((l) => {
-        const entrada = parseBrDate(l.dataEntrada);
-        if (!entrada) return false;
-        return entrada >= inicio && entrada <= fim;
-      })
-      .map((l) => l.numeroOs)
+    todasLinhasBase.filter((l) => passaFiltros(l, filtros)).map((l) => l.numeroOs)
   ).size;
 
   const mesesPeriodo = mesesNoPeriodo(inicio, fim);
