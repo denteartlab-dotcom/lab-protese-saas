@@ -32,6 +32,7 @@ import {
   parseDescontoTipoLinhaItem,
   parseItensAdicionadosLinhas,
   segmentoEfetivoTrabalho,
+  servicoFinalizadoParaCobranca,
   valorLiquidoDeLinhaItemAdicionado,
   valorLiquidoItemOs,
 } from "@/lib/trabalho-os-segmento";
@@ -463,9 +464,8 @@ function linhaNoPeriodo(
   fim: Date
 ) {
   if (linha.concluido) {
-    const conclusao = parseBrDate(linha.dataConclusao);
-    if (!conclusao) return false;
-    return conclusao >= inicio && conclusao <= fim;
+    // Mesma visão do Contas a Receber: finalizados não faturados sem filtro de data.
+    return linha.valor > 0.005;
   }
 
   // Em produção no laboratório: inclui tudo ainda não finalizado que já havia entrado
@@ -473,6 +473,23 @@ function linhaNoPeriodo(
   const entrada = parseBrDate(linha.dataEntrada);
   if (!entrada) return false;
   return entrada <= fim;
+}
+
+function conclusaoNoMesExibido(
+  linha: LinhaDetalheFinanceiroGeral,
+  ano: number,
+  mesIdx: number,
+  mesesPeriodo: { ano: number; mesIdx: number }[],
+  ultimoMes: { ano: number; mesIdx: number } | undefined
+) {
+  if (!linha.concluido || linha.valor <= 0.005) return false;
+  if (linha.anoConclusao === ano && linha.mesConclusao === mesIdx) return true;
+  // Conclusões fora dos meses do filtro entram no último mês exibido,
+  // para o total mensal bater com o Contas a Receber.
+  if (!ultimoMes || ultimoMes.ano !== ano || ultimoMes.mesIdx !== mesIdx) return false;
+  return !mesesPeriodo.some(
+    (m) => m.ano === linha.anoConclusao && m.mesIdx === linha.mesConclusao
+  );
 }
 
 export function categorizarTipoServico(tipoProtese: string): CategoriaTipoServico {
@@ -641,8 +658,9 @@ export function montarLinhasDetalhe(
       const entrada = parseDataEntrada(t.dataEntrada);
       const entrega = t.dataEntrega ? parseDataEntrada(t.dataEntrega) : null;
       const statusEfetivo = statusEfetivoTrabalhoFinanceiro(t);
-      const concluido = servicoConcluidoFinanceiro(statusEfetivo);
-      const conclusao = dataConclusaoTrabalho(t);
+      // Mesmo critério do Contas a Receber (status salvo na OS, não só situação do item).
+      const concluido = servicoFinalizadoParaCobranca(normalizarChaveStatusOs(t.status));
+      const conclusao = concluido ? dataConclusaoTrabalho(t) : null;
       const { etapaAtual, responsavel } = resolverEtapaResponsavel(t, mapaEtapas);
       const ehPrimeiroServico = primeiroServicoIdPorOs.get(t.numeroOs) === t.id;
       const valor = !ehPrimeiroServico
@@ -707,6 +725,7 @@ export function calcularRelatorioFinanceiroGeral(
   const baseStatus = naoConcluidosValor + concluidosValor;
 
   const mesesPeriodo = mesesNoPeriodo(inicio, fim);
+  const ultimoMes = mesesPeriodo[mesesPeriodo.length - 1];
   const valorMedioMensal =
     mesesPeriodo.length > 0 ? valorBrutoTotal / mesesPeriodo.length : 0;
 
@@ -726,12 +745,8 @@ export function calcularRelatorioFinanceiroGeral(
           })
         : [];
     const naoDoMes = [...doMesNao, ...doMesNaoAnteriores];
-    const doMesSim = linhas.filter(
-      (l) =>
-        l.concluido &&
-        l.valor > 0.005 &&
-        l.anoConclusao === ano &&
-        l.mesConclusao === mesIdx
+    const doMesSim = linhas.filter((l) =>
+      conclusaoNoMesExibido(l, ano, mesIdx, mesesPeriodo, ultimoMes)
     );
     const valorNao = naoDoMes.reduce((s, l) => s + l.valor, 0);
     const valorSim = doMesSim.reduce((s, l) => s + l.valor, 0);
@@ -772,12 +787,8 @@ export function calcularRelatorioFinanceiroGeral(
       finalizadosNaoFaturados: m.concluido,
       valorBruto: m.total,
       quantidadeNaoFinalizados,
-      quantidadeFinalizados: linhas.filter(
-        (l) =>
-          l.concluido &&
-          l.valor > 0.005 &&
-          l.anoConclusao === m.ano &&
-          l.mesConclusao === m.mesIdx
+      quantidadeFinalizados: linhas.filter((l) =>
+        conclusaoNoMesExibido(l, m.ano, m.mesIdx, mesesPeriodo, ultimoMes)
       ).length,
     };
   });
