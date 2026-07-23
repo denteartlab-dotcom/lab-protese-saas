@@ -477,20 +477,15 @@ function linhaNoPeriodo(
   return entrada <= fim;
 }
 
-function conclusaoNoMesExibido(
-  linha: LinhaDetalheFinanceiroGeral,
-  ano: number,
-  mesIdx: number,
-  mesesPeriodo: { ano: number; mesIdx: number }[],
-  ultimoMes: { ano: number; mesIdx: number } | undefined
-) {
-  if (!linha.concluido || linha.valor <= 0.005) return false;
-  if (linha.anoConclusao === ano && linha.mesConclusao === mesIdx) return true;
-  // Conclusões fora dos meses do filtro entram no último mês exibido,
-  // para o total mensal bater com o Contas a Receber.
-  if (!ultimoMes || ultimoMes.ano !== ano || ultimoMes.mesIdx !== mesIdx) return false;
-  return !mesesPeriodo.some(
-    (m) => m.ano === linha.anoConclusao && m.mesIdx === linha.mesConclusao
+/** Mês vigente dentro do período do filtro (snapshot do Contas a Receber). */
+function mesVigenteNoPeriodo(mesesPeriodo: { ano: number; mesIdx: number }[]) {
+  if (!mesesPeriodo.length) return undefined;
+  const agora = new Date();
+  const ano = agora.getFullYear();
+  const mesIdx = agora.getMonth();
+  return (
+    mesesPeriodo.find((m) => m.ano === ano && m.mesIdx === mesIdx) ??
+    mesesPeriodo[mesesPeriodo.length - 1]
   );
 }
 
@@ -746,7 +741,7 @@ export function calcularRelatorioFinanceiroGeral(
   ).size;
 
   const mesesPeriodo = mesesNoPeriodo(inicio, fim);
-  const ultimoMes = mesesPeriodo[mesesPeriodo.length - 1];
+  const mesVigente = mesVigenteNoPeriodo(mesesPeriodo);
   const valorMedioMensal =
     mesesPeriodo.length > 0 ? valorBrutoTotal / mesesPeriodo.length : 0;
 
@@ -766,13 +761,14 @@ export function calcularRelatorioFinanceiroGeral(
           })
         : [];
     const naoDoMes = [...doMesNao, ...doMesNaoAnteriores];
-    const doMesSim = linhas.filter((l) =>
-      conclusaoNoMesExibido(l, ano, mesIdx, mesesPeriodo, ultimoMes)
-    );
+    // Contas a Receber é snapshot: todo o não faturado fica no mês vigente.
+    const ehMesVigente =
+      !!mesVigente && mesVigente.ano === ano && mesVigente.mesIdx === mesIdx;
     const valorNao = naoDoMes.reduce((s, l) => s + l.valor, 0);
-    const valorSim = doMesSim.reduce((s, l) => s + l.valor, 0);
+    const valorSim = ehMesVigente ? concluidosValor : 0;
+    const qtdSim = ehMesVigente ? concluidosQtd : 0;
     const total = valorNao + valorSim;
-    const qtd = naoDoMes.length + doMesSim.length;
+    const qtd = naoDoMes.length + qtdSim;
     return {
       mes: label,
       mesIdx,
@@ -800,6 +796,8 @@ export function calcularRelatorioFinanceiroGeral(
           })
         : [];
     const quantidadeNaoFinalizados = doMesNao.length + doMesNaoAnteriores.length;
+    const ehMesVigente =
+      !!mesVigente && mesVigente.ano === m.ano && mesVigente.mesIdx === m.mesIdx;
     return {
       mes: m.mes,
       mesIdx: m.mesIdx,
@@ -808,9 +806,7 @@ export function calcularRelatorioFinanceiroGeral(
       finalizadosNaoFaturados: m.concluido,
       valorBruto: m.total,
       quantidadeNaoFinalizados,
-      quantidadeFinalizados: linhas.filter((l) =>
-        conclusaoNoMesExibido(l, m.ano, m.mesIdx, mesesPeriodo, ultimoMes)
-      ).length,
+      quantidadeFinalizados: ehMesVigente ? concluidosQtd : 0,
     };
   });
 

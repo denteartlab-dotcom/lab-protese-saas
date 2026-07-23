@@ -225,11 +225,14 @@ export function RelatorioFinanceiroGeralConteudo() {
     if (!dados || !detalheConcluidosMes) return [];
     let lista = dados.detalhes.filter((l) => l.concluido && l.valor > 0.005);
     if (detalheConcluidosMes.tipo === "mes") {
-      lista = lista.filter(
-        (l) =>
-          l.anoConclusao === detalheConcluidosMes.ano &&
-          l.mesConclusao === detalheConcluidosMes.mesIdx
-      );
+      // Snapshot Contas a Receber: valor do mês vigente = total; lista completa.
+      const valorMes =
+        dados.tabelaPorMes.find(
+          (m) =>
+            m.ano === detalheConcluidosMes.ano &&
+            m.mesIdx === detalheConcluidosMes.mesIdx
+        )?.concluido ?? 0;
+      if (valorMes <= 0.005) lista = [];
     }
     return lista.sort((a, b) => b.numeroOs - a.numeroOs);
   }, [dados, detalheConcluidosMes]);
