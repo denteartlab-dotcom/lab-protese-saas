@@ -603,6 +603,31 @@ export function montarLinhasDetalhe(
     );
   }
 
+  /** Produção em aberto: serviço + produto + transporte (sem contar embutidos em dobro). */
+  const valorProducaoPorOs = new Map<number, number>();
+  const osVistas = new Set<number>();
+  for (const t of trabalhos) {
+    if (normalizarChaveStatusOs(t.status) === "cancelado") continue;
+    if (osVistas.has(t.numeroOs)) continue;
+    osVistas.add(t.numeroOs);
+
+    const segmentosOs = trabalhos.filter(
+      (seg) =>
+        seg.numeroOs === t.numeroOs &&
+        normalizarChaveStatusOs(seg.status) !== "cancelado"
+    );
+    const embutidoProduto = valorEmbutidoSegmentosOs(segmentosOs, "produto");
+    const embutidoTransporte = valorEmbutidoSegmentosOs(segmentosOs, "transporte");
+    const totalSegmentos = segmentosOs.reduce(
+      (soma, seg) => soma + valorTrabalhoSegmentoFinanceiro(seg),
+      0
+    );
+    valorProducaoPorOs.set(
+      t.numeroOs,
+      totalSegmentos + embutidoProduto + embutidoTransporte
+    );
+  }
+
   return trabalhos
     .filter(
       (t) =>
@@ -619,12 +644,12 @@ export function montarLinhasDetalhe(
       const concluido = servicoConcluidoFinanceiro(statusEfetivo);
       const conclusao = dataConclusaoTrabalho(t);
       const { etapaAtual, responsavel } = resolverEtapaResponsavel(t, mapaEtapas);
-      const valorProducao = valorServicoTrabalhoFinanceiro(t);
-      const valor = concluido
-        ? primeiroServicoIdPorOs.get(t.numeroOs) === t.id
+      const ehPrimeiroServico = primeiroServicoIdPorOs.get(t.numeroOs) === t.id;
+      const valor = !ehPrimeiroServico
+        ? 0
+        : concluido
           ? (valorNaoFaturadoPorOs.get(t.numeroOs) ?? 0)
-          : 0
-        : valorProducao;
+          : (valorProducaoPorOs.get(t.numeroOs) ?? 0);
       return {
         id: t.id,
         numeroOs: t.numeroOs,
