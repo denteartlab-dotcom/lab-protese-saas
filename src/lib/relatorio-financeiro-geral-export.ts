@@ -200,6 +200,7 @@ export function resumoExportacaoFinanceiroGeral(dados: RelatorioFinanceiroGeralP
   return [
     ["Valor Bruto Total (OS)", moeda(dados.resumo.valorBrutoTotal)],
     ["Quantidade Total", String(dados.resumo.quantidadeTotal)],
+    ["OS geradas no laboratório", String(dados.resumo.quantidadeOsGeradas)],
     ["Ticket Médio", moeda(dados.resumo.ticketMedio)],
     ["Valor Médio Mensal", moeda(dados.resumo.valorMedioMensal)],
     ["Não Concluídos (qtd)", String(dados.resumo.naoConcluidosQtd)],

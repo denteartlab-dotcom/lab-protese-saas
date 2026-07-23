@@ -137,7 +137,10 @@ export type RelatorioFinanceiroGeralPayload = {
   resumo: {
     /** Soma de tudo em produção no laboratório (exceto finalizados/entregues). */
     valorBrutoTotal: number;
+    /** Quantidade de OS ainda em produção no laboratório. */
     quantidadeTotal: number;
+    /** Quantidade de OS geradas (entrada) no período do filtro. */
+    quantidadeOsGeradas: number;
     ticketMedio: number;
     valorMedioMensal: number;
     naoConcluidosQtd: number;
@@ -707,7 +710,8 @@ export function calcularRelatorioFinanceiroGeral(
     parseBrDate(filtros.dataFim) ?? new Date(new Date().getFullYear(), 11, 31);
   fim.setHours(23, 59, 59, 999);
 
-  const todasLinhas = montarLinhasDetalhe(trabalhos, mapaEtapas, lancamentos).filter((linha) =>
+  const todasLinhasBase = montarLinhasDetalhe(trabalhos, mapaEtapas, lancamentos);
+  const todasLinhas = todasLinhasBase.filter((linha) =>
     linhaNoPeriodo(linha, inicio, fim)
   );
 
@@ -723,6 +727,18 @@ export function calcularRelatorioFinanceiroGeral(
   const quantidadeTotal = naoConcluidos.length;
   const ticketMedio = quantidadeTotal > 0 ? valorBrutoTotal / quantidadeTotal : 0;
   const baseStatus = naoConcluidosValor + concluidosValor;
+
+  /** OS geradas no laboratório: entrada no período do filtro (únicas por número). */
+  const quantidadeOsGeradas = new Set(
+    todasLinhasBase
+      .filter((l) => passaFiltros(l, filtros))
+      .filter((l) => {
+        const entrada = parseBrDate(l.dataEntrada);
+        if (!entrada) return false;
+        return entrada >= inicio && entrada <= fim;
+      })
+      .map((l) => l.numeroOs)
+  ).size;
 
   const mesesPeriodo = mesesNoPeriodo(inicio, fim);
   const ultimoMes = mesesPeriodo[mesesPeriodo.length - 1];
@@ -834,6 +850,7 @@ export function calcularRelatorioFinanceiroGeral(
     resumo: {
       valorBrutoTotal,
       quantidadeTotal,
+      quantidadeOsGeradas,
       ticketMedio,
       valorMedioMensal,
       naoConcluidosQtd: naoConcluidos.length,

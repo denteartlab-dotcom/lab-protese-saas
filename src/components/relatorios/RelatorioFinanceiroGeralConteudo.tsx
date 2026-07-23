@@ -468,7 +468,7 @@ export function RelatorioFinanceiroGeralConteudo() {
           </div>
         ) : (
           <div className="space-y-6">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7">
               <CardKpi
                 titulo={t("relatorio.financeiro.valorBrutoTotal")}
                 valor={formatarMoedaFinanceiroGeral(dados.resumo.valorBrutoTotal)}
@@ -478,6 +478,12 @@ export function RelatorioFinanceiroGeralConteudo() {
                 titulo={t("relatorio.financeiro.quantidadeTotal")}
                 valor={String(dados.resumo.quantidadeTotal)}
                 subtitulo={t("relatorio.financeiro.osNoLaboratorio")}
+                cor={COR.azul}
+              />
+              <CardKpi
+                titulo={t("relatorio.financeiro.quantidadeOsGeradas")}
+                valor={String(dados.resumo.quantidadeOsGeradas)}
+                subtitulo={t("relatorio.financeiro.osGeradasLaboratorio")}
                 cor={COR.azul}
               />
               <CardKpi
