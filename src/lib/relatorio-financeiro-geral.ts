@@ -134,7 +134,7 @@ export type MesProducaoBrutaFinanceiroGeral = {
 
 export type RelatorioFinanceiroGeralPayload = {
   resumo: {
-    /** Soma dos serviços ainda no laboratório (não finalizados). */
+    /** Soma de tudo em produção no laboratório (exceto finalizados/entregues). */
     valorBrutoTotal: number;
     quantidadeTotal: number;
     ticketMedio: number;
@@ -468,9 +468,11 @@ function linhaNoPeriodo(
     return conclusao >= inicio && conclusao <= fim;
   }
 
+  // Em produção no laboratório: inclui tudo ainda não finalizado que já havia entrado
+  // até o fim do período (não exige entrada dentro do intervalo).
   const entrada = parseBrDate(linha.dataEntrada);
   if (!entrada) return false;
-  return entrada >= inicio && entrada <= fim;
+  return entrada <= fim;
 }
 
 export function categorizarTipoServico(tipoProtese: string): CategoriaTipoServico {
@@ -673,7 +675,7 @@ export function calcularRelatorioFinanceiroGeral(
 
   const naoConcluidosValor = naoConcluidos.reduce((s, l) => s + l.valor, 0);
   const concluidosValor = concluidos.reduce((s, l) => s + l.valor, 0);
-  /** Valor bruto total = serviços ainda no laboratório (não finalizados). */
+  /** Valor bruto total = tudo em produção no lab (exceto finalizados/entregues). */
   const valorBrutoTotal = naoConcluidosValor;
   const quantidadeTotal = naoConcluidos.length;
   const ticketMedio = quantidadeTotal > 0 ? valorBrutoTotal / quantidadeTotal : 0;
@@ -687,6 +689,18 @@ export function calcularRelatorioFinanceiroGeral(
     const doMesNao = linhas.filter(
       (l) => !l.concluido && l.anoEntrada === ano && l.mesEntrada === mesIdx
     );
+    // OS em produção que entraram antes do período vão no primeiro mês exibido.
+    const doMesNaoAnteriores =
+      mesIdx === mesesPeriodo[0]?.mesIdx && ano === mesesPeriodo[0]?.ano
+        ? linhas.filter((l) => {
+            if (l.concluido) return false;
+            const antesDoPeriodo =
+              l.anoEntrada < inicio.getFullYear() ||
+              (l.anoEntrada === inicio.getFullYear() && l.mesEntrada < inicio.getMonth());
+            return antesDoPeriodo;
+          })
+        : [];
+    const naoDoMes = [...doMesNao, ...doMesNaoAnteriores];
     const doMesSim = linhas.filter(
       (l) =>
         l.concluido &&
@@ -694,10 +708,10 @@ export function calcularRelatorioFinanceiroGeral(
         l.anoConclusao === ano &&
         l.mesConclusao === mesIdx
     );
-    const valorNao = doMesNao.reduce((s, l) => s + l.valor, 0);
+    const valorNao = naoDoMes.reduce((s, l) => s + l.valor, 0);
     const valorSim = doMesSim.reduce((s, l) => s + l.valor, 0);
     const total = valorNao + valorSim;
-    const qtd = doMesNao.length + doMesSim.length;
+    const qtd = naoDoMes.length + doMesSim.length;
     return {
       mes: label,
       mesIdx,
@@ -710,24 +724,38 @@ export function calcularRelatorioFinanceiroGeral(
     };
   });
 
-  const tabelaProducaoBrutaMes: MesProducaoBrutaFinanceiroGeral[] = evolucaoMensal.map((m) => ({
-    mes: m.mes,
-    mesIdx: m.mesIdx,
-    ano: m.ano,
-    naoFinalizados: m.naoConcluido,
-    finalizadosNaoFaturados: m.concluido,
-    valorBruto: m.total,
-    quantidadeNaoFinalizados: linhas.filter(
+  const tabelaProducaoBrutaMes: MesProducaoBrutaFinanceiroGeral[] = evolucaoMensal.map((m, idx) => {
+    const doMesNao = linhas.filter(
       (l) => !l.concluido && l.anoEntrada === m.ano && l.mesEntrada === m.mesIdx
-    ).length,
-    quantidadeFinalizados: linhas.filter(
-      (l) =>
-        l.concluido &&
-        l.valor > 0.005 &&
-        l.anoConclusao === m.ano &&
-        l.mesConclusao === m.mesIdx
-    ).length,
-  }));
+    );
+    const doMesNaoAnteriores =
+      idx === 0
+        ? linhas.filter((l) => {
+            if (l.concluido) return false;
+            const antesDoPeriodo =
+              l.anoEntrada < inicio.getFullYear() ||
+              (l.anoEntrada === inicio.getFullYear() && l.mesEntrada < inicio.getMonth());
+            return antesDoPeriodo;
+          })
+        : [];
+    const quantidadeNaoFinalizados = doMesNao.length + doMesNaoAnteriores.length;
+    return {
+      mes: m.mes,
+      mesIdx: m.mesIdx,
+      ano: m.ano,
+      naoFinalizados: m.naoConcluido,
+      finalizadosNaoFaturados: m.concluido,
+      valorBruto: m.total,
+      quantidadeNaoFinalizados,
+      quantidadeFinalizados: linhas.filter(
+        (l) =>
+          l.concluido &&
+          l.valor > 0.005 &&
+          l.anoConclusao === m.ano &&
+          l.mesConclusao === m.mesIdx
+      ).length,
+    };
+  });
 
   const mapaTipo = new Map<CategoriaTipoServico, { quantidade: number; valor: number }>();
   for (const cat of CATEGORIAS_TIPO_SERVICO) {

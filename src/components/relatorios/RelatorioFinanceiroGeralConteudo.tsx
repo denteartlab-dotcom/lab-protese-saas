@@ -477,7 +477,7 @@ export function RelatorioFinanceiroGeralConteudo() {
               <CardKpi
                 titulo={t("relatorio.financeiro.quantidadeTotal")}
                 valor={String(dados.resumo.quantidadeTotal)}
-                subtitulo={t("relatorio.financeiro.osNoPeriodo")}
+                subtitulo={t("relatorio.financeiro.osNoLaboratorio")}
                 cor={COR.azul}
               />
               <CardKpi

@@ -278,6 +278,7 @@ export const messagesModulosPt = {
   "relatorio.financeiro.concluidos": "Concluídos",
   "relatorio.financeiro.naoConcluidos": "Não Concluídos",
   "relatorio.financeiro.osNoPeriodo": "OS no período",
+  "relatorio.financeiro.osNoLaboratorio": "OS em produção no laboratório",
   "relatorio.financeiro.ticketMedio": "Ticket Médio",
   "relatorio.financeiro.valorMedioMensal": "Valor Médio Mensal",
   "relatorio.financeiro.servicosConcluidos": "Serviços Concluídos",
