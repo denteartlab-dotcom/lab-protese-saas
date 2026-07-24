@@ -65,9 +65,11 @@ import {
 } from "@/lib/tabela-precos-lista-export";
 import {
   notificarTabelasPrecoAtualizadas,
+  propagarMudancasTabelaPrecosParaOsCliente,
   sincronizarTabelaPrecosServidor,
   TABELA_PRECOS_STORAGE_KEY,
   TABELA_PRECOS_VAZIA,
+  type MudancaItemTabelaPrecosCliente,
 } from "@/lib/tabela-precos-os";
 import { configValueFromObservacoes } from "@/lib/cliente-financeiro";
 import { definirTabelaPrecoClienteObservacoes } from "@/lib/cliente-observacoes";
@@ -368,6 +370,22 @@ export default function TabelaPrecosPage() {
       ...atuais,
       [tabela]: updater(atuais[tabela] || []),
     }));
+  }
+
+  /** Propaga nome/valor para OS já cadastradas que usam o item. */
+  function propagarItensParaOs(mudancas: MudancaItemTabelaPrecosCliente[]) {
+    const relevantes = mudancas.filter((m) => {
+      const nomeMudou = m.nomeAnterior.trim() !== m.nomeNovo.trim();
+      return nomeMudou || Number.isFinite(m.valorNovo);
+    });
+    if (relevantes.length === 0) return;
+    void propagarMudancasTabelaPrecosParaOsCliente(relevantes).then((resultado) => {
+      if (!resultado || resultado.trabalhosAtualizados <= 0) return;
+      // feedback discreto — evita alert a cada edição em lote
+      console.info(
+        `[tabela-precos] ${resultado.trabalhosAtualizados} OS atualizada(s) a partir da tabela`
+      );
+    });
   }
 
   const totalServicos = useMemo(
@@ -835,6 +853,22 @@ export default function TabelaPrecosPage() {
     const valor = parseMoney(formTransporte.valor);
     const { categoriaId, itemId } = modalTransporte;
 
+    if (itemId) {
+      const anterior = categorias
+        .find((cat) => cat.id === categoriaId)
+        ?.servicos.find((item) => item.id === itemId);
+      if (anterior) {
+        propagarItensParaOs([
+          {
+            tipo: "transporte",
+            nomeAnterior: anterior.nome,
+            nomeNovo: formTransporte.nome.trim(),
+            valorNovo: valor,
+          },
+        ]);
+      }
+    }
+
     atualizarCategorias((atuais) =>
       atuais.map((categoria) => {
         if (categoria.id !== categoriaId) return categoria;
@@ -923,6 +957,18 @@ export default function TabelaPrecosPage() {
   function cadastrarServico() {
     if (!categoriaServico || !formServico.nome.trim()) return;
     const valor = parseMoney(formServico.valor);
+    if (servicoEditando) {
+      const tipo = normalizarServico(servicoEditando).tipo || tipoItemCadastro;
+      propagarItensParaOs([
+        {
+          tipo,
+          nomeAnterior: servicoEditando.nome,
+          nomeNovo: formServico.nome.trim(),
+          valorNovo: valor,
+          produtoId: servicoEditando.produtoId,
+        },
+      ]);
+    }
     atualizarCategorias((atuais) =>
       atuais.map((categoria) =>
         categoria.id === categoriaServico.id
@@ -1279,6 +1325,29 @@ export default function TabelaPrecosPage() {
 
   function salvarEdicaoRapida() {
     if (!categoriaEdicaoRapida) return;
+    const categoriaAtual = categorias.find((cat) => cat.id === categoriaEdicaoRapida);
+    if (categoriaAtual) {
+      const mudancas: MudancaItemTabelaPrecosCliente[] = [];
+      for (const servico of categoriaAtual.servicos) {
+        const editado = servicosEdicaoRapida.find((item) => item.id === servico.id);
+        if (!editado) continue;
+        const valorNovo = parseMoney(editado.valor);
+        if (
+          servico.nome.trim() === editado.nome.trim() &&
+          Math.abs(Number(servico.valor) - valorNovo) <= 0.009
+        ) {
+          continue;
+        }
+        mudancas.push({
+          tipo: normalizarServico(servico).tipo,
+          nomeAnterior: servico.nome,
+          nomeNovo: editado.nome.trim() || servico.nome,
+          valorNovo,
+          produtoId: servico.produtoId,
+        });
+      }
+      propagarItensParaOs(mudancas);
+    }
     atualizarCategorias((atuais) =>
       atuais.map((categoria) =>
         categoria.id === categoriaEdicaoRapida
@@ -1425,6 +1494,22 @@ export default function TabelaPrecosPage() {
         valoresPorServico.set(servico.id, servico.valor);
       }
     }
+    const mudancas: MudancaItemTabelaPrecosCliente[] = [];
+    for (const categoria of categorias) {
+      for (const servico of categoria.servicos) {
+        if (!valoresPorServico.has(servico.id)) continue;
+        const valorNovo = valoresPorServico.get(servico.id)!;
+        if (Math.abs(Number(servico.valor) - valorNovo) <= 0.009) continue;
+        mudancas.push({
+          tipo: normalizarServico(servico).tipo,
+          nomeAnterior: servico.nome,
+          nomeNovo: servico.nome,
+          valorNovo,
+          produtoId: servico.produtoId,
+        });
+      }
+    }
+    propagarItensParaOs(mudancas);
     atualizarCategorias((atuais) =>
       atuais.map((categoria) => ({
         ...categoria,

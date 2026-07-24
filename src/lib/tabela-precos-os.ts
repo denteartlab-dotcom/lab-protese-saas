@@ -962,3 +962,48 @@ export function notificarTabelasPrecoAtualizadas() {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new Event(TABELA_PRECOS_EVENT));
 }
+
+export type MudancaItemTabelaPrecosCliente = {
+  tipo: TipoItemTabelaPrecoOs;
+  nomeAnterior: string;
+  nomeNovo: string;
+  valorNovo: number;
+  produtoId?: string | null;
+};
+
+/**
+ * Após editar nome/valor na tabela de preços, atualiza OS já cadastradas
+ * que usam o mesmo serviço/produto/transporte.
+ */
+export async function propagarMudancasTabelaPrecosParaOsCliente(
+  mudancas: MudancaItemTabelaPrecosCliente[]
+): Promise<{ trabalhosAtualizados: number; linhasAtualizadas: number } | null> {
+  if (typeof window === "undefined") return null;
+  const validas = mudancas.filter(
+    (m) =>
+      m.nomeAnterior.trim() &&
+      m.nomeNovo.trim() &&
+      Number.isFinite(m.valorNovo) &&
+      (m.nomeAnterior.trim() !== m.nomeNovo.trim() || Number.isFinite(m.valorNovo))
+  );
+  if (validas.length === 0) return null;
+
+  try {
+    const res = await fetch("/api/tabela-precos/propagar-os", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mudancas: validas }),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      trabalhosAtualizados?: number;
+      linhasAtualizadas?: number;
+    };
+    return {
+      trabalhosAtualizados: Number(data.trabalhosAtualizados) || 0,
+      linhasAtualizadas: Number(data.linhasAtualizadas) || 0,
+    };
+  } catch {
+    return null;
+  }
+}
