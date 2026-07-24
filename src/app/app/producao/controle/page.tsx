@@ -3352,7 +3352,14 @@ export default function ControlePage() {
 
         <div className="grid min-w-0 grid-cols-1 items-start gap-2 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)]">
           <div className="min-w-0">
-          <Select label={t("producao.controle.filtro.situacao")} value={status} onChange={(e) => setStatus(e.target.value)}>
+          <Select
+            label={t("producao.controle.filtro.situacao")}
+            value={status}
+            onChange={(e) => {
+              setStatus(e.target.value);
+              listagem.setPagina(1);
+            }}
+          >
             <option value="todos">{t("common.todos")}</option>
             {Object.keys(STATUS_TRABALHO).map((key) => (
                 <option key={key} value={key}>
@@ -3366,8 +3373,12 @@ export default function ControlePage() {
               onProdutosChange={(valor) => {
                 setFiltroProdutos(valor);
                 listagem.atualizarExtraRascunho("mostrarProdutosTransportes", valor);
+                listagem.setPagina(1);
               }}
-              onFichasSemServicosChange={setFiltroFichasSemServicos}
+              onFichasSemServicosChange={(valor) => {
+                setFiltroFichasSemServicos(valor);
+                listagem.setPagina(1);
+              }}
               configLista={
                 <ConfiguracaoListaGear
                   variante="controle"
@@ -3415,7 +3426,10 @@ export default function ControlePage() {
             <CampoDataBr
               label={t("producao.controle.filtro.dataLancamento")}
               value={dataEntrada}
-              onChange={setDataEntrada}
+              onChange={(valor) => {
+                setDataEntrada(valor);
+                listagem.setPagina(1);
+              }}
               placeholder="dd/mm/aaaa"
             />
           </div>
@@ -3423,7 +3437,10 @@ export default function ControlePage() {
             <SelectPesquisavel
               label={t("producao.controle.filtro.cliente")}
               value={cliente}
-              onChange={setCliente}
+              onChange={(valor) => {
+                setCliente(valor);
+                listagem.setPagina(1);
+              }}
               placeholder={t("common.todos")}
               permitirLimpar
               options={clientes.map((nome) => ({ value: nome, label: nome }))}
@@ -3441,7 +3458,10 @@ export default function ControlePage() {
                 <Input
                   id="controle-producao-busca"
                   value={busca}
-                  onChange={(e) => setBusca(e.target.value)}
+                  onChange={(e) => {
+                    setBusca(e.target.value);
+                    listagem.setPagina(1);
+                  }}
                   placeholder={t("producao.controle.filtro.buscarPlaceholder")}
                   className="min-w-0"
                 />

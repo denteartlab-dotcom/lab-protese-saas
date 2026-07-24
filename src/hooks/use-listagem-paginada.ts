@@ -64,6 +64,9 @@ export function useListagemPaginada<T, C extends string>({
   const totalPaginas = Math.max(1, Math.ceil(itensProcessados.length / config.porPagina));
   const paginaAtual = Math.min(pagina, totalPaginas);
 
+  // Só volta à página 1 quando a configuração da lista muda.
+  // Não resetar por itens.length: após editar/gravar uma OS o reload
+  // pode alterar a quantidade e o usuário deve permanecer na página atual.
   useEffect(() => {
     setPagina(1);
   }, [
@@ -71,7 +74,6 @@ export function useListagemPaginada<T, C extends string>({
     config.ordenarPor,
     config.direcao,
     JSON.stringify(config.extras),
-    itens.length,
   ]);
 
   useEffect(() => {
