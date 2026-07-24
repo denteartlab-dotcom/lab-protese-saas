@@ -68,6 +68,7 @@ import {
   nomeRepresentanteColaboradorCliente,
 } from "@/lib/cliente-representante";
 import { brShortToIso, parseBrDate } from "@/lib/datas-br";
+import { dataEntradaParaApi } from "@/lib/os-data-criacao";
 import { propsInputComSelecaoAoFocar } from "@/lib/input-selecao";
 import { calcularDatasPrazoServico } from "@/lib/prazos-servico";
 import {
@@ -3101,7 +3102,7 @@ export default function ControlePage() {
                 grupoOsId: dadosPost.grupoOsId,
                 segmentoFaturamento: bloco.segmento,
                 tipoProtese,
-                dataEntrada: new Date(dadosPost.dataEntrada).toISOString().slice(0, 10),
+                dataEntrada: dataEntradaParaApi(dadosPost.dataEntrada),
                 dentes: dentesItem || undefined,
                 escala: escalaOsParaSalvarControle(bloco.itens) || undefined,
                 valor: valorItensControle(bloco.itens),

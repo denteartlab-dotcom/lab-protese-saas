@@ -18,6 +18,7 @@ import { notificarTvOrdensEmpresa } from "@/lib/tv/notificar-tv-ordens";
 import {
   sincronizarTempoProducaoPorMudancaStatus,
 } from "@/lib/tempo-producao-status-servidor";
+import { garantirDatasEntradaEmpresaAlinhadas } from "@/lib/os-data-criacao";
 import { z } from "zod";
 
 const schema = z.object({
@@ -57,6 +58,12 @@ export async function GET(request: Request) {
     acaoHttpParaPermissao(request.method)
   );
   if (negado) return negado;
+
+  try {
+    await garantirDatasEntradaEmpresaAlinhadas(prisma, ctx.empresaId);
+  } catch (err) {
+    console.warn("[trabalhos/GET] alinhar datasEntrada", err);
+  }
 
   const { searchParams } = new URL(request.url);
   const q = (searchParams.get("q") || "").trim();

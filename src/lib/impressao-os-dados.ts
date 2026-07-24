@@ -3,6 +3,11 @@ import { idiomaFromConfig, translate } from "@/lib/i18n";
 import { labelStatusTrabalho } from "@/lib/i18n/status-trabalho-i18n";
 import { prisma, runWithTenantContext } from "@/lib/db";
 import {
+  alinharDataEntradaGrupoOs,
+  dataCriacaoOriginalOs,
+  garantirDatasEntradaEmpresaAlinhadas,
+} from "@/lib/os-data-criacao";
+import {
   segmentoEfetivoTrabalho,
   whereGrupoOs,
   type SegmentoFaturamento,
@@ -71,6 +76,7 @@ const selectTrabalhoImpressao = {
   status: true,
   instrucoes: true,
   updatedAt: true,
+  createdAt: true,
   cliente: {
     select: {
       nome: true,
@@ -92,7 +98,8 @@ function empty(value?: string | null) {
 
 function dateOrEmpty(value?: string | Date | null) {
   if (!value) return "";
-  return formatDate(value instanceof Date ? value.toISOString() : value);
+  // Não usar toISOString() — desloca o dia em fusos como America/Sao_Paulo.
+  return formatDate(value);
 }
 
 function linesFrom(instrucoes?: string | null) {
@@ -228,6 +235,12 @@ async function carregarDadosImpressaoOsInterno({
   const opcoes = resolverOpcoesImpressaoOs(sp);
   const { somenteItem, segmentoParam } = opcoes;
 
+  try {
+    await garantirDatasEntradaEmpresaAlinhadas(prisma, empresaId);
+  } catch (err) {
+    console.warn("[impressao-os] alinhar datas da empresa", err);
+  }
+
   let t: Awaited<
     ReturnType<typeof prisma.trabalho.findFirst<{ select: typeof selectTrabalhoImpressao }>>
   > = null;
@@ -277,6 +290,14 @@ async function carregarDadosImpressaoOsInterno({
       : valorMonetarioSeguro(t.valor);
   const trabalhoServico =
     grupo.find((row) => (row.segmentoFaturamento || "servico") === "servico") || t;
+
+  // Cabeçalho "Data:" = criação original; alinha segmentos desalinhados (todas as OS).
+  let dataEntradaOriginal = dataCriacaoOriginalOs(grupo, t);
+  try {
+    dataEntradaOriginal = await alinharDataEntradaGrupoOs(prisma, grupo);
+  } catch (err) {
+    console.warn("[impressao-os] alinhar dataEntrada do grupo", err);
+  }
 
   const segmentoSomenteItem: SegmentoFaturamento | null = somenteItem
     ? segmentoParam === "servico" ||
@@ -385,7 +406,7 @@ async function carregarDadosImpressaoOsInterno({
   const dados = sanitizarDadosPdfOs({
     numeroOs: t.numeroOs,
     usuarioCriou,
-    dataEntrada: dateOrEmpty(t.dataEntrada),
+    dataEntrada: dateOrEmpty(dataEntradaOriginal),
     status: labelStatusTrabalho(tStatus, t.status),
     cliente: nomeCliente,
     dentista: empty(dentistaNome) || empty(cliente.cro),

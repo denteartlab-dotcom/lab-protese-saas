@@ -20,6 +20,7 @@ import {
 import { excluirFaturaCobrancaOsServidor } from "@/lib/fatura-exclusao-servidor";
 import { sincronizarContasReceberAposAlteracaoTrabalho } from "@/lib/os-faturamento-sync-servidor";
 import { grupoOsIdOf, segmentoEfetivoTrabalho, whereGrupoOs } from "@/lib/trabalho-os-segmento";
+import { alinharDataEntradaGrupoOs } from "@/lib/os-data-criacao";
 import { STATUS_TRABALHO } from "@/lib/utils";
 import {
   flagsUrgenciaTrabalho,
@@ -94,13 +95,33 @@ export async function GET(
   const grupo = await prisma.trabalho.findMany({
     where: {
       empresaId: ctx.empresaId,
-      grupoOsId: grupoOsIdOf(trabalho),
+      ...whereGrupoOs(trabalho),
     },
     include: { cliente: true, paciente: true },
     orderBy: { segmentoFaturamento: "asc" },
   });
 
-  return NextResponse.json({ ...trabalho, grupo });
+  // Data de criação da OS não muda na edição — alinha segmentos do grupo.
+  try {
+    await alinharDataEntradaGrupoOs(prisma, grupo);
+  } catch (err) {
+    console.warn("[trabalhos/GET] alinhar dataEntrada", err);
+  }
+
+  const grupoAlinhado = await prisma.trabalho.findMany({
+    where: {
+      empresaId: ctx.empresaId,
+      ...whereGrupoOs(trabalho),
+    },
+    include: { cliente: true, paciente: true },
+    orderBy: { segmentoFaturamento: "asc" },
+  });
+  const principal =
+    grupoAlinhado.find((row) => row.id === trabalho.id) ||
+    grupoAlinhado[0] ||
+    trabalho;
+
+  return NextResponse.json({ ...principal, grupo: grupoAlinhado });
 }
 
 export async function PUT(

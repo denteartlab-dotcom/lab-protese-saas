@@ -13,7 +13,8 @@ import {
 import { Button, CampoDataBr, CampoHoraBr, Input, Modal, Select, SelectPesquisavel, Textarea } from "@/components/ui";
 import { EscalaCorCamposOs } from "@/components/producao/EscalaCorCamposOs";
 import { notificarUploadsAtualizados } from "@/lib/uploads-armazenamento";
-import { formatDateBr, parseBrDate } from "@/lib/datas-br";
+import { formatDateBr, parseBrDate, dateToBrShort } from "@/lib/datas-br";
+import { dataEntradaParaApi } from "@/lib/os-data-criacao";
 import { propsInputComSelecaoAoFocar } from "@/lib/input-selecao";
 import { usePageReady } from "@/hooks/use-page-ready";
 import { useArmazenamentoGaleria } from "@/hooks/use-armazenamento-galeria";
@@ -1030,9 +1031,13 @@ export default function OrdemServicoPage() {
         valor: "R$ 0,00",
         descontoTipo: "percentual",
         desconto: "0,00",
-        dataLancamento: new Date(trabalho.dataEntrada).toLocaleDateString("pt-BR"),
-        dataLaboratorio: trabalho.dataPrevista ? new Date(trabalho.dataPrevista).toLocaleDateString("pt-BR") : "",
-        dataDentista: trabalho.dataPrevista ? new Date(trabalho.dataPrevista).toLocaleDateString("pt-BR") : "",
+        dataLancamento: dateToBrShort(new Date(trabalho.dataEntrada)),
+        dataLaboratorio: trabalho.dataPrevista
+          ? dateToBrShort(new Date(trabalho.dataPrevista))
+          : "",
+        dataDentista: trabalho.dataPrevista
+          ? dateToBrShort(new Date(trabalho.dataPrevista))
+          : "",
         escala: normalizarEscalaOs(categoriasTabelaCompleta, trabalho.escala),
         cor: trabalho.cor || "",
         materialEnviado: trabalho.material || "",
@@ -3341,7 +3346,7 @@ export default function OrdemServicoPage() {
                   grupoOsId: meta.grupoOsId,
                   segmentoFaturamento: bloco.segmento,
                   tipoProtese,
-                  dataEntrada: new Date(meta.dataEntrada).toISOString().slice(0, 10),
+                  dataEntrada: dataEntradaParaApi(meta.dataEntrada),
                   dentes: dentesItem || undefined,
                   escala: escalaOsParaSalvar(bloco.itens) || undefined,
                   valor: valorItens(bloco.itens),
@@ -3718,7 +3723,15 @@ export default function OrdemServicoPage() {
         </div>
 
         <section className="grid gap-3 p-4 md:grid-cols-5">
-          {dateField(t("producao.os.campo.dataLancamento"), "dataLancamento")}
+          {editId ? (
+            <Input
+              label={t("producao.os.campo.dataLancamento")}
+              value={form.dataLancamento}
+              readOnly
+            />
+          ) : (
+            dateField(t("producao.os.campo.dataLancamento"), "dataLancamento")
+          )}
           <Input label={t("producao.os.campo.numeroOs")} value={form.numeroOs || t("producao.os.campo.gerando")} readOnly />
           <Input label={t("producao.os.campo.caixa")} value={form.caixa} onChange={(e) => setForm({ ...form, caixa: e.target.value })} />
           <Input label={t("producao.os.campo.casoClinico")} value={form.casoUrgente} onChange={(e) => setForm({ ...form, casoUrgente: e.target.value })} />
