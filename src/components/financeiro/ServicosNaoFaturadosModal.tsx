@@ -1,13 +1,14 @@
 "use client";
 
 import { I18nPortal } from "@/components/I18nPortal";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FileText, Printer, X } from "lucide-react";
 import {
   labelSituacaoOsReceita,
   SituacaoOsBadgeReceita,
   type TrabalhoSituacaoBadge,
 } from "@/components/financeiro/SituacaoOsBadgeReceita";
+import { PaginacaoLista } from "@/components/listagem/PaginacaoLista";
 import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
 import { gerarRelatorioTabelaPdf } from "@/lib/pdf-relatorio-tabela";
 import { expandirTrabalhosNaoFaturadosLinhas } from "@/lib/trabalho-os-segmento";
@@ -27,6 +28,8 @@ type Props = {
   trabalhos: TrabalhoNaoFaturado[];
   valorTrabalho: (trabalho: TrabalhoNaoFaturado) => number;
 };
+
+const LINHAS_POR_PAGINA = 15;
 
 function money(value: number) {
   return value.toLocaleString("pt-BR", {
@@ -50,6 +53,7 @@ export function ServicosNaoFaturadosModal({
   valorTrabalho,
 }: Props) {
   const [busca, setBusca] = useState("");
+  const [pagina, setPagina] = useState(1);
 
   const linhas = useMemo(
     () => expandirTrabalhosNaoFaturadosLinhas(trabalhos),
@@ -75,6 +79,18 @@ export function ServicosNaoFaturadosModal({
         .some((value) => String(value).toLowerCase().includes(termo));
     });
   }, [linhas, busca]);
+
+  const totalPaginas = Math.max(1, Math.ceil(filtrados.length / LINHAS_POR_PAGINA));
+  const paginaAtual = Math.min(pagina, totalPaginas);
+
+  const linhasPagina = useMemo(() => {
+    const inicio = (paginaAtual - 1) * LINHAS_POR_PAGINA;
+    return filtrados.slice(inicio, inicio + LINHAS_POR_PAGINA);
+  }, [filtrados, paginaAtual]);
+
+  useEffect(() => {
+    setPagina(1);
+  }, [busca, trabalhos]);
 
   async function abrirPdfVisualizador(janelaReservada: Window | null) {
     try {
@@ -123,12 +139,16 @@ export function ServicosNaoFaturadosModal({
 
   if (!open) return null;
 
+  const inicioExibido =
+    filtrados.length === 0 ? 0 : (paginaAtual - 1) * LINHAS_POR_PAGINA + 1;
+  const fimExibido = Math.min(paginaAtual * LINHAS_POR_PAGINA, filtrados.length);
+
   return (
     <I18nPortal>
       <div className="fixed inset-0 z-[70] flex items-start justify-center bg-black/45 p-4 pt-10">
       <div className="absolute inset-0" onClick={onClose} aria-hidden />
       <div
-        className="relative flex max-h-[88vh] w-full max-w-[1120px] flex-col overflow-hidden rounded-sm border border-[#e5e7eb] bg-white shadow-2xl"
+        className="relative flex h-[88vh] max-h-[88vh] w-full max-w-[1120px] flex-col overflow-hidden rounded-sm border border-[#e5e7eb] bg-white shadow-2xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-nao-faturados-titulo"
@@ -189,7 +209,7 @@ export function ServicosNaoFaturadosModal({
 
         <div className="min-h-0 flex-1 overflow-auto px-5 py-4">
           <table className="w-full min-w-[900px] border-collapse text-[12px]">
-            <thead>
+            <thead className="sticky top-0 z-[1]">
               <tr className="bg-[#f3f4f6] text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]">
                 <th className="border-b border-[#e5e7eb] px-3 py-2.5 text-left">OS</th>
                 <th className="border-b border-[#e5e7eb] px-3 py-2.5 text-left">Cliente</th>
@@ -213,7 +233,7 @@ export function ServicosNaoFaturadosModal({
                   </td>
                 </tr>
               ) : (
-                filtrados.map((linha) => (
+                linhasPagina.map((linha) => (
                   <tr
                     key={linha.id}
                     className="border-b border-[#f3f4f6] hover:bg-[#fafafa]"
@@ -242,6 +262,20 @@ export function ServicosNaoFaturadosModal({
               )}
             </tbody>
           </table>
+        </div>
+
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-[#e5e7eb] bg-[#fafafa] px-3 py-1">
+          <p className="px-2 text-[12px] text-[#6b7280]">
+            {filtrados.length === 0
+              ? "0 registros"
+              : `${inicioExibido}–${fimExibido} de ${filtrados.length} registro${filtrados.length === 1 ? "" : "s"}`}
+          </p>
+          <PaginacaoLista
+            pagina={paginaAtual}
+            totalPaginas={totalPaginas}
+            onPagina={setPagina}
+            className="border-t-0 py-2"
+          />
         </div>
       </div>
     </div>
