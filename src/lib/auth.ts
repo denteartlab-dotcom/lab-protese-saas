@@ -104,14 +104,25 @@ export async function anexarCookieSessao(
 
 export async function destroySession(request?: Request) {
   const cookieStore = await cookies();
-  cookieStore.set(COOKIE_NAME, "", opcoesCookieSessao(0, request));
+  const base = opcoesCookieSessao(0, request);
+  // Limpa host-only e Domain=.denteartlab.com.br (legado apex/www).
+  cookieStore.set(COOKIE_NAME, "", { ...base, domain: undefined });
+  cookieStore.set(COOKIE_NAME, "", base);
 }
 
 export async function anexarLimpezaCookieSessao(
   response: NextResponse,
   request?: Request
 ) {
-  response.cookies.set(COOKIE_NAME, "", opcoesCookieSessao(0, request));
+  const base = opcoesCookieSessao(0, request);
+  response.cookies.set(COOKIE_NAME, "", {
+    httpOnly: true,
+    secure: base.secure,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+  });
+  response.cookies.set(COOKIE_NAME, "", base);
   return response;
 }
 

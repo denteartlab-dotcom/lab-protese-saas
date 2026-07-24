@@ -17,8 +17,8 @@ export const metadata: Metadata = {
 export default async function HomePage() {
   const session = await getSession();
   if (session?.empresaId) {
+    // obterDestinoPosLogin já degrada para "/login" se DB/RLS falhar (não 500).
     const destino = await obterDestinoPosLogin(session.empresaId);
-    // Sessão inválida/expirada → mostra landing (não força /login).
     if (destino !== "/login") {
       redirect(destino);
     }

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { Suspense } from "react";
 import { I18nProvider } from "@/components/i18n-provider";
 import { getSession } from "@/lib/auth";
@@ -25,17 +26,23 @@ export default async function LoginPage({ searchParams }: Props) {
   const params = await searchParams;
 
   if (session?.empresaId) {
-    const contexto = await obterEmpresaContexto({ persistirCookie: false });
-    if (contexto) {
-      const padrao = await obterDestinoPosLogin(session.empresaId);
-      let destino = padrao;
-      if (padrao.startsWith("/app") && params.redirect?.startsWith("/app")) {
-        destino = params.redirect;
+    try {
+      const contexto = await obterEmpresaContexto({ persistirCookie: false });
+      if (contexto) {
+        const padrao = await obterDestinoPosLogin(session.empresaId);
+        let destino = padrao;
+        if (padrao.startsWith("/app") && params.redirect?.startsWith("/app")) {
+          destino = params.redirect;
+        }
+        // "/login" aqui significa sem acesso — deixa o formulário aparecer (sem loop).
+        if (destino !== "/login") {
+          redirect(destino);
+        }
       }
-      // "/login" aqui significa sem acesso — deixa o formulário aparecer (sem loop).
-      if (destino !== "/login") {
-        redirect(destino);
-      }
+    } catch (erro) {
+      if (isRedirectError(erro)) throw erro;
+      console.error("[LoginPage] destino pós-login", erro);
+      // Não derruba o login; formulário aparece sem redirecionar.
     }
     // Sem contexto (ex.: assinatura vencida/RLS): mostra o formulário.
     // NUNCA redirecionar para /app nem fazer logout aqui — isso criava loop infinito.

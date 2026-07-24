@@ -61,18 +61,27 @@ export async function carregarBrandingLoginServidor(params: {
     };
   }
 
-  const laboratorio = await carregarBrandingLaboratorioPorSlug(slug);
-  if (!laboratorio) {
+  try {
+    const laboratorio = await carregarBrandingLaboratorioPorSlug(slug);
+    if (!laboratorio) {
+      return {
+        brandingInicial: brandingPublicoParaLoginForm(plataforma),
+        brandingLaboratorio: null,
+        jaEntrou,
+      };
+    }
+
+    return {
+      brandingInicial: brandingPublicoParaLoginForm(laboratorio),
+      brandingLaboratorio: laboratorio,
+      jaEntrou,
+    };
+  } catch (erro) {
+    console.error("[carregarBrandingLoginServidor]", erro);
     return {
       brandingInicial: brandingPublicoParaLoginForm(plataforma),
       brandingLaboratorio: null,
       jaEntrou,
     };
   }
-
-  return {
-    brandingInicial: brandingPublicoParaLoginForm(laboratorio),
-    brandingLaboratorio: laboratorio,
-    jaEntrou,
-  };
 }
