@@ -381,9 +381,8 @@ export default function TabelaPrecosPage() {
     if (relevantes.length === 0) return;
     void propagarMudancasTabelaPrecosParaOsCliente(relevantes).then((resultado) => {
       if (!resultado || resultado.trabalhosAtualizados <= 0) return;
-      // feedback discreto — evita alert a cada edição em lote
       console.info(
-        `[tabela-precos] ${resultado.trabalhosAtualizados} OS atualizada(s) a partir da tabela`
+        `[tabela-precos] ${resultado.trabalhosAtualizados} OS não faturada(s) atualizada(s)`
       );
     });
   }

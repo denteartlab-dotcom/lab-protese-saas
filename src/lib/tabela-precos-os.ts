@@ -972,7 +972,7 @@ export type MudancaItemTabelaPrecosCliente = {
 };
 
 /**
- * Após editar nome/valor na tabela de preços, atualiza OS já cadastradas
+ * Após editar nome/valor na tabela de preços, atualiza OS ainda não faturadas
  * que usam o mesmo serviço/produto/transporte.
  */
 export async function propagarMudancasTabelaPrecosParaOsCliente(

@@ -1,5 +1,9 @@
 import { prisma } from "@/lib/db";
-import { sincronizarContasReceberAposAlteracaoTrabalho } from "@/lib/os-faturamento-sync-servidor";
+import {
+  lancamentoFaturaOsAtivo,
+  trabalhoEstaFaturado,
+  type LancamentoFaturaOs,
+} from "@/lib/os-faturamento";
 import {
   nomeExibicaoItemOs,
   valorLiquidoDeLinhaItemAdicionado,
@@ -166,12 +170,23 @@ function montarFiltroBusca(empresaId: string, mudanca: MudancaItemTabelaPrecos) 
   return { empresaId, OR: or };
 }
 
+async function carregarCobrancasAtivas(empresaId: string): Promise<LancamentoFaturaOs[]> {
+  const lancamentos = await prisma.lancamento.findMany({
+    where: { empresaId, tipo: "receita" },
+    select: {
+      id: true,
+      status: true,
+      descricao: true,
+      tipo: true,
+      trabalho: { select: { id: true, numeroOs: true } },
+    },
+  });
+  return lancamentos.filter((l) => lancamentoFaturaOsAtivo(l));
+}
+
 async function aplicarMudancaEmTrabalho(
-  empresaId: string,
   trabalho: {
     id: string;
-    numeroOs: number;
-    clienteId: string;
     tipoProtese: string;
     valor: number;
     instrucoes: string | null;
@@ -209,25 +224,13 @@ async function aplicarMudancaEmTrabalho(
     }
 
     try {
-      const atualizado = await prisma.trabalho.update({
+      await prisma.trabalho.update({
         where: { id: trabalho.id },
         data: {
           ...(tipoProteseNovo ? { tipoProtese: tipoProteseNovo } : {}),
           valor: valorNovo,
         },
       });
-      try {
-        await sincronizarContasReceberAposAlteracaoTrabalho(empresaId, {
-          id: atualizado.id,
-          numeroOs: atualizado.numeroOs,
-          clienteId: atualizado.clienteId,
-          instrucoes: atualizado.instrucoes,
-          valor: atualizado.valor,
-          tipoProtese: atualizado.tipoProtese,
-        });
-      } catch (err) {
-        console.warn("[tabela-precos-propagar-os] sync faturamento", err);
-      }
       return true;
     } catch (err) {
       console.warn(
@@ -240,7 +243,6 @@ async function aplicarMudancaEmTrabalho(
   }
 
   if (!instrucoesMudou && !tipoMudou) {
-    // Valor unitário igual ao já gravado (após × qtd / desconto) — nada a fazer.
     const totalLinhas = totalLiquidoInstrucoes(instrucoesNovas);
     if (
       Number.isFinite(totalLinhas) &&
@@ -256,7 +258,7 @@ async function aplicarMudancaEmTrabalho(
     : Math.round(mudanca.valorNovo * 100) / 100;
 
   try {
-    const atualizado = await prisma.trabalho.update({
+    await prisma.trabalho.update({
       where: { id: trabalho.id },
       data: {
         ...(tipoProteseNovo ? { tipoProtese: tipoProteseNovo } : {}),
@@ -264,19 +266,6 @@ async function aplicarMudancaEmTrabalho(
         valor: valorNovo,
       },
     });
-
-    try {
-      await sincronizarContasReceberAposAlteracaoTrabalho(empresaId, {
-        id: atualizado.id,
-        numeroOs: atualizado.numeroOs,
-        clienteId: atualizado.clienteId,
-        instrucoes: atualizado.instrucoes,
-        valor: atualizado.valor,
-        tipoProtese: atualizado.tipoProtese,
-      });
-    } catch (err) {
-      console.warn("[tabela-precos-propagar-os] sync faturamento", err);
-    }
     return true;
   } catch (err) {
     // Unique [empresaId, numeroOs, segmento, tipoProtese] pode colidir em rename raro.
@@ -290,8 +279,8 @@ async function aplicarMudancaEmTrabalho(
 }
 
 /**
- * Propaga rename/reajuste da tabela de preços para OS já cadastradas
- * (nome em tipoProtese / Item adicionado + valor unitário × qtd).
+ * Propaga rename/reajuste da tabela de preços só para OS ainda não faturadas.
+ * OS com Cobrança OS ativa em Contas a Receber são ignoradas.
  */
 export async function propagarMudancasTabelaPrecosParaOs(
   empresaId: string,
@@ -304,13 +293,18 @@ export async function propagarMudancasTabelaPrecosParaOs(
   let trabalhosAtualizados = 0;
   let linhasAtualizadas = 0;
 
+  if (validas.length === 0) {
+    return { trabalhosAtualizados, linhasAtualizadas };
+  }
+
+  const cobrancasAtivas = await carregarCobrancasAtivas(empresaId);
+
   for (const mudanca of validas) {
     const trabalhos = await prisma.trabalho.findMany({
       where: montarFiltroBusca(empresaId, mudanca),
       select: {
         id: true,
         numeroOs: true,
-        clienteId: true,
         tipoProtese: true,
         valor: true,
         instrucoes: true,
@@ -318,11 +312,13 @@ export async function propagarMudancasTabelaPrecosParaOs(
     });
 
     for (const trabalho of trabalhos) {
+      if (trabalhoEstaFaturado(trabalho, cobrancasAtivas)) continue;
+
       const linhasAntes = (trabalho.instrucoes || "")
         .split("\n")
         .filter((line) => linhaCorrespondeMudanca(line, mudanca)).length;
 
-      const ok = await aplicarMudancaEmTrabalho(empresaId, trabalho, mudanca);
+      const ok = await aplicarMudancaEmTrabalho(trabalho, mudanca);
       if (ok) {
         trabalhosAtualizados += 1;
         linhasAtualizadas += Math.max(linhasAntes, 1);
