@@ -75,6 +75,12 @@ function extrairProdutoIdLinha(line: string): string | null {
   );
 }
 
+/** Valor líquido ≈ 0 (repetição/cortesia intencional) — não reaplicar preço da tabela. */
+function devePreservarValorLinha(line: string) {
+  const liquido = valorLiquidoDeLinhaItemAdicionado(line);
+  return liquido != null && liquido <= 0.009;
+}
+
 function linhaCorrespondeMudanca(
   line: string,
   mudanca: MudancaItemTabelaPrecos
@@ -199,7 +205,10 @@ async function aplicarMudancaEmTrabalho(
     if (!linhaCorrespondeMudanca(line, mudanca)) return line;
     linhasAlteradas += 1;
     let atualizada = reescreverNomeLinha(line, mudanca.nomeNovo);
-    atualizada = reescreverValorLinha(atualizada, mudanca.valorNovo);
+    // Repetição/cortesia com valor zerado: não preenche preço da tabela.
+    if (!devePreservarValorLinha(line)) {
+      atualizada = reescreverValorLinha(atualizada, mudanca.valorNovo);
+    }
     return atualizada;
   });
 
@@ -210,16 +219,17 @@ async function aplicarMudancaEmTrabalho(
   const tipoMudou =
     tipoProteseNovo != null && tipoProteseNovo !== trabalho.tipoProtese;
   const tituloBate = nomesIguais(trabalho.tipoProtese, mudanca.nomeAnterior);
+  const valorAtual = Number(trabalho.valor || 0);
+  const preservarValorTrabalho = valorAtual <= 0.009;
 
   // OS sem linhas "Item adicionado": atualiza título/valor direto.
   if (linhasAlteradas === 0) {
     if (!tituloBate) return false;
 
-    const valorNovo = Math.round(mudanca.valorNovo * 100) / 100;
-    if (
-      !tipoMudou &&
-      Math.abs(valorNovo - Number(trabalho.valor || 0)) <= 0.009
-    ) {
+    const valorNovo = preservarValorTrabalho
+      ? valorAtual
+      : Math.round(mudanca.valorNovo * 100) / 100;
+    if (!tipoMudou && Math.abs(valorNovo - valorAtual) <= 0.009) {
       return false;
     }
 
@@ -246,7 +256,7 @@ async function aplicarMudancaEmTrabalho(
     const totalLinhas = totalLiquidoInstrucoes(instrucoesNovas);
     if (
       Number.isFinite(totalLinhas) &&
-      Math.abs(totalLinhas - Number(trabalho.valor || 0)) <= 0.009
+      Math.abs(totalLinhas - valorAtual) <= 0.009
     ) {
       return false;
     }
@@ -255,7 +265,9 @@ async function aplicarMudancaEmTrabalho(
   const totalLinhas = totalLiquidoInstrucoes(instrucoesNovas);
   const valorNovo = Number.isFinite(totalLinhas)
     ? totalLinhas
-    : Math.round(mudanca.valorNovo * 100) / 100;
+    : preservarValorTrabalho
+      ? valorAtual
+      : Math.round(mudanca.valorNovo * 100) / 100;
 
   try {
     await prisma.trabalho.update({
@@ -281,6 +293,7 @@ async function aplicarMudancaEmTrabalho(
 /**
  * Propaga rename/reajuste da tabela de preços só para OS ainda não faturadas.
  * OS com Cobrança OS ativa em Contas a Receber são ignoradas.
+ * Linhas/OS com valor zerado (repetição, cortesia) mantêm R$ 0,00 — não reaplica o preço da tabela.
  */
 export async function propagarMudancasTabelaPrecosParaOs(
   empresaId: string,
