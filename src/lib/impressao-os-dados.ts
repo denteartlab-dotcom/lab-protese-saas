@@ -31,8 +31,8 @@ import {
 import { formatarDentesParaImpressaoOs } from "@/lib/dentes-os-resumo";
 import {
   garantirNomeLaboratorioParaImpressao,
-  nomeExibicaoLaboratorio,
 } from "@/lib/lab-nome-exibicao";
+import { nomeUsuarioParaImpressaoOs } from "@/lib/logs-auditoria";
 import { carregarConfigLaboratorioServidor } from "@/lib/lab-config-servidor";
 import { carregarConfiguracoesOsServidor } from "@/lib/configuracoes-os-servidor";
 import type { ConfigLaboratorio } from "@/lib/configuracoes-lab";
@@ -318,7 +318,29 @@ async function carregarDadosImpressaoOsInterno({
   const configLabRaw = await carregarConfigLaboratorioServidor(t.empresaId);
   const configLab = garantirNomeLaboratorioParaImpressao(configLabRaw);
   const configuracoesOs = await carregarConfiguracoesOsServidor(t.empresaId);
-  const usuarioCriou = nomeExibicaoLaboratorio(configLab);
+
+  const idsGrupo = grupo.map((row) => row.id);
+  const logUsuarioOs = await prisma.logAuditoria.findFirst({
+    where: {
+      empresaId: t.empresaId,
+      categoria: "os",
+      tipoAlteracao: { in: ["inclusao", "alteracao"] },
+      OR: [
+        { numeroOs: t.numeroOs },
+        ...(idsGrupo.length > 0 ? [{ trabalhoId: { in: idsGrupo } }] : []),
+      ],
+    },
+    orderBy: { dataAlteracao: "desc" },
+    select: { usuarioId: true, usuarioNome: true },
+  });
+  const usuarioCriou =
+    (
+      await nomeUsuarioParaImpressaoOs({
+        usuarioIdLog: logUsuarioOs?.usuarioId,
+        usuarioNomeLog: logUsuarioOs?.usuarioNome,
+      })
+    ).trim() || "";
+
   const locale = idiomaFromConfig(configLab);
   const tStatus = (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) =>
     translate(locale, key, params);

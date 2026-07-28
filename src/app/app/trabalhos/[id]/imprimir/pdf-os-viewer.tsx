@@ -166,7 +166,7 @@ type PdfItem = {
 
 type PdfOsData = {
   numeroOs: number;
-  /** Nome do laboratório no campo Usuário (sincronizado com login/config). */
+  /** Nome do usuário que criou ou editou a OS por último. */
   usuarioCriou?: string;
   dataEntrada: string;
   status: string;
