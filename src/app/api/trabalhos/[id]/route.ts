@@ -287,8 +287,39 @@ export async function PUT(
         formatarValorCampoLog("Valor", String(data.valor))
       );
     }
+    if (
+      data.instrucoes !== undefined &&
+      String(payload.instrucoes ?? "") !== String(atual.instrucoes ?? "")
+    ) {
+      rotulo("Itens/instruções", "—", "atualizados");
+    }
+    if (data.dentes !== undefined && data.dentes !== atual.dentes) {
+      rotulo("Dentes", atual.dentes, data.dentes);
+    }
+    if (data.cor !== undefined && data.cor !== atual.cor) {
+      rotulo("Cor", atual.cor, data.cor);
+    }
+    if (data.material !== undefined && data.material !== atual.material) {
+      rotulo("Material", atual.material, data.material);
+    }
+    if (data.clienteId != null && data.clienteId !== "" && data.clienteId !== atual.clienteId) {
+      rotulo("Cliente", atual.clienteId, data.clienteId);
+    }
+    if (data.pacienteId != null && data.pacienteId !== "" && data.pacienteId !== atual.pacienteId) {
+      rotulo("Paciente", atual.pacienteId, data.pacienteId);
+    }
+    if (
+      data.dataPrevista !== undefined &&
+      String(payload.dataPrevista ?? "") !== String(atual.dataPrevista ?? "")
+    ) {
+      rotulo("Prazo", atual.dataPrevista, payload.dataPrevista);
+    }
 
-    if (detalhes.length > 0) {
+    // Qualquer edição da OS registra quem alterou (usado no campo Usuário da impressão).
+    if (detalhes.length > 0 || Object.keys(payload).length > 0) {
+      if (detalhes.length === 0) {
+        detalhes.push({ campo: "OS", antes: "—", depois: "atualizada" });
+      }
       await registrarLogAuditoria({
         empresaId: ctx.empresaId,
         categoria: "os",

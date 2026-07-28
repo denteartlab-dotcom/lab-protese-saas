@@ -8,9 +8,7 @@ import { PDF_VIEWER_PAGINA_CLASSES } from "@/lib/pdf-viewer-iframe";
 import { prepararAbaPdf, visualizarPdfUrl, baixarPdfBlob, baixarPdfUrl, criarUrlPdfNomeada, nomeArquivoOsPdf } from "@/lib/pdf-viewer";
 import { LAB_IMPRESSAO_PADRAO, type LabImpressaoConfig } from "@/lib/lab-impressao";
 import {
-  CONFIG_LAB_PADRAO,
   configLaboratorioCabecalhoAtual,
-  nomeUsuarioDocumentosLaboratorio,
   type ConfigLaboratorio,
 } from "@/lib/configuracoes-lab";
 import {
@@ -2167,14 +2165,11 @@ export function PdfOsViewer({
     try {
       const cfg = configLaboratorioCabecalhoAtual();
       const lab = configParaLabImpressao(cfg);
-      const usuarioLaboratorio =
-        nomeUsuarioDocumentosLaboratorio(cfg) ||
-        base.usuarioCriou?.trim() ||
-        lab.responsavel?.trim() ||
-        "";
+      // Prioriza o usuário da OS (quem criou/editou no servidor). Nunca o nome do lab.
+      const usuarioCriou = base.usuarioCriou?.trim() || "";
       return {
         ...base,
-        usuarioCriou: usuarioLaboratorio,
+        usuarioCriou,
         lab,
         configLab: cfg,
         cabecalhoRequisicao: normalizarCabecalhoRequisicao(cfg.cabecalhoRequisicao),
