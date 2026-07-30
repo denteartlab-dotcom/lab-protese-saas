@@ -178,10 +178,15 @@ export async function PUT(
 
     if (data.status != null && data.status !== atual.status) {
       const novoStatus = String(data.status).trim().toLowerCase();
-      if (STATUS_TRABALHO_FINALIZADO_IMPRESSAO.has(novoStatus)) {
+      const statusAnterior = String(atual.status).trim().toLowerCase();
+      // Sempre atualiza a data ao (re)entrar em Finalizado/Entregue — última vez que finalizou.
+      if (
+        STATUS_TRABALHO_FINALIZADO_IMPRESSAO.has(novoStatus) &&
+        !STATUS_TRABALHO_FINALIZADO_IMPRESSAO.has(statusAnterior)
+      ) {
         const entregaInformada =
           data.dataEntrega !== undefined && data.dataEntrega !== null && data.dataEntrega !== "";
-        if (!entregaInformada && !atual.dataEntrega) {
+        if (!entregaInformada) {
           payload.dataEntrega = dataHojeMeioDia();
         }
       }

@@ -184,7 +184,11 @@ export async function aplicarMudancaStatusTrabalho(
     status: novoStatus,
     instrucoes: adicionarHistoricoSituacaoInstrucoes(atual.instrucoes, novoStatus),
   };
-  if (STATUS_TRABALHO_FINALIZADO_IMPRESSAO.has(novoStatus) && !atual.dataEntrega) {
+  // Data de Finalizado = última vez que entrou nessa situação (não conserva a antiga).
+  if (
+    STATUS_TRABALHO_FINALIZADO_IMPRESSAO.has(novoStatus) &&
+    !STATUS_TRABALHO_FINALIZADO_IMPRESSAO.has(String(statusAnterior).trim().toLowerCase())
+  ) {
     payload.dataEntrega = dataHojeMeioDia();
   }
 
