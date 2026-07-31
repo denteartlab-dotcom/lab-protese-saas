@@ -430,18 +430,25 @@ model Orcamento {
 
 /** Anexos (despesas, receitas, OS) — persistidos no banco em produção (Vercel). */
 model ArquivoUpload {
-  id        String   @id @default(cuid())
-  empresaId String
-  empresa   Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  pasta     String
-  nome      String
-  mimeType  String   @default("application/octet-stream")
-  tamanho   Int
-  dados     Bytes
-  criadoEm  DateTime @default(now())
+  id         String   @id @default(cuid())
+  empresaId  String
+  empresa    Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  pasta      String
+  nome       String
+  mimeType   String   @default("application/octet-stream")
+  tamanho    Int
+  /** Conteúdo binário quando storage=database; null no OneDrive. */
+  dados      Bytes?
+  /** database | onedrive */
+  storage    String   @default("database")
+  /** Caminho relativo no remote OneDrive: {slug}/{pasta}/{arquivo} */
+  remotePath String?
+  criadoEm   DateTime @default(now())
 
   @@index([empresaId])
   @@index([pasta])
+  @@index([storage])
+  @@index([remotePath])
 }
 
 /** Contas bancárias persistidas no PostgreSQL (substitui JsonStore para não perder dados). */

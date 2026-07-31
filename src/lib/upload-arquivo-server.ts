@@ -7,6 +7,15 @@ import {
   caminhoPastaUploads,
   resolverArquivoUploadsSeguro,
 } from "@/lib/uploads-armazenamento-server";
+import {
+  baixarArquivoOneDrive,
+  caminhoRemotoUpload,
+  enviarBufferParaOneDrive,
+  excluirArquivoOneDrive,
+  uploadUsaOneDrive,
+} from "@/lib/upload-onedrive-storage";
+
+export { uploadUsaOneDrive } from "@/lib/upload-onedrive-storage";
 
 export type PastaUpload = "os" | "despesas" | "receitas" | "disparos-whatsapp" | "produtos";
 
@@ -55,7 +64,16 @@ export function pastaUploadValida(pasta: string | null): PastaUpload {
 
 /** Na Vercel o disco é somente leitura; anexos vão para o PostgreSQL. */
 export function uploadUsaBancoDados() {
+  if (uploadUsaOneDrive()) return false;
   return process.env.VERCEL === "1" || process.env.UPLOAD_STORAGE === "database";
+}
+
+export type ModoUploadStorage = "onedrive" | "database" | "disk";
+
+export function modoUploadStorage(): ModoUploadStorage {
+  if (uploadUsaOneDrive()) return "onedrive";
+  if (uploadUsaBancoDados()) return "database";
+  return "disk";
 }
 
 function safeName(name: string) {
@@ -236,6 +254,44 @@ export async function salvarArquivosUpload(
           mimeType,
           tamanho: bytes.length,
           dados: bytes,
+          storage: "database",
+          remotePath: null,
+        },
+      });
+      uploaded.push({
+        name: file.name,
+        type: mimeType,
+        url: `/api/uploads/arquivo/${registro.id}`,
+      });
+    }
+    return uploaded;
+  }
+
+  if (uploadUsaOneDrive()) {
+    if (!empresaId) {
+      throw new Error("empresaId obrigatório para upload no OneDrive.");
+    }
+    if (!empresaSlug?.trim()) {
+      throw new Error("empresaSlug obrigatório para upload no OneDrive.");
+    }
+    const slug = normalizarSlugPastaUploads(empresaSlug);
+    const uploaded: ArquivoEnviado[] = [];
+    for (const file of files) {
+      const bytes = Buffer.from(await file.arrayBuffer());
+      const mimeType = validarMimeUpload(pasta, bytes, file);
+      const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName(file.name)}`;
+      const remotePath = caminhoRemotoUpload(slug, pasta, filename);
+      await enviarBufferParaOneDrive(remotePath, bytes, filename);
+      const registro = await prisma.arquivoUpload.create({
+        data: {
+          empresaId,
+          pasta,
+          nome: file.name,
+          mimeType,
+          tamanho: bytes.length,
+          dados: null,
+          storage: "onedrive",
+          remotePath,
         },
       });
       uploaded.push({
@@ -274,6 +330,39 @@ export async function lerArquivoUploadPorId(id: string) {
   return prisma.arquivoUpload.findUnique({ where: { id } });
 }
 
+/** Lê bytes do registro (banco ou OneDrive). */
+export async function obterConteudoArquivoUpload(id: string): Promise<{
+  empresaId: string;
+  nome: string;
+  mimeType: string;
+  tamanho: number;
+  bytes: Buffer;
+} | null> {
+  const arquivo = await prisma.arquivoUpload.findUnique({ where: { id } });
+  if (!arquivo) return null;
+
+  if (arquivo.storage === "onedrive" && arquivo.remotePath) {
+    const bytes = await baixarArquivoOneDrive(arquivo.remotePath);
+    return {
+      empresaId: arquivo.empresaId,
+      nome: arquivo.nome,
+      mimeType: arquivo.mimeType,
+      tamanho: bytes.length || arquivo.tamanho,
+      bytes,
+    };
+  }
+
+  if (!arquivo.dados || arquivo.dados.length === 0) return null;
+  const bytes = Buffer.from(arquivo.dados);
+  return {
+    empresaId: arquivo.empresaId,
+    nome: arquivo.nome,
+    mimeType: arquivo.mimeType,
+    tamanho: arquivo.tamanho,
+    bytes,
+  };
+}
+
 export async function lerArquivoDiscoPorCaminhoRelativo(
   empresaSlug: string,
   relativePath: string
@@ -282,7 +371,32 @@ export async function lerArquivoDiscoPorCaminhoRelativo(
   try {
     await access(alvo);
   } catch {
-    return null;
+    // URLs antigas /api/uploads/disco/... continuam válidas após migração p/ OneDrive.
+    const slug = normalizarSlugPastaUploads(empresaSlug);
+    const remotePath = `${slug}/${relativePath.replace(/^[/\\]+/, "").replace(/\\/g, "/")}`;
+    try {
+      const porMeta = await prisma.arquivoUpload.findFirst({
+        where: { remotePath, storage: "onedrive" },
+        select: { id: true },
+      });
+      if (porMeta) {
+        const conteudo = await obterConteudoArquivoUpload(porMeta.id);
+        if (conteudo) {
+          return {
+            bytes: conteudo.bytes,
+            mimeType: conteudo.mimeType,
+            nome: conteudo.nome,
+          };
+        }
+      }
+      const bytes = await baixarArquivoOneDrive(remotePath);
+      const nome = path.basename(relativePath);
+      const magic = detectarMimePorMagic(bytes);
+      const mimeType = magic || mimePorExtensao(nome) || "application/octet-stream";
+      return { bytes, mimeType, nome };
+    } catch {
+      return null;
+    }
   }
   const bytes = await readFile(alvo);
   const nome = path.basename(alvo);
@@ -315,6 +429,20 @@ export async function listarArquivosBanco(empresaId?: string) {
 }
 
 export async function excluirArquivoBancoPorId(id: string, empresaId?: string) {
+  const row = await prisma.arquivoUpload.findFirst({
+    where: empresaId ? { id, empresaId } : { id },
+    select: { id: true, storage: true, remotePath: true },
+  });
+  if (!row) return;
+
+  if (row.storage === "onedrive" && row.remotePath) {
+    try {
+      await excluirArquivoOneDrive(row.remotePath);
+    } catch (err) {
+      console.warn("[upload] falha ao excluir no OneDrive:", err);
+    }
+  }
+
   if (empresaId) {
     await prisma.arquivoUpload.deleteMany({ where: { id, empresaId } });
     return;

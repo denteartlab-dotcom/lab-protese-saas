@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { excluirJsonStoreTenant } from "@/lib/json-store-tenant";
 import { registrarLogMaster } from "@/lib/master-audit";
 import { caminhoPastaUploads } from "@/lib/uploads-armazenamento-server";
+import { excluirPastaUploadsEmpresaOneDrive } from "@/lib/upload-onedrive-storage";
 import { listarEmpresasElegiveisExclusaoInatividade } from "@/lib/empresa-inatividade";
 
 export type DadosEmpresaExclusao = {
@@ -77,6 +78,11 @@ async function limparArquivosEmpresaExcluida(slug: string, nome: string, empresa
   const onedrive = await excluirPastaBackupEmpresaOneDrive(slug, nome);
   if (!onedrive.ok && onedrive.erro && onedrive.erro !== "desativado") {
     console.warn(`[exclusao-empresa] OneDrive ${slug}:`, onedrive.erro);
+  }
+
+  const onedriveUploads = await excluirPastaUploadsEmpresaOneDrive(slug);
+  if (!onedriveUploads.ok && onedriveUploads.erro) {
+    console.warn(`[exclusao-empresa] OneDrive uploads ${slug}:`, onedriveUploads.erro);
   }
 
   await excluirArquivosLocaisEmpresa(slug, nome);

@@ -37,6 +37,9 @@ type StatusBackupAutomatico = {
   pastaUploads?: string;
   uploadsArquivos?: number;
   onedriveSyncHabilitado?: boolean;
+  uploadStorage?: "onedrive" | "database" | "disk";
+  onedriveUploadsAtivo?: boolean;
+  onedriveUploadsRemote?: string | null;
   horarioFixo?: string;
   padraoNomeArquivo: string;
   arquivoPadrao: string;
@@ -375,6 +378,22 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                         {t("settings.backupAutoOneDriveAtivo")}
                       </p>
                     ) : null}
+                    {statusAuto?.onedriveUploadsAtivo ? (
+                      <p className="mt-1 text-[11px] text-emerald-800 dark:text-emerald-300">
+                        {t("settings.backupAutoOneDriveUploads").replace(
+                          "{remote}",
+                          statusAuto.onedriveUploadsRemote || "OneDrive"
+                        )}
+                      </p>
+                    ) : statusAuto?.uploadStorage === "database" ? (
+                      <p className="mt-1 text-[11px] text-emerald-800 dark:text-emerald-300">
+                        {t("settings.backupAutoUploadStorageDatabase")}
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-[11px] text-emerald-800 dark:text-emerald-300">
+                        {t("settings.backupAutoUploadStorageDisk")}
+                      </p>
+                    )}
                     {statusAuto?.padraoNomeArquivo && (
                       <p className="mt-1 text-[11px] text-emerald-800 dark:text-emerald-300">
                         {t("settings.backupAutoNomeArquivo").replace(

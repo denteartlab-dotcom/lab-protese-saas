@@ -164,7 +164,9 @@ export async function exportarBackupEmpresa(
     Orcamento: orcamentos,
     ArquivoUpload: uploads.map((a) => ({
       ...a,
-      dados: Buffer.from(a.dados).toString("base64"),
+      dados: a.dados && a.dados.length > 0 ? Buffer.from(a.dados).toString("base64") : "",
+      storage: a.storage || (a.dados?.length ? "database" : "onedrive"),
+      remotePath: a.remotePath ?? null,
     })),
     ContaBancaria: contas,
     MovimentacaoConta: movimentacoes,
@@ -346,10 +348,22 @@ async function inserirLinhas(
             ? dadosZip
             : typeof dadosB64 === "string" && dadosB64.length > 0
               ? Buffer.from(dadosB64, "base64")
-              : Buffer.alloc(0);
+              : null;
         const { dados: _d, ...resto } = row;
+        const storage =
+          typeof resto.storage === "string" && resto.storage.trim()
+            ? String(resto.storage)
+            : dados && dados.length > 0
+              ? "database"
+              : "onedrive";
         await prisma.arquivoUpload.create({
-          data: { ...resto, dados } as never,
+          data: {
+            ...resto,
+            storage,
+            remotePath:
+              typeof resto.remotePath === "string" ? resto.remotePath : null,
+            dados: storage === "database" ? dados ?? Buffer.alloc(0) : null,
+          } as never,
         });
         break;
       }

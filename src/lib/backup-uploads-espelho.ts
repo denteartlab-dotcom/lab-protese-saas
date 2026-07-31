@@ -2,7 +2,8 @@ import { cp, mkdir, readdir, readFile, rm, stat, writeFile } from "fs/promises";
 import path from "path";
 import { pastaBackupEmpresa } from "@/lib/backup-empresa-pasta";
 import { prisma } from "@/lib/db";
-import { uploadUsaBancoDados } from "@/lib/upload-arquivo-server";
+import { uploadUsaBancoDados, uploadUsaOneDrive } from "@/lib/upload-arquivo-server";
+import { baixarArquivoOneDrive } from "@/lib/upload-onedrive-storage";
 import { caminhoPastaUploads } from "@/lib/uploads-armazenamento-server";
 
 export function nomeArquivoUploadBackupSeguro(nome: string) {
@@ -51,10 +52,15 @@ export async function espelharUploadsNoBackupEmpresa(
 
   let arquivos = 0;
 
+  // Uploads já estão no OneDrive — não espelha de novo no disco da VPS.
+  if (uploadUsaOneDrive()) {
+    return { destino, arquivos: 0, puladoOneDrive: true as const };
+  }
+
   if (uploadUsaBancoDados()) {
     const rows = await prisma.arquivoUpload.findMany({
       where: { empresaId },
-      select: { id: true, pasta: true, nome: true, dados: true },
+      select: { id: true, pasta: true, nome: true, dados: true, storage: true, remotePath: true },
       orderBy: { criadoEm: "asc" },
     });
 
@@ -62,7 +68,16 @@ export async function espelharUploadsNoBackupEmpresa(
       const pastaDestino = path.join(destino, row.pasta);
       await mkdir(pastaDestino, { recursive: true });
       const arquivo = `${row.id}-${nomeArquivoUploadBackupSeguro(row.nome)}`;
-      await writeFile(path.join(pastaDestino, arquivo), row.dados);
+      let bytes: Buffer | null = row.dados && row.dados.length > 0 ? Buffer.from(row.dados) : null;
+      if (!bytes && row.storage === "onedrive" && row.remotePath) {
+        try {
+          bytes = await baixarArquivoOneDrive(row.remotePath);
+        } catch {
+          continue;
+        }
+      }
+      if (!bytes?.length) continue;
+      await writeFile(path.join(pastaDestino, arquivo), bytes);
       arquivos += 1;
     }
   } else {

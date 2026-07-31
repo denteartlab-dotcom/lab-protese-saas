@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireEmpresaContext } from "@/lib/empresa-context";
-import { lerArquivoUploadPorId, contentDispositionUpload } from "@/lib/upload-arquivo-server";
+import {
+  obterConteudoArquivoUpload,
+  contentDispositionUpload,
+} from "@/lib/upload-arquivo-server";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -9,18 +12,27 @@ export async function GET(_request: Request, { params }: Params) {
   if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
   const { id } = await params;
-  const arquivo = await lerArquivoUploadPorId(id);
-  if (!arquivo || arquivo.empresaId !== ctx.empresaId) {
+  let conteudo;
+  try {
+    conteudo = await obterConteudoArquivoUpload(id);
+  } catch (err) {
+    console.error("[uploads/arquivo] leitura", err);
+    return NextResponse.json(
+      { error: "Não foi possível ler o arquivo no armazenamento." },
+      { status: 502 }
+    );
+  }
+
+  if (!conteudo || conteudo.empresaId !== ctx.empresaId) {
     return NextResponse.json({ error: "Arquivo não encontrado" }, { status: 404 });
   }
 
-  const body = Buffer.from(arquivo.dados);
-  return new NextResponse(body, {
+  return new NextResponse(new Uint8Array(conteudo.bytes), {
     headers: {
-      "Content-Type": arquivo.mimeType,
-      "Content-Length": String(arquivo.tamanho),
+      "Content-Type": conteudo.mimeType,
+      "Content-Length": String(conteudo.bytes.length),
       "Cache-Control": "private, no-cache, must-revalidate",
-      "Content-Disposition": contentDispositionUpload(arquivo.mimeType, arquivo.nome),
+      "Content-Disposition": contentDispositionUpload(conteudo.mimeType, conteudo.nome),
     },
   });
 }

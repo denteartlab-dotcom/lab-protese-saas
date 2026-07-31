@@ -199,6 +199,7 @@ export async function calcularArmazenamentoGaleria(
   const pastaEmpresa = empresaSlug ? caminhoPastaUploads(empresaSlug) : caminhoPastaUploads();
   const bytesDisco = empresaSlug ? await tamanhoDiretorio(pastaEmpresa) : 0;
   const bytesBanco = await bytesTotalArquivosBanco(empresaId);
+  // Com OneDrive, bytesBanco já inclui metadados (tamanho) dos arquivos remotos.
   const bytesBackup =
     empresaSlug && empresaSlug.trim()
       ? await tamanhoDiretorio(pastaBackupEmpresa(empresaSlug, empresaNome))

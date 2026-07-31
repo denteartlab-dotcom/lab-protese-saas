@@ -6,7 +6,8 @@ import unzipper from "unzipper";
 import type { BackupLaboratorioPayload } from "@/lib/backup-laboratorio";
 import { nomeArquivoUploadBackupSeguro } from "@/lib/backup-uploads-espelho";
 import { prisma } from "@/lib/db";
-import { uploadUsaBancoDados } from "@/lib/upload-arquivo-server";
+import { uploadUsaBancoDados, uploadUsaOneDrive } from "@/lib/upload-arquivo-server";
+import { baixarArquivoOneDrive } from "@/lib/upload-onedrive-storage";
 import { caminhoPastaUploads } from "@/lib/uploads-armazenamento-server";
 
 export const BACKUP_JSON_NO_ZIP = "backup.json";
@@ -70,18 +71,35 @@ export async function coletarUploadsParaZipBackup(
 ): Promise<EntradaUploadZip[]> {
   const entradas: EntradaUploadZip[] = [];
 
-  if (uploadUsaBancoDados()) {
+  if (uploadUsaBancoDados() || uploadUsaOneDrive()) {
     const rows = await prisma.arquivoUpload.findMany({
       where: { empresaId },
-      select: { id: true, pasta: true, nome: true, dados: true },
+      select: {
+        id: true,
+        pasta: true,
+        nome: true,
+        dados: true,
+        storage: true,
+        remotePath: true,
+      },
       orderBy: { criadoEm: "asc" },
     });
 
     for (const row of rows) {
-      if (!row.dados?.length) continue;
+      let bytes: Buffer | null =
+        row.dados && row.dados.length > 0 ? Buffer.from(row.dados) : null;
+      if (!bytes && row.storage === "onedrive" && row.remotePath) {
+        try {
+          bytes = await baixarArquivoOneDrive(row.remotePath);
+        } catch (err) {
+          console.warn("[backup-zip] OneDrive skip", row.id, err);
+          continue;
+        }
+      }
+      if (!bytes?.length) continue;
       entradas.push({
         zipPath: `${UPLOADS_ZIP_PREFIX}${row.pasta}/${row.id}-${nomeArquivoUploadBackupSeguro(row.nome)}`,
-        dados: Buffer.from(row.dados),
+        dados: bytes,
       });
     }
     return entradas;

@@ -174,6 +174,12 @@ export const messages = {
     "settings.backupAutoUploadsArquivos": "{n} arquivo(s) espelhado(s)",
     "settings.backupAutoOneDriveAtivo":
       "OneDrive: após cada backup, a pasta backups/ é sincronizada automaticamente (rclone).",
+    "settings.backupAutoOneDriveUploads":
+      "Uploads ativos no OneDrive (não acumulam na VPS): {remote}",
+    "settings.backupAutoUploadStorageDatabase":
+      "Uploads: armazenados no banco de dados (PostgreSQL).",
+    "settings.backupAutoUploadStorageDisk":
+      "Uploads: pasta local na VPS (var/uploads).",
     "settings.backupServidorGerarAgora": "Gerar backup no servidor agora",
     "settings.backupServidorGerando": "Gerando backup...",
     "settings.backupServidorOk":
@@ -936,6 +942,12 @@ export const messages = {
     "settings.backupAutoUploadsArquivos": "{n} mirrored file(s)",
     "settings.backupAutoOneDriveAtivo":
       "OneDrive: after each backup, the backups/ folder is synced automatically (rclone).",
+    "settings.backupAutoOneDriveUploads":
+      "Active uploads on OneDrive (not stored on the VPS): {remote}",
+    "settings.backupAutoUploadStorageDatabase":
+      "Uploads: stored in the database (PostgreSQL).",
+    "settings.backupAutoUploadStorageDisk":
+      "Uploads: local folder on the VPS (var/uploads).",
     "settings.backupServidorGerarAgora": "Generate server backup now",
     "settings.backupServidorGerando": "Generating backup...",
     "settings.backupServidorOk":
@@ -1694,6 +1706,12 @@ export const messages = {
     "settings.backupAutoUploadsArquivos": "{n} archivo(s) espejado(s)",
     "settings.backupAutoOneDriveAtivo":
       "OneDrive: tras cada respaldo, la carpeta backups/ se sincroniza automáticamente (rclone).",
+    "settings.backupAutoOneDriveUploads":
+      "Uploads activos en OneDrive (no se acumulan en la VPS): {remote}",
+    "settings.backupAutoUploadStorageDatabase":
+      "Uploads: almacenados en la base de datos (PostgreSQL).",
+    "settings.backupAutoUploadStorageDisk":
+      "Uploads: carpeta local en la VPS (var/uploads).",
     "settings.backupServidorGerarAgora": "Generar respaldo en el servidor ahora",
     "settings.backupServidorGerando": "Generando respaldo...",
     "settings.backupServidorOk":

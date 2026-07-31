@@ -38,6 +38,8 @@ export async function salvarImagemSuporteChat(file: File, empresaId: string) {
       mimeType,
       tamanho: bytes.length,
       dados: bytes,
+      storage: "database",
+      remotePath: null,
     },
   });
 

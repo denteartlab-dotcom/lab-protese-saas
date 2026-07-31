@@ -77,7 +77,7 @@ Ajuste no mínimo:
 | `NEXT_PUBLIC_APP_URL` | `http://SEU_IP:3000` ou `http://seu-dominio.com` |
 | `URL_PUBLICA_DO_APP` | igual ao acima |
 | `COOKIE_SECURE` | `false` se ainda não tiver HTTPS |
-| `UPLOAD_STORAGE` | `database` (recomendado no VPS) |
+| `UPLOAD_STORAGE` | `database` (padrão VPS) ou `onedrive` (anexos só na nuvem — ver [ONEDRIVE-UPLOADS.md](ONEDRIVE-UPLOADS.md)) |
 | `MASTER_ADMIN_EMAIL` | e-mail do painel `/admin-master` |
 | `MASTER_ADMIN_PASSWORD` | senha forte do master |
 
