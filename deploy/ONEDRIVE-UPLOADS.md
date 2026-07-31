@@ -1,14 +1,13 @@
 # Uploads diretos no OneDrive (Microsoft Graph) — sem disco na VPS
 
-Os anexos/imagens do sistema **não são salvos na VPS**.  
-Vão direto para o OneDrive via **Microsoft Graph API** (sem rclone no upload).
+Os anexos/imagens e os backups JSON **vão direto para o OneDrive** via **Microsoft Graph API** (sem rclone).
 
 ## Estrutura no OneDrive (por laboratório)
 
 ```
 Lab_Protese_Backups/
   {slug-do-laboratorio}/
-    backups/                 ← JSON de backup (rclone, opcional)
+    backups/                 ← JSON de backup (Graph, direto)
     uploads/
       os/
       despesas/
@@ -73,17 +72,17 @@ ONEDRIVE_GRAPH_CLIENT_ID=...
 ONEDRIVE_GRAPH_CLIENT_SECRET=...
 ONEDRIVE_GRAPH_TENANT_ID=consumers
 ONEDRIVE_GRAPH_REFRESH_TOKEN=...
-ONEDRIVE_GRAPH_ROOT_FOLDER=Lab_Protese_Backups
+ONEDRIVE_GRAPH_ROOT_FOLDER=Documents/Lab_Protese_Backups
 
-# Backup JSON ainda pode usar rclone (pasta backups/ de cada cliente):
-ONEDRIVE_BACKUP_SYNC_ENABLED=true
-ONEDRIVE_RCLONE_REMOTE=onedrive-backup:Lab_Protese_Backups
+# Backups JSON também via Graph (sem rclone). false desliga.
+# ONEDRIVE_BACKUP_SYNC_ENABLED=true
 ```
 
 **Importante**
 - Deixe **só uma** linha `UPLOAD_STORAGE=onedrive` (apague `UPLOAD_STORAGE=database` se existir).
 - PNG/JPEG/WebP/PDF da OS são aceitos — o formato **não** impede o OneDrive.
-- Com Graph configurado, o app usa OneDrive mesmo se `UPLOAD_STORAGE` estiver errado (exceto `disk`).
+- Com Graph configurado, uploads **e backups** vão direto ao OneDrive (rclone não é usado).
+- Conta do token deve ser `denteartlab@outlook.com` (confira com `npm run uploads:testar-onedrive`).
 
 Atalho (corrige `.env` + PM2 + teste):
 
@@ -133,6 +132,6 @@ npm run uploads:migrar-onedrive -- --limpar-disco
 | Tipo | Como | Onde |
 |------|------|------|
 | **Upload do sistema** (OS, financeiro, produtos…) | Microsoft Graph (direto) | `…/uploads/{modulo}/` |
-| **Backup automático** (JSON) | rclone (opcional) | `…/backups/` |
+| **Backup automático** (JSON) | Microsoft Graph (direto) | `…/backups/` |
 
-Não usa rclone nem disco da VPS para anexos do dia a dia.
+Não usa rclone. Uploads e backups vão direto ao OneDrive via Graph.

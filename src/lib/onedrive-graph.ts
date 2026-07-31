@@ -245,7 +245,80 @@ export async function garantirCaminhoPastasOneDrive(remotePath: string) {
   }
 }
 
-/** Grava bytes (cria pastas intermediárias se faltarem). */
+const LIMITE_UPLOAD_SIMPLES = 4 * 1024 * 1024;
+/** Fragmentos da sessão Graph devem ser múltiplos de 320 KiB (exceto o último). */
+const TAMANHO_FRAGMENTO = 10 * 320 * 1024; // 3.125 MiB
+
+async function uploadViaSessaoOneDrive(
+  remotePath: string,
+  bytes: Buffer,
+  mimeType?: string
+): Promise<{ id?: string; webUrl?: string; name?: string } | null> {
+  const encoded = encodePathSegments(remotePath);
+  const sessionRes = await graphFetch(
+    `${driveBasePath()}/root:/${encoded}:/createUploadSession`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        item: {
+          "@microsoft.graph.conflictBehavior": "replace",
+          name: remotePath.split("/").pop() || "arquivo",
+        },
+      }),
+    }
+  );
+
+  if (!sessionRes.ok) {
+    const text = await sessionRes.text().catch(() => "");
+    throw new Error(
+      `Sessão de upload OneDrive falhou (${sessionRes.status}): ${text.slice(0, 300)}`
+    );
+  }
+
+  const session = (await sessionRes.json()) as { uploadUrl?: string };
+  if (!session.uploadUrl) {
+    throw new Error("Sessão de upload OneDrive sem uploadUrl");
+  }
+
+  const total = bytes.length;
+  let offset = 0;
+  let ultimoJson: { id?: string; webUrl?: string; name?: string } | null = null;
+
+  while (offset < total) {
+    const end = Math.min(offset + TAMANHO_FRAGMENTO, total);
+    const chunk = bytes.subarray(offset, end);
+    const res = await fetch(session.uploadUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Length": String(chunk.length),
+        "Content-Range": `bytes ${offset}-${end - 1}/${total}`,
+        ...(mimeType ? { "Content-Type": mimeType } : {}),
+      },
+      body: new Uint8Array(chunk),
+    });
+
+    if (!(res.status === 202 || res.ok)) {
+      const text = await res.text().catch(() => "");
+      throw new Error(
+        `Fragmento OneDrive falhou (${res.status}) @${offset}: ${text.slice(0, 240)}`
+      );
+    }
+
+    if (res.status === 200 || res.status === 201) {
+      ultimoJson = (await res.json().catch(() => null)) as {
+        id?: string;
+        webUrl?: string;
+        name?: string;
+      } | null;
+    }
+    offset = end;
+  }
+
+  return ultimoJson;
+}
+
+/** Grava bytes (cria pastas intermediárias se faltarem). Usa sessão se > 4 MB. */
 export async function uploadBytesOneDriveGraph(
   remotePath: string,
   bytes: Buffer,
@@ -253,6 +326,12 @@ export async function uploadBytesOneDriveGraph(
 ): Promise<{ id?: string; webUrl?: string; name?: string } | null> {
   await resolverPastaRaizOneDriveGraph();
   await garantirCaminhoPastasOneDrive(remotePath);
+
+  if (bytes.length > LIMITE_UPLOAD_SIMPLES) {
+    const json = await uploadViaSessaoOneDrive(remotePath, bytes, mimeType);
+    if (json?.webUrl) console.info(`[onedrive-graph] arquivo (sessão): ${json.webUrl}`);
+    return json;
+  }
 
   const encoded = encodePathSegments(remotePath);
   const url = `${driveBasePath()}/root:/${encoded}:/content`;

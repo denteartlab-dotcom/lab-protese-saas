@@ -172,8 +172,8 @@ export const messages = {
     "settings.backupAutoPasta": "Pasta no servidor: {caminho}/",
     "settings.backupAutoPastaUploads": "Anexos e imagens: {caminho}/",
     "settings.backupAutoUploadsArquivos": "{n} arquivo(s) espelhado(s)",
-    "settings.backupAutoOneDriveAtivo":
-      "OneDrive: após cada backup, a pasta backups/ é sincronizada automaticamente (rclone).",
+"settings.backupAutoOneDriveAtivo":
+            "OneDrive: após cada backup, os arquivos são enviados direto via Microsoft Graph (sem rclone).",
     "settings.backupAutoOneDriveUploads":
       "Uploads diretos no OneDrive (sem disco na VPS): {remote}",
     "settings.backupAutoUploadStorageDatabase":
@@ -187,7 +187,7 @@ export const messages = {
     "settings.backupServidorErro": "Não foi possível gerar o backup no servidor.",
     "settings.backupServidorOneDriveOk": "OneDrive sincronizado.",
     "settings.backupServidorOneDriveErro":
-      "OneDrive não sincronizado — confira rclone e ONEDRIVE_BACKUP_SYNC_ENABLED no .env.",
+      "OneDrive não sincronizado — confira ONEDRIVE_GRAPH_* no .env (Graph).",
     "settings.backupAutoNomeArquivo": "Nome do arquivo de hoje: {nome}",
     "settings.backupAutoUltimoArquivo": "Último arquivo gerado: {nome}",
     "settings.backupAutoUltimoArquivoPendente": "Último arquivo gerado: ainda não gerado",
@@ -940,8 +940,8 @@ export const messages = {
     "settings.backupAutoPasta": "Server folder: {caminho}/",
     "settings.backupAutoPastaUploads": "Attachments and images: {caminho}/",
     "settings.backupAutoUploadsArquivos": "{n} mirrored file(s)",
-    "settings.backupAutoOneDriveAtivo":
-      "OneDrive: after each backup, the backups/ folder is synced automatically (rclone).",
+"settings.backupAutoOneDriveAtivo":
+            "OneDrive: after each backup, files are uploaded directly via Microsoft Graph (no rclone).",
     "settings.backupAutoOneDriveUploads":
       "Direct uploads to OneDrive (not stored on the VPS): {remote}",
     "settings.backupAutoUploadStorageDatabase":
@@ -955,7 +955,7 @@ export const messages = {
     "settings.backupServidorErro": "Could not generate server backup.",
     "settings.backupServidorOneDriveOk": "OneDrive synced.",
     "settings.backupServidorOneDriveErro":
-      "OneDrive not synced — check rclone and ONEDRIVE_BACKUP_SYNC_ENABLED in .env.",
+      "OneDrive not synced — check ONEDRIVE_GRAPH_* in .env (Graph).",
     "settings.backupAutoNomeArquivo": "Today's file name: {nome}",
     "settings.backupAutoUltimoArquivo": "Last generated file: {nome}",
     "settings.backupAutoUltimoArquivoPendente": "Last generated file: not generated yet",
@@ -1704,8 +1704,8 @@ export const messages = {
     "settings.backupAutoPasta": "Carpeta en el servidor: {caminho}/",
     "settings.backupAutoPastaUploads": "Adjuntos e imágenes: {caminho}/",
     "settings.backupAutoUploadsArquivos": "{n} archivo(s) espejado(s)",
-    "settings.backupAutoOneDriveAtivo":
-      "OneDrive: tras cada respaldo, la carpeta backups/ se sincroniza automáticamente (rclone).",
+"settings.backupAutoOneDriveAtivo":
+            "OneDrive: tras cada respaldo, los archivos se envían directo vía Microsoft Graph (sin rclone).",
     "settings.backupAutoOneDriveUploads":
       "Uploads directos en OneDrive (sin disco en la VPS): {remote}",
     "settings.backupAutoUploadStorageDatabase":
@@ -1719,7 +1719,7 @@ export const messages = {
     "settings.backupServidorErro": "No se pudo generar el respaldo en el servidor.",
     "settings.backupServidorOneDriveOk": "OneDrive sincronizado.",
     "settings.backupServidorOneDriveErro":
-      "OneDrive no sincronizado — revise rclone y ONEDRIVE_BACKUP_SYNC_ENABLED en .env.",
+      "OneDrive no sincronizado — revise ONEDRIVE_GRAPH_* en el .env (Graph).",
     "settings.backupAutoNomeArquivo": "Nombre del archivo de hoy: {nome}",
     "settings.backupAutoUltimoArquivo": "Último archivo generado: {nome}",
     "settings.backupAutoUltimoArquivoPendente": "Último archivo generado: aún no generado",

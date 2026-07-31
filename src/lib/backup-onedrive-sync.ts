@@ -1,24 +1,19 @@
-import { exec } from "child_process";
+/**
+ * Sincroniza backups locais → OneDrive via Microsoft Graph (sem rclone).
+ */
+import { readdir, readFile, stat } from "fs/promises";
 import path from "path";
-import { promisify } from "util";
 import { pastaBackupResolvida } from "@/lib/backup-automatico-servidor";
-import { nomePastaBackupEmpresa, pastaBackupEmpresa } from "@/lib/backup-empresa-pasta";
-import { onedriveGraphRootFolder } from "@/lib/onedrive-graph";
-
-const execAsync = promisify(exec);
-
-export function onedriveBackupSyncHabilitado() {
-  const flag = process.env.ONEDRIVE_BACKUP_SYNC_ENABLED;
-  return flag === "1" || flag === "true";
-}
-
-/** Remote raiz do OneDrive (rclone). Preferir Lab_Protese (pasta por cliente). */
-export function onedriveRcloneDestino() {
-  return (
-    process.env.ONEDRIVE_RCLONE_REMOTE?.trim() ||
-    `onedrive-backup:${onedriveGraphRootFolder()}`
-  );
-}
+import { pastaBackupEmpresa } from "@/lib/backup-empresa-pasta";
+import {
+  caminhoRemotoEmpresaBackups,
+  deletePastaOneDriveGraph,
+  onedriveGraphConfigurado,
+  onedriveGraphRootFolder,
+  resolverPastaRaizOneDriveGraph,
+  uploadBytesOneDriveGraph,
+} from "@/lib/onedrive-graph";
+import { envRuntime, carregarEnvArquivoRuntime } from "@/lib/env-runtime";
 
 function normalizarSlug(slug: string) {
   return slug
@@ -29,9 +24,69 @@ function normalizarSlug(slug: string) {
 }
 
 /**
- * Sincroniza backups para o OneDrive via rclone.
- * Com slug: envia só a pasta do laboratório → Lab_Protese/{slug}/backups
- * Sem slug: sync legado da árvore backups/ inteira.
+ * Ativo se Graph estiver configurado, salvo se
+ * ONEDRIVE_BACKUP_SYNC_ENABLED=false|0 explicitamente.
+ */
+export function onedriveBackupSyncHabilitado() {
+  carregarEnvArquivoRuntime();
+  const flag = envRuntime("ONEDRIVE_BACKUP_SYNC_ENABLED").toLowerCase();
+  if (flag === "0" || flag === "false") return false;
+  if (flag === "1" || flag === "true") return onedriveGraphConfigurado();
+  // Sem flag: liga automaticamente quando Graph está ok.
+  return onedriveGraphConfigurado();
+}
+
+/** @deprecated mantido por compat — destino lógico no Graph. */
+export function onedriveRcloneDestino() {
+  return onedriveGraphRootFolder();
+}
+
+async function listarArquivosRecursivo(
+  dir: string,
+  base = dir
+): Promise<Array<{ absoluto: string; relativo: string; bytes: number }>> {
+  const saida: Array<{ absoluto: string; relativo: string; bytes: number }> = [];
+  let itens: string[];
+  try {
+    itens = await readdir(dir);
+  } catch {
+    return saida;
+  }
+
+  for (const nome of itens) {
+    const absoluto = path.join(dir, nome);
+    let info;
+    try {
+      info = await stat(absoluto);
+    } catch {
+      continue;
+    }
+    if (info.isDirectory()) {
+      saida.push(...(await listarArquivosRecursivo(absoluto, base)));
+      continue;
+    }
+    if (!info.isFile()) continue;
+    const relativo = path.relative(base, absoluto).replace(/\\/g, "/");
+    saida.push({ absoluto, relativo, bytes: info.size });
+  }
+  return saida;
+}
+
+function mimeBackupPorNome(nome: string): string {
+  const lower = nome.toLowerCase();
+  if (lower.endsWith(".json")) return "application/json";
+  if (lower.endsWith(".zip")) return "application/zip";
+  if (lower.endsWith(".txt")) return "text/plain";
+  if (lower.endsWith(".png")) return "image/png";
+  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+  if (lower.endsWith(".pdf")) return "application/pdf";
+  if (lower.endsWith(".webp")) return "image/webp";
+  return "application/octet-stream";
+}
+
+/**
+ * Envia a pasta local de backup da empresa para:
+ *   {root}/{slug}/backups/...
  */
 export async function sincronizarBackupComOneDrive(opts?: {
   slug?: string;
@@ -39,72 +94,103 @@ export async function sincronizarBackupComOneDrive(opts?: {
 }): Promise<{
   ok: boolean;
   erro?: string;
+  arquivos?: number;
 }> {
   if (!onedriveBackupSyncHabilitado()) {
     return { ok: false, erro: "desativado" };
   }
-
-  const destinoRaiz = onedriveRcloneDestino();
+  if (!onedriveGraphConfigurado()) {
+    return { ok: false, erro: "graph-nao-configurado" };
+  }
 
   try {
-    if (opts?.slug?.trim()) {
-      const slug = normalizarSlug(opts.slug);
-      const origem = pastaBackupEmpresa(slug, opts.nome);
-      const destino = `${destinoRaiz.replace(/\/+$/, "")}/${slug}/backups`;
-      await execAsync(`rclone sync "${origem}" "${destino}" --create-empty-src-dirs`, {
-        timeout: 600_000,
-      });
-      return { ok: true };
-    }
+    await resolverPastaRaizOneDriveGraph();
 
-    const origem = pastaBackupResolvida();
-    const scriptPath = path.join(process.cwd(), "deploy", "sync-onedrive.sh");
-    if (process.platform !== "win32") {
+    if (!opts?.slug?.trim()) {
+      // Sem slug: envia cada subpasta de backups/ como se fosse um lab (legado).
+      const raizLocal = pastaBackupResolvida();
+      let pastas: string[] = [];
       try {
-        await execAsync(`bash "${scriptPath}"`, { timeout: 600_000 });
-        return { ok: true };
-      } catch (errScript) {
-        console.warn("[backup-onedrive-sync] script falhou, tentando rclone direto:", errScript);
+        pastas = await readdir(raizLocal);
+      } catch {
+        return { ok: true, arquivos: 0 };
       }
+
+      let total = 0;
+      for (const nomePasta of pastas) {
+        const absoluto = path.join(raizLocal, nomePasta);
+        const info = await stat(absoluto).catch(() => null);
+        if (!info?.isDirectory()) continue;
+        const slug = normalizarSlug(nomePasta);
+        const r = await sincronizarBackupComOneDrive({ slug, nome: nomePasta });
+        if (!r.ok) return r;
+        total += r.arquivos || 0;
+      }
+      return { ok: true, arquivos: total };
     }
 
-    await execAsync(
-      `rclone sync "${origem}" "${destinoRaiz}" --create-empty-src-dirs`,
-      { timeout: 600_000 }
+    const slug = normalizarSlug(opts.slug);
+    const origem = pastaBackupEmpresa(slug, opts.nome);
+    const destinoBase = caminhoRemotoEmpresaBackups(slug);
+    const arquivos = await listarArquivosRecursivo(origem);
+
+    if (!arquivos.length) {
+      // Garante pasta remota mesmo vazia
+      await uploadBytesOneDriveGraph(
+        `${destinoBase}/.keep`,
+        Buffer.from("lab-protese-backup\n", "utf8"),
+        "text/plain"
+      );
+      console.info(`[backup-onedrive] pasta vazia → ${destinoBase}`);
+      return { ok: true, arquivos: 0 };
+    }
+
+    let enviados = 0;
+    for (const arq of arquivos) {
+      const bytes = await readFile(arq.absoluto);
+      const remotePath = `${destinoBase}/${arq.relativo}`;
+      await uploadBytesOneDriveGraph(
+        remotePath,
+        bytes,
+        mimeBackupPorNome(arq.relativo)
+      );
+      enviados += 1;
+    }
+
+    console.info(
+      `[backup-onedrive] Graph sync OK ${enviados} arquivo(s) → ${destinoBase}`
     );
-    return { ok: true };
+    return { ok: true, arquivos: enviados };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error("[backup-onedrive-sync]", msg);
+    console.error("[backup-onedrive]", msg);
     return { ok: false, erro: msg };
   }
 }
 
-/** Remove a pasta da empresa no OneDrive via rclone purge. */
+/** Remove a pasta do laboratório no OneDrive (uploads + backups da estrutura Graph). */
 export async function excluirPastaBackupEmpresaOneDrive(
   slug: string,
-  nome?: string
+  _nome?: string
 ): Promise<{ ok: boolean; erro?: string }> {
   if (!onedriveBackupSyncHabilitado()) {
     return { ok: false, erro: "desativado" };
   }
-
-  const slugNorm = normalizarSlug(slug);
-  const destinoNovo = `${onedriveRcloneDestino().replace(/\/+$/, "")}/${slugNorm}`;
-  const destinoLegado = `${onedriveRcloneDestino().replace(/\/+$/, "")}/${nomePastaBackupEmpresa(slug, nome)}`;
-
-  for (const destino of [destinoNovo, destinoLegado]) {
-    try {
-      await execAsync(`rclone purge "${destino}"`, { timeout: 120_000 });
-      console.log(`[backup-onedrive-sync] pasta removida: ${destino}`);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (/directory not found|couldn't find file|not found|doesn't exist/i.test(msg)) {
-        continue;
-      }
-      console.error("[backup-onedrive-sync] purge:", msg);
-      return { ok: false, erro: msg };
-    }
+  if (!onedriveGraphConfigurado()) {
+    return { ok: false, erro: "graph-nao-configurado" };
   }
-  return { ok: true };
+
+  try {
+    await resolverPastaRaizOneDriveGraph();
+    const slugNorm = normalizarSlug(slug);
+    const raiz = `${onedriveGraphRootFolder().replace(/^[/\\]+|[/\\]+$/g, "")}/${slugNorm}`;
+    await deletePastaOneDriveGraph(raiz);
+    console.info(`[backup-onedrive] pasta removida no Graph: ${raiz}`);
+    return { ok: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/not found|itemNotFound/i.test(msg)) return { ok: true };
+    console.error("[backup-onedrive] purge:", msg);
+    return { ok: false, erro: msg };
+  }
 }
