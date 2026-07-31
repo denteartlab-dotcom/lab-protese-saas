@@ -278,9 +278,12 @@ export async function salvarArquivosUpload(
     if (!empresaSlug?.trim()) {
       throw new Error("empresaSlug obrigatório para upload no OneDrive.");
     }
-    const { resolverPastaRaizOneDriveGraph } = await import("@/lib/onedrive-graph");
+    const { resolverPastaRaizOneDriveGraph, garantirEstruturaPastasEmpresaOneDrive } =
+      await import("@/lib/onedrive-graph");
     await resolverPastaRaizOneDriveGraph();
     const slug = normalizarSlugPastaUploads(empresaSlug);
+    // Cria {slug}/uploads/{os,despesas,...} se não existir (e .keep para aparecer no OneDrive).
+    await garantirEstruturaPastasEmpresaOneDrive(slug);
     const uploaded: ArquivoEnviado[] = [];
     for (const file of files) {
       const bytes = Buffer.from(await file.arrayBuffer());

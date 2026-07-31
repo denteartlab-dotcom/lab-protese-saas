@@ -2,7 +2,7 @@
  * Cliente Microsoft Graph para OneDrive — upload/download/delete direto na nuvem.
  * Não grava arquivo em disco na VPS (só Buffer em memória durante a requisição).
  *
- * Auth (delegated, refresh token) — recomendado para OneDrive pessoal/empresarial:
+ * Auth (delegated, refresh token):
  *   ONEDRIVE_GRAPH_CLIENT_ID
  *   ONEDRIVE_GRAPH_CLIENT_SECRET
  *   ONEDRIVE_GRAPH_TENANT_ID=consumers
@@ -10,7 +10,7 @@
  *
  * Opcional:
  *   ONEDRIVE_GRAPH_ROOT_FOLDER=Documents/Lab_Protese_Backups
- *   ONEDRIVE_GRAPH_DRIVE_ID=  (se vazio, usa /me/drive)
+ *   ONEDRIVE_GRAPH_DRIVE_ID=
  */
 import { envRuntime } from "@/lib/env-runtime";
 
@@ -19,10 +19,20 @@ type TokenCache = {
   expiresAtMs: number;
 };
 
+const MODULOS_UPLOAD = [
+  "os",
+  "despesas",
+  "receitas",
+  "produtos",
+  "disparos-whatsapp",
+  "suporte",
+] as const;
+
 const globalGraph = globalThis as typeof globalThis & {
   __onedriveGraphToken?: TokenCache;
   __onedriveGraphPastas?: Set<string>;
   __onedriveGraphRootResolvido?: string;
+  __onedriveEstruturaEmpresa?: Set<string>;
 };
 
 function env(nome: string) {
@@ -53,7 +63,6 @@ export function onedriveGraphRootFolder() {
 }
 
 function tenantId() {
-  // Contas pessoais (@outlook.com) exigem /consumers (não /common).
   return env("ONEDRIVE_GRAPH_TENANT_ID") || "consumers";
 }
 
@@ -71,6 +80,20 @@ function encodePathSegments(remotePath: string) {
     .filter(Boolean)
     .map((p) => encodeURIComponent(p))
     .join("/");
+}
+
+function cachePastas() {
+  if (!globalGraph.__onedriveGraphPastas) {
+    globalGraph.__onedriveGraphPastas = new Set();
+  }
+  return globalGraph.__onedriveGraphPastas;
+}
+
+function cacheEstruturaEmpresa() {
+  if (!globalGraph.__onedriveEstruturaEmpresa) {
+    globalGraph.__onedriveEstruturaEmpresa = new Set();
+  }
+  return globalGraph.__onedriveEstruturaEmpresa;
 }
 
 async function obterAccessToken(): Promise<string> {
@@ -141,16 +164,30 @@ async function graphFetch(pathname: string, init?: RequestInit) {
   return res;
 }
 
-function cachePastas() {
-  if (!globalGraph.__onedriveGraphPastas) {
-    globalGraph.__onedriveGraphPastas = new Set();
-  }
-  return globalGraph.__onedriveGraphPastas;
+async function pastaExisteOneDrive(remoteFolderPath: string): Promise<boolean> {
+  const limpo = remoteFolderPath.replace(/^[/\\]+/, "").replace(/\\/g, "/");
+  if (!limpo) return true;
+  const encoded = encodePathSegments(limpo);
+  const res = await graphFetch(
+    `${driveBasePath()}/root:/${encoded}?$select=id,folder,name`
+  );
+  if (!res.ok) return false;
+  const json = (await res.json().catch(() => null)) as { folder?: unknown } | null;
+  return Boolean(json?.folder);
 }
 
+/**
+ * Cria uma pasta se não existir (o pai já deve existir).
+ * Confere com GET antes/depois e tolera 409 (já existe).
+ */
 async function criarPastaSeNaoExistir(parentPath: string, nome: string) {
   const chave = parentPath ? `${parentPath}/${nome}` : nome;
   if (cachePastas().has(chave)) return;
+
+  if (await pastaExisteOneDrive(chave)) {
+    cachePastas().add(chave);
+    return;
+  }
 
   const parentEncoded = parentPath ? encodePathSegments(parentPath) : "";
   const childrenUrl = parentEncoded
@@ -169,20 +206,30 @@ async function criarPastaSeNaoExistir(parentPath: string, nome: string) {
 
   if (res.ok || res.status === 409) {
     cachePastas().add(chave);
+    console.info(`[onedrive-graph] pasta criada/ok: ${chave}`);
     return;
   }
 
-  // Já existe (nameAlreadyExists) ou equivalente
   const text = await res.text().catch(() => "");
   if (/nameAlreadyExists|already exists|conflict/i.test(text) || res.status === 409) {
     cachePastas().add(chave);
     return;
   }
 
-  throw new Error(`Falha ao criar pasta OneDrive "${chave}": ${res.status} ${text.slice(0, 240)}`);
+  if (await pastaExisteOneDrive(chave)) {
+    cachePastas().add(chave);
+    return;
+  }
+
+  throw new Error(
+    `Falha ao criar pasta OneDrive "${chave}": ${res.status} ${text.slice(0, 240)}`
+  );
 }
 
-/** Garante Lab_Protese/{empresa}/uploads/{modulo}/... */
+/**
+ * Garante toda a cadeia de pastas até o arquivo
+ * (ex.: Documents/Lab_Protese_Backups/{slug}/uploads/os/arquivo.png).
+ */
 export async function garantirCaminhoPastasOneDrive(remotePath: string) {
   const segmentos = remotePath
     .replace(/^[/\\]+/, "")
@@ -190,7 +237,6 @@ export async function garantirCaminhoPastasOneDrive(remotePath: string) {
     .split("/")
     .filter(Boolean);
 
-  // último segmento é o arquivo
   const pastas = segmentos.slice(0, -1);
   let atual = "";
   for (const pasta of pastas) {
@@ -199,14 +245,15 @@ export async function garantirCaminhoPastasOneDrive(remotePath: string) {
   }
 }
 
+/** Grava bytes (cria pastas intermediárias se faltarem). */
 export async function uploadBytesOneDriveGraph(
   remotePath: string,
   bytes: Buffer,
   mimeType?: string
 ): Promise<{ id?: string; webUrl?: string; name?: string } | null> {
-  // Garante pasta-base correta (Documents/...) antes de montar árvores.
   await resolverPastaRaizOneDriveGraph();
   await garantirCaminhoPastasOneDrive(remotePath);
+
   const encoded = encodePathSegments(remotePath);
   const url = `${driveBasePath()}/root:/${encoded}:/content`;
 
@@ -259,19 +306,9 @@ export async function listarPastaOneDriveGraph(
   }));
 }
 
-async function pastaExisteOneDrive(remoteFolderPath: string): Promise<boolean> {
-  const encoded = encodePathSegments(remoteFolderPath);
-  const res = await graphFetch(
-    `${driveBasePath()}/root:/${encoded}?$select=id,folder,name`
-  );
-  if (!res.ok) return false;
-  const json = (await res.json().catch(() => null)) as { folder?: unknown } | null;
-  return Boolean(json?.folder);
-}
-
 /**
- * Descobre a pasta Lab_Protese_Backups que o usuário vê no OneDrive web.
- * Prioriza Documents/... (rclone) sobre a cópia solta na raiz do drive.
+ * Descobre a pasta Lab_Protese_Backups visível no OneDrive web.
+ * Prioriza Documents/...; se não existir, cria Documents/Lab_Protese_Backups.
  */
 export async function resolverPastaRaizOneDriveGraph(): Promise<string> {
   if (globalGraph.__onedriveGraphRootResolvido) {
@@ -284,44 +321,28 @@ export async function resolverPastaRaizOneDriveGraph(): Promise<string> {
     ""
   ).replace(/^[/\\]+|[/\\]+$/g, "");
 
-  // A pasta que aparece no OneDrive web (Meus arquivos > Lab_Protese_Backups)
-  // costuma ser Documents/Lab_Protese_Backups. A cópia na raiz é outra pasta.
-  if (
-    !explicito ||
-    explicito === "Lab_Protese_Backups" ||
-    explicito === "Lab_Protese"
-  ) {
-    if (await pastaExisteOneDrive("Documents/Lab_Protese_Backups")) {
-      globalGraph.__onedriveGraphRootResolvido = "Documents/Lab_Protese_Backups";
-      console.info(
-        "[onedrive-graph] usando Documents/Lab_Protese_Backups (pasta visível no OneDrive)"
-      );
-      return globalGraph.__onedriveGraphRootResolvido;
-    }
-  }
-
-  if (explicito) {
-    globalGraph.__onedriveGraphRootResolvido = explicito;
-    return explicito;
-  }
-
-  const candidatos = [
+  const preferidos = [
+    explicito && explicito !== "Lab_Protese_Backups" && explicito !== "Lab_Protese"
+      ? explicito
+      : "",
     "Documents/Lab_Protese_Backups",
     "Lab_Protese_Backups",
-    "Documents/Lab_Protese",
-    "Lab_Protese",
-  ];
-  for (const c of candidatos) {
+  ].filter(Boolean);
+
+  for (const c of preferidos) {
     if (await pastaExisteOneDrive(c)) {
       globalGraph.__onedriveGraphRootResolvido = c;
-      console.info(`[onedrive-graph] pasta raiz detectada: ${c}`);
+      console.info(`[onedrive-graph] pasta raiz: ${c}`);
       return c;
     }
   }
 
-  const fallback = "Documents/Lab_Protese_Backups";
-  globalGraph.__onedriveGraphRootResolvido = fallback;
-  return fallback;
+  // Não existe: cria a cadeia (Documents/Lab_Protese_Backups ou o valor do .env).
+  const alvo = explicito || "Documents/Lab_Protese_Backups";
+  await garantirCaminhoPastasOneDrive(`${alvo}/.keep`);
+  globalGraph.__onedriveGraphRootResolvido = alvo;
+  console.info(`[onedrive-graph] pasta raiz criada: ${alvo}`);
+  return alvo;
 }
 
 /** Lista pastas/arquivos na raiz do OneDrive autenticado (diagnóstico). */
@@ -399,13 +420,6 @@ export async function deletePastaOneDriveGraph(remoteFolderPath: string): Promis
   throw new Error(`Purge pasta OneDrive falhou (${res.status}): ${text.slice(0, 300)}`);
 }
 
-/**
- * Estrutura por laboratório (cliente do SaaS):
- *   Lab_Protese/{slug}/
- *     backups/          ← rclone de backup (opcional)
- *     uploads/
- *       os|despesas|receitas|produtos|disparos-whatsapp|suporte/
- */
 export function caminhoRemotoEmpresaUploads(
   empresaSlug: string,
   pastaModulo: string,
@@ -442,16 +456,31 @@ export function caminhoRemotoEmpresaRaiz(empresaSlug: string) {
   return `${root}/${slug}`;
 }
 
-/** Cria Lab_Protese/{slug}/backups e Lab_Protese/{slug}/uploads/{modulos}. */
+/**
+ * Cria (se faltar) a árvore do laboratório e deixa um .keep em cada módulo
+ * para a pasta aparecer no OneDrive web (pastas vazias somem/não sincronizam).
+ */
 export async function garantirEstruturaPastasEmpresaOneDrive(empresaSlug: string) {
-  const raiz = caminhoRemotoEmpresaRaiz(empresaSlug);
-  const backups = `${raiz}/backups`;
-  const uploads = `${raiz}/uploads`;
-  const modulos = ["os", "despesas", "receitas", "produtos", "disparos-whatsapp", "suporte"];
+  await resolverPastaRaizOneDriveGraph();
+  const slug = empresaSlug
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-_]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  if (!slug) return;
 
-  // cria placeholders via pastas (arquivo .keep não necessário)
-  await garantirCaminhoPastasOneDrive(`${backups}/.keep`);
-  for (const m of modulos) {
-    await garantirCaminhoPastasOneDrive(`${uploads}/${m}/.keep`);
+  if (cacheEstruturaEmpresa().has(slug)) return;
+
+  const raiz = caminhoRemotoEmpresaRaiz(slug);
+  const keep = Buffer.from("lab-protese\n", "utf8");
+
+  // {root}/{slug}/backups/.keep
+  await uploadBytesOneDriveGraph(`${raiz}/backups/.keep`, keep, "text/plain");
+
+  for (const m of MODULOS_UPLOAD) {
+    await uploadBytesOneDriveGraph(`${raiz}/uploads/${m}/.keep`, keep, "text/plain");
   }
+
+  cacheEstruturaEmpresa().add(slug);
+  console.info(`[onedrive-graph] estrutura pronta: ${raiz}/uploads/{${MODULOS_UPLOAD.join(",")}}`);
 }
