@@ -13,6 +13,7 @@ import {
   onedriveUploadsRemote,
   uploadUsaOneDrive,
 } from "@/lib/upload-onedrive-storage";
+import { onedriveGraphConfigurado } from "@/lib/onedrive-graph";
 import { reagendarBackupAutomatico } from "@/lib/backup-automatico";
 import {
   fusoBackupAutomatico,
@@ -137,6 +138,7 @@ async function montarStatus(empresaId: string, slug: string, nome: string) {
     uploadStorage: modoUploadStorage(),
     onedriveUploadsAtivo: uploadUsaOneDrive(),
     onedriveUploadsRemote: uploadUsaOneDrive() ? onedriveUploadsRemote() : null,
+    onedriveGraphConfigurado: uploadUsaOneDrive() ? onedriveGraphConfigurado() : false,
     horarioFixo: formatarHorarioFixoBackupAutomatico(),
     padraoNomeArquivo,
     arquivoPadrao: `${pastaRelativa}/${padraoNomeArquivo}`,

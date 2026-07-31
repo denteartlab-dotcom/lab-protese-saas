@@ -16,6 +16,7 @@ import {
   excluirArquivoBancoPorId,
   listarArquivosBanco,
 } from "@/lib/upload-arquivo-server";
+import { uploadUsaOneDrive } from "@/lib/upload-onedrive-storage";
 
 const PASTAS_UPLOAD: PastaUpload[] = [
   "os",
@@ -52,6 +53,10 @@ export function resolverArquivoUploadsSeguro(relativePath: string, empresaSlug?:
 }
 
 export async function garantirPastasUploadEmpresa(empresaSlug: string) {
+  // Com OneDrive, pastas ficam só na nuvem — não cria var/uploads na VPS.
+  if (uploadUsaOneDrive()) {
+    return caminhoPastaUploads(empresaSlug);
+  }
   const base = caminhoPastaUploads(empresaSlug);
   await Promise.all(
     PASTAS_UPLOAD.map((pasta) => mkdir(path.join(base, pasta), { recursive: true }))
@@ -72,7 +77,8 @@ export async function listarArquivosGaleria(
   const lista: ArquivoGaleria[] = [];
   const slugNorm = empresaSlug ? normalizarSlugPastaUploads(empresaSlug) : "";
 
-  if (slugNorm) {
+  // Em modo OneDrive não varre disco local (não há arquivos na VPS).
+  if (slugNorm && !uploadUsaOneDrive()) {
     const base = caminhoPastaUploads(slugNorm);
     await mkdir(base, { recursive: true });
 
@@ -193,11 +199,13 @@ export async function calcularArmazenamentoGaleria(
   empresaSlug?: string,
   empresaNome?: string
 ) {
-  if (empresaSlug) {
+  if (empresaSlug && !uploadUsaOneDrive()) {
     await garantirPastasUploadEmpresa(empresaSlug);
   }
-  const pastaEmpresa = empresaSlug ? caminhoPastaUploads(empresaSlug) : caminhoPastaUploads();
-  const bytesDisco = empresaSlug ? await tamanhoDiretorio(pastaEmpresa) : 0;
+  const bytesDisco =
+    empresaSlug && !uploadUsaOneDrive()
+      ? await tamanhoDiretorio(caminhoPastaUploads(empresaSlug))
+      : 0;
   const bytesBanco = await bytesTotalArquivosBanco(empresaId);
   // Com OneDrive, bytesBanco já inclui metadados (tamanho) dos arquivos remotos.
   const bytesBackup =

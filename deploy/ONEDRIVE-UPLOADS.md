@@ -1,72 +1,97 @@
-# Uploads no OneDrive (em vez da VPS)
+# Uploads diretos no OneDrive (Microsoft Graph) — sem disco na VPS
 
-Os anexos/imagens do laboratório podem ficar **só no OneDrive**, sem acumular em `var/uploads` na VPS.
+Os anexos/imagens do sistema **não são salvos na VPS**.  
+Vão direto para o OneDrive via **Microsoft Graph API** (sem rclone no upload).
 
-## Pré-requisitos
+## Estrutura no OneDrive (por laboratório)
 
-1. `rclone` instalado e autenticado (mesmo remote dos backups):
-
-```bash
-rclone version
-rclone listremotes
-# deve aparecer: onedrive-backup:
+```
+Lab_Protese/
+  {slug-do-laboratorio}/
+    backups/                 ← JSON de backup (rclone, opcional)
+    uploads/
+      os/
+      despesas/
+      receitas/
+      produtos/
+      disparos-whatsapp/
+      suporte/
 ```
 
-2. Schema do banco atualizado (campos `storage` / `remotePath` em `ArquivoUpload`):
+## 1) App no Azure (uma vez)
 
-```bash
-cd /opt/lab-protese-saas
-npx prisma db push
+1. [portal.azure.com](https://portal.azure.com) → Azure Active Directory → Registros de aplicativo → Novo
+2. Conta: contas pessoais + organizacionais (ou só organizacional)
+3. Certificados e segredos → novo segredo do cliente
+4. Permissões da API → Microsoft Graph → **delegadas**:
+   - `Files.ReadWrite`
+   - `Files.ReadWrite.All`
+   - `offline_access`
+   - `User.Read`
+5. Conceda consentimento de admin se necessário
+
+## 2) Obter refresh token
+
+No navegador (substitua CLIENT_ID):
+
+```
+https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=CLIENT_ID&response_type=code&redirect_uri=http://localhost&response_mode=query&scope=offline_access%20Files.ReadWrite%20Files.ReadWrite.All%20User.Read
 ```
 
-## Ativar na VPS
+Troque o `code` por tokens:
 
-No `.env`:
+```bash
+curl -X POST https://login.microsoftonline.com/common/oauth2/v2.0/token \
+  -d "client_id=CLIENT_ID" \
+  -d "client_secret=CLIENT_SECRET" \
+  -d "code=CODIGO" \
+  -d "redirect_uri=http://localhost" \
+  -d "grant_type=authorization_code" \
+  -d "scope=offline_access Files.ReadWrite Files.ReadWrite.All User.Read"
+```
+
+Guarde o `refresh_token`.
+
+## 3) .env na VPS
 
 ```env
 UPLOAD_STORAGE=onedrive
-ONEDRIVE_UPLOADS_REMOTE=onedrive-backup:Lab_Protese_Uploads
-# (opcional) sync de backups continua separado:
+ONEDRIVE_GRAPH_CLIENT_ID=...
+ONEDRIVE_GRAPH_CLIENT_SECRET=...
+ONEDRIVE_GRAPH_TENANT_ID=common
+ONEDRIVE_GRAPH_REFRESH_TOKEN=...
+ONEDRIVE_GRAPH_ROOT_FOLDER=Lab_Protese
+
+# Backup JSON ainda pode usar rclone (pasta backups/ de cada cliente):
 ONEDRIVE_BACKUP_SYNC_ENABLED=true
-ONEDRIVE_RCLONE_REMOTE=onedrive-backup:Lab_Protese_Backups
+ONEDRIVE_RCLONE_REMOTE=onedrive-backup:Lab_Protese
 ```
-
-Reinicie o app:
-
-```bash
-pm2 restart lab-protese
-```
-
-Novos uploads vão para `Lab_Protese_Uploads/{slugEmpresa}/{pasta}/` e só metadados ficam no PostgreSQL. A API `/api/uploads/arquivo/{id}` faz proxy autenticado do OneDrive.
-
-## Migrar arquivos antigos da VPS
-
-Simular:
 
 ```bash
 cd /opt/lab-protese-saas
-npm run uploads:migrar-onedrive -- --simular
+git pull
+npx prisma db push
+pm2 restart lab-protese
 ```
 
-Migrar e apagar disco local:
+## 4) Migrar arquivos antigos da VPS
 
 ```bash
+npm run uploads:migrar-onedrive -- --simular
 npm run uploads:migrar-onedrive -- --limpar-disco
-# ou só uma empresa:
-npm run uploads:migrar-onedrive -- --empresa=denteart-1 --limpar-disco
 ```
-
-URLs antigas `/api/uploads/disco/...` continuam funcionando (fallback para o OneDrive).
 
 ## Conferir
 
-1. Configurações → Backup: deve aparecer **Uploads ativos no OneDrive**.
-2. Envie um anexo numa OS e abra de novo.
-3. No OneDrive: pasta `Lab_Protese_Uploads`.
-4. Confirme que `var/uploads` não cresce (após migração + `--limpar-disco`).
+1. Configurações → Backup: “Uploads ativos no OneDrive”
+2. Envie um anexo numa OS → deve aparecer em `Lab_Protese/{slug}/uploads/os/`
+3. A pasta `var/uploads` na VPS **não deve crescer**
 
-## Notas
+## Diferença importante
 
-- Staging temporário ainda usa disco/RAM só durante o upload.
-- WhatsApp (`forcarBanco`) continua no PostgreSQL de propósito.
-- Backup automático **não** espelha uploads no disco quando `UPLOAD_STORAGE=onedrive` (já estão na nuvem).
+| Tipo | Como | Onde |
+|------|------|------|
+| **Upload do sistema** (OS, financeiro, produtos…) | Microsoft Graph (direto) | `…/uploads/{modulo}/` |
+| **Backup automático** (JSON) | rclone (opcional) | `…/backups/` |
+
+Não usa rclone nem disco da VPS para anexos do dia a dia.

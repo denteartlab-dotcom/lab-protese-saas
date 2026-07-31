@@ -1,6 +1,6 @@
 /**
- * Migra arquivos de var/uploads/{slug}/... para o OneDrive e grava metadados no banco.
- * Depois remove os arquivos locais (opcional).
+ * Migra arquivos de var/uploads/{slug}/... para o OneDrive (Microsoft Graph)
+ * e grava metadados no banco. Depois remove os arquivos locais (opcional).
  *
  * Uso:
  *   npx tsx scripts/migrar-uploads-onedrive.ts
@@ -18,11 +18,11 @@ import {
 import {
   caminhoRemotoUpload,
   enviarBufferParaOneDrive,
+  onedriveStorageDisponivel,
   onedriveUploadsRemote,
-  rcloneOneDriveDisponivel,
-  uploadUsaOneDrive,
 } from "../src/lib/upload-onedrive-storage";
 import { detectarMimePorMagic } from "../src/lib/upload-arquivo-server";
+import { garantirEstruturaPastasEmpresaOneDrive } from "../src/lib/onedrive-graph";
 
 function argFlag(nome: string) {
   return process.argv.includes(nome);
@@ -70,19 +70,15 @@ async function main() {
   const limparDisco = argFlag("--limpar-disco");
   const filtroSlug = normalizarSlugPastaUploads(argValor("--empresa"));
 
-  if (!uploadUsaOneDrive() && !simular) {
-    console.warn(
-      "[migrar-uploads-onedrive] UPLOAD_STORAGE não é onedrive. Continuando mesmo assim (migração)."
+  const ok = await onedriveStorageDisponivel();
+  if (!ok && !simular) {
+    console.error(
+      "[migrar-uploads-onedrive] Configure ONEDRIVE_GRAPH_CLIENT_ID/SECRET/REFRESH_TOKEN."
     );
-  }
-
-  const rcloneOk = await rcloneOneDriveDisponivel();
-  if (!rcloneOk && !simular) {
-    console.error("[migrar-uploads-onedrive] rclone não encontrado no PATH.");
     process.exit(1);
   }
 
-  console.log(`[migrar-uploads-onedrive] remote=${onedriveUploadsRemote()}`);
+  console.log(`[migrar-uploads-onedrive] destino=${onedriveUploadsRemote()}`);
   if (simular) console.log("[migrar-uploads-onedrive] modo --simular");
 
   const empresas = await executarSemRls(() =>
@@ -100,6 +96,14 @@ async function main() {
   for (const empresa of empresas) {
     const slug = normalizarSlugPastaUploads(empresa.slug);
     if (filtroSlug && slug !== filtroSlug) continue;
+
+    if (!simular) {
+      try {
+        await garantirEstruturaPastasEmpresaOneDrive(slug);
+      } catch (err) {
+        console.warn(`[migrar-uploads-onedrive] ${slug}: estrutura`, err);
+      }
+    }
 
     const base = caminhoPastaUploads(slug);
     let arquivos: string[] = [];
@@ -147,7 +151,7 @@ async function main() {
           continue;
         }
 
-        await enviarBufferParaOneDrive(remotePath, bytes, filename);
+        await enviarBufferParaOneDrive(remotePath, bytes, filename, mime);
         await executarSemRls(() =>
           prisma.arquivoUpload.create({
             data: {

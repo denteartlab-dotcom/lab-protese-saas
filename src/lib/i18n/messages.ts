@@ -175,7 +175,7 @@ export const messages = {
     "settings.backupAutoOneDriveAtivo":
       "OneDrive: após cada backup, a pasta backups/ é sincronizada automaticamente (rclone).",
     "settings.backupAutoOneDriveUploads":
-      "Uploads ativos no OneDrive (não acumulam na VPS): {remote}",
+      "Uploads diretos no OneDrive (sem disco na VPS): {remote}",
     "settings.backupAutoUploadStorageDatabase":
       "Uploads: armazenados no banco de dados (PostgreSQL).",
     "settings.backupAutoUploadStorageDisk":
@@ -943,7 +943,7 @@ export const messages = {
     "settings.backupAutoOneDriveAtivo":
       "OneDrive: after each backup, the backups/ folder is synced automatically (rclone).",
     "settings.backupAutoOneDriveUploads":
-      "Active uploads on OneDrive (not stored on the VPS): {remote}",
+      "Direct uploads to OneDrive (not stored on the VPS): {remote}",
     "settings.backupAutoUploadStorageDatabase":
       "Uploads: stored in the database (PostgreSQL).",
     "settings.backupAutoUploadStorageDisk":
@@ -1707,7 +1707,7 @@ export const messages = {
     "settings.backupAutoOneDriveAtivo":
       "OneDrive: tras cada respaldo, la carpeta backups/ se sincroniza automáticamente (rclone).",
     "settings.backupAutoOneDriveUploads":
-      "Uploads activos en OneDrive (no se acumulan en la VPS): {remote}",
+      "Uploads directos en OneDrive (sin disco en la VPS): {remote}",
     "settings.backupAutoUploadStorageDatabase":
       "Uploads: almacenados en la base de datos (PostgreSQL).",
     "settings.backupAutoUploadStorageDisk":

@@ -87,7 +87,7 @@ export async function executarBackupNoServidor(
   const uploads = await espelharUploadsNoBackupEmpresa(empresaId, slug, nome);
   await reportar?.({ fase: "sincronizando", percentual: 75 });
 
-  const onedrive = await sincronizarBackupComOneDrive();
+  const onedrive = await sincronizarBackupComOneDrive({ slug, nome });
   const drive = await uploadBackupParaGoogleDrive({
     empresaId,
     slug,

@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# Garante a pasta raiz de uploads no OneDrive (rclone).
-# O app envia arquivo a arquivo; este script só cria/verifica o remote.
+# Verifica acesso ao OneDrive via rclone (backups).
+# Uploads do sistema usam Microsoft Graph — ver deploy/ONEDRIVE-UPLOADS.md
 set -euo pipefail
 
-DESTINO="${ONEDRIVE_UPLOADS_REMOTE:-onedrive-backup:Lab_Protese_Uploads}"
+DESTINO="${ONEDRIVE_RCLONE_REMOTE:-onedrive-backup:Lab_Protese}"
 LOG="${ONEDRIVE_UPLOADS_LOG:-/var/log/rclone-uploads.log}"
 
 rclone mkdir "$DESTINO" >>"$LOG" 2>&1 || true
 rclone lsd "$DESTINO" >>"$LOG" 2>&1
-echo "$(date -Is) uploads remote OK: $DESTINO" >>"$LOG"
+echo "$(date -Is) OneDrive remote OK: $DESTINO (backups por Lab_Protese/{slug}/backups)" >>"$LOG"
+echo "Uploads vivos: configure ONEDRIVE_GRAPH_* + UPLOAD_STORAGE=onedrive" >>"$LOG"

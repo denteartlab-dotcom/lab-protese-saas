@@ -4,7 +4,8 @@
 set -euo pipefail
 
 ORIGEM="/opt/lab-protese-saas/backups"
-DESTINO="onedrive-backup:Lab_Protese_Backups"
+DESTINO="${ONEDRIVE_RCLONE_REMOTE:-onedrive-backup:Lab_Protese}"
+
 LOG="/var/log/rclone-backup.log"
 
 if [[ ! -d "$ORIGEM" ]]; then

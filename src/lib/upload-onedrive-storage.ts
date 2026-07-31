@@ -1,10 +1,17 @@
-import { execFile } from "child_process";
-import { mkdtemp, writeFile, rm } from "fs/promises";
-import { tmpdir } from "os";
-import path from "path";
-import { promisify } from "util";
-
-const execFileAsync = promisify(execFile);
+/**
+ * Storage de uploads no OneDrive via Microsoft Graph (direto na nuvem).
+ * Não usa rclone nem grava arquivos em disco na VPS.
+ */
+import {
+  caminhoRemotoEmpresaRaiz,
+  caminhoRemotoEmpresaUploads,
+  deleteItemOneDriveGraph,
+  deletePastaOneDriveGraph,
+  downloadBytesOneDriveGraph,
+  onedriveGraphConfigurado,
+  onedriveGraphRootFolder,
+  uploadBytesOneDriveGraph,
+} from "@/lib/onedrive-graph";
 
 function normalizarSlug(empresaSlug: string): string {
   return empresaSlug
@@ -14,113 +21,82 @@ function normalizarSlug(empresaSlug: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-/** Uploads primários no OneDrive (rclone), sem acumular em disco na VPS. */
+/** Uploads primários no OneDrive (Microsoft Graph), sem disco na VPS. */
 export function uploadUsaOneDrive() {
   const modo = (process.env.UPLOAD_STORAGE || "").trim().toLowerCase();
   return modo === "onedrive";
 }
 
+/** Destino exibido na UI / docs. */
 export function onedriveUploadsRemote() {
   return (
     process.env.ONEDRIVE_UPLOADS_REMOTE?.trim() ||
-    "onedrive-backup:Lab_Protese_Uploads"
+    `${onedriveGraphRootFolder()}/{empresa}/uploads`
   );
 }
 
+/**
+ * Caminho remoto:
+ *   Lab_Protese/{slug}/uploads/{pasta}/{arquivo}
+ */
 export function caminhoRemotoUpload(
   empresaSlug: string,
   pasta: string,
   filename: string
 ) {
-  const slug = normalizarSlug(empresaSlug);
-  const nome = filename.replace(/^[/\\]+/, "").replace(/\\/g, "/");
-  return `${slug}/${pasta}/${nome}`;
+  return caminhoRemotoEmpresaUploads(empresaSlug, pasta, filename);
 }
 
-function destinoRclone(remotePath: string) {
-  const root = onedriveUploadsRemote().replace(/\/+$/, "");
-  const rel = remotePath.replace(/^[/\\]+/, "").replace(/\\/g, "/");
-  return `${root}/${rel}`;
-}
-
-async function rclone(args: string[], opts?: { maxBuffer?: number; timeout?: number }) {
-  return execFileAsync("rclone", args, {
-    timeout: opts?.timeout ?? 300_000,
-    maxBuffer: opts?.maxBuffer ?? 32 * 1024 * 1024,
-    windowsHide: true,
-  });
-}
-
-/** Envia buffer para o OneDrive e remove o staging local. */
+/** Envia bytes direto para o OneDrive (sem staging em disco). */
 export async function enviarBufferParaOneDrive(
   remotePath: string,
   bytes: Buffer,
-  nomeLocalHint?: string
+  _nomeLocalHint?: string,
+  mimeType?: string
 ) {
-  const stagingRoot = await mkdtemp(path.join(tmpdir(), "lab-upload-od-"));
-  const safeLocal = (nomeLocalHint || path.basename(remotePath) || "arquivo")
-    .replace(/[<>:"/\\|?*\x00-\x1f]/g, "-")
-    .slice(0, 180);
-  const localPath = path.join(stagingRoot, safeLocal || "arquivo");
-
-  try {
-    await writeFile(localPath, bytes);
-    await rclone(["copyto", localPath, destinoRclone(remotePath)]);
-  } finally {
-    await rm(stagingRoot, { recursive: true, force: true }).catch(() => undefined);
+  if (!onedriveGraphConfigurado()) {
+    throw new Error(
+      "UPLOAD_STORAGE=onedrive exige Microsoft Graph. Configure ONEDRIVE_GRAPH_CLIENT_ID, ONEDRIVE_GRAPH_CLIENT_SECRET e ONEDRIVE_GRAPH_REFRESH_TOKEN."
+    );
   }
+  await uploadBytesOneDriveGraph(remotePath, bytes, mimeType);
 }
 
-/** Baixa bytes do OneDrive (rclone cat). */
+/** Baixa bytes do OneDrive (Graph). */
 export async function baixarArquivoOneDrive(remotePath: string): Promise<Buffer> {
-  const destino = destinoRclone(remotePath);
-  const { stdout } = await execFileAsync("rclone", ["cat", destino], {
-    encoding: "buffer",
-    timeout: 180_000,
-    maxBuffer: 20 * 1024 * 1024,
-    windowsHide: true,
-  });
-  return Buffer.isBuffer(stdout) ? stdout : Buffer.from(stdout);
+  return downloadBytesOneDriveGraph(remotePath);
 }
 
 export async function excluirArquivoOneDrive(remotePath: string): Promise<void> {
-  try {
-    await rclone(["deletefile", destinoRclone(remotePath)], { timeout: 120_000 });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    if (/not found|doesn't exist|directory not found|couldn't find/i.test(msg)) {
-      return;
-    }
-    throw err;
-  }
+  await deleteItemOneDriveGraph(remotePath);
 }
 
-/** Remove toda a pasta de uploads da empresa no OneDrive. */
+/** Remove a pasta inteira do laboratório no OneDrive (uploads + backups da estrutura). */
 export async function excluirPastaUploadsEmpresaOneDrive(
   empresaSlug: string
 ): Promise<{ ok: boolean; erro?: string }> {
   const slug = normalizarSlug(empresaSlug);
   if (!slug) return { ok: true };
+  if (!onedriveGraphConfigurado()) {
+    return { ok: false, erro: "graph-nao-configurado" };
+  }
 
-  const destino = `${onedriveUploadsRemote().replace(/\/+$/, "")}/${slug}`;
   try {
-    await rclone(["purge", destino], { timeout: 180_000 });
+    await deletePastaOneDriveGraph(caminhoRemotoEmpresaRaiz(slug));
     return { ok: true };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    if (/not found|doesn't exist|directory not found|couldn't find/i.test(msg)) {
-      return { ok: true };
-    }
+    if (/not found|itemNotFound/i.test(msg)) return { ok: true };
     console.error("[upload-onedrive] purge:", msg);
     return { ok: false, erro: msg };
   }
 }
 
+export async function onedriveStorageDisponivel(): Promise<boolean> {
+  return onedriveGraphConfigurado();
+}
+
+/** @deprecated use onedriveStorageDisponivel */
 export async function rcloneOneDriveDisponivel(): Promise<boolean> {
-  try {
-    await rclone(["version"], { timeout: 15_000, maxBuffer: 1024 * 1024 });
-    return true;
-  } catch {
-    return false;
-  }
+  return onedriveStorageDisponivel();
 }
