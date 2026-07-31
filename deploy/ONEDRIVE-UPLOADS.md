@@ -34,18 +34,27 @@ Lab_Protese_Backups/
    - `User.Read`
 5. Conceda consentimento de admin se necessário
 
-## 2) Obter refresh token
+## 2) Obter refresh token (conta correta)
 
-No navegador (substitua CLIENT_ID):
+**Atenção:** o token fica ligado à conta Microsoft que você usar no login.
+Use **`denteartlab@outlook.com`** (não `denteartlabb@...`).
+
+No PC (com o `.env` já tendo CLIENT_ID e CLIENT_SECRET):
+
+```bash
+npm run uploads:onedrive-token
+```
+
+Ou no navegador (substitua CLIENT_ID), **aba anônima**, login com a conta certa:
 
 ```
-https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=CLIENT_ID&response_type=code&redirect_uri=http://localhost&response_mode=query&scope=offline_access%20Files.ReadWrite%20Files.ReadWrite.All%20User.Read
+https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize?client_id=CLIENT_ID&response_type=code&redirect_uri=http://localhost&response_mode=query&scope=offline_access%20Files.ReadWrite%20Files.ReadWrite.All%20User.Read&prompt=login
 ```
 
 Troque o `code` por tokens:
 
 ```bash
-curl -X POST https://login.microsoftonline.com/common/oauth2/v2.0/token \
+curl -X POST https://login.microsoftonline.com/consumers/oauth2/v2.0/token \
   -d "client_id=CLIENT_ID" \
   -d "client_secret=CLIENT_SECRET" \
   -d "code=CODIGO" \
@@ -54,7 +63,7 @@ curl -X POST https://login.microsoftonline.com/common/oauth2/v2.0/token \
   -d "scope=offline_access Files.ReadWrite Files.ReadWrite.All User.Read"
 ```
 
-Guarde o `refresh_token`.
+Guarde o `refresh_token`. Confirme com `npm run uploads:testar-onedrive` que o e-mail impresso é `denteartlab@outlook.com`.
 
 ## 3) .env na VPS
 
