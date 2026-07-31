@@ -3,6 +3,8 @@
  *
  *   npx tsx scripts/testar-onedrive-upload.ts
  */
+import { readFileSync, existsSync } from "fs";
+import path from "path";
 import {
   caminhoRemotoEmpresaUploads,
   onedriveGraphConfigurado,
@@ -12,7 +14,29 @@ import {
 } from "../src/lib/onedrive-graph";
 import { uploadUsaOneDrive } from "../src/lib/upload-onedrive-storage";
 
+function carregarDotEnv() {
+  const envPath = path.join(process.cwd(), ".env");
+  if (!existsSync(envPath)) return;
+  for (const linha of readFileSync(envPath, "utf8").split("\n")) {
+    const trimmed = linha.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const igual = trimmed.indexOf("=");
+    if (igual === -1) continue;
+    const chave = trimmed.slice(0, igual).trim();
+    let valor = trimmed.slice(igual + 1).trim();
+    if (
+      (valor.startsWith('"') && valor.endsWith('"')) ||
+      (valor.startsWith("'") && valor.endsWith("'"))
+    ) {
+      valor = valor.slice(1, -1);
+    }
+    if (chave) process.env[chave] = valor;
+  }
+}
+
 async function main() {
+  carregarDotEnv();
+
   console.log("UPLOAD_STORAGE =", process.env.UPLOAD_STORAGE || "(vazio)");
   console.log("uploadUsaOneDrive() =", uploadUsaOneDrive());
   console.log("graphConfigurado =", onedriveGraphConfigurado());
@@ -23,7 +47,9 @@ async function main() {
   console.log("refresh =", process.env.ONEDRIVE_GRAPH_REFRESH_TOKEN ? "ok" : "FALTA");
 
   if (!uploadUsaOneDrive()) {
-    console.error("\nERRO: UPLOAD_STORAGE não é onedrive. Ajuste o .env e reinicie o PM2 pelo ecosystem.");
+    console.error(
+      "\nERRO: UPLOAD_STORAGE não é onedrive. Deixe só UPLOAD_STORAGE=onedrive no .env e rode:\npm2 startOrReload deploy/ecosystem.config.cjs --update-env"
+    );
     process.exit(1);
   }
   if (!onedriveGraphConfigurado()) {
@@ -41,7 +67,7 @@ async function main() {
   await uploadBytesOneDriveGraph(remotePath, conteudo, "text/plain");
   const voltou = await downloadBytesOneDriveGraph(remotePath);
   console.log("Download OK:", voltou.toString("utf8").trim());
-  console.log("\nSUCESSO. Abra o OneDrive e procure a pasta Lab_Protese/teste-lab/uploads/os/");
+  console.log("\nSUCESSO. Abra o OneDrive e procure Lab_Protese/teste-lab/uploads/os/");
 }
 
 main().catch((err) => {
