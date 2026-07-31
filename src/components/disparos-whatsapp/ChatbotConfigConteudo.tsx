@@ -14,6 +14,7 @@ import {
   type ChatbotOpcaoMenu,
   type ChatbotTipoOpcao,
 } from "@/lib/whatsapp-chat/chatbot-config-types";
+import { excluirUploadPorUrl } from "@/lib/uploads-armazenamento";
 
 const TIPOS_OPCAO: { value: ChatbotTipoOpcao; label: string }[] = [
   { value: "sistema", label: "Ação do sistema" },
@@ -48,6 +49,8 @@ function AnexoChatbotCampo({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Falha no upload");
       const item = data.anexo;
+      const anteriorUrl = anexo?.url?.trim();
+      if (anteriorUrl) void excluirUploadPorUrl(anteriorUrl);
       onChange({
         uploadId: item.uploadId,
         nome: item.nome,
@@ -75,7 +78,11 @@ function AnexoChatbotCampo({
           <span className="truncate">{anexo.nome}</span>
           <button
             type="button"
-            onClick={() => onChange(null)}
+            onClick={() => {
+              const url = anexo.url?.trim();
+              onChange(null);
+              if (url) void excluirUploadPorUrl(url);
+            }}
             className="ml-auto text-red-600 hover:underline"
           >
             Remover

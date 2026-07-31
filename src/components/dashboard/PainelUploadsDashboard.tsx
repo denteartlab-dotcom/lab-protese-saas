@@ -43,6 +43,10 @@ export function PainelUploadsDashboard({
   const textoLivre = formatarTamanhoMbCard(bytesLivres);
   const galeriaEsgotada = bytesLivres <= 0;
   const galeriaEmAlerta = armazenamentoGaleriaEmAlerta(resumo.bytesUsados);
+  const tituloCard =
+    resumo.onedriveAtivo || resumo.storageMode === "onedrive"
+      ? t("dashboard.uploadsNuvem")
+      : titulo;
 
   return (
     <section
@@ -52,7 +56,7 @@ export function PainelUploadsDashboard({
       )}
     >
       <div className="flex min-h-10 items-center justify-between border-b border-slate-100 px-4 py-2">
-        <h2 className="text-sm font-medium text-slate-700">{titulo}</h2>
+        <h2 className="text-sm font-medium text-slate-700">{tituloCard}</h2>
         <span className="text-[11px] font-semibold text-slate-600">
           {resumo.limiteGb} GB
         </span>

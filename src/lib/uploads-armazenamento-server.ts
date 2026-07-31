@@ -191,6 +191,8 @@ export function resumoArmazenamentoVazio() {
     limiteGb: LIMITE_GALERIA_GB,
     percentualUsado: 0,
     percentualLivre: 100,
+    storageMode: "disk" as const,
+    onedriveAtivo: false,
   };
 }
 
@@ -199,17 +201,18 @@ export async function calcularArmazenamentoGaleria(
   empresaSlug?: string,
   empresaNome?: string
 ) {
-  if (empresaSlug && !uploadUsaOneDrive()) {
+  const onedrive = uploadUsaOneDrive();
+  if (empresaSlug && !onedrive) {
     await garantirPastasUploadEmpresa(empresaSlug);
   }
   const bytesDisco =
-    empresaSlug && !uploadUsaOneDrive()
+    empresaSlug && !onedrive
       ? await tamanhoDiretorio(caminhoPastaUploads(empresaSlug))
       : 0;
   const bytesBanco = await bytesTotalArquivosBanco(empresaId);
-  // Com OneDrive, bytesBanco já inclui metadados (tamanho) dos arquivos remotos.
+  // OneDrive: só metadados do banco (tamanho remoto). Não conta pasta local de backup da VPS.
   const bytesBackup =
-    empresaSlug && empresaSlug.trim()
+    !onedrive && empresaSlug && empresaSlug.trim()
       ? await tamanhoDiretorio(pastaBackupEmpresa(empresaSlug, empresaNome))
       : 0;
   const bytesUsados = bytesDisco + bytesBanco + bytesBackup;
@@ -227,5 +230,7 @@ export async function calcularArmazenamentoGaleria(
     limiteGb: LIMITE_GALERIA_GB,
     percentualUsado,
     percentualLivre,
+    storageMode: onedrive ? ("onedrive" as const) : bytesDisco > 0 || !empresaId ? ("disk" as const) : ("database" as const),
+    onedriveAtivo: onedrive,
   };
 }

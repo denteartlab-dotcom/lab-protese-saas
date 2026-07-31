@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { ImagePlus, Trash2 } from "lucide-react";
+import { excluirUploadPorUrl } from "@/lib/uploads-armazenamento";
 
 type Props = {
   value: string;
@@ -37,6 +38,10 @@ export function ProdutoFotoCampo({ value, onChange, disabled }: Props) {
       const uploaded = (await res.json()) as Array<{ url?: string }>;
       const url = uploaded[0]?.url?.trim();
       if (!url) throw new Error("Resposta de upload inválida.");
+      const anterior = value.trim();
+      if (anterior && anterior !== url) {
+        void excluirUploadPorUrl(anterior);
+      }
       onChange(url);
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Falha no upload da foto.");
@@ -79,7 +84,11 @@ export function ProdutoFotoCampo({ value, onChange, disabled }: Props) {
             <button
               type="button"
               disabled={disabled || enviando}
-              onClick={() => onChange("")}
+              onClick={() => {
+                const anterior = value.trim();
+                onChange("");
+                if (anterior) void excluirUploadPorUrl(anterior);
+              }}
               className="inline-flex items-center gap-1 rounded border border-slate-200 bg-white px-2 py-1.5 text-[11px] text-rose-600 hover:bg-rose-50 disabled:opacity-50"
             >
               <Trash2 className="h-3.5 w-3.5" />

@@ -14,10 +14,13 @@ export type UploadsResumoArmazenamento = {
   limiteGb: number;
   percentualUsado: number;
   percentualLivre: number;
+  /** Onde os arquivos da galeria estão: onedrive | database | disk */
+  storageMode?: "onedrive" | "database" | "disk";
+  onedriveAtivo?: boolean;
 };
 
 export const MENSAGEM_LIMITE_GALERIA_ESGOTADO =
-  "Espaço de uploads esgotado (0 GB livre). Libere espaço em Início → Uploads → Liberar espaço ou acesse /app/liberar-espaco.";
+  "Espaço de uploads esgotado (0 GB livre). Libere espaço em Início → Uploads → Liberar espaço (OneDrive) ou acesse /app/liberar-espaco.";
 
 export function armazenamentoGaleriaEsgotado(bytesLivres: number): boolean {
   return bytesLivres <= 0;
@@ -45,6 +48,51 @@ export function armazenamentoGaleriaCabeArquivos(
 export function notificarUploadsAtualizados() {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new Event(UPLOADS_ATUALIZADO_EVENT));
+}
+
+/**
+ * Converte URL pública de upload no caminho relativo usado pela galeria
+ * (`db/{id}` ou caminho em disco).
+ */
+export function caminhoGaleriaDeUrlUpload(url: string): string | null {
+  const raw = url?.trim();
+  if (!raw) return null;
+
+  let pathname = raw;
+  try {
+    if (/^https?:\/\//i.test(raw)) {
+      pathname = new URL(raw).pathname;
+    }
+  } catch {
+    /* path relativo */
+  }
+
+  const porId = pathname.match(/\/api\/uploads\/arquivo\/([^/?#]+)/i);
+  if (porId?.[1]) return `db/${decodeURIComponent(porId[1])}`;
+
+  const porDisco = pathname.match(/\/api\/uploads\/disco\/(.+)$/i);
+  if (porDisco?.[1]) return decodeURIComponent(porDisco[1]);
+
+  const legado = pathname.match(/\/uploads\/(.+)$/i);
+  if (legado?.[1]) return decodeURIComponent(legado[1]);
+
+  return null;
+}
+
+/** Exclui o arquivo do armazenamento (OneDrive/banco/disco) a partir da URL do módulo. */
+export async function excluirUploadPorUrl(url: string): Promise<boolean> {
+  const relativePath = caminhoGaleriaDeUrlUpload(url);
+  if (!relativePath) return false;
+
+  const res = await fetch("/api/uploads/arquivos", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
+    body: JSON.stringify({ paths: [relativePath] }),
+  });
+  if (!res.ok) return false;
+  notificarUploadsAtualizados();
+  return true;
 }
 
 const fmtPt = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });

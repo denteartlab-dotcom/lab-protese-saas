@@ -494,11 +494,7 @@ export async function excluirArquivoBancoPorId(id: string, empresaId?: string) {
   if (!row) return;
 
   if (row.storage === "onedrive" && row.remotePath) {
-    try {
-      await excluirArquivoOneDrive(row.remotePath);
-    } catch (err) {
-      console.warn("[upload] falha ao excluir no OneDrive:", err);
-    }
+    await excluirArquivoOneDrive(row.remotePath);
   }
 
   if (empresaId) {

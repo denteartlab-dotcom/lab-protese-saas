@@ -245,6 +245,9 @@ export function LiberarEspacoConteudo() {
           <h2 className="text-[13px] font-medium text-[#374151] dark:text-slate-200">
             {t("liberarEspaco.galeriaTitulo")}
           </h2>
+          <p className="basis-full text-[11px] text-[#6b7280] dark:text-slate-400 sm:basis-auto sm:max-w-md">
+            {t("liberarEspaco.subtituloNuvem")}
+          </p>
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"

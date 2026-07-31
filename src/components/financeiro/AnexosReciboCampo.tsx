@@ -16,7 +16,10 @@ import {
   type AnexoDespesa,
   type PastaAnexoFinanceiro,
 } from "@/lib/lancamento-despesa";
-import { notificarUploadsAtualizados } from "@/lib/uploads-armazenamento";
+import {
+  excluirUploadPorUrl,
+  notificarUploadsAtualizados,
+} from "@/lib/uploads-armazenamento";
 import { useArmazenamentoGaleria } from "@/hooks/use-armazenamento-galeria";
 import { cn } from "@/lib/utils";
 
@@ -150,7 +153,11 @@ export const AnexosReciboCampo = forwardRef<AnexosReciboCampoRef, Props>(
     );
 
     function removerAnexo(index: number) {
+      const removido = anexosRef.current[index];
       sincronizarLista(anexosRef.current.filter((_, i) => i !== index));
+      if (removido?.url) {
+        void excluirUploadPorUrl(removido.url);
+      }
     }
 
     function previewSalvo(anexo: AnexoDespesa) {

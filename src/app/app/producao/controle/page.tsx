@@ -163,7 +163,10 @@ import {
   type PrioridadeOsForm,
 } from "@/lib/prioridade-os";
 import { notificarTrabalhosAtualizados } from "@/lib/trabalhos-events";
-import { notificarUploadsAtualizados } from "@/lib/uploads-armazenamento";
+import {
+  excluirUploadPorUrl,
+  notificarUploadsAtualizados,
+} from "@/lib/uploads-armazenamento";
 import { useArmazenamentoGaleria } from "@/hooks/use-armazenamento-galeria";
 import {
   DENTES_DECIDUOS_INFERIORES,
@@ -3851,13 +3854,14 @@ export default function ControlePage() {
                 }
                 clientes={clientesCatalogo}
                 anexosExistentes={anexosEdicao}
-                onRemoverAnexoExistente={(anexo) =>
+                onRemoverAnexoExistente={(anexo) => {
                   setAnexosEdicao((atuais) =>
                     atuais.filter(
                       (item) => item.url !== anexo.url || item.name !== anexo.name
                     )
-                  )
-                }
+                  );
+                  if (anexo.url) void excluirUploadPorUrl(anexo.url);
+                }}
                 arquivosNovos={arquivosEdicao}
                 onArquivosNovosChange={setArquivosEdicao}
                 desabilitado={osFaturada}
