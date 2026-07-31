@@ -393,6 +393,20 @@ app
         console.log(
           `> Lab Prótese ouvindo em ${listenHost}:${listenPort} (Next hostname=${nextHostname} publicPort=${nextPort})`
         );
+        try {
+          const { modoUploadStorage, faltamCredenciaisOneDriveGraph } =
+            await import("./src/lib/upload-arquivo-server");
+          const { onedriveGraphRootFolder } = await import("./src/lib/onedrive-graph");
+          const modo = modoUploadStorage();
+          const faltando = faltamCredenciaisOneDriveGraph();
+          console.log(
+            `> Uploads storage=${modo} root=${onedriveGraphRootFolder()}${
+              faltando.length ? ` FALTANDO=${faltando.join(",")}` : ""
+            }`
+          );
+        } catch (err) {
+          console.warn("> Uploads storage: não foi possível diagnosticar", err);
+        }
         console.log(`> Socket.io TV: ${TV_SOCKET_PATH}`);
         iniciarMonitorConexaoWhatsapp();
         void retomarCampanhasPendentesServidor();

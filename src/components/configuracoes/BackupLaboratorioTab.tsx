@@ -40,6 +40,8 @@ type StatusBackupAutomatico = {
   uploadStorage?: "onedrive" | "database" | "disk";
   onedriveUploadsAtivo?: boolean;
   onedriveUploadsRemote?: string | null;
+  onedriveGraphConfigurado?: boolean;
+  onedriveFaltandoCredenciais?: string[];
   horarioFixo?: string;
   padraoNomeArquivo: string;
   arquivoPadrao: string;
@@ -385,13 +387,13 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                           statusAuto.onedriveUploadsRemote || "OneDrive"
                         )}
                       </p>
-                    ) : statusAuto?.uploadStorage === "database" ? (
-                      <p className="mt-1 text-[11px] text-emerald-800 dark:text-emerald-300">
-                        {t("settings.backupAutoUploadStorageDatabase")}
-                      </p>
                     ) : (
-                      <p className="mt-1 text-[11px] text-emerald-800 dark:text-emerald-300">
-                        {t("settings.backupAutoUploadStorageDisk")}
+                      <p className="mt-1 text-[11px] font-medium text-amber-800 dark:text-amber-300">
+                        {statusAuto?.onedriveFaltandoCredenciais?.length
+                          ? `OneDrive inativo — falta no .env: ${statusAuto.onedriveFaltandoCredenciais.join(", ")}`
+                          : statusAuto?.uploadStorage === "database"
+                            ? t("settings.backupAutoUploadStorageDatabase")
+                            : t("settings.backupAutoUploadStorageDisk")}
                       </p>
                     )}
                     {statusAuto?.padraoNomeArquivo && (

@@ -14,6 +14,7 @@ import {
   excluirArquivoOneDrive,
   uploadUsaOneDrive,
 } from "@/lib/upload-onedrive-storage";
+import { carregarEnvArquivoRuntime, envRuntime } from "@/lib/env-runtime";
 
 export { uploadUsaOneDrive } from "@/lib/upload-onedrive-storage";
 
@@ -62,10 +63,20 @@ export function pastaUploadValida(pasta: string | null): PastaUpload {
   return "os";
 }
 
+export function faltamCredenciaisOneDriveGraph(): string[] {
+  carregarEnvArquivoRuntime();
+  const faltando: string[] = [];
+  if (!envRuntime("ONEDRIVE_GRAPH_CLIENT_ID")) faltando.push("ONEDRIVE_GRAPH_CLIENT_ID");
+  if (!envRuntime("ONEDRIVE_GRAPH_CLIENT_SECRET")) faltando.push("ONEDRIVE_GRAPH_CLIENT_SECRET");
+  if (!envRuntime("ONEDRIVE_GRAPH_REFRESH_TOKEN")) faltando.push("ONEDRIVE_GRAPH_REFRESH_TOKEN");
+  return faltando;
+}
+
 /** Na Vercel o disco é somente leitura; anexos vão para o PostgreSQL. */
 export function uploadUsaBancoDados() {
+  carregarEnvArquivoRuntime();
   if (uploadUsaOneDrive()) return false;
-  return process.env.VERCEL === "1" || process.env.UPLOAD_STORAGE === "database";
+  return envRuntime("VERCEL") === "1" || envRuntime("UPLOAD_STORAGE").toLowerCase() === "database";
 }
 
 export type ModoUploadStorage = "onedrive" | "database" | "disk";
@@ -74,6 +85,24 @@ export function modoUploadStorage(): ModoUploadStorage {
   if (uploadUsaOneDrive()) return "onedrive";
   if (uploadUsaBancoDados()) return "database";
   return "disk";
+}
+
+function exigirOneDriveSeConfiguradoNoEnv() {
+  carregarEnvArquivoRuntime();
+  const modo = envRuntime("UPLOAD_STORAGE").toLowerCase();
+  const querOneDrive = modo === "onedrive" || modo === "";
+  if (!querOneDrive && modo !== "") return;
+  if (uploadUsaOneDrive()) return;
+
+  const faltando = faltamCredenciaisOneDriveGraph();
+  if (modo === "onedrive" || faltando.length < 3) {
+    // Pediu onedrive, ou tem credenciais parciais — não cair no disco em silêncio.
+    throw new Error(
+      faltando.length
+        ? `OneDrive não configurado. Falta no .env: ${faltando.join(", ")}. Rode: bash scripts/corrigir-env-onedrive-vps.sh`
+        : "OneDrive Graph configurado, mas UPLOAD_STORAGE=disk impede o envio. Remova disk do .env."
+    );
+  }
 }
 
 function safeName(name: string) {
@@ -237,6 +266,9 @@ export async function salvarArquivosUpload(
       );
     }
   }
+
+  carregarEnvArquivoRuntime();
+  exigirOneDriveSeConfiguradoNoEnv();
 
   // OneDrive primeiro: todos os uploads do sistema vão direto para a nuvem (sem disco na VPS).
   if (uploadUsaOneDrive()) {

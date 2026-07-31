@@ -5,13 +5,15 @@
  * Auth (delegated, refresh token) — recomendado para OneDrive pessoal/empresarial:
  *   ONEDRIVE_GRAPH_CLIENT_ID
  *   ONEDRIVE_GRAPH_CLIENT_SECRET
- *   ONEDRIVE_GRAPH_TENANT_ID=common
+ *   ONEDRIVE_GRAPH_TENANT_ID=consumers
  *   ONEDRIVE_GRAPH_REFRESH_TOKEN
  *
  * Opcional:
- *   ONEDRIVE_GRAPH_ROOT_FOLDER=Lab_Protese
+ *   ONEDRIVE_GRAPH_ROOT_FOLDER=Lab_Protese_Backups
  *   ONEDRIVE_GRAPH_DRIVE_ID=  (se vazio, usa /me/drive)
  */
+import { envRuntime } from "@/lib/env-runtime";
+
 type TokenCache = {
   accessToken: string;
   expiresAtMs: number;
@@ -23,7 +25,7 @@ const globalGraph = globalThis as typeof globalThis & {
 };
 
 function env(nome: string) {
-  return process.env[nome]?.trim() || "";
+  return envRuntime(nome);
 }
 
 export function onedriveGraphConfigurado() {

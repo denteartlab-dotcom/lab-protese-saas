@@ -8,7 +8,7 @@ import {
 } from "@/lib/backup-empresa-pasta";
 import { contarUploadsBackupEmpresa } from "@/lib/backup-uploads-espelho";
 import { onedriveBackupSyncHabilitado } from "@/lib/backup-onedrive-sync";
-import { modoUploadStorage } from "@/lib/upload-arquivo-server";
+import { modoUploadStorage, faltamCredenciaisOneDriveGraph } from "@/lib/upload-arquivo-server";
 import {
   onedriveUploadsRemote,
   uploadUsaOneDrive,
@@ -138,7 +138,10 @@ async function montarStatus(empresaId: string, slug: string, nome: string) {
     uploadStorage: modoUploadStorage(),
     onedriveUploadsAtivo: uploadUsaOneDrive(),
     onedriveUploadsRemote: uploadUsaOneDrive() ? onedriveUploadsRemote() : null,
-    onedriveGraphConfigurado: uploadUsaOneDrive() ? onedriveGraphConfigurado() : false,
+    onedriveGraphConfigurado: onedriveGraphConfigurado(),
+    onedriveFaltandoCredenciais: uploadUsaOneDrive()
+      ? []
+      : faltamCredenciaisOneDriveGraph(),
     horarioFixo: formatarHorarioFixoBackupAutomatico(),
     padraoNomeArquivo,
     arquivoPadrao: `${pastaRelativa}/${padraoNomeArquivo}`,

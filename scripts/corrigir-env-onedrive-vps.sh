@@ -35,11 +35,10 @@ echo "=== UPLOAD / ONEDRIVE no .env ==="
 grep -E '^(UPLOAD_STORAGE|ONEDRIVE_GRAPH_ROOT_FOLDER|ONEDRIVE_GRAPH_TENANT_ID|ONEDRIVE_GRAPH_CLIENT_ID)=' "$ENV_FILE" \
   | sed -E 's/(CLIENT_ID=).*/\1***/'
 
-echo
-echo "Recarregando PM2 com o .env novo..."
-pm2 startOrReload deploy/ecosystem.config.cjs --update-env
-pm2 save
-
-echo
-echo "Teste Graph:"
-npm run uploads:testar-onedrive
+for k in ONEDRIVE_GRAPH_CLIENT_ID ONEDRIVE_GRAPH_CLIENT_SECRET ONEDRIVE_GRAPH_REFRESH_TOKEN; do
+  if grep -qE "^[[:space:]]*${k}=" "$ENV_FILE" && ! grep -qE "^[[:space:]]*${k}=[[:space:]]*$" "$ENV_FILE"; then
+    echo "OK $k"
+  else
+    echo "FALTA $k — edite: nano $ENV_FILE"
+  fi
+done

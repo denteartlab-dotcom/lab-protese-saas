@@ -12,6 +12,7 @@ import {
   onedriveGraphRootFolder,
   uploadBytesOneDriveGraph,
 } from "@/lib/onedrive-graph";
+import { carregarEnvArquivoRuntime, envRuntime } from "@/lib/env-runtime";
 
 function normalizarSlug(empresaSlug: string): string {
   return empresaSlug
@@ -25,14 +26,14 @@ function normalizarSlug(empresaSlug: string): string {
  * Uploads primários no OneDrive (Microsoft Graph), sem disco na VPS.
  *
  * Regra:
- * - Se Graph estiver configurado → OneDrive (mesmo com UPLOAD_STORAGE=database
- *   duplicado no .env — problema comum na VPS).
+ * - Lê `.env` do disco em runtime (última UPLOAD_STORAGE vence).
+ * - Se Graph estiver configurado → OneDrive (ignora UPLOAD_STORAGE=database).
  * - Só usa disco local se UPLOAD_STORAGE=disk explicitamente.
- * - Sem credenciais Graph → nunca OneDrive.
  */
 export function uploadUsaOneDrive() {
+  carregarEnvArquivoRuntime();
   if (!onedriveGraphConfigurado()) return false;
-  const modo = (process.env.UPLOAD_STORAGE || "").trim().toLowerCase();
+  const modo = envRuntime("UPLOAD_STORAGE").toLowerCase();
   if (modo === "disk") return false;
   return true;
 }
@@ -40,7 +41,7 @@ export function uploadUsaOneDrive() {
 /** Destino exibido na UI / docs. */
 export function onedriveUploadsRemote() {
   return (
-    process.env.ONEDRIVE_UPLOADS_REMOTE?.trim() ||
+    envRuntime("ONEDRIVE_UPLOADS_REMOTE") ||
     `${onedriveGraphRootFolder()}/{empresa}/uploads`
   );
 }
