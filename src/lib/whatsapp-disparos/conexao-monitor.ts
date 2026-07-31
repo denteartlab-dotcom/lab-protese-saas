@@ -71,10 +71,14 @@ export async function sincronizarConexaoWhatsappSocket() {
 
 export function iniciarMonitorConexaoWhatsapp(intervaloMs = 2500) {
   void sincronizarConexaoWhatsappSocket();
-  void garantirFilasCampanhasAtivas();
+  void garantirFilasCampanhasAtivas().catch((err) =>
+    console.error("[whatsapp-monitor] filas:", err)
+  );
   return setInterval(() => {
     void sincronizarConexaoWhatsappSocket();
-    void garantirFilasCampanhasAtivas();
+    void garantirFilasCampanhasAtivas().catch((err) =>
+      console.error("[whatsapp-monitor] filas:", err)
+    );
   }, intervaloMs);
 }
 

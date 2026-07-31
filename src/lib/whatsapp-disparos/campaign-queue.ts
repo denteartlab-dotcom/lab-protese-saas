@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { prisma, executarSemRls } from "@/lib/db";
 import { runWithTenantContext } from "@/lib/prisma-tenant";
 import { obterConteudoArquivoUpload } from "@/lib/upload-arquivo-server";
 import {
@@ -608,10 +608,12 @@ export async function retomarCampanhasPendentesServidor() {
 export async function garantirFilasCampanhasAtivas() {
   if (!baileysConfigurado()) return;
 
-  const campanhas = await prisma.whatsappCampaign.findMany({
-    where: { status: "enviando" },
-    select: { id: true, empresaId: true },
-  });
+  const campanhas = await executarSemRls((tx) =>
+    tx.whatsappCampaign.findMany({
+      where: { status: "enviando" },
+      select: { id: true, empresaId: true },
+    })
+  );
 
   for (const c of campanhas) {
     const key = chaveFila(c.empresaId, c.id);
