@@ -61,26 +61,44 @@ Guarde o `refresh_token`.
 UPLOAD_STORAGE=onedrive
 ONEDRIVE_GRAPH_CLIENT_ID=...
 ONEDRIVE_GRAPH_CLIENT_SECRET=...
-ONEDRIVE_GRAPH_TENANT_ID=common
+ONEDRIVE_GRAPH_TENANT_ID=consumers
 ONEDRIVE_GRAPH_REFRESH_TOKEN=...
-ONEDRIVE_GRAPH_ROOT_FOLDER=Lab_Protese
+ONEDRIVE_GRAPH_ROOT_FOLDER=Lab_Protese_Backups
 
 # Backup JSON ainda pode usar rclone (pasta backups/ de cada cliente):
 ONEDRIVE_BACKUP_SYNC_ENABLED=true
-ONEDRIVE_RCLONE_REMOTE=onedrive-backup:Lab_Protese
+ONEDRIVE_RCLONE_REMOTE=onedrive-backup:Lab_Protese_Backups
 ```
+
+**Importante**
+- Deixe **só uma** linha `UPLOAD_STORAGE=onedrive` (apague `UPLOAD_STORAGE=database` se existir).
+- PNG/JPEG/WebP/PDF da OS são aceitos — o formato **não** impede o OneDrive.
+- Com Graph configurado, o app usa OneDrive mesmo se `UPLOAD_STORAGE` estiver errado (exceto `disk`).
+
+Atalho (corrige `.env` + PM2 + teste):
+
+```bash
+cd /opt/lab-protese-saas
+git pull
+npm run build
+chmod +x scripts/corrigir-env-onedrive-vps.sh
+bash scripts/corrigir-env-onedrive-vps.sh
+```
+
+Ou manualmente:
 
 ```bash
 cd /opt/lab-protese-saas
 git pull
 npx prisma db push
+npm run build
 
-# IMPORTANTE: pm2 restart NÃO relê o .env. Use startOrReload do ecosystem:
+# IMPORTANTE: pm2 restart NÃO relê o .env. Use startOrReload:
 pm2 startOrReload deploy/ecosystem.config.cjs --update-env
 pm2 save
 
-# Teste direto (grava um arquivo de prova no OneDrive):
 npm run uploads:testar-onedrive
+# Diagnóstico logado: GET /api/uploads/status
 ```
 
 No OneDrive da conta autorizada, procure:

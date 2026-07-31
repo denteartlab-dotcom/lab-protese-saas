@@ -372,7 +372,7 @@ export function CabecalhoFormularioOs({
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*,video/*"
+          accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf"
           multiple
           className="hidden"
           disabled={desabilitado || galeriaEsgotada || totalAnexos >= limiteArquivos}

@@ -21,10 +21,20 @@ function normalizarSlug(empresaSlug: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-/** Uploads primários no OneDrive (Microsoft Graph), sem disco na VPS. */
+/**
+ * Uploads primários no OneDrive (Microsoft Graph), sem disco na VPS.
+ *
+ * Regra:
+ * - Se Graph estiver configurado → OneDrive (mesmo com UPLOAD_STORAGE=database
+ *   duplicado no .env — problema comum na VPS).
+ * - Só usa disco local se UPLOAD_STORAGE=disk explicitamente.
+ * - Sem credenciais Graph → nunca OneDrive.
+ */
 export function uploadUsaOneDrive() {
+  if (!onedriveGraphConfigurado()) return false;
   const modo = (process.env.UPLOAD_STORAGE || "").trim().toLowerCase();
-  return modo === "onedrive";
+  if (modo === "disk") return false;
+  return true;
 }
 
 /** Destino exibido na UI / docs. */

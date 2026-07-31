@@ -9,9 +9,11 @@ import {
 } from "@/lib/uploads-armazenamento";
 import { calcularArmazenamentoGaleria } from "@/lib/uploads-armazenamento-server";
 import {
+  modoUploadStorage,
   pastaUploadValida,
   salvarArquivosUpload,
 } from "@/lib/upload-arquivo-server";
+import { onedriveGraphConfigurado } from "@/lib/onedrive-graph";
 
 export async function GET() {
   const ctx = await requireEmpresaContext().catch(() => null);
@@ -62,8 +64,9 @@ export async function POST(request: Request) {
     }
 
     const pasta = pastaUploadValida(new URL(request.url).searchParams.get("pasta"));
+    const modo = modoUploadStorage();
     console.info(
-      `[uploads] POST pasta=${pasta} modo=${process.env.UPLOAD_STORAGE || "disk"} empresa=${ctx.empresaSlug || "?"}`
+      `[uploads] POST pasta=${pasta} modo=${modo} envUPLOAD_STORAGE=${process.env.UPLOAD_STORAGE || "(vazio)"} graph=${onedriveGraphConfigurado()} empresa=${ctx.empresaSlug || "?"} tipos=${files.map((f) => `${f.name}:${f.type || "?"}`).join(",")}`
     );
     const uploaded = await salvarArquivosUpload(
       pasta,
@@ -72,9 +75,11 @@ export async function POST(request: Request) {
       ctx.empresaSlug
     );
     console.info(
-      `[uploads] OK ${uploaded.length} arquivo(s) urls=${uploaded.map((u) => u.url).join(",")}`
+      `[uploads] OK modo=${modo} ${uploaded.length} arquivo(s) urls=${uploaded.map((u) => u.url).join(",")}`
     );
-    return NextResponse.json(uploaded);
+    const res = NextResponse.json(uploaded);
+    res.headers.set("X-Upload-Storage", modo);
+    return res;
   } catch (err) {
     console.error("POST /api/uploads", err);
     const prismaCode =

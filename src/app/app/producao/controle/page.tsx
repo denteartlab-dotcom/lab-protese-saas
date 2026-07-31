@@ -2775,8 +2775,15 @@ export default function ControlePage() {
       );
     }
     const uploaded = await response.json();
+    const lista = Array.isArray(uploaded) ? uploaded : [];
+    const storage = response.headers.get("X-Upload-Storage") || "";
+    if (storage && storage !== "onedrive") {
+      console.warn(
+        `[uploads] armazenamento=${storage}. Esperado onedrive na VPS. Rode: bash scripts/corrigir-env-onedrive-vps.sh`
+      );
+    }
     notificarUploadsAtualizados();
-    return Array.isArray(uploaded) ? uploaded : [];
+    return lista;
   }
 
   async function sincronizarCabecalhoMetaEdicao() {

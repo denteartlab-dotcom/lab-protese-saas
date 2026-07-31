@@ -2809,6 +2809,12 @@ export default function OrdemServicoPage() {
       );
     }
     const uploaded = await response.json();
+    const storage = response.headers.get("X-Upload-Storage") || "";
+    if (storage && storage !== "onedrive") {
+      console.warn(
+        `[uploads] armazenamento=${storage}. Esperado onedrive na VPS. Rode: bash scripts/corrigir-env-onedrive-vps.sh`
+      );
+    }
     notificarUploadsAtualizados();
     return Array.isArray(uploaded) ? uploaded : [];
   }
@@ -3906,7 +3912,7 @@ export default function OrdemServicoPage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*,video/*"
+              accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf"
               multiple
               className="hidden"
               disabled={galeriaEsgotada || arquivos.length >= LIMITE_ARQUIVOS_OS}
