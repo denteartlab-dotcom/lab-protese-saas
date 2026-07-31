@@ -47,6 +47,7 @@
     "db:migrar-financeiro": "node node_modules/tsx/dist/cli.mjs scripts/migrar-financeiro-neon.ts",
     "backup:diario": "node node_modules/tsx/dist/cli.mjs scripts/backup-diario.ts",
     "uploads:migrar-onedrive": "node node_modules/tsx/dist/cli.mjs scripts/migrar-uploads-onedrive.ts",
+    "uploads:testar-onedrive": "node node_modules/tsx/dist/cli.mjs scripts/testar-onedrive-upload.ts",
     "limpar:contas-inativas": "node node_modules/tsx/dist/cli.mjs scripts/limpar-contas-inativas.ts",
     "db:zerar": "node node_modules/tsx/dist/cli.mjs scripts/zerar-sistema-virgem.ts --confirmar=ZERAR",
     "uploads:migrar-privados": "node scripts/migrar-uploads-privados.mjs"

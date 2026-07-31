@@ -4,7 +4,9 @@ const path = require("path");
 
 const appDir = process.env.APP_DIR || "/opt/lab-protese-saas";
 
-/** Carrega .env do projeto para o processo PM2 (RESEND_API_KEY, JWT_SECRET, etc.). */
+/** Carrega .env do projeto para o processo PM2 (RESEND_API_KEY, JWT_SECRET, etc.).
+ *  Se a mesma chave aparecer mais de uma vez, a ÚLTIMA vence.
+ */
 function carregarEnvArquivo(envPath) {
   const vars = {};
   if (!fs.existsSync(envPath)) return vars;
@@ -30,6 +32,12 @@ function carregarEnvArquivo(envPath) {
 }
 
 const envArquivo = carregarEnvArquivo(path.join(appDir, ".env"));
+
+if (envArquivo.UPLOAD_STORAGE) {
+  console.log(
+    `[pm2-ecosystem] UPLOAD_STORAGE=${envArquivo.UPLOAD_STORAGE} ONEDRIVE_GRAPH_TENANT_ID=${envArquivo.ONEDRIVE_GRAPH_TENANT_ID || "(default)"}`
+  );
+}
 
 function sanitizarWebhookUrl(url, appPort, baileysPort) {
   const candidata =

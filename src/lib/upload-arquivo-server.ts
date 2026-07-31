@@ -254,6 +254,7 @@ export async function salvarArquivosUpload(
       const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName(file.name)}`;
       const remotePath = caminhoRemotoUpload(slug, pasta, filename);
       await enviarBufferParaOneDrive(remotePath, bytes, filename, mimeType);
+      console.info(`[uploads] OneDrive gravou: ${remotePath}`);
       const registro = await prisma.arquivoUpload.create({
         data: {
           empresaId,

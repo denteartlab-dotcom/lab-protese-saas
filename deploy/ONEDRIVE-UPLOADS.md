@@ -71,8 +71,18 @@ ONEDRIVE_RCLONE_REMOTE=onedrive-backup:Lab_Protese
 cd /opt/lab-protese-saas
 git pull
 npx prisma db push
-pm2 restart lab-protese
+
+# IMPORTANTE: pm2 restart NÃO relê o .env. Use startOrReload do ecosystem:
+pm2 startOrReload deploy/ecosystem.config.cjs --update-env
+pm2 save
+
+# Teste direto (grava um arquivo de prova no OneDrive):
+npm run uploads:testar-onedrive
 ```
+
+No OneDrive da conta autorizada, procure:
+
+`Lab_Protese/teste-lab/uploads/os/prova-....txt`
 
 ## 4) Migrar arquivos antigos da VPS
 

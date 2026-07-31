@@ -62,11 +62,17 @@ export async function POST(request: Request) {
     }
 
     const pasta = pastaUploadValida(new URL(request.url).searchParams.get("pasta"));
+    console.info(
+      `[uploads] POST pasta=${pasta} modo=${process.env.UPLOAD_STORAGE || "disk"} empresa=${ctx.empresaSlug || "?"}`
+    );
     const uploaded = await salvarArquivosUpload(
       pasta,
       files,
       ctx.empresaId,
       ctx.empresaSlug
+    );
+    console.info(
+      `[uploads] OK ${uploaded.length} arquivo(s) urls=${uploaded.map((u) => u.url).join(",")}`
     );
     return NextResponse.json(uploaded);
   } catch (err) {
