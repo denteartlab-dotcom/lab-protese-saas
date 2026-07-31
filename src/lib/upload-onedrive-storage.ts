@@ -63,14 +63,15 @@ export async function enviarBufferParaOneDrive(
   remotePath: string,
   bytes: Buffer,
   _nomeLocalHint?: string,
-  mimeType?: string
+  mimeType?: string,
+  opcoes?: { garantirPastas?: boolean }
 ) {
   if (!onedriveGraphConfigurado()) {
     throw new Error(
       "UPLOAD_STORAGE=onedrive exige Microsoft Graph. Configure ONEDRIVE_GRAPH_CLIENT_ID, ONEDRIVE_GRAPH_CLIENT_SECRET e ONEDRIVE_GRAPH_REFRESH_TOKEN."
     );
   }
-  await uploadBytesOneDriveGraph(remotePath, bytes, mimeType);
+  await uploadBytesOneDriveGraph(remotePath, bytes, mimeType, opcoes);
 }
 
 /** Baixa bytes do OneDrive (Graph). */

@@ -154,12 +154,18 @@ async function graphFetch(pathname: string, init?: RequestInit) {
   const headers = new Headers(init?.headers || {});
   headers.set("Authorization", `Bearer ${token}`);
 
-  const res = await fetch(url, { ...init, headers });
+  let res = await fetch(url, { ...init, headers });
   if (res.status === 401) {
     globalGraph.__onedriveGraphToken = undefined;
     const token2 = await obterAccessToken();
     headers.set("Authorization", `Bearer ${token2}`);
-    return fetch(url, { ...init, headers });
+    res = await fetch(url, { ...init, headers });
+  }
+  if (res.status === 429) {
+    const retryAfter = Number(res.headers.get("Retry-After") || "1");
+    const waitMs = Math.min(Math.max(retryAfter, 1) * 1000, 5000);
+    await new Promise((r) => setTimeout(r, waitMs));
+    res = await fetch(url, { ...init, headers });
   }
   return res;
 }
@@ -178,16 +184,11 @@ async function pastaExisteOneDrive(remoteFolderPath: string): Promise<boolean> {
 
 /**
  * Cria uma pasta se não existir (o pai já deve existir).
- * Confere com GET antes/depois e tolera 409 (já existe).
+ * POST primeiro (1 RTT); 409 = já existe. GET só como fallback.
  */
 async function criarPastaSeNaoExistir(parentPath: string, nome: string) {
   const chave = parentPath ? `${parentPath}/${nome}` : nome;
   if (cachePastas().has(chave)) return;
-
-  if (await pastaExisteOneDrive(chave)) {
-    cachePastas().add(chave);
-    return;
-  }
 
   const parentEncoded = parentPath ? encodePathSegments(parentPath) : "";
   const childrenUrl = parentEncoded
@@ -206,12 +207,11 @@ async function criarPastaSeNaoExistir(parentPath: string, nome: string) {
 
   if (res.ok || res.status === 409) {
     cachePastas().add(chave);
-    console.info(`[onedrive-graph] pasta criada/ok: ${chave}`);
     return;
   }
 
   const text = await res.text().catch(() => "");
-  if (/nameAlreadyExists|already exists|conflict/i.test(text) || res.status === 409) {
+  if (/nameAlreadyExists|already exists|conflict/i.test(text)) {
     cachePastas().add(chave);
     return;
   }
@@ -322,10 +322,13 @@ async function uploadViaSessaoOneDrive(
 export async function uploadBytesOneDriveGraph(
   remotePath: string,
   bytes: Buffer,
-  mimeType?: string
+  mimeType?: string,
+  opcoes?: { garantirPastas?: boolean }
 ): Promise<{ id?: string; webUrl?: string; name?: string } | null> {
   await resolverPastaRaizOneDriveGraph();
-  await garantirCaminhoPastasOneDrive(remotePath);
+  if (opcoes?.garantirPastas !== false) {
+    await garantirCaminhoPastasOneDrive(remotePath);
+  }
 
   if (bytes.length > LIMITE_UPLOAD_SIMPLES) {
     const json = await uploadViaSessaoOneDrive(remotePath, bytes, mimeType);
@@ -536,8 +539,36 @@ export function caminhoRemotoEmpresaRaiz(empresaSlug: string) {
 }
 
 /**
+ * Garante só a pasta do módulo do upload (ex.: .../{slug}/uploads/os).
+ * Sem .keep nos demais módulos — bem mais rápido no salvamento da OS.
+ */
+export async function garantirPastaModuloUploadOneDrive(
+  empresaSlug: string,
+  pastaModulo: string
+) {
+  await resolverPastaRaizOneDriveGraph();
+  const slug = empresaSlug
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-_]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  if (!slug) return;
+
+  const modulo = pastaModulo.replace(/^[/\\]+/, "").replace(/\\/g, "/").split("/")[0];
+  if (!modulo) return;
+
+  const chaveCache = `${slug}::uploads::${modulo}`;
+  if (cacheEstruturaEmpresa().has(chaveCache)) return;
+
+  const remotePath = caminhoRemotoEmpresaUploads(slug, modulo, ".keep");
+  await garantirCaminhoPastasOneDrive(remotePath);
+  cacheEstruturaEmpresa().add(chaveCache);
+}
+
+/**
  * Cria (se faltar) a árvore do laboratório e deixa um .keep em cada módulo
  * para a pasta aparecer no OneDrive web (pastas vazias somem/não sincronizam).
+ * Usar em scripts/migração — não no caminho quente de upload da OS.
  */
 export async function garantirEstruturaPastasEmpresaOneDrive(empresaSlug: string) {
   await resolverPastaRaizOneDriveGraph();
@@ -553,12 +584,21 @@ export async function garantirEstruturaPastasEmpresaOneDrive(empresaSlug: string
   const raiz = caminhoRemotoEmpresaRaiz(slug);
   const keep = Buffer.from("lab-protese\n", "utf8");
 
-  // {root}/{slug}/backups/.keep
-  await uploadBytesOneDriveGraph(`${raiz}/backups/.keep`, keep, "text/plain");
+  await garantirCaminhoPastasOneDrive(`${raiz}/backups/.keep`);
+  await uploadBytesOneDriveGraph(`${raiz}/backups/.keep`, keep, "text/plain", {
+    garantirPastas: false,
+  });
 
-  for (const m of MODULOS_UPLOAD) {
-    await uploadBytesOneDriveGraph(`${raiz}/uploads/${m}/.keep`, keep, "text/plain");
-  }
+  await Promise.all(
+    MODULOS_UPLOAD.map(async (m) => {
+      const pathKeep = `${raiz}/uploads/${m}/.keep`;
+      await garantirCaminhoPastasOneDrive(pathKeep);
+      await uploadBytesOneDriveGraph(pathKeep, keep, "text/plain", {
+        garantirPastas: false,
+      });
+      cacheEstruturaEmpresa().add(`${slug}::uploads::${m}`);
+    })
+  );
 
   cacheEstruturaEmpresa().add(slug);
   console.info(`[onedrive-graph] estrutura pronta: ${raiz}/uploads/{${MODULOS_UPLOAD.join(",")}}`);

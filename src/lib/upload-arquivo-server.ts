@@ -278,38 +278,69 @@ export async function salvarArquivosUpload(
     if (!empresaSlug?.trim()) {
       throw new Error("empresaSlug obrigatório para upload no OneDrive.");
     }
-    const { resolverPastaRaizOneDriveGraph, garantirEstruturaPastasEmpresaOneDrive } =
+    const empresaIdUpload = empresaId;
+    const { resolverPastaRaizOneDriveGraph, garantirPastaModuloUploadOneDrive } =
       await import("@/lib/onedrive-graph");
     await resolverPastaRaizOneDriveGraph();
     const slug = normalizarSlugPastaUploads(empresaSlug);
-    // Cria {slug}/uploads/{os,despesas,...} se não existir (e .keep para aparecer no OneDrive).
-    await garantirEstruturaPastasEmpresaOneDrive(slug);
-    const uploaded: ArquivoEnviado[] = [];
-    for (const file of files) {
-      const bytes = Buffer.from(await file.arrayBuffer());
-      const mimeType = validarMimeUpload(pasta, bytes, file);
-      const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName(file.name)}`;
-      const remotePath = caminhoRemotoUpload(slug, pasta, filename);
-      await enviarBufferParaOneDrive(remotePath, bytes, filename, mimeType);
-      console.info(`[uploads] OneDrive gravou: ${remotePath}`);
-      const registro = await prisma.arquivoUpload.create({
-        data: {
-          empresaId,
-          pasta,
-          nome: file.name,
+    // Só a pasta do módulo (ex.: uploads/os) — sem .keep nos outros módulos.
+    await garantirPastaModuloUploadOneDrive(slug, pasta);
+
+    const preparados = await Promise.all(
+      files.map(async (file, index) => {
+        const bytes = Buffer.from(await file.arrayBuffer());
+        const mimeType = validarMimeUpload(pasta, bytes, file);
+        const filename = `${Date.now()}-${index}-${Math.random()
+          .toString(36)
+          .slice(2)}-${safeName(file.name)}`;
+        return {
+          file,
+          bytes,
           mimeType,
-          tamanho: bytes.length,
-          dados: null,
-          storage: "onedrive",
-          remotePath,
-        },
-      });
-      uploaded.push({
-        name: file.name,
-        type: mimeType,
-        url: `/api/uploads/arquivo/${registro.id}`,
-      });
+          filename,
+          remotePath: caminhoRemotoUpload(slug, pasta, filename),
+        };
+      })
+    );
+
+    const CONCURRENCY = Math.min(4, preparados.length);
+    const uploaded: ArquivoEnviado[] = new Array(preparados.length);
+    let cursor = 0;
+
+    async function worker() {
+      while (true) {
+        const index = cursor++;
+        if (index >= preparados.length) return;
+        const item = preparados[index];
+        await enviarBufferParaOneDrive(
+          item.remotePath,
+          item.bytes,
+          item.filename,
+          item.mimeType,
+          { garantirPastas: false }
+        );
+        console.info(`[uploads] OneDrive gravou: ${item.remotePath}`);
+        const registro = await prisma.arquivoUpload.create({
+          data: {
+            empresaId: empresaIdUpload,
+            pasta,
+            nome: item.file.name,
+            mimeType: item.mimeType,
+            tamanho: item.bytes.length,
+            dados: null,
+            storage: "onedrive",
+            remotePath: item.remotePath,
+          },
+        });
+        uploaded[index] = {
+          name: item.file.name,
+          type: item.mimeType,
+          url: `/api/uploads/arquivo/${registro.id}`,
+        };
+      }
     }
+
+    await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
     return uploaded;
   }
 
