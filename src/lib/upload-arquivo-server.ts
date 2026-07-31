@@ -354,8 +354,9 @@ export async function obterConteudoArquivoUpload(id: string): Promise<{
     };
   }
 
-  if (!arquivo.dados || arquivo.dados.length === 0) return null;
-  const bytes = Buffer.from(arquivo.dados);
+  const dadosDb = arquivo.dados;
+  if (!dadosDb || dadosDb.length === 0) return null;
+  const bytes = Buffer.from(dadosDb);
   return {
     empresaId: arquivo.empresaId,
     nome: arquivo.nome,

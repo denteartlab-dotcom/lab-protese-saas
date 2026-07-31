@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { runWithTenantContext } from "@/lib/prisma-tenant";
+import { obterConteudoArquivoUpload } from "@/lib/upload-arquivo-server";
 import type { RespostaChatMidia } from "@/lib/whatsapp-chat/chatbot-config-types";
 
 export async function carregarAnexoChatbot(
@@ -28,16 +29,20 @@ export async function carregarAnexoChatbot(
 }
 
 export async function carregarBase64AnexoChatbot(uploadId: string, empresaId: string) {
-  const arquivo = await runWithTenantContext(empresaId, () =>
+  const meta = await runWithTenantContext(empresaId, () =>
     prisma.arquivoUpload.findFirst({
       where: { id: uploadId, empresaId },
-      select: { dados: true, mimeType: true, nome: true },
+      select: { id: true },
     })
   );
-  if (!arquivo) return null;
+  if (!meta) return null;
+
+  const conteudo = await obterConteudoArquivoUpload(meta.id);
+  if (!conteudo || conteudo.empresaId !== empresaId) return null;
+
   return {
-    mimeType: arquivo.mimeType,
-    fileName: arquivo.nome,
-    dataBase64: Buffer.from(arquivo.dados).toString("base64"),
+    mimeType: conteudo.mimeType,
+    fileName: conteudo.nome,
+    dataBase64: conteudo.bytes.toString("base64"),
   };
 }
