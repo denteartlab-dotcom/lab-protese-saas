@@ -2,7 +2,7 @@ import {
   executarComCircuitBreakerBanco,
   tratarErroBancoSilencioso,
 } from "@/lib/banco-circuit-breaker";
-import { prisma } from "@/lib/db";
+import { executarSemRls, runWithTenantContext } from "@/lib/db";
 import { isErroConexaoBanco } from "@/lib/prisma-erro-conexao";
 import { excluirConversaSuporte } from "@/lib/suporte-chat";
 import { limiteInatividadeSuporte } from "@/lib/suporte/suporte-inatividade";
@@ -17,17 +17,21 @@ export async function limparConversasSuporteInativas() {
   const limite = limiteInatividadeSuporte();
   const conversas = await executarComCircuitBreakerBanco(
     () =>
-      prisma.suporteConversa.findMany({
-        where: { ultimaMensagemEm: { lt: limite } },
-        select: { id: true, empresaId: true },
-      }),
+      executarSemRls((tx) =>
+        tx.suporteConversa.findMany({
+          where: { ultimaMensagemEm: { lt: limite } },
+          select: { id: true, empresaId: true },
+        })
+      ),
     { segundoPlano: true }
   );
 
   if (!conversas || conversas.length === 0) return 0;
 
   for (const conversa of conversas) {
-    await excluirConversaSuporte(conversa.id, conversa.empresaId);
+    await runWithTenantContext(conversa.empresaId, () =>
+      excluirConversaSuporte(conversa.id, conversa.empresaId)
+    );
     emitSuporteConversaExpirada(conversa.empresaId);
   }
 

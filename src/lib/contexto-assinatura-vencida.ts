@@ -5,7 +5,7 @@ import {
   formatarDataAssinatura,
   statusPagamentoAssinatura,
 } from "@/lib/assinatura-empresa";
-import { prisma, runWithTenantContext } from "@/lib/prisma-tenant";
+import { prisma, executarSemRls, runWithTenantContext } from "@/lib/prisma-tenant";
 import { registrarUltimoAcessoEmpresa } from "@/lib/empresa-ultimo-acesso";
 import { lerJsonStoreTenant } from "@/lib/json-store-tenant";
 import {
@@ -99,8 +99,9 @@ export async function obterContextoAssinaturaVencida(): Promise<ContextoAssinatu
 
 export async function obterDestinoPosLogin(sessionEmpresaId: string): Promise<string> {
   try {
-    const empresa = await runWithTenantContext(sessionEmpresaId, () =>
-      prisma.empresa.findUnique({
+    // Bypass RLS: lookup pós-login por id da sessão (evita falha de ALS entre bundles).
+    const empresa = await executarSemRls((tx) =>
+      tx.empresa.findUnique({
         where: { id: sessionEmpresaId },
         select: { slug: true, status: true, dataVencimento: true },
       })

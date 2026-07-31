@@ -2,12 +2,22 @@ import { rm } from "fs/promises";
 import { pastaBackupEmpresa } from "@/lib/backup-empresa-pasta";
 import { excluirPastaDriveEmpresa } from "@/lib/backup-google-drive";
 import { excluirPastaBackupEmpresaOneDrive } from "@/lib/backup-onedrive-sync";
-import { prisma } from "@/lib/db";
+import { executarSemRls } from "@/lib/db";
 import { excluirJsonStoreTenant } from "@/lib/json-store-tenant";
 import { registrarLogMaster } from "@/lib/master-audit";
 import { caminhoPastaUploads } from "@/lib/uploads-armazenamento-server";
 import { excluirPastaUploadsEmpresaOneDrive } from "@/lib/upload-onedrive-storage";
-import { listarEmpresasElegiveisExclusaoInatividade } from "@/lib/empresa-inatividade";
+import {
+  DIAS_AVISO_INATIVIDADE_ANTES,
+  DIAS_INATIVIDADE_PARA_EXCLUSAO,
+  dataExclusaoPrevistaAviso,
+  diasDesdeUltimoAcessoEmpresa,
+  listarEmpresasElegiveisAvisoInatividade,
+  listarEmpresasElegiveisExclusaoInatividade,
+  marcarAvisoInatividadeEnviado,
+  resolverEmailAvisoInatividade,
+} from "@/lib/empresa-inatividade";
+import { enviarEmailAvisoInatividade } from "@/lib/email-aviso-inatividade";
 
 export type DadosEmpresaExclusao = {
   id: string;
@@ -47,7 +57,7 @@ async function registrarAuditoriaExclusao(
     opcoes.motivo === "inatividade" ? "EXCLUIR_EMPRESA_INATIVA" : "EXCLUIR_EMPRESA";
   const detalhesBase =
     opcoes.motivo === "inatividade"
-      ? `Conta excluída por inatividade (30+ dias sem acesso e sem assinatura paga): ${empresa.nome}`
+      ? `Conta excluída por inatividade (${DIAS_INATIVIDADE_PARA_EXCLUSAO}+ dias sem acesso, após aviso de ${DIAS_AVISO_INATIVIDADE_ANTES} dias): ${empresa.nome}`
       : `Empresa excluída: ${empresa.nome} (${empresa.codigo ?? empresa.id})`;
   const detalhes = opcoes.detalhesExtra
     ? `${detalhesBase}. ${opcoes.detalhesExtra}`
@@ -96,7 +106,7 @@ export async function excluirEmpresaCompleta(
   const aguardarArquivos = opcoes.aguardarArquivos !== false;
 
   await excluirJsonStoreTenant(empresa.id);
-  await prisma.empresa.delete({ where: { id: empresa.id } });
+  await executarSemRls((tx) => tx.empresa.delete({ where: { id: empresa.id } }));
   await registrarAuditoriaExclusao(empresa, opcoes);
 
   const limparArquivos = () =>
@@ -111,15 +121,90 @@ export async function excluirEmpresaCompleta(
   }
 }
 
+function formatarDataBr(data: Date) {
+  return data.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "America/Sao_Paulo",
+  });
+}
+
+export async function enviarAvisosInatividadePendentes() {
+  const elegiveis = await listarEmpresasElegiveisAvisoInatividade();
+  const enviados: Array<{ id: string; slug: string; email: string }> = [];
+  const falhas: Array<{ id: string; slug: string; erro: string }> = [];
+
+  for (const empresa of elegiveis) {
+    try {
+      const destinatario = await resolverEmailAvisoInatividade(empresa);
+      if (!destinatario) {
+        falhas.push({
+          id: empresa.id,
+          slug: empresa.slug,
+          erro: "sem e-mail de contato",
+        });
+        continue;
+      }
+
+      const diasInativos = diasDesdeUltimoAcessoEmpresa(empresa);
+      const diasRestantes = Math.max(
+        DIAS_AVISO_INATIVIDADE_ANTES,
+        DIAS_INATIVIDADE_PARA_EXCLUSAO - diasInativos
+      );
+      const dataExclusao = dataExclusaoPrevistaAviso(empresa);
+
+      const resultado = await enviarEmailAvisoInatividade({
+        to: destinatario.email,
+        nome: destinatario.nome,
+        laboratorio: empresa.nome,
+        diasRestantes,
+        dataExclusaoPrevista: formatarDataBr(dataExclusao),
+      });
+
+      if (!resultado.ok) {
+        falhas.push({
+          id: empresa.id,
+          slug: empresa.slug,
+          erro: resultado.erro || "falha no envio",
+        });
+        continue;
+      }
+
+      await marcarAvisoInatividadeEnviado(empresa.id);
+      enviados.push({
+        id: empresa.id,
+        slug: empresa.slug,
+        email: destinatario.email,
+      });
+      console.log(
+        `[limpeza-inativas] aviso enviado para ${empresa.slug} (${destinatario.email})`
+      );
+    } catch (erro) {
+      const msg = erro instanceof Error ? erro.message : String(erro);
+      falhas.push({ id: empresa.id, slug: empresa.slug, erro: msg });
+      console.error(`[limpeza-inativas] aviso falhou ${empresa.slug}:`, erro);
+    }
+  }
+
+  return { total: enviados.length, enviados, falhas };
+}
+
 export async function executarLimpezaContasInativas(opcoes?: {
   simular?: boolean;
   masterId?: string;
 }) {
+  const avisos = opcoes?.simular
+    ? { total: 0, enviados: [], falhas: [] }
+    : await enviarAvisosInatividadePendentes();
+
   const elegiveis = await listarEmpresasElegiveisExclusaoInatividade();
 
   if (opcoes?.simular) {
+    const avisaveis = await listarEmpresasElegiveisAvisoInatividade();
     return {
       simulacao: true,
+      avisosPendentes: avisaveis.length,
       total: elegiveis.length,
       empresas: elegiveis.map((e) => ({
         id: e.id,
@@ -143,7 +228,13 @@ export async function executarLimpezaContasInativas(opcoes?: {
     }
   }
 
-  return { simulacao: false, total: excluidas.length, empresas: excluidas };
+  return {
+    simulacao: false,
+    avisosEnviados: avisos.total,
+    avisosFalhas: avisos.falhas.length,
+    total: excluidas.length,
+    empresas: excluidas,
+  };
 }
 
 let timerLimpezaInatividade: ReturnType<typeof setTimeout> | null = null;
@@ -167,7 +258,7 @@ export function iniciarLimpezaContasInativasDiaria() {
       try {
         const resultado = await executarLimpezaContasInativas();
         console.log(
-          `[limpeza-inativas] concluída: ${resultado.total} conta(s) excluída(s).`
+          `[limpeza-inativas] concluída: ${resultado.avisosEnviados ?? 0} aviso(s), ${resultado.total} conta(s) excluída(s).`
         );
       } catch (erro) {
         console.error("[limpeza-inativas] erro:", erro);
@@ -178,5 +269,7 @@ export function iniciarLimpezaContasInativasDiaria() {
   };
 
   agendar();
-  console.log("[limpeza-inativas] agendada diariamente (~04:15).");
+  console.log(
+    `[limpeza-inativas] agendada diariamente (~04:15). Aviso ${DIAS_AVISO_INATIVIDADE_ANTES} dias antes; exclusão após ${DIAS_INATIVIDADE_PARA_EXCLUSAO} dias inativos.`
+  );
 }

@@ -1,35 +1,45 @@
-import { prisma, runWithTenantContext } from "@/lib/db";
+import { executarSemRls } from "@/lib/db";
 
 const INTERVALO_MINIMO_MS = 6 * 60 * 60 * 1000;
 
-/** Atualiza último acesso (no máximo a cada 6 h por empresa). */
+/** Atualiza último acesso (no máximo a cada 6 h por empresa). Cancela aviso de inatividade. */
 export async function registrarUltimoAcessoEmpresa(empresaId: string) {
-  return runWithTenantContext(empresaId, async () => {
+  return executarSemRls(async (tx) => {
     const agora = new Date();
-    const empresa = await prisma.empresa.findUnique({
+    const empresa = await tx.empresa.findUnique({
       where: { id: empresaId },
-      select: { ultimoAcessoEm: true },
+      select: { ultimoAcessoEm: true, avisoInatividadeEnviadoEm: true },
     });
     if (!empresa) return;
 
     const ultimo = empresa.ultimoAcessoEm;
-    if (ultimo && agora.getTime() - ultimo.getTime() < INTERVALO_MINIMO_MS) {
+    if (
+      ultimo &&
+      agora.getTime() - ultimo.getTime() < INTERVALO_MINIMO_MS &&
+      !empresa.avisoInatividadeEnviadoEm
+    ) {
       return;
     }
 
-    await prisma.empresa.update({
+    await tx.empresa.update({
       where: { id: empresaId },
-      data: { ultimoAcessoEm: agora },
+      data: {
+        ultimoAcessoEm: agora,
+        avisoInatividadeEnviadoEm: null,
+      },
     });
   });
 }
 
-/** Sempre grava acesso (ex.: login). */
+/** Sempre grava acesso (ex.: login) e cancela aviso de exclusão por inatividade. */
 export async function registrarUltimoAcessoEmpresaImediato(empresaId: string) {
-  return runWithTenantContext(empresaId, () =>
-    prisma.empresa.update({
+  return executarSemRls((tx) =>
+    tx.empresa.update({
       where: { id: empresaId },
-      data: { ultimoAcessoEm: new Date() },
+      data: {
+        ultimoAcessoEm: new Date(),
+        avisoInatividadeEnviadoEm: null,
+      },
     })
   );
 }

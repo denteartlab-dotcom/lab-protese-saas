@@ -28,6 +28,8 @@ model Empresa {
   status    String   @default("ativo")
   asaasCustomerIdPlataforma String?
   ultimoAcessoEm DateTime?
+  /** Quando o e-mail de aviso de exclusão por inatividade foi enviado. */
+  avisoInatividadeEnviadoEm DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
