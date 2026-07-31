@@ -43,7 +43,8 @@ export function onedriveGraphRootFolder() {
 }
 
 function tenantId() {
-  return env("ONEDRIVE_GRAPH_TENANT_ID") || "common";
+  // Contas pessoais (@outlook.com) exigem /consumers (não /common).
+  return env("ONEDRIVE_GRAPH_TENANT_ID") || "consumers";
 }
 
 function driveBasePath() {
