@@ -1,11 +1,10 @@
 /**
- * Gera um novo refresh_token do OneDrive Graph para a conta CORRETA.
+ * Gera refresh_token do OneDrive Graph para a conta correta.
  *
- * Uso (no Windows, PowerShell ou na VPS):
- *   npx tsx scripts/obter-refresh-token-onedrive.ts
+ *   npm run uploads:onedrive-token
  *
- * IMPORTANTE: no navegador, entre com denteartlab@outlook.com
- * (não denteartlabb@outlook.com).
+ * Entre no navegador com: denteartlab@outlook.com
+ * (NÃO denteartlabb@outlook.com)
  */
 import { createInterface } from "readline";
 import { readFileSync, existsSync } from "fs";
@@ -35,75 +34,45 @@ function perguntar(rl: ReturnType<typeof createInterface>, q: string) {
   return new Promise<string>((resolve) => rl.question(q, (a) => resolve(a.trim())));
 }
 
-async function main() {
-  carregarDotEnv();
-
-  const clientId = process.env.ONEDRIVE_GRAPH_CLIENT_ID?.trim() || "";
-  const clientSecret = process.env.ONEDRIVE_GRAPH_CLIENT_SECRET?.trim() || "";
-  const tenant = process.env.ONEDRIVE_GRAPH_TENANT_ID?.trim() || "consumers";
-  const redirectUri = "http://localhost";
-
-  if (!clientId || !clientSecret) {
-    console.error(
-      "Faltam ONEDRIVE_GRAPH_CLIENT_ID / ONEDRIVE_GRAPH_CLIENT_SECRET no .env"
-    );
-    process.exit(1);
+/** Aceita code puro ou URL inteira do localhost. */
+function extrairCode(entrada: string): string {
+  let s = entrada.trim();
+  // remove aspas que o PowerShell às vezes cola
+  s = s.replace(/^["']|["']$/g, "");
+  try {
+    if (s.includes("code=")) {
+      const u = new URL(s.startsWith("http") ? s : `http://localhost/?${s.replace(/^\?/, "")}`);
+      const code = u.searchParams.get("code");
+      if (code) return code;
+    }
+  } catch {
+    /* segue */
   }
+  const m = s.match(/(?:^|[?&])code=([^&\s#]+)/i);
+  if (m?.[1]) return decodeURIComponent(m[1]);
+  // só o code, sem &...
+  return decodeURIComponent(s.split("&")[0] || s);
+}
 
-  const scope = [
-    "offline_access",
-    "Files.ReadWrite",
-    "Files.ReadWrite.All",
-    "User.Read",
-  ].join(" ");
-
-  const authUrl =
-    `https://login.microsoftonline.com/${encodeURIComponent(tenant)}/oauth2/v2.0/authorize` +
-    `?client_id=${encodeURIComponent(clientId)}` +
-    `&response_type=code` +
-    `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-    `&response_mode=query` +
-    `&scope=${encodeURIComponent(scope)}` +
-    `&prompt=login`;
-
-  console.log(`
-============================================================
-  REAUTORIZAR ONEDRIVE — conta correta
-============================================================
-1) Abra o navegador em ABA ANÔNIMA (Ctrl+Shift+N)
-2) Cole esta URL:
-
-${authUrl}
-
-3) Entre com:  denteartlab@outlook.com
-   (NÃO use denteartlabb@outlook.com)
-4) Aceite as permissões
-5) A página vai falhar em localhost — tudo bem.
-   Copie da barra de endereço o valor de code=........
-   (só o código, até antes de &session_state se houver)
-============================================================
-`);
-
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
-  const code = await perguntar(rl, "Cole o code aqui: ");
-  rl.close();
-
-  if (!code) {
-    console.error("Code vazio.");
-    process.exit(1);
-  }
-
+async function trocarCodePorToken(opts: {
+  tenant: string;
+  clientId: string;
+  clientSecret: string;
+  code: string;
+  redirectUri: string;
+  scope: string;
+}) {
   const body = new URLSearchParams({
-    client_id: clientId,
-    client_secret: clientSecret,
-    code,
-    redirect_uri: redirectUri,
+    client_id: opts.clientId,
+    client_secret: opts.clientSecret,
+    code: opts.code,
+    redirect_uri: opts.redirectUri,
     grant_type: "authorization_code",
-    scope,
+    scope: opts.scope,
   });
 
   const res = await fetch(
-    `https://login.microsoftonline.com/${encodeURIComponent(tenant)}/oauth2/v2.0/token`,
+    `https://login.microsoftonline.com/${encodeURIComponent(opts.tenant)}/oauth2/v2.0/token`,
     {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -118,15 +87,114 @@ ${authUrl}
     error_description?: string;
   };
 
-  if (!res.ok || !json.refresh_token) {
-    console.error("\nFALHOU:", json.error_description || json.error || res.status);
+  return { ok: res.ok && Boolean(json.refresh_token), status: res.status, json };
+}
+
+async function main() {
+  carregarDotEnv();
+
+  const clientId = process.env.ONEDRIVE_GRAPH_CLIENT_ID?.trim() || "";
+  const clientSecret = process.env.ONEDRIVE_GRAPH_CLIENT_SECRET?.trim() || "";
+  const redirectUri = "http://localhost";
+  const scope = [
+    "offline_access",
+    "Files.ReadWrite",
+    "Files.ReadWrite.All",
+    "User.Read",
+  ].join(" ");
+
+  if (!clientId || !clientSecret) {
+    console.error(
+      "Faltam ONEDRIVE_GRAPH_CLIENT_ID / ONEDRIVE_GRAPH_CLIENT_SECRET no .env"
+    );
     process.exit(1);
   }
 
-  // Confirma a conta do token
-  const meRes = await fetch("https://graph.microsoft.com/v1.0/me?$select=displayName,mail,userPrincipalName", {
-    headers: { Authorization: `Bearer ${json.access_token}` },
-  });
+  // Contas @outlook.com: preferir consumers; se der tenant mismatch, tenta common.
+  const tenantsParaTentar = ["consumers", "common"];
+
+  console.log(`
+============================================================
+  REAUTORIZAR ONEDRIVE — conta correta
+============================================================
+1) Abra o navegador em ABA ANÔNIMA (Ctrl+Shift+N)
+2) Cole ESTA URL (tenant = consumers):
+
+https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize?client_id=${encodeURIComponent(clientId)}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&response_mode=query&scope=${encodeURIComponent(scope)}&prompt=login
+
+3) Entre com:  denteartlab@outlook.com
+   (NÃO use denteartlabb@outlook.com)
+4) Aceite as permissões
+5) A página localhost vai falhar — normal.
+   Copie a URL INTEIRA da barra (começa com http://localhost/?code=...)
+   ou só o valor de code=
+============================================================
+`);
+
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  const bruto = await perguntar(rl, "Cole o code ou a URL inteira aqui: ");
+  rl.close();
+
+  const code = extrairCode(bruto);
+  if (!code || code.length < 20) {
+    console.error("Code inválido / vazio. Cole a URL inteira do localhost.");
+    process.exit(1);
+  }
+  console.log(`\nCode recebido (${code.length} chars): ${code.slice(0, 12)}...`);
+
+  let escolhido: { tenant: string; json: { access_token?: string; refresh_token?: string } } | null =
+    null;
+  let ultimoErro = "";
+
+  // O code só pode ser usado UMA vez. Tentamos consumers primeiro (mesma URL do passo 2).
+  for (const tenant of tenantsParaTentar) {
+    console.log(`\nTrocando code no tenant "${tenant}"...`);
+    const r = await trocarCodePorToken({
+      tenant,
+      clientId,
+      clientSecret,
+      code,
+      redirectUri,
+      scope,
+    });
+    if (r.ok && r.json.refresh_token) {
+      escolhido = { tenant, json: r.json };
+      break;
+    }
+    ultimoErro = r.json.error_description || r.json.error || `HTTP ${r.status}`;
+    console.warn(`  falhou: ${ultimoErro.slice(0, 200)}`);
+    // Code já foi consumido no 1º attempt se Microsoft aceitou parcialmente —
+    // se for "different tenant", o code ainda pode valer no outro endpoint.
+    if (!/different tenant|AADSTS700012/i.test(ultimoErro) && tenantsParaTentar.indexOf(tenant) === 0) {
+      // outros erros (code expirado/usado) — não adianta tentar common com o mesmo code
+      if (/invalid_grant|AADSTS70000|expired|already redeemed/i.test(ultimoErro)) {
+        break;
+      }
+    }
+  }
+
+  if (!escolhido?.json.refresh_token) {
+    console.error(`
+FALHOU: ${ultimoErro}
+
+O que fazer:
+1) Gere um CODE NOVO (aba anônima de novo) com a URL consumers acima
+2) Cole a URL INTEIRA do localhost neste script
+3) Se ainda falhar com "different tenant", no portal Azure:
+   App → Autenticação → tipos de conta = "Contas pessoais da Microsoft"
+   e use sempre /consumers/ na URL
+`);
+    process.exit(1);
+  }
+
+  const access = escolhido.json.access_token!;
+  const refresh = escolhido.json.refresh_token!;
+  const tenant = escolhido.tenant;
+
+  const meRes = await fetch(
+    "https://graph.microsoft.com/v1.0/me?$select=displayName,mail,userPrincipalName",
+    { headers: { Authorization: `Bearer ${access}` } }
+  );
   const me = (await meRes.json()) as {
     displayName?: string;
     mail?: string;
@@ -136,25 +204,26 @@ ${authUrl}
 
   console.log(`
 ============================================================
+Tenant usado: ${tenant}
 Conta do token: ${me.displayName || "?"} <${email}>
 ============================================================
 `);
 
-  if (!/denteartlab@outlook\.com/i.test(email) || /denteartlabb@/i.test(email)) {
+  if (!/^denteartlab@outlook\.com$/i.test(email.replace(/#.*/, ""))) {
     console.warn(
-      "ATENÇÃO: o e-mail NÃO é denteartlab@outlook.com.\n" +
-        "Refaça o login na aba anônima com a conta correta.\n"
+      "ATENÇÃO: e-mail NÃO é denteartlab@outlook.com.\n" +
+        "Refaça em aba anônima com a conta correta.\n"
     );
   } else {
-    console.log("OK — conta correta.\n");
+    console.log("OK — conta correta (denteartlab@outlook.com).\n");
   }
 
-  console.log("Cole isto no .env da VPS (substitua a linha antiga):\n");
-  console.log(`ONEDRIVE_GRAPH_REFRESH_TOKEN=${json.refresh_token}`);
+  console.log("Cole no .env da VPS (substitua as linhas antigas):\n");
+  console.log(`ONEDRIVE_GRAPH_REFRESH_TOKEN=${refresh}`);
   console.log(`ONEDRIVE_GRAPH_TENANT_ID=${tenant}`);
   console.log(`ONEDRIVE_GRAPH_ROOT_FOLDER=Documents/Lab_Protese_Backups`);
   console.log(`
-Depois na VPS:
+Na VPS:
   nano /opt/lab-protese-saas/.env
   pm2 startOrReload deploy/ecosystem.config.cjs --update-env
   pm2 save
