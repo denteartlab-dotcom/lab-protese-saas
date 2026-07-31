@@ -18,8 +18,9 @@ Lab_Protese_Backups/
       suporte/
 ```
 
-> Por padrão usamos a pasta **`Lab_Protese_Backups`** (já existente no OneDrive do lab).  
-> Para mudar: `ONEDRIVE_GRAPH_ROOT_FOLDER=NomeDaPasta`
+> Por padrão usamos **`Documents/Lab_Protese_Backups`** (a pasta que aparece no OneDrive web
+> junto com DenteArt / Delvanir). Se configurar só `Lab_Protese_Backups`, o sistema detecta
+> e redireciona para `Documents/...` automaticamente.
 
 ## 1) App no Azure (uma vez)
 

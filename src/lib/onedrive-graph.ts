@@ -9,7 +9,7 @@
  *   ONEDRIVE_GRAPH_REFRESH_TOKEN
  *
  * Opcional:
- *   ONEDRIVE_GRAPH_ROOT_FOLDER=Lab_Protese_Backups
+ *   ONEDRIVE_GRAPH_ROOT_FOLDER=Documents/Lab_Protese_Backups
  *   ONEDRIVE_GRAPH_DRIVE_ID=  (se vazio, usa /me/drive)
  */
 import { envRuntime } from "@/lib/env-runtime";
@@ -22,6 +22,7 @@ type TokenCache = {
 const globalGraph = globalThis as typeof globalThis & {
   __onedriveGraphToken?: TokenCache;
   __onedriveGraphPastas?: Set<string>;
+  __onedriveGraphRootResolvido?: string;
 };
 
 function env(nome: string) {
@@ -36,12 +37,18 @@ export function onedriveGraphConfigurado() {
   );
 }
 
+/**
+ * Pasta-base dos uploads.
+ * Preferência: valor já resolvido em runtime > env > Documents/Lab_Protese_Backups.
+ */
 export function onedriveGraphRootFolder() {
+  if (globalGraph.__onedriveGraphRootResolvido) {
+    return globalGraph.__onedriveGraphRootResolvido;
+  }
   return (
     env("ONEDRIVE_GRAPH_ROOT_FOLDER") ||
     env("ONEDRIVE_UPLOADS_ROOT") ||
-    // Pasta que já existe no OneDrive do laboratório (rclone de backups).
-    "Lab_Protese_Backups"
+    "Documents/Lab_Protese_Backups"
   );
 }
 
@@ -197,6 +204,8 @@ export async function uploadBytesOneDriveGraph(
   bytes: Buffer,
   mimeType?: string
 ): Promise<{ id?: string; webUrl?: string; name?: string } | null> {
+  // Garante pasta-base correta (Documents/...) antes de montar árvores.
+  await resolverPastaRaizOneDriveGraph();
   await garantirCaminhoPastasOneDrive(remotePath);
   const encoded = encodePathSegments(remotePath);
   const url = `${driveBasePath()}/root:/${encoded}:/content`;
@@ -223,6 +232,96 @@ export async function uploadBytesOneDriveGraph(
     console.info(`[onedrive-graph] arquivo: ${json.webUrl}`);
   }
   return json;
+}
+
+/** Lista filhos de uma pasta (caminho relativo à raiz do drive). */
+export async function listarPastaOneDriveGraph(
+  remoteFolderPath: string
+): Promise<Array<{ name: string; folder?: boolean; webUrl?: string }>> {
+  const limpo = remoteFolderPath.replace(/^[/\\]+/, "").replace(/\\/g, "/");
+  if (!limpo) return listarRaizOneDriveGraph();
+  const encoded = encodePathSegments(limpo);
+  const res = await graphFetch(
+    `${driveBasePath()}/root:/${encoded}:/children?$select=name,folder,webUrl&$top=50`
+  );
+  if (res.status === 404) return [];
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Listar pasta OneDrive falhou (${res.status}): ${text.slice(0, 300)}`);
+  }
+  const json = (await res.json()) as {
+    value?: Array<{ name?: string; folder?: unknown; webUrl?: string }>;
+  };
+  return (json.value || []).map((item) => ({
+    name: item.name || "",
+    folder: Boolean(item.folder),
+    webUrl: item.webUrl,
+  }));
+}
+
+async function pastaExisteOneDrive(remoteFolderPath: string): Promise<boolean> {
+  const encoded = encodePathSegments(remoteFolderPath);
+  const res = await graphFetch(
+    `${driveBasePath()}/root:/${encoded}?$select=id,folder,name`
+  );
+  if (!res.ok) return false;
+  const json = (await res.json().catch(() => null)) as { folder?: unknown } | null;
+  return Boolean(json?.folder);
+}
+
+/**
+ * Descobre a pasta Lab_Protese_Backups que o usuário vê no OneDrive web.
+ * Prioriza Documents/... (rclone) sobre a cópia solta na raiz do drive.
+ */
+export async function resolverPastaRaizOneDriveGraph(): Promise<string> {
+  if (globalGraph.__onedriveGraphRootResolvido) {
+    return globalGraph.__onedriveGraphRootResolvido;
+  }
+
+  const explicito = (
+    env("ONEDRIVE_GRAPH_ROOT_FOLDER") ||
+    env("ONEDRIVE_UPLOADS_ROOT") ||
+    ""
+  ).replace(/^[/\\]+|[/\\]+$/g, "");
+
+  // A pasta que aparece no OneDrive web (Meus arquivos > Lab_Protese_Backups)
+  // costuma ser Documents/Lab_Protese_Backups. A cópia na raiz é outra pasta.
+  if (
+    !explicito ||
+    explicito === "Lab_Protese_Backups" ||
+    explicito === "Lab_Protese"
+  ) {
+    if (await pastaExisteOneDrive("Documents/Lab_Protese_Backups")) {
+      globalGraph.__onedriveGraphRootResolvido = "Documents/Lab_Protese_Backups";
+      console.info(
+        "[onedrive-graph] usando Documents/Lab_Protese_Backups (pasta visível no OneDrive)"
+      );
+      return globalGraph.__onedriveGraphRootResolvido;
+    }
+  }
+
+  if (explicito) {
+    globalGraph.__onedriveGraphRootResolvido = explicito;
+    return explicito;
+  }
+
+  const candidatos = [
+    "Documents/Lab_Protese_Backups",
+    "Lab_Protese_Backups",
+    "Documents/Lab_Protese",
+    "Lab_Protese",
+  ];
+  for (const c of candidatos) {
+    if (await pastaExisteOneDrive(c)) {
+      globalGraph.__onedriveGraphRootResolvido = c;
+      console.info(`[onedrive-graph] pasta raiz detectada: ${c}`);
+      return c;
+    }
+  }
+
+  const fallback = "Documents/Lab_Protese_Backups";
+  globalGraph.__onedriveGraphRootResolvido = fallback;
+  return fallback;
 }
 
 /** Lista pastas/arquivos na raiz do OneDrive autenticado (diagnóstico). */
