@@ -54,13 +54,19 @@ export function montarHtmlAvisoInatividade(dados: {
                 está há vários dias sem acesso e sem assinatura ativa.
               </p>
               <p style="margin:0 0 14px 0;font-size:15px;line-height:1.6;color:#475569;">
-                Se não houver novo acesso, os dados de cadastro serão excluídos em
+                Se não houver novo acesso, a conta será excluída em
                 <strong style="color:#b91c1c;">${dias} dia(s)</strong>
                 (previsão: <strong>${dataExclusao}</strong>).
               </p>
+              <p style="margin:0 0 14px 0;font-size:15px;line-height:1.6;color:#7f1d1d;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:14px 16px;">
+                <strong>Atenção:</strong> após a exclusão, você perderá
+                <strong>todos os dados do sistema</strong> — cadastros, OS, clientes,
+                financeiro, imagens, anexos, backups e pastas de arquivos na nuvem e no servidor.
+                <strong>Não restará nada</strong> da conta. Essa ação é irreversível.
+              </p>
               <p style="margin:0 0 20px 0;font-size:15px;line-height:1.6;color:#475569;">
-                Para manter a conta, basta entrar novamente no sistema. Ao voltar a usar,
-                a exclusão é cancelada automaticamente.
+                Para manter a conta e todos os dados, basta entrar novamente no sistema.
+                Ao voltar a usar, a exclusão é cancelada automaticamente.
               </p>
               <p style="text-align:center;margin:0 0 8px 0;">
                 <a href="${loginUrl}" style="display:inline-block;background:#0066FF;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:12px 28px;border-radius:10px;">
@@ -103,13 +109,14 @@ export async function enviarEmailAvisoInatividade(params: {
   const text = [
     `Olá, ${params.nome}.`,
     `O laboratório ${params.laboratorio} está inativo.`,
-    `Sem novo acesso, os cadastros serão excluídos em ${params.diasRestantes} dia(s) (previsão ${params.dataExclusaoPrevista}).`,
-    `Para permanecer no sistema, acesse: ${loginUrl}`,
+    `Sem novo acesso, a conta será excluída em ${params.diasRestantes} dia(s) (previsão ${params.dataExclusaoPrevista}).`,
+    `ATENÇÃO: após a exclusão você perderá TODOS os dados do sistema (cadastros, OS, clientes, financeiro, imagens, anexos, backups e pastas de arquivos). Não restará nada. Ação irreversível.`,
+    `Para permanecer no sistema e manter os dados, acesse: ${loginUrl}`,
   ].join("\n");
 
   return enviarEmailResend({
     to: params.to,
-    subject: `Aviso: exclusão por inatividade em ${params.diasRestantes} dia(s) — ${params.laboratorio}`,
+    subject: `Aviso: exclusão total da conta em ${params.diasRestantes} dia(s) — ${params.laboratorio}`,
     html,
     text,
   });

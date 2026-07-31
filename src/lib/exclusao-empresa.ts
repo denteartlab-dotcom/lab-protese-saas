@@ -1,3 +1,4 @@
+import path from "path";
 import { rm } from "fs/promises";
 import { pastaBackupEmpresa } from "@/lib/backup-empresa-pasta";
 import { excluirPastaDriveEmpresa } from "@/lib/backup-google-drive";
@@ -5,7 +6,10 @@ import { excluirPastaBackupEmpresaOneDrive } from "@/lib/backup-onedrive-sync";
 import { executarSemRls } from "@/lib/db";
 import { excluirJsonStoreTenant } from "@/lib/json-store-tenant";
 import { registrarLogMaster } from "@/lib/master-audit";
-import { caminhoPastaUploads } from "@/lib/uploads-armazenamento-server";
+import {
+  caminhoPastaUploads,
+  normalizarSlugPastaUploads,
+} from "@/lib/uploads-armazenamento-server";
 import { excluirPastaUploadsEmpresaOneDrive } from "@/lib/upload-onedrive-storage";
 import {
   DIAS_AVISO_INATIVIDADE_ANTES,
@@ -37,15 +41,32 @@ export type OpcoesExclusaoEmpresa = {
   aguardarArquivos?: boolean;
 };
 
-async function excluirArquivosLocaisEmpresa(slug: string, nome: string) {
-  const caminhos = [pastaBackupEmpresa(slug, nome), caminhoPastaUploads(slug)];
-  for (const caminho of caminhos) {
-    try {
-      await rm(caminho, { recursive: true, force: true });
-      console.log(`[exclusao-empresa] removido: ${caminho}`);
-    } catch (erro) {
-      console.warn(`[exclusao-empresa] falha ao remover ${caminho}:`, erro);
-    }
+async function removerPastaComLog(caminho: string) {
+  try {
+    await rm(caminho, { recursive: true, force: true });
+    console.log(`[exclusao-empresa] removido: ${caminho}`);
+  } catch (erro) {
+    console.warn(`[exclusao-empresa] falha ao remover ${caminho}:`, erro);
+  }
+}
+
+/**
+ * Apaga todas as pastas locais da empresa: backups, uploads atuais/legado e temp.
+ * Não resta pasta de dados do laboratório no disco.
+ */
+async function excluirArquivosLocaisEmpresa(slug: string, nome: string, empresaId: string) {
+  const slugNorm = normalizarSlugPastaUploads(slug);
+  const caminhos = [
+    pastaBackupEmpresa(slug, nome),
+    pastaBackupEmpresa(slug), // legado: pasta só com slug
+    caminhoPastaUploads(slug),
+    path.join(process.cwd(), "public", "uploads", slugNorm),
+    path.join(process.cwd(), ".tmp", "backup-jobs", empresaId),
+  ];
+  // Remove duplicatas de caminho
+  const unicos = [...new Set(caminhos.map((c) => path.resolve(c)))];
+  for (const caminho of unicos) {
+    await removerPastaComLog(caminho);
   }
 }
 
@@ -57,8 +78,8 @@ async function registrarAuditoriaExclusao(
     opcoes.motivo === "inatividade" ? "EXCLUIR_EMPRESA_INATIVA" : "EXCLUIR_EMPRESA";
   const detalhesBase =
     opcoes.motivo === "inatividade"
-      ? `Conta excluída por inatividade (${DIAS_INATIVIDADE_PARA_EXCLUSAO}+ dias sem acesso, após aviso de ${DIAS_AVISO_INATIVIDADE_ANTES} dias): ${empresa.nome}`
-      : `Empresa excluída: ${empresa.nome} (${empresa.codigo ?? empresa.id})`;
+      ? `Conta e TODOS os dados excluídos por inatividade (${DIAS_INATIVIDADE_PARA_EXCLUSAO}+ dias, após aviso de ${DIAS_AVISO_INATIVIDADE_ANTES} dias): ${empresa.nome}`
+      : `Empresa e todos os dados excluídos: ${empresa.nome} (${empresa.codigo ?? empresa.id})`;
   const detalhes = opcoes.detalhesExtra
     ? `${detalhesBase}. ${opcoes.detalhesExtra}`
     : detalhesBase;
@@ -75,6 +96,10 @@ async function registrarAuditoriaExclusao(
   console.log(`[exclusao-empresa] ${acao}: ${detalhes}`);
 }
 
+/**
+ * Limpa nuvem + disco: Google Drive, OneDrive (pasta inteira do lab),
+ * backups locais, uploads e temporários.
+ */
 async function limparArquivosEmpresaExcluida(slug: string, nome: string, empresaId: string) {
   const drive = await excluirPastaDriveEmpresa({
     empresaId,
@@ -87,28 +112,29 @@ async function limparArquivosEmpresaExcluida(slug: string, nome: string, empresa
 
   const onedrive = await excluirPastaBackupEmpresaOneDrive(slug, nome);
   if (!onedrive.ok && onedrive.erro && onedrive.erro !== "desativado") {
-    console.warn(`[exclusao-empresa] OneDrive ${slug}:`, onedrive.erro);
+    console.warn(`[exclusao-empresa] OneDrive backup ${slug}:`, onedrive.erro);
   }
 
-  const onedriveUploads = await excluirPastaUploadsEmpresaOneDrive(slug);
-  if (!onedriveUploads.ok && onedriveUploads.erro) {
-    console.warn(`[exclusao-empresa] OneDrive uploads ${slug}:`, onedriveUploads.erro);
+  // Remove a pasta-raiz do lab no OneDrive (uploads + backups) — não sobra nada.
+  const onedriveRaiz = await excluirPastaUploadsEmpresaOneDrive(slug);
+  if (!onedriveRaiz.ok && onedriveRaiz.erro) {
+    console.warn(`[exclusao-empresa] OneDrive raiz ${slug}:`, onedriveRaiz.erro);
   }
 
-  await excluirArquivosLocaisEmpresa(slug, nome);
+  await excluirArquivosLocaisEmpresa(slug, nome, empresaId);
 }
 
-/** Remove backups (local, Drive, OneDrive), uploads, JsonStore e registro no banco. */
+/**
+ * Exclusão total da conta: banco (cascade), JsonStore, nuvem e pastas locais.
+ * Após concluir, não resta cadastro, arquivo nem pasta do laboratório.
+ */
 export async function excluirEmpresaCompleta(
   empresa: DadosEmpresaExclusao,
   opcoes: OpcoesExclusaoEmpresa
 ) {
   const aguardarArquivos = opcoes.aguardarArquivos !== false;
 
-  await excluirJsonStoreTenant(empresa.id);
-  await executarSemRls((tx) => tx.empresa.delete({ where: { id: empresa.id } }));
-  await registrarAuditoriaExclusao(empresa, opcoes);
-
+  // Arquivos/nuvem antes do JsonStore (Drive pode precisar do config em JsonStore).
   const limparArquivos = () =>
     limparArquivosEmpresaExcluida(empresa.slug, empresa.nome, empresa.id).catch((erro) => {
       console.error(`[exclusao-empresa] limpeza de arquivos ${empresa.slug}:`, erro);
@@ -119,6 +145,15 @@ export async function excluirEmpresaCompleta(
   } else {
     void limparArquivos();
   }
+
+  await excluirJsonStoreTenant(empresa.id);
+  // Cascade Prisma remove users, OS, clientes, financeiro, uploads DB, WhatsApp, etc.
+  await executarSemRls((tx) => tx.empresa.delete({ where: { id: empresa.id } }));
+  await registrarAuditoriaExclusao(empresa, opcoes);
+
+  console.log(
+    `[exclusao-empresa] limpeza total concluída: ${empresa.slug} — banco, arquivos e pastas removidos.`
+  );
 }
 
 function formatarDataBr(data: Date) {
@@ -218,9 +253,13 @@ export async function executarLimpezaContasInativas(opcoes?: {
   const excluidas: Array<{ id: string; slug: string; nome: string }> = [];
   for (const empresa of elegiveis) {
     try {
+      console.log(
+        `[limpeza-inativas] exclusão TOTAL de ${empresa.slug}: banco + pastas + nuvem...`
+      );
       await excluirEmpresaCompleta(empresa, {
         motivo: "inatividade",
         masterId: opcoes?.masterId,
+        aguardarArquivos: true,
       });
       excluidas.push({ id: empresa.id, slug: empresa.slug, nome: empresa.nome });
     } catch (erro) {
@@ -258,7 +297,7 @@ export function iniciarLimpezaContasInativasDiaria() {
       try {
         const resultado = await executarLimpezaContasInativas();
         console.log(
-          `[limpeza-inativas] concluída: ${resultado.avisosEnviados ?? 0} aviso(s), ${resultado.total} conta(s) excluída(s).`
+          `[limpeza-inativas] concluída: ${resultado.avisosEnviados ?? 0} aviso(s), ${resultado.total} conta(s) excluída(s) por completo.`
         );
       } catch (erro) {
         console.error("[limpeza-inativas] erro:", erro);
@@ -270,6 +309,6 @@ export function iniciarLimpezaContasInativasDiaria() {
 
   agendar();
   console.log(
-    `[limpeza-inativas] agendada diariamente (~04:15). Aviso ${DIAS_AVISO_INATIVIDADE_ANTES} dias antes; exclusão após ${DIAS_INATIVIDADE_PARA_EXCLUSAO} dias inativos.`
+    `[limpeza-inativas] agendada diariamente (~04:15). Aviso ${DIAS_AVISO_INATIVIDADE_ANTES} dias antes; exclusão TOTAL após ${DIAS_INATIVIDADE_PARA_EXCLUSAO} dias inativos.`
   );
 }
