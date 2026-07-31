@@ -1,5 +1,5 @@
 /**
- * Testa se o OneDrive Graph está acessível e grava um arquivo de prova.
+ * Testa OneDrive Graph: mostra a conta, lista a raiz e grava um arquivo de prova.
  *
  *   npx tsx scripts/testar-onedrive-upload.ts
  */
@@ -7,10 +7,12 @@ import { readFileSync, existsSync } from "fs";
 import path from "path";
 import {
   caminhoRemotoEmpresaUploads,
+  downloadBytesOneDriveGraph,
+  listarRaizOneDriveGraph,
   onedriveGraphConfigurado,
   onedriveGraphRootFolder,
+  quemSouOneDriveGraph,
   uploadBytesOneDriveGraph,
-  downloadBytesOneDriveGraph,
 } from "../src/lib/onedrive-graph";
 import { uploadUsaOneDrive } from "../src/lib/upload-onedrive-storage";
 
@@ -42,32 +44,40 @@ async function main() {
   console.log("graphConfigurado =", onedriveGraphConfigurado());
   console.log("rootFolder =", onedriveGraphRootFolder());
   console.log("tenant =", process.env.ONEDRIVE_GRAPH_TENANT_ID || "consumers");
-  console.log("clientId =", process.env.ONEDRIVE_GRAPH_CLIENT_ID ? "ok" : "FALTA");
-  console.log("secret =", process.env.ONEDRIVE_GRAPH_CLIENT_SECRET ? "ok" : "FALTA");
-  console.log("refresh =", process.env.ONEDRIVE_GRAPH_REFRESH_TOKEN ? "ok" : "FALTA");
 
-  if (!uploadUsaOneDrive()) {
-    console.error(
-      "\nERRO: UPLOAD_STORAGE não é onedrive. Deixe só UPLOAD_STORAGE=onedrive no .env e rode:\npm2 startOrReload deploy/ecosystem.config.cjs --update-env"
-    );
+  if (!uploadUsaOneDrive() || !onedriveGraphConfigurado()) {
+    console.error("Configure UPLOAD_STORAGE=onedrive e ONEDRIVE_GRAPH_* no .env");
     process.exit(1);
   }
-  if (!onedriveGraphConfigurado()) {
-    console.error("\nERRO: faltam variáveis ONEDRIVE_GRAPH_*");
-    process.exit(1);
+
+  const eu = await quemSouOneDriveGraph();
+  console.log("\nConta OneDrive autenticada:");
+  console.log("  nome =", eu.displayName || "?");
+  console.log("  email =", eu.mail || eu.userPrincipalName || "?");
+
+  console.log("\nPastas na raiz deste OneDrive:");
+  const raiz = await listarRaizOneDriveGraph();
+  for (const item of raiz) {
+    console.log(`  - ${item.folder ? "[pasta]" : "[arq]"} ${item.name}`);
   }
 
   const remotePath = caminhoRemotoEmpresaUploads(
-    "teste-lab",
+    "denteart-1",
     "os",
     `prova-${Date.now()}.txt`
   );
   const conteudo = Buffer.from(`prova onedrive ${new Date().toISOString()}\n`, "utf8");
   console.log("\nEnviando:", remotePath);
-  await uploadBytesOneDriveGraph(remotePath, conteudo, "text/plain");
+  const meta = await uploadBytesOneDriveGraph(remotePath, conteudo, "text/plain");
   const voltou = await downloadBytesOneDriveGraph(remotePath);
   console.log("Download OK:", voltou.toString("utf8").trim());
-  console.log("\nSUCESSO. Abra o OneDrive e procure Lab_Protese/teste-lab/uploads/os/");
+  if (meta?.webUrl) {
+    console.log("\nAbra este link no navegador:");
+    console.log(meta.webUrl);
+  }
+  console.log(
+    `\nProcure em: ${onedriveGraphRootFolder()}/denteart-1/uploads/os/`
+  );
 }
 
 main().catch((err) => {

@@ -38,7 +38,8 @@ export function onedriveGraphRootFolder() {
   return (
     env("ONEDRIVE_GRAPH_ROOT_FOLDER") ||
     env("ONEDRIVE_UPLOADS_ROOT") ||
-    "Lab_Protese"
+    // Pasta que já existe no OneDrive do laboratório (rclone de backups).
+    "Lab_Protese_Backups"
   );
 }
 
@@ -193,7 +194,7 @@ export async function uploadBytesOneDriveGraph(
   remotePath: string,
   bytes: Buffer,
   mimeType?: string
-) {
+): Promise<{ id?: string; webUrl?: string; name?: string } | null> {
   await garantirCaminhoPastasOneDrive(remotePath);
   const encoded = encodePathSegments(remotePath);
   const url = `${driveBasePath()}/root:/${encoded}:/content`;
@@ -211,7 +212,54 @@ export async function uploadBytesOneDriveGraph(
     throw new Error(`Upload OneDrive Graph falhou (${res.status}): ${text.slice(0, 300)}`);
   }
 
-  return res.json().catch(() => null);
+  const json = (await res.json().catch(() => null)) as {
+    id?: string;
+    webUrl?: string;
+    name?: string;
+  } | null;
+  if (json?.webUrl) {
+    console.info(`[onedrive-graph] arquivo: ${json.webUrl}`);
+  }
+  return json;
+}
+
+/** Lista pastas/arquivos na raiz do OneDrive autenticado (diagnóstico). */
+export async function listarRaizOneDriveGraph(): Promise<
+  Array<{ name: string; folder?: boolean; webUrl?: string }>
+> {
+  const res = await graphFetch(
+    `${driveBasePath()}/root/children?$select=name,folder,webUrl&$top=50`
+  );
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Listar raiz OneDrive falhou (${res.status}): ${text.slice(0, 300)}`);
+  }
+  const json = (await res.json()) as {
+    value?: Array<{ name?: string; folder?: unknown; webUrl?: string }>;
+  };
+  return (json.value || []).map((item) => ({
+    name: item.name || "",
+    folder: Boolean(item.folder),
+    webUrl: item.webUrl,
+  }));
+}
+
+/** Retorna quem é o dono do drive (e-mail) para confirmar a conta certa. */
+export async function quemSouOneDriveGraph(): Promise<{
+  displayName?: string;
+  userPrincipalName?: string;
+  mail?: string;
+}> {
+  const res = await graphFetch("/me?$select=displayName,userPrincipalName,mail");
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Graph /me falhou (${res.status}): ${text.slice(0, 300)}`);
+  }
+  return (await res.json()) as {
+    displayName?: string;
+    userPrincipalName?: string;
+    mail?: string;
+  };
 }
 
 export async function downloadBytesOneDriveGraph(remotePath: string): Promise<Buffer> {

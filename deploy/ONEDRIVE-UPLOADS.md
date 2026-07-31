@@ -6,7 +6,7 @@ Vão direto para o OneDrive via **Microsoft Graph API** (sem rclone no upload).
 ## Estrutura no OneDrive (por laboratório)
 
 ```
-Lab_Protese/
+Lab_Protese_Backups/
   {slug-do-laboratorio}/
     backups/                 ← JSON de backup (rclone, opcional)
     uploads/
@@ -17,6 +17,9 @@ Lab_Protese/
       disparos-whatsapp/
       suporte/
 ```
+
+> Por padrão usamos a pasta **`Lab_Protese_Backups`** (já existente no OneDrive do lab).  
+> Para mudar: `ONEDRIVE_GRAPH_ROOT_FOLDER=NomeDaPasta`
 
 ## 1) App no Azure (uma vez)
 
