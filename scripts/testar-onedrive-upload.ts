@@ -46,7 +46,13 @@ async function main() {
   console.log("tenant =", process.env.ONEDRIVE_GRAPH_TENANT_ID || "consumers");
 
   if (!uploadUsaOneDrive() || !onedriveGraphConfigurado()) {
-    console.error("Configure UPLOAD_STORAGE=onedrive e ONEDRIVE_GRAPH_* no .env");
+    console.error(
+      "\nERRO: UPLOAD_STORAGE não é onedrive. Deixe só UPLOAD_STORAGE=onedrive no .env e rode:\npm2 startOrReload deploy/ecosystem.config.cjs --update-env"
+    );
+    process.exit(1);
+  }
+  if (!onedriveGraphConfigurado()) {
+    console.error("\nERRO: faltam variáveis ONEDRIVE_GRAPH_*");
     process.exit(1);
   }
 

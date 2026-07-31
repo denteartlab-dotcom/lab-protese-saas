@@ -85,7 +85,7 @@ npm run uploads:testar-onedrive
 
 No OneDrive da conta autorizada, procure:
 
-`Lab_Protese/teste-lab/uploads/os/prova-....txt`
+`Lab_Protese_Backups/denteart-1/uploads/os/prova-....txt`
 
 ## 4) Migrar arquivos antigos da VPS
 
@@ -97,7 +97,7 @@ npm run uploads:migrar-onedrive -- --limpar-disco
 ## Conferir
 
 1. Configurações → Backup: “Uploads ativos no OneDrive”
-2. Envie um anexo numa OS → deve aparecer em `Lab_Protese/{slug}/uploads/os/`
+2. Envie um anexo numa OS → deve aparecer em `Lab_Protese_Backups/{slug}/uploads/os/`
 3. A pasta `var/uploads` na VPS **não deve crescer**
 
 ## Diferença importante
