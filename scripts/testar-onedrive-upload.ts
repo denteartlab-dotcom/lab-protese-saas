@@ -1,5 +1,5 @@
 /**
- * Testa OneDrive Graph: mostra a conta, lista pastas e grava prova na pasta VISÍVEL.
+ * Testa OneDrive Graph: cria pastas do lab + prova de upload.
  *
  *   npx tsx scripts/testar-onedrive-upload.ts
  */
@@ -8,6 +8,7 @@ import path from "path";
 import {
   caminhoRemotoEmpresaUploads,
   downloadBytesOneDriveGraph,
+  garantirEstruturaPastasEmpresaOneDrive,
   listarPastaOneDriveGraph,
   listarRaizOneDriveGraph,
   onedriveGraphConfigurado,
@@ -44,14 +45,9 @@ async function main() {
   console.log("UPLOAD_STORAGE =", process.env.UPLOAD_STORAGE || "(vazio)");
   console.log("uploadUsaOneDrive() =", uploadUsaOneDrive());
   console.log("graphConfigurado =", onedriveGraphConfigurado());
-  console.log("tenant =", process.env.ONEDRIVE_GRAPH_TENANT_ID || "consumers");
 
   if (!uploadUsaOneDrive() || !onedriveGraphConfigurado()) {
-    console.error(
-      "\nERRO: OneDrive Graph não está ativo.\n" +
-        "- Confirme ONEDRIVE_GRAPH_CLIENT_ID / SECRET / REFRESH_TOKEN\n" +
-        "- Na VPS: bash scripts/corrigir-env-onedrive-vps.sh"
-    );
+    console.error("\nERRO: OneDrive Graph não está ativo.");
     process.exit(1);
   }
 
@@ -59,50 +55,52 @@ async function main() {
   console.log("\nConta OneDrive autenticada:");
   console.log("  nome =", eu.displayName || "?");
   console.log("  email =", eu.mail || eu.userPrincipalName || "?");
+  console.log("  ← tem que ser a mesma conta do OneDrive web que você abre");
 
-  console.log("\nPastas na RAIZ do drive:");
-  const raiz = await listarRaizOneDriveGraph();
-  for (const item of raiz) {
+  const root = await resolverPastaRaizOneDriveGraph();
+  console.log("\nPasta-base =", root);
+
+  console.log("\nCriando estrutura denteart-1 (cliente + módulos)...");
+  await garantirEstruturaPastasEmpresaOneDrive("denteart-1");
+
+  console.log(`\nConteúdo de ${root}:`);
+  for (const item of await listarPastaOneDriveGraph(root)) {
     console.log(`  - ${item.folder ? "[pasta]" : "[arq]"} ${item.name}`);
   }
 
-  const root = await resolverPastaRaizOneDriveGraph();
-  console.log("\nPasta-base resolvida =", root);
-  console.log("onedriveGraphRootFolder() =", onedriveGraphRootFolder());
-
-  console.log(`\nConteúdo de ${root}:`);
-  const filhos = await listarPastaOneDriveGraph(root);
-  if (!filhos.length) {
-    console.log("  (vazia ou ainda sem subpastas)");
-  } else {
-    for (const item of filhos) {
-      console.log(`  - ${item.folder ? "[pasta]" : "[arq]"} ${item.name}`);
-    }
+  console.log(`\nConteúdo de ${root}/denteart-1/uploads:`);
+  for (const item of await listarPastaOneDriveGraph(`${root}/denteart-1/uploads`)) {
+    console.log(`  - ${item.folder ? "[pasta]" : "[arq]"} ${item.name}`);
   }
 
   const remotePath = caminhoRemotoEmpresaUploads(
     "denteart-1",
     "os",
-    `prova-${Date.now()}.txt`
+    `prova-${Date.now()}.png`
   );
-  const conteudo = Buffer.from(`prova onedrive ${new Date().toISOString()}\n`, "utf8");
-  console.log("\nEnviando:", remotePath);
-  const meta = await uploadBytesOneDriveGraph(remotePath, conteudo, "text/plain");
+  // PNG mínimo 1x1 para testar tipo de imagem da OS
+  const png1x1 = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+    "base64"
+  );
+  console.log("\nEnviando PNG de prova:", remotePath);
+  const meta = await uploadBytesOneDriveGraph(remotePath, png1x1, "image/png");
   const voltou = await downloadBytesOneDriveGraph(remotePath);
-  console.log("Download OK:", voltou.toString("utf8").trim());
+  console.log("Download OK bytes =", voltou.length);
 
-  console.log(`\nConteúdo de ${root} DEPOIS do upload:`);
-  const depois = await listarPastaOneDriveGraph(root);
-  for (const item of depois) {
+  console.log(`\nConteúdo de ${root}/denteart-1/uploads/os:`);
+  for (const item of await listarPastaOneDriveGraph(`${root}/denteart-1/uploads/os`)) {
     console.log(`  - ${item.folder ? "[pasta]" : "[arq]"} ${item.name}`);
   }
 
   if (meta?.webUrl) {
-    console.log("\nAbra este link no navegador:");
+    console.log("\nAbra este link:");
     console.log(meta.webUrl);
   }
-  console.log(`\nNo OneDrive web procure:\n  Meus arquivos > Documents > Lab_Protese_Backups > denteart-1 > uploads > os`);
-  console.log(`  (ou ${root}/denteart-1/uploads/os/)`);
+  console.log(
+    `\nNo OneDrive web (conta ${eu.mail || eu.userPrincipalName}):\n` +
+      `  ${onedriveGraphRootFolder()}/denteart-1/uploads/os/`
+  );
 }
 
 main().catch((err) => {
