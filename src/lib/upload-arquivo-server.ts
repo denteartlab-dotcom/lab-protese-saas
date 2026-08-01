@@ -279,9 +279,7 @@ export async function salvarArquivosUpload(
       throw new Error("empresaSlug obrigatório para upload no OneDrive.");
     }
     const empresaIdUpload = empresaId;
-    const { resolverPastaRaizOneDriveGraph, garantirPastaModuloUploadOneDrive } =
-      await import("@/lib/onedrive-graph");
-    await resolverPastaRaizOneDriveGraph();
+    const { garantirPastaModuloUploadOneDrive } = await import("@/lib/onedrive-graph");
     const slug = normalizarSlugPastaUploads(empresaSlug);
     // Só a pasta do módulo (ex.: uploads/os) — sem .keep nos outros módulos.
     await garantirPastaModuloUploadOneDrive(slug, pasta);
@@ -303,11 +301,11 @@ export async function salvarArquivosUpload(
       })
     );
 
-    const CONCURRENCY = Math.min(4, preparados.length);
-    const uploaded: ArquivoEnviado[] = new Array(preparados.length);
+    // Mais paralelismo no Graph; Prisma fica numa 2ª fase para não segurar o slot.
+    const CONCURRENCY = Math.min(8, preparados.length);
     let cursor = 0;
 
-    async function worker() {
+    async function workerUpload() {
       while (true) {
         const index = cursor++;
         if (index >= preparados.length) return;
@@ -317,9 +315,20 @@ export async function salvarArquivosUpload(
           item.bytes,
           item.filename,
           item.mimeType,
-          { garantirPastas: false }
+          { garantirPastas: false, atualizarCota: false }
         );
         console.info(`[uploads] OneDrive gravou: ${item.remotePath}`);
+      }
+    }
+
+    await Promise.all(Array.from({ length: CONCURRENCY }, () => workerUpload()));
+
+    const totalBytes = preparados.reduce((s, p) => s + p.bytes.length, 0);
+    const { ajustarCotaOneDriveAposUpload } = await import("@/lib/onedrive-graph");
+    ajustarCotaOneDriveAposUpload(totalBytes);
+
+    const uploaded = await Promise.all(
+      preparados.map(async (item) => {
         const registro = await prisma.arquivoUpload.create({
           data: {
             empresaId: empresaIdUpload,
@@ -332,15 +341,13 @@ export async function salvarArquivosUpload(
             remotePath: item.remotePath,
           },
         });
-        uploaded[index] = {
+        return {
           name: item.file.name,
           type: item.mimeType,
           url: `/api/uploads/arquivo/${registro.id}`,
-        };
-      }
-    }
-
-    await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
+        } satisfies ArquivoEnviado;
+      })
+    );
     return uploaded;
   }
 

@@ -4,6 +4,7 @@ import {
   enviarBufferParaOneDrive,
   uploadUsaOneDrive,
 } from "@/lib/upload-onedrive-storage";
+import { normalizarSlugPastaUploads } from "@/lib/uploads-armazenamento-server";
 
 const MAX_BYTES_IMAGEM = 2 * 1024 * 1024;
 
@@ -60,9 +61,14 @@ export async function salvarImagemSuporteChat(
     }
     if (!slug) throw new Error("empresaSlug obrigatório para OneDrive");
 
+    const slugNorm = normalizarSlugPastaUploads(slug);
     const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName(nome)}`;
-    const remotePath = caminhoRemotoUpload(slug, "suporte", filename);
-    await enviarBufferParaOneDrive(remotePath, bytes, filename, mimeType);
+    const remotePath = caminhoRemotoUpload(slugNorm, "suporte", filename);
+    const { garantirPastaModuloUploadOneDrive } = await import("@/lib/onedrive-graph");
+    await garantirPastaModuloUploadOneDrive(slugNorm, "suporte");
+    await enviarBufferParaOneDrive(remotePath, bytes, filename, mimeType, {
+      garantirPastas: false,
+    });
     const registro = await prisma.arquivoUpload.create({
       data: {
         empresaId,

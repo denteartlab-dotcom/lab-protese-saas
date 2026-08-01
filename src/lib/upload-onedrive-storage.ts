@@ -4,6 +4,7 @@
  */
 import {
   ajustarCotaOneDriveAposExclusao,
+  ajustarCotaOneDriveAposUpload,
   caminhoRemotoEmpresaRaiz,
   caminhoRemotoEmpresaUploads,
   deleteItemOneDriveGraph,
@@ -66,7 +67,7 @@ export async function enviarBufferParaOneDrive(
   bytes: Buffer,
   _nomeLocalHint?: string,
   mimeType?: string,
-  opcoes?: { garantirPastas?: boolean }
+  opcoes?: { garantirPastas?: boolean; atualizarCota?: boolean }
 ) {
   if (!onedriveGraphConfigurado()) {
     throw new Error(
@@ -74,7 +75,8 @@ export async function enviarBufferParaOneDrive(
     );
   }
   await uploadBytesOneDriveGraph(remotePath, bytes, mimeType, opcoes);
-  limparCacheCotaOneDriveGraph();
+  if (opcoes?.atualizarCota === false) return;
+  ajustarCotaOneDriveAposUpload(bytes.length);
 }
 
 /** Baixa bytes do OneDrive (Graph). */

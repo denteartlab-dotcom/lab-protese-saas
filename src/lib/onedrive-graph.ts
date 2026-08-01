@@ -172,10 +172,17 @@ async function graphFetch(pathname: string, init?: RequestInit) {
     res = await fetch(url, { ...init, headers });
   }
   if (res.status === 429) {
-    const retryAfter = Number(res.headers.get("Retry-After") || "1");
-    const waitMs = Math.min(Math.max(retryAfter, 1) * 1000, 5000);
-    await new Promise((r) => setTimeout(r, waitMs));
-    res = await fetch(url, { ...init, headers });
+    // Até 2 retentativas; espera curta quando não há Retry-After (Graph às vezes omite).
+    for (let tentativa = 0; tentativa < 2; tentativa++) {
+      const retryAfterRaw = res.headers.get("Retry-After");
+      const retryAfter = Number(retryAfterRaw);
+      const waitMs = Number.isFinite(retryAfter) && retryAfter > 0
+        ? Math.min(retryAfter * 1000, 5000)
+        : 250 + tentativa * 250;
+      await new Promise((r) => setTimeout(r, waitMs));
+      res = await fetch(url, { ...init, headers });
+      if (res.status !== 429) break;
+    }
   }
   return res;
 }
@@ -494,6 +501,24 @@ export function ajustarCotaOneDriveAposExclusao(bytesRemovidos: number) {
   const cache = globalGraph.__onedriveGraphQuota;
   if (!cache) return;
   const used = Math.max(0, cache.data.used - n);
+  const remaining = Math.max(0, cache.data.total - used);
+  globalGraph.__onedriveGraphQuota = {
+    atMs: Date.now(),
+    data: {
+      ...cache.data,
+      used,
+      remaining,
+    },
+  };
+}
+
+/** Ajuste otimista após upload (evita limpar cache a cada arquivo do lote). */
+export function ajustarCotaOneDriveAposUpload(bytesAdicionados: number) {
+  const n = Math.max(0, Math.floor(bytesAdicionados));
+  if (n <= 0) return;
+  const cache = globalGraph.__onedriveGraphQuota;
+  if (!cache) return;
+  const used = cache.data.used + n;
   const remaining = Math.max(0, cache.data.total - used);
   globalGraph.__onedriveGraphQuota = {
     atMs: Date.now(),
