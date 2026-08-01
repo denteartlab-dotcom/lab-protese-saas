@@ -11,6 +11,7 @@ import {
   deletePastaOneDriveGraph,
   downloadBytesOneDriveGraph,
   limparCacheCotaOneDriveGraph,
+  limparCachePastaUploadsEmpresaOneDrive,
   onedriveGraphConfigurado,
   onedriveGraphRootFolder,
   uploadBytesOneDriveGraph,
@@ -89,6 +90,7 @@ export async function excluirArquivoOneDrive(
   bytesRemovidos?: number
 ): Promise<void> {
   await deleteItemOneDriveGraph(remotePath);
+  limparCachePastaUploadsEmpresaOneDrive();
   if (bytesRemovidos && bytesRemovidos > 0) {
     ajustarCotaOneDriveAposExclusao(bytesRemovidos);
   } else {

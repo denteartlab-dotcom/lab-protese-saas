@@ -27,6 +27,7 @@ export type CotaOneDriveGraph = {
 };
 
 const CACHE_COTA_MS = 45_000;
+const CACHE_PASTA_UPLOADS_MS = 45_000;
 
 const MODULOS_UPLOAD = [
   "os",
@@ -37,12 +38,24 @@ const MODULOS_UPLOAD = [
   "suporte",
 ] as const;
 
+type ArquivoUploadsEmpresaOd = {
+  name: string;
+  remotePath: string;
+  bytes: number;
+  lastModified: string;
+  modulo: string;
+};
+
 const globalGraph = globalThis as typeof globalThis & {
   __onedriveGraphToken?: TokenCache;
   __onedriveGraphPastas?: Set<string>;
   __onedriveGraphRootResolvido?: string;
   __onedriveEstruturaEmpresa?: Set<string>;
   __onedriveGraphQuota?: { atMs: number; data: CotaOneDriveGraph };
+  __onedrivePastaUploads?: Map<
+    string,
+    { atMs: number; arquivos: ArquivoUploadsEmpresaOd[] }
+  >;
 };
 
 function env(nome: string) {
@@ -383,26 +396,149 @@ export async function uploadBytesOneDriveGraph(
 /** Lista filhos de uma pasta (caminho relativo à raiz do drive). */
 export async function listarPastaOneDriveGraph(
   remoteFolderPath: string
-): Promise<Array<{ name: string; folder?: boolean; webUrl?: string }>> {
+): Promise<
+  Array<{
+    name: string;
+    folder?: boolean;
+    webUrl?: string;
+    size?: number;
+    lastModified?: string;
+  }>
+> {
   const limpo = remoteFolderPath.replace(/^[/\\]+/, "").replace(/\\/g, "/");
   if (!limpo) return listarRaizOneDriveGraph();
   const encoded = encodePathSegments(limpo);
-  const res = await graphFetch(
-    `${driveBasePath()}/root:/${encoded}:/children?$select=name,folder,webUrl&$top=50`
-  );
-  if (res.status === 404) return [];
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`Listar pasta OneDrive falhou (${res.status}): ${text.slice(0, 300)}`);
+  const itens: Array<{
+    name: string;
+    folder?: boolean;
+    webUrl?: string;
+    size?: number;
+    lastModified?: string;
+  }> = [];
+  let next: string | null =
+    `${driveBasePath()}/root:/${encoded}:/children?$select=name,folder,webUrl,size,lastModifiedDateTime,file&$top=200`;
+
+  while (next) {
+    const res = await graphFetch(next);
+    if (res.status === 404) return itens;
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`Listar pasta OneDrive falhou (${res.status}): ${text.slice(0, 300)}`);
+    }
+    const json = (await res.json()) as {
+      value?: Array<{
+        name?: string;
+        folder?: unknown;
+        webUrl?: string;
+        size?: number;
+        lastModifiedDateTime?: string;
+        file?: unknown;
+      }>;
+      "@odata.nextLink"?: string;
+    };
+    for (const item of json.value || []) {
+      itens.push({
+        name: item.name || "",
+        folder: Boolean(item.folder),
+        webUrl: item.webUrl,
+        size: typeof item.size === "number" ? item.size : undefined,
+        lastModified: item.lastModifiedDateTime,
+      });
+    }
+    next = json["@odata.nextLink"] || null;
   }
-  const json = (await res.json()) as {
-    value?: Array<{ name?: string; folder?: unknown; webUrl?: string }>;
-  };
-  return (json.value || []).map((item) => ({
-    name: item.name || "",
-    folder: Boolean(item.folder),
-    webUrl: item.webUrl,
-  }));
+
+  return itens;
+}
+
+/**
+ * Lista recursiva de arquivos na pasta de uploads do laboratório
+ * (`{raiz}/{slug}/uploads/...`), ignorando `.keep`.
+ */
+export async function listarArquivosUploadsEmpresaOneDrive(
+  empresaSlug: string,
+  opcoes?: { force?: boolean }
+): Promise<ArquivoUploadsEmpresaOd[]> {
+  await resolverPastaRaizOneDriveGraph();
+  const slug = empresaSlug
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-_]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  if (!slug) return [];
+
+  if (!globalGraph.__onedrivePastaUploads) {
+    globalGraph.__onedrivePastaUploads = new Map();
+  }
+  const cached = globalGraph.__onedrivePastaUploads.get(slug);
+  if (
+    !opcoes?.force &&
+    cached &&
+    Date.now() - cached.atMs < CACHE_PASTA_UPLOADS_MS
+  ) {
+    return cached.arquivos;
+  }
+
+  const raizUploads = `${onedriveGraphRootFolder().replace(/^[/\\]+|[/\\]+$/g, "")}/${slug}/uploads`;
+  const saida: ArquivoUploadsEmpresaOd[] = [];
+
+  async function walk(folder: string) {
+    let filhos: Awaited<ReturnType<typeof listarPastaOneDriveGraph>>;
+    try {
+      filhos = await listarPastaOneDriveGraph(folder);
+    } catch {
+      return;
+    }
+    for (const item of filhos) {
+      if (!item.name || item.name === ".keep") continue;
+      const remotePath = `${folder}/${item.name}`;
+      if (item.folder) {
+        await walk(remotePath);
+        continue;
+      }
+      const partes = remotePath.split("/");
+      const idxUploads = partes.findIndex((p) => p === "uploads");
+      const modulo =
+        idxUploads >= 0 && partes[idxUploads + 1] ? partes[idxUploads + 1] : "os";
+      saida.push({
+        name: item.name,
+        remotePath,
+        bytes: Math.max(0, item.size || 0),
+        lastModified: item.lastModified || new Date().toISOString(),
+        modulo,
+      });
+    }
+  }
+
+  await walk(raizUploads);
+  globalGraph.__onedrivePastaUploads.set(slug, {
+    atMs: Date.now(),
+    arquivos: saida,
+  });
+  return saida;
+}
+
+export function limparCachePastaUploadsEmpresaOneDrive(empresaSlug?: string) {
+  if (!globalGraph.__onedrivePastaUploads) return;
+  if (!empresaSlug?.trim()) {
+    globalGraph.__onedrivePastaUploads.clear();
+    return;
+  }
+  const slug = empresaSlug
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-_]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  globalGraph.__onedrivePastaUploads.delete(slug);
+}
+
+/** Soma bytes da pasta uploads do laboratório no OneDrive. */
+export async function tamanhoPastaUploadsEmpresaOneDrive(
+  empresaSlug: string,
+  opcoes?: { force?: boolean }
+): Promise<number> {
+  const arquivos = await listarArquivosUploadsEmpresaOneDrive(empresaSlug, opcoes);
+  return arquivos.reduce((s, a) => s + a.bytes, 0);
 }
 
 /**
@@ -486,6 +622,7 @@ export async function quemSouOneDriveGraph(): Promise<{
 /** Invalida cache da cota (após upload/exclusão). */
 export function limparCacheCotaOneDriveGraph() {
   globalGraph.__onedriveGraphQuota = undefined;
+  limparCachePastaUploadsEmpresaOneDrive();
 }
 
 /**
@@ -514,6 +651,7 @@ export function ajustarCotaOneDriveAposExclusao(bytesRemovidos: number) {
 
 /** Ajuste otimista após upload (evita limpar cache a cada arquivo do lote). */
 export function ajustarCotaOneDriveAposUpload(bytesAdicionados: number) {
+  limparCachePastaUploadsEmpresaOneDrive();
   const n = Math.max(0, Math.floor(bytesAdicionados));
   if (n <= 0) return;
   const cache = globalGraph.__onedriveGraphQuota;

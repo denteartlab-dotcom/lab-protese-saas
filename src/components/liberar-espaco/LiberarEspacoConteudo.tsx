@@ -56,8 +56,9 @@ export function LiberarEspacoConteudo() {
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
   const [previewArquivo, setPreviewArquivo] = useState<ArquivoGaleriaItem | null>(null);
   const [pagina, setPagina] = useState(1);
-  const [dataInicio, setDataInicio] = useState(inicioAnoBr);
-  const [dataFim, setDataFim] = useState(hojeBr);
+  // Padrão: mostrar todos (evita esconder uploads recentes por período).
+  const [dataInicio, setDataInicio] = useState("");
+  const [dataFim, setDataFim] = useState("");
   const [pathsExcluir, setPathsExcluir] = useState<string[] | null>(null);
   const [alertaMsg, setAlertaMsg] = useState<string | null>(null);
 

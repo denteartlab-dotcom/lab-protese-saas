@@ -1129,7 +1129,7 @@ export const messagesModulosPt = {
     "liberarEspaco.breadcrumbImagens": "Imagens",
     "liberarEspaco.galeriaTitulo": "Arquivos na nuvem (OneDrive)",
     "liberarEspaco.subtituloNuvem":
-      "Os arquivos listados estão no OneDrive. Ao excluir aqui, são removidos da nuvem também.",
+      "Lista da pasta deste laboratório no OneDrive. O uso de espaço é o tamanho dessa pasta; ao excluir, remove da nuvem também.",
     "liberarEspaco.desmarcarTodos": "Desmarcar todos",
     "liberarEspaco.marcarTodos": "Marcar Todos",
     "liberarEspaco.excluirMb": "Excluir {mb} MB",
@@ -2970,7 +2970,7 @@ export const messagesModulosEn: Record<keyof typeof messagesModulosPt, string> =
     "liberarEspaco.breadcrumbImagens": "Images",
     "liberarEspaco.galeriaTitulo": "Cloud files (OneDrive)",
     "liberarEspaco.subtituloNuvem":
-      "Listed files are on OneDrive. Deleting here also removes them from the cloud.",
+      "Lists this lab's OneDrive folder. Storage usage is that folder's size; deleting here also removes files from the cloud.",
     "liberarEspaco.desmarcarTodos": "Unselect all",
     "liberarEspaco.marcarTodos": "Select All",
     "liberarEspaco.excluirMb": "Delete {mb} MB",
@@ -4810,7 +4810,7 @@ export const messagesModulosEs: Record<keyof typeof messagesModulosPt, string> =
   "liberarEspaco.breadcrumbImagens": "Imágenes",
   "liberarEspaco.galeriaTitulo": "Archivos en la nube (OneDrive)",
   "liberarEspaco.subtituloNuvem":
-    "Los archivos listados están en OneDrive. Al eliminar aquí, también se quitan de la nube.",
+    "Lista la carpeta de este laboratorio en OneDrive. El uso es el tamaño de esa carpeta; al eliminar, también se quitan de la nube.",
   "liberarEspaco.desmarcarTodos": "Desmarcar todos",
   "liberarEspaco.marcarTodos": "Marcar todos",
   "liberarEspaco.excluirMb": "Eliminar {mb} MB",

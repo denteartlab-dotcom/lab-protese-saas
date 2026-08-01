@@ -80,7 +80,132 @@ export async function listarArquivosGaleria(
   const lista: ArquivoGaleria[] = [];
   const slugNorm = empresaSlug ? normalizarSlugPastaUploads(empresaSlug) : "";
 
-  // Em modo OneDrive não varre disco local (não há arquivos na VPS).
+  // OneDrive: fonte da verdade = pasta do laboratório na nuvem.
+  if (slugNorm && uploadUsaOneDrive()) {
+    try {
+      const { listarArquivosUploadsEmpresaOneDrive } = await import(
+        "@/lib/onedrive-graph"
+      );
+      const { prisma } = await import("@/lib/db");
+      const odFiles = await listarArquivosUploadsEmpresaOneDrive(slugNorm, {
+        force: true,
+      });
+      const dbRows = empresaId
+        ? await prisma.arquivoUpload.findMany({
+            where: { empresaId },
+            select: {
+              id: true,
+              nome: true,
+              tamanho: true,
+              criadoEm: true,
+              remotePath: true,
+              pasta: true,
+            },
+          })
+        : [];
+      const porRemote = new Map(
+        dbRows
+          .filter((r) => r.remotePath?.trim())
+          .map((r) => [r.remotePath!.replace(/\\/g, "/"), r])
+      );
+
+      function acharDbPorRemote(chave: string, nome: string) {
+        const exato = porRemote.get(chave);
+        if (exato) return exato;
+        // Compat: remotePath antigo sem a mesma raiz / uploads.
+        for (const [remote, row] of porRemote) {
+          if (remote.endsWith(`/${nome}`) && remote.includes("/uploads/")) {
+            return row;
+          }
+        }
+        return undefined;
+      }
+
+      // Sincroniza órfãos da nuvem → banco (aparecem em Liberar espaço e no uso).
+      for (const arq of odFiles) {
+        const chave = arq.remotePath.replace(/\\/g, "/");
+        if (acharDbPorRemote(chave, arq.name) || !empresaId) continue;
+        const pasta =
+          (["os", "despesas", "receitas", "produtos", "disparos-whatsapp", "suporte"].includes(
+            arq.modulo
+          )
+            ? arq.modulo
+            : "os") as PastaUpload | "suporte";
+        try {
+          const criado = await prisma.arquivoUpload.create({
+            data: {
+              empresaId,
+              pasta: pasta === "suporte" ? "os" : pasta,
+              nome: arq.name,
+              mimeType: "application/octet-stream",
+              tamanho: arq.bytes,
+              dados: null,
+              storage: "onedrive",
+              remotePath: chave,
+              criadoEm: new Date(arq.lastModified),
+            },
+            select: {
+              id: true,
+              nome: true,
+              tamanho: true,
+              criadoEm: true,
+              remotePath: true,
+              pasta: true,
+            },
+          });
+          porRemote.set(chave, criado);
+        } catch {
+          /* race / unique — ignora */
+        }
+      }
+
+      const idsNaLista = new Set<string>();
+      for (const arq of odFiles) {
+        const chave = arq.remotePath.replace(/\\/g, "/");
+        const db = acharDbPorRemote(chave, arq.name);
+        if (db) {
+          idsNaLista.add(db.id);
+          lista.push({
+            relativePath: `db/${db.id}`,
+            nome: db.nome || arq.name,
+            bytes: arq.bytes || db.tamanho || 0,
+            url: `/api/uploads/arquivo/${db.id}`,
+            criadoEm: db.criadoEm.toISOString(),
+          });
+        } else {
+          lista.push({
+            relativePath: `od/${encodeURIComponent(chave)}`,
+            nome: arq.name,
+            bytes: arq.bytes,
+            url: "",
+            criadoEm: arq.lastModified,
+          });
+        }
+      }
+
+      // Registros só no banco (ainda não refletidos na listagem da pasta).
+      for (const db of dbRows) {
+        if (idsNaLista.has(db.id)) continue;
+        lista.push({
+          relativePath: `db/${db.id}`,
+          nome: db.nome,
+          bytes: db.tamanho || 0,
+          url: `/api/uploads/arquivo/${db.id}`,
+          criadoEm: db.criadoEm.toISOString(),
+        });
+      }
+
+      return lista.sort((a, b) => {
+        const tb = new Date(b.criadoEm).getTime();
+        const ta = new Date(a.criadoEm).getTime();
+        return (Number.isNaN(tb) ? 0 : tb) - (Number.isNaN(ta) ? 0 : ta);
+      });
+    } catch (erro) {
+      console.warn("[uploads] listagem OneDrive falhou, usando banco:", erro);
+    }
+  }
+
+  // Disco local (modo sem OneDrive).
   if (slugNorm && !uploadUsaOneDrive()) {
     const base = caminhoPastaUploads(slugNorm);
     await mkdir(base, { recursive: true });
@@ -131,6 +256,30 @@ export async function excluirArquivoGaleria(
     await excluirArquivoBancoPorId(relativePath.slice(3), empresaId);
     return;
   }
+
+  // Arquivo só na nuvem (órfão ainda sem registro db/...).
+  if (relativePath.startsWith("od/")) {
+    const remotePath = decodeURIComponent(relativePath.slice(3)).replace(/\\/g, "/");
+    const slug = empresaSlug ? normalizarSlugPastaUploads(empresaSlug) : "";
+    if (!slug || !remotePath) throw new Error("Caminho inválido");
+
+    const { caminhoRemotoEmpresaRaiz } = await import("@/lib/onedrive-graph");
+    const { excluirArquivoOneDrive } = await import("@/lib/upload-onedrive-storage");
+    const raiz = caminhoRemotoEmpresaRaiz(slug);
+    const prefixo = `${raiz}/`;
+    if (remotePath !== raiz && !remotePath.startsWith(prefixo)) {
+      throw new Error("Caminho inválido");
+    }
+    await excluirArquivoOneDrive(remotePath);
+    if (empresaId) {
+      const { prisma } = await import("@/lib/db");
+      await prisma.arquivoUpload.deleteMany({
+        where: { empresaId, remotePath },
+      });
+    }
+    return;
+  }
+
   const alvo = resolverArquivoUploads(relativePath, empresaSlug);
   await unlink(alvo);
 }
@@ -225,8 +374,22 @@ export async function calcularArmazenamentoGaleria(
     !onedrive && empresaSlug && empresaSlug.trim()
       ? await tamanhoDiretorio(pastaBackupEmpresa(empresaSlug, empresaNome))
       : 0;
-  // Uso do laboratório (por cliente), independente da cota física da nuvem.
-  const bytesUsados = bytesDisco + bytesBanco + bytesBackup;
+
+  // OneDrive: uso do lab = bytes na pasta do cliente na nuvem (não a cota da conta inteira).
+  let bytesUsados = bytesDisco + bytesBanco + bytesBackup;
+  if (onedrive && empresaSlug?.trim()) {
+    try {
+      const { tamanhoPastaUploadsEmpresaOneDrive } = await import(
+        "@/lib/onedrive-graph"
+      );
+      bytesUsados = await tamanhoPastaUploadsEmpresaOneDrive(empresaSlug, {
+        force: Boolean(opcoes?.forceCota),
+      });
+    } catch (erro) {
+      console.warn("[uploads] tamanho pasta OneDrive indisponível, usando banco:", erro);
+      bytesUsados = bytesBanco;
+    }
+  }
   const livresPlano = Math.max(0, limiteBytes - bytesUsados);
 
   let nuvemPool: UploadsResumoArmazenamento["nuvemPool"];
