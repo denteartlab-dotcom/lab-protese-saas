@@ -92,35 +92,46 @@ export function PainelUploadsDashboard({
             <span
               className={cn(
                 "h-2 w-2 rounded-full",
-                galeriaEsgotada
-                  ? "bg-red-500"
-                  : galeriaEmAlerta
-                    ? "bg-red-300"
-                    : "bg-sky-500"
+                galeriaEsgotada || galeriaEmAlerta ? "bg-red-300" : "bg-sky-500"
               )}
             />{" "}
             {t("dashboard.usado")}
           </span>
           <span className="flex items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-emerald-500" /> {t("dashboard.livre")}
+            <span
+              className={cn(
+                "h-2 w-2 rounded-full",
+                galeriaEsgotada ? "bg-red-300" : "bg-emerald-500"
+              )}
+            />{" "}
+            {t("dashboard.livre")}
           </span>
         </div>
         <div className="relative flex h-16 overflow-hidden rounded">
-          <div
-            className={cn(
-              "shrink-0 transition-all duration-300",
-              galeriaEsgotada
-                ? "bg-red-500"
-                : galeriaEmAlerta
-                  ? "bg-red-300"
-                  : "bg-sky-500"
-            )}
-            style={{
-              width: `${pctUsado}%`,
-              minWidth: resumo.bytesUsados > 0 ? 4 : 0,
-            }}
-          />
-          <div className="min-w-0 flex-1 bg-emerald-400 transition-all duration-300" />
+          {galeriaEsgotada ? (
+            /* Cheio: barra toda em vermelho claro */
+            <div className="h-full w-full bg-red-300 transition-all duration-300" />
+          ) : (
+            <>
+              <div
+                className={cn(
+                  "shrink-0 transition-all duration-300",
+                  /* ≥80%: trecho usado em vermelho claro */
+                  galeriaEmAlerta ? "bg-red-300" : "bg-sky-500"
+                )}
+                style={{
+                  width: `${pctUsado}%`,
+                  minWidth: resumo.bytesUsados > 0 ? 4 : 0,
+                }}
+              />
+              <div
+                className={cn(
+                  "min-w-0 flex-1 transition-all duration-300",
+                  galeriaEmAlerta ? "bg-red-200" : "bg-emerald-400"
+                )}
+              />
+            </>
+          )}
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-xs font-bold text-white drop-shadow-sm">
             {textoPercentual}%
           </div>

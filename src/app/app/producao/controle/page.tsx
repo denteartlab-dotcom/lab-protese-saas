@@ -2756,8 +2756,20 @@ export default function ControlePage() {
   async function uploadArquivosEdicaoSelecionados(): Promise<AnexoOs[]> {
     if (arquivosEdicao.length === 0) return [];
     const bloqueio = mensagemBloqueioUpload();
-    if (bloqueio) throw new Error(bloqueio);
+    if (bloqueio) {
+      const { notificarArmazenamentoCheio } = await import(
+        "@/lib/uploads-erro-armazenamento"
+      );
+      notificarArmazenamentoCheio();
+      setArquivosEdicao([]);
+      throw new Error(bloqueio);
+    }
     if (!podeEnviarArquivos(arquivosEdicao)) {
+      const { notificarArmazenamentoCheio } = await import(
+        "@/lib/uploads-erro-armazenamento"
+      );
+      notificarArmazenamentoCheio();
+      setArquivosEdicao([]);
       throw new Error(
         "Espaço insuficiente na galeria para estes arquivos. Libere espaço em Início → Uploads."
       );
@@ -2770,12 +2782,14 @@ export default function ControlePage() {
       credentials: "same-origin",
     });
     if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(
-        typeof err?.error === "string"
-          ? err.error
-          : "Não foi possível enviar os arquivos."
+      const { lerErroUploadResponse, tratarErroUploadArmazenamento } = await import(
+        "@/lib/uploads-erro-armazenamento"
       );
+      const err = await lerErroUploadResponse(response);
+      if (tratarErroUploadArmazenamento(err)) {
+        setArquivosEdicao([]);
+      }
+      throw new Error(err.message);
     }
     const uploaded = await response.json();
     const lista = Array.isArray(uploaded) ? uploaded : [];
@@ -2884,11 +2898,20 @@ export default function ControlePage() {
     try {
       anexosUpload = await uploadArquivosEdicaoSelecionados();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Não foi possível enviar os arquivos.");
+      const { tratarErroUploadArmazenamento } = await import(
+        "@/lib/uploads-erro-armazenamento"
+      );
+      setArquivosEdicao([]);
+      if (!tratarErroUploadArmazenamento(err)) {
+        alert(err instanceof Error ? err.message : "Não foi possível enviar os arquivos.");
+      }
+      setSalvandoEdicao(false);
       return;
     }
     if (arquivosEdicao.length > 0 && anexosUpload.length === 0) {
+      setArquivosEdicao([]);
       alert("Não foi possível enviar os arquivos. Tente novamente.");
+      setSalvandoEdicao(false);
       return;
     }
     setArquivosEdicao([]);

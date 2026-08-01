@@ -46,8 +46,14 @@ function AnexoChatbotCampo({
       const fd = new FormData();
       fd.append("arquivo", file);
       const res = await fetch("/api/disparos-whatsapp/anexo", { method: "POST", body: fd });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Falha no upload");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const err = new Error(
+          typeof data?.error === "string" ? data.error : "Falha no upload"
+        );
+        (err as Error & { code?: string }).code = data?.code;
+        throw err;
+      }
       const item = data.anexo;
       const anteriorUrl = anexo?.url?.trim();
       if (anteriorUrl) void excluirUploadPorUrl(anteriorUrl);
@@ -59,7 +65,12 @@ function AnexoChatbotCampo({
         url: item.url,
       });
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Erro no upload");
+      const { tratarErroUploadArmazenamento } = await import(
+        "@/lib/uploads-erro-armazenamento"
+      );
+      if (!tratarErroUploadArmazenamento(err)) {
+        alert(err instanceof Error ? err.message : "Erro no upload");
+      }
     } finally {
       setEnviando(false);
     }

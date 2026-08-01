@@ -2785,8 +2785,22 @@ export default function OrdemServicoPage() {
   async function uploadArquivosSelecionados(): Promise<ArquivoOs[]> {
     if (!arquivos.length) return [];
     const bloqueio = mensagemBloqueioUpload();
-    if (bloqueio) throw new Error(bloqueio);
+    if (bloqueio) {
+      const { notificarArmazenamentoCheio } = await import(
+        "@/lib/uploads-erro-armazenamento"
+      );
+      notificarArmazenamentoCheio();
+      setArquivos([]);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      throw new Error(bloqueio);
+    }
     if (!podeEnviarArquivos(arquivos)) {
+      const { notificarArmazenamentoCheio } = await import(
+        "@/lib/uploads-erro-armazenamento"
+      );
+      notificarArmazenamentoCheio();
+      setArquivos([]);
+      if (fileInputRef.current) fileInputRef.current.value = "";
       throw new Error(
         "Espaço insuficiente na galeria para estes arquivos. Libere espaço em Início → Uploads."
       );
@@ -2801,12 +2815,15 @@ export default function OrdemServicoPage() {
     });
 
     if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(
-        typeof err?.error === "string"
-          ? err.error
-          : "Não foi possível enviar os arquivos."
+      const { lerErroUploadResponse, tratarErroUploadArmazenamento } = await import(
+        "@/lib/uploads-erro-armazenamento"
       );
+      const err = await lerErroUploadResponse(response);
+      if (tratarErroUploadArmazenamento(err)) {
+        setArquivos([]);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+      throw new Error(err.message);
     }
     const uploaded = await response.json();
     const storage = response.headers.get("X-Upload-Storage") || "";
@@ -2825,7 +2842,9 @@ export default function OrdemServicoPage() {
 
     const bloqueio = mensagemBloqueioUpload();
     if (bloqueio) {
-      alert(bloqueio);
+      void import("@/lib/uploads-erro-armazenamento").then(({ notificarArmazenamentoCheio }) =>
+        notificarArmazenamentoCheio()
+      );
       event.target.value = "";
       return;
     }
@@ -2838,8 +2857,8 @@ export default function OrdemServicoPage() {
       const limiteRestante = Math.max(LIMITE_ARQUIVOS_OS - atuais.length, 0);
       const paraAdicionar = novos.slice(0, limiteRestante);
       if (paraAdicionar.length && !podeEnviarArquivos(paraAdicionar)) {
-        alert(
-          "Espaço insuficiente na galeria para estes arquivos. Libere espaço em Início → Uploads."
+        void import("@/lib/uploads-erro-armazenamento").then(({ notificarArmazenamentoCheio }) =>
+          notificarArmazenamentoCheio()
         );
         return atuais;
       }
@@ -3175,11 +3194,20 @@ export default function OrdemServicoPage() {
       arquivosEnviados = await uploadArquivosSelecionados();
     } catch (err) {
       setSalvando(false);
-      alert(err instanceof Error ? err.message : "Não foi possível enviar os arquivos.");
+      const { tratarErroUploadArmazenamento } = await import(
+        "@/lib/uploads-erro-armazenamento"
+      );
+      setArquivos([]);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (!tratarErroUploadArmazenamento(err)) {
+        alert(err instanceof Error ? err.message : "Não foi possível enviar os arquivos.");
+      }
       return;
     }
     if (arquivos.length > 0 && arquivosEnviados.length === 0) {
       setSalvando(false);
+      setArquivos([]);
+      if (fileInputRef.current) fileInputRef.current.value = "";
       alert("Não foi possível enviar os arquivos. Tente novamente.");
       return;
     }

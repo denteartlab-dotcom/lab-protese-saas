@@ -790,7 +790,12 @@ export function LancarReceitaModal({
         anexos,
       });
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Falha ao enviar os arquivos.");
+      const { tratarErroUploadArmazenamento } = await import(
+        "@/lib/uploads-erro-armazenamento"
+      );
+      if (!tratarErroUploadArmazenamento(err)) {
+        alert(err instanceof Error ? err.message : "Falha ao enviar os arquivos.");
+      }
     } finally {
       submitLockRef.current = false;
       setCadastrando(false);

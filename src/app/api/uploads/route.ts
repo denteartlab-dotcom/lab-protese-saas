@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { requireEmpresaContext } from "@/lib/empresa-context";
 import { negarSeSemPermissao } from "@/lib/require-permissao";
 import {
-  LIMITE_ARMAZENAMENTO_BYTES,
-  LIMITE_GALERIA_GB,
   MENSAGEM_LIMITE_GALERIA_ESGOTADO,
   armazenamentoGaleriaEsgotado,
 } from "@/lib/uploads-armazenamento";
@@ -14,6 +12,11 @@ import {
   salvarArquivosUpload,
 } from "@/lib/upload-arquivo-server";
 import { onedriveGraphConfigurado } from "@/lib/onedrive-graph";
+import {
+  CODIGO_ARMAZENAMENTO_CHEIO,
+  MENSAGEM_ARMAZENAMENTO_CHEIO,
+  ehErroEspacoArmazenamento,
+} from "@/lib/uploads-erro-armazenamento";
 
 export async function GET() {
   const ctx = await requireEmpresaContext().catch(() => null);
@@ -49,15 +52,17 @@ export async function POST(request: Request) {
       ctx.empresaNome
     );
     const novosBytes = files.reduce((s, f) => s + f.size, 0);
-    if (
+    const limiteBytes = resumo.limiteBytes || 0;
+    const semEspaco =
       armazenamentoGaleriaEsgotado(resumo.bytesLivres) ||
-      resumo.bytesUsados + novosBytes > LIMITE_ARMAZENAMENTO_BYTES
-    ) {
+      novosBytes > resumo.bytesLivres ||
+      (limiteBytes > 0 && resumo.bytesUsados + novosBytes > limiteBytes);
+
+    if (semEspaco) {
       return NextResponse.json(
         {
-          error: armazenamentoGaleriaEsgotado(resumo.bytesLivres)
-            ? MENSAGEM_LIMITE_GALERIA_ESGOTADO
-            : `Limite da galeria (${LIMITE_GALERIA_GB} GB) atingido. Libere espaço antes de enviar novos arquivos.`,
+          error: MENSAGEM_ARMAZENAMENTO_CHEIO || MENSAGEM_LIMITE_GALERIA_ESGOTADO,
+          code: CODIGO_ARMAZENAMENTO_CHEIO,
         },
         { status: 413 }
       );
@@ -87,6 +92,15 @@ export async function POST(request: Request) {
         ? String((err as { code: string }).code)
         : "";
     const msg = err instanceof Error ? err.message : "Erro ao enviar arquivos.";
+    if (ehErroEspacoArmazenamento(err) || ehErroEspacoArmazenamento(msg)) {
+      return NextResponse.json(
+        {
+          error: MENSAGEM_ARMAZENAMENTO_CHEIO,
+          code: CODIGO_ARMAZENAMENTO_CHEIO,
+        },
+        { status: 507 }
+      );
+    }
     return NextResponse.json(
       { error: msg, code: prismaCode || undefined },
       { status: 500 }

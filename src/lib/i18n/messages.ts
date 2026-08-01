@@ -679,7 +679,14 @@ export const messages = {
     "dashboard.espacoEsgotado": "Espaço esgotado — novos uploads estão bloqueados.",
     "dashboard.uploadsNuvem": "Espaço na nuvem (OneDrive)",
     "dashboard.espacoQuaseCheio":
-      "Armazenamento quase cheio (18 GB ou mais usados) — libere espaço antes que acabe.",
+      "Armazenamento em 80% ou mais — libere espaço antes que acabe.",
+    "armazenamento.cheio.titulo": "Armazenamento cheio",
+    "armazenamento.cheio.mensagem":
+      "O espaço de armazenamento na nuvem está cheio. Não é possível enviar novos arquivos.",
+    "armazenamento.cheio.aviso":
+      "Libere espaço excluindo imagens e anexos antigos para continuar usando os uploads.",
+    "armazenamento.cheio.fechar": "Fechar",
+    "armazenamento.cheio.liberarEspaco": "Liberar espaço",
     "dashboard.paraExcluirArquivos": "para excluir arquivos.",
     "dashboard.verLink": "ver",
     "dashboard.pdfErro": "Não foi possível gerar o PDF. Tente novamente.",
@@ -1444,7 +1451,14 @@ export const messages = {
     "dashboard.livreValor": "Free: {valor}",
     "dashboard.espacoEsgotado": "Storage full — new uploads are blocked.",
     "dashboard.espacoQuaseCheio":
-      "Storage almost full (18 GB or more used) — free up space before it runs out.",
+      "Storage at 80% or more — free up space before it runs out.",
+    "armazenamento.cheio.titulo": "Storage full",
+    "armazenamento.cheio.mensagem":
+      "Cloud storage is full. New files cannot be uploaded.",
+    "armazenamento.cheio.aviso":
+      "Free up space by deleting old images and attachments to continue uploading.",
+    "armazenamento.cheio.fechar": "Close",
+    "armazenamento.cheio.liberarEspaco": "Free up space",
     "dashboard.paraExcluirArquivos": "to delete files.",
     "dashboard.verLink": "view",
     "dashboard.pdfErro": "Could not generate the PDF. Try again.",
@@ -2210,7 +2224,14 @@ export const messages = {
     "dashboard.livreValor": "Libre: {valor}",
     "dashboard.espacoEsgotado": "Espacio agotado — las nuevas subidas están bloqueadas.",
     "dashboard.espacoQuaseCheio":
-      "Almacenamiento casi lleno (18 GB o más usados) — libere espacio antes de que se agote.",
+      "Almacenamiento al 80% o más — libere espacio antes de que se agote.",
+    "armazenamento.cheio.titulo": "Almacenamiento lleno",
+    "armazenamento.cheio.mensagem":
+      "El espacio de almacenamiento en la nube está lleno. No es posible enviar nuevos archivos.",
+    "armazenamento.cheio.aviso":
+      "Libere espacio eliminando imágenes y adjuntos antiguos para seguir subiendo archivos.",
+    "armazenamento.cheio.fechar": "Cerrar",
+    "armazenamento.cheio.liberarEspaco": "Liberar espacio",
     "dashboard.paraExcluirArquivos": "para eliminar archivos.",
     "dashboard.verLink": "ver",
     "dashboard.pdfErro": "No fue posible generar el PDF. Intente nuevamente.",

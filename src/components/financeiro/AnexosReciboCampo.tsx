@@ -48,10 +48,12 @@ async function uploadAnexos(
     credentials: "same-origin",
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(
-      typeof err?.error === "string" ? err.error : "Não foi possível enviar os arquivos."
+    const { lerErroUploadResponse, tratarErroUploadArmazenamento } = await import(
+      "@/lib/uploads-erro-armazenamento"
     );
+    const err = await lerErroUploadResponse(res);
+    tratarErroUploadArmazenamento(err);
+    throw new Error(err.message);
   }
   const uploaded = (await res.json()) as AnexoDespesa[];
   notificarUploadsAtualizados();
@@ -102,13 +104,17 @@ export const AnexosReciboCampo = forwardRef<AnexosReciboCampoRef, Props>(
         const paraEnviar = candidatos.slice(0, vagas);
         const bloqueio = mensagemBloqueioUpload();
         if (bloqueio) {
-          setErroUpload(bloqueio);
+          void import("@/lib/uploads-erro-armazenamento").then(({ notificarArmazenamentoCheio }) =>
+            notificarArmazenamentoCheio()
+          );
+          setErroUpload(null);
           return;
         }
         if (!podeEnviarArquivos(paraEnviar)) {
-          setErroUpload(
-            "Espaço insuficiente na galeria para estes arquivos. Libere espaço em Início → Uploads."
+          void import("@/lib/uploads-erro-armazenamento").then(({ notificarArmazenamentoCheio }) =>
+            notificarArmazenamentoCheio()
           );
+          setErroUpload(null);
           return;
         }
         setErroUpload(null);
@@ -127,9 +133,16 @@ export const AnexosReciboCampo = forwardRef<AnexosReciboCampoRef, Props>(
                 );
               }
             } catch (err) {
-              setErroUpload(
-                err instanceof Error ? err.message : "Não foi possível enviar os arquivos."
+              const { tratarErroUploadArmazenamento } = await import(
+                "@/lib/uploads-erro-armazenamento"
               );
+              if (!tratarErroUploadArmazenamento(err)) {
+                setErroUpload(
+                  err instanceof Error ? err.message : "Não foi possível enviar os arquivos."
+                );
+              } else {
+                setErroUpload(null);
+              }
             } finally {
               setEnviando(false);
             }

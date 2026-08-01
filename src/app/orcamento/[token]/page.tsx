@@ -340,16 +340,29 @@ export default function OrcamentoPublicoPage() {
         | { error?: string }
         | null;
       if (!res.ok) {
-        const err =
+        const errMsg =
           json && !Array.isArray(json) ? json.error : undefined;
-        throw new Error(err || "Não foi possível enviar a foto.");
+        const err = new Error(errMsg || "Não foi possível enviar a foto.");
+        if (json && !Array.isArray(json) && "code" in json) {
+          (err as Error & { code?: string }).code = String(
+            (json as { code?: string }).code || ""
+          );
+        }
+        throw err;
       }
       const uploaded = Array.isArray(json) ? json : [];
       const url = uploaded[0]?.url?.trim();
       if (!url) throw new Error("Resposta de upload inválida.");
       atualizarItem(fotoModalIndex, "imagemUrl", url);
     } catch (err) {
-      setErroFoto(err instanceof Error ? err.message : "Falha no upload da foto.");
+      const { tratarErroUploadArmazenamento } = await import(
+        "@/lib/uploads-erro-armazenamento"
+      );
+      if (!tratarErroUploadArmazenamento(err)) {
+        setErroFoto(err instanceof Error ? err.message : "Falha no upload da foto.");
+      } else {
+        setErroFoto("");
+      }
     } finally {
       setEnviandoFoto(false);
       if (inputFotoRef.current) inputFotoRef.current.value = "";

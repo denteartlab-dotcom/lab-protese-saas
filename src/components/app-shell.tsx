@@ -24,6 +24,7 @@ import {
 import { AppFaixaTopo } from "@/components/AppFaixaTopo";
 import { AssinaturaFaixaRodape } from "@/components/AssinaturaFaixaRodape";
 import { SuporteChatWidget } from "@/components/SuporteChatWidget";
+import { ArmazenamentoCheioModalHost } from "@/components/ArmazenamentoCheioModal";
 import { NOME_LAB_PADRAO } from "@/lib/document-title";
 import { useLabConfigClient } from "@/lib/use-lab-config-client";
 import {
@@ -1451,6 +1452,7 @@ function AppShellInner({
         />
       )}
       {!isPrint && !isModuloTv && !isModuloImersivo && <SuporteChatWidget />}
+      {!isPrint && !isModuloTv && !isModuloImersivo && <ArmazenamentoCheioModalHost />}
     </div>
   );
 }

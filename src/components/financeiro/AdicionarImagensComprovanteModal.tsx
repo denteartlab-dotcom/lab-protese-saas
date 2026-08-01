@@ -39,10 +39,12 @@ async function uploadAnexos(arquivos: File[]): Promise<AnexoDespesa[]> {
     credentials: "same-origin",
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(
-      typeof err?.error === "string" ? err.error : "Não foi possível enviar os arquivos."
+    const { lerErroUploadResponse, tratarErroUploadArmazenamento } = await import(
+      "@/lib/uploads-erro-armazenamento"
     );
+    const err = await lerErroUploadResponse(res);
+    tratarErroUploadArmazenamento(err);
+    throw new Error(err.message);
   }
   const uploaded = (await res.json()) as AnexoDespesa[];
   notificarUploadsAtualizados();
@@ -132,7 +134,10 @@ export function AdicionarImagensComprovanteModal({
     if (!lista?.length) return;
     const bloqueio = mensagemBloqueioUpload();
     if (bloqueio) {
-      setErro(bloqueio);
+      void import("@/lib/uploads-erro-armazenamento").then(({ notificarArmazenamentoCheio }) =>
+        notificarArmazenamentoCheio()
+      );
+      setErro(null);
       return;
     }
     const candidatos = Array.from(lista).filter(arquivoEhAnexoFinanceiro);
@@ -147,9 +152,10 @@ export function AdicionarImagensComprovanteModal({
     }
     const paraAdicionar = candidatos.slice(0, vagas);
     if (!podeEnviarArquivos(paraAdicionar)) {
-      setErro(
-        "Espaço insuficiente na galeria para estes arquivos. Libere espaço em Início → Uploads."
+      void import("@/lib/uploads-erro-armazenamento").then(({ notificarArmazenamentoCheio }) =>
+        notificarArmazenamentoCheio()
       );
+      setErro(null);
       return;
     }
     setErro(null);
@@ -203,16 +209,20 @@ export function AdicionarImagensComprovanteModal({
         }
         const bloqueio = mensagemBloqueioUpload();
         if (bloqueio) {
-          setErro(bloqueio);
+          void import("@/lib/uploads-erro-armazenamento").then(({ notificarArmazenamentoCheio }) =>
+            notificarArmazenamentoCheio()
+          );
+          setErro(null);
           return;
         }
         const arquivo = new File([blob], `webcam-${Date.now()}.jpg`, {
           type: "image/jpeg",
         });
         if (!podeEnviarArquivos([arquivo])) {
-          setErro(
-            "Espaço insuficiente na galeria para esta imagem. Libere espaço em Início → Uploads."
+          void import("@/lib/uploads-erro-armazenamento").then(({ notificarArmazenamentoCheio }) =>
+            notificarArmazenamentoCheio()
           );
+          setErro(null);
           return;
         }
         setErro(null);
@@ -231,13 +241,19 @@ export function AdicionarImagensComprovanteModal({
     }
     const bloqueio = mensagemBloqueioUpload();
     if (bloqueio) {
-      setErro(bloqueio);
+      void import("@/lib/uploads-erro-armazenamento").then(({ notificarArmazenamentoCheio }) =>
+        notificarArmazenamentoCheio()
+      );
+      setArquivos([]);
+      setErro(null);
       return;
     }
     if (!podeEnviarArquivos(arquivos)) {
-      setErro(
-        "Espaço insuficiente na galeria para estes arquivos. Libere espaço em Início → Uploads."
+      void import("@/lib/uploads-erro-armazenamento").then(({ notificarArmazenamentoCheio }) =>
+        notificarArmazenamentoCheio()
       );
+      setArquivos([]);
+      setErro(null);
       return;
     }
     if (!lancamentoIds.length) {
@@ -253,7 +269,15 @@ export function AdicionarImagensComprovanteModal({
       onSalvo();
       onClose();
     } catch (err) {
-      setErro(err instanceof Error ? err.message : "Não foi possível gravar as imagens.");
+      const { tratarErroUploadArmazenamento } = await import(
+        "@/lib/uploads-erro-armazenamento"
+      );
+      if (tratarErroUploadArmazenamento(err)) {
+        setArquivos([]);
+        setErro(null);
+      } else {
+        setErro(err instanceof Error ? err.message : "Não foi possível gravar as imagens.");
+      }
     } finally {
       setSalvando(false);
     }

@@ -32,8 +32,14 @@ export function ProdutoFotoCampo({ value, onChange, disabled }: Props) {
         credentials: "same-origin",
       });
       if (!res.ok) {
-        const json = (await res.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(json?.error || "Não foi possível enviar a foto.");
+        const { lerErroUploadResponse, tratarErroUploadArmazenamento } = await import(
+          "@/lib/uploads-erro-armazenamento"
+        );
+        const err = await lerErroUploadResponse(res);
+        if (tratarErroUploadArmazenamento(err)) {
+          throw new Error(err.message);
+        }
+        throw new Error(err.message || "Não foi possível enviar a foto.");
       }
       const uploaded = (await res.json()) as Array<{ url?: string }>;
       const url = uploaded[0]?.url?.trim();
@@ -44,7 +50,14 @@ export function ProdutoFotoCampo({ value, onChange, disabled }: Props) {
       }
       onChange(url);
     } catch (err) {
-      setErro(err instanceof Error ? err.message : "Falha no upload da foto.");
+      const { tratarErroUploadArmazenamento } = await import(
+        "@/lib/uploads-erro-armazenamento"
+      );
+      if (!tratarErroUploadArmazenamento(err)) {
+        setErro(err instanceof Error ? err.message : "Falha no upload da foto.");
+      } else {
+        setErro("");
+      }
     } finally {
       setEnviando(false);
       if (inputRef.current) inputRef.current.value = "";

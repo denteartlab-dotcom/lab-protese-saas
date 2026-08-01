@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { requireEmpresaContext } from "@/lib/empresa-context";
 import { salvarArquivosUpload } from "@/lib/upload-arquivo-server";
 import { negarSeSemPermissao } from "@/lib/require-permissao";
+import {
+  CODIGO_ARMAZENAMENTO_CHEIO,
+  ehErroEspacoArmazenamento,
+  MENSAGEM_ARMAZENAMENTO_CHEIO,
+} from "@/lib/uploads-erro-armazenamento";
 
 export async function POST(request: Request) {
   const ctx = await requireEmpresaContext().catch(() => null);
@@ -52,9 +57,13 @@ export async function POST(request: Request) {
       },
     });
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Erro ao enviar anexo" },
-      { status: 500 }
-    );
+    const msg = err instanceof Error ? err.message : "Erro ao enviar anexo";
+    if (ehErroEspacoArmazenamento(err) || ehErroEspacoArmazenamento(msg)) {
+      return NextResponse.json(
+        { error: MENSAGEM_ARMAZENAMENTO_CHEIO, code: CODIGO_ARMAZENAMENTO_CHEIO },
+        { status: 507 }
+      );
+    }
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

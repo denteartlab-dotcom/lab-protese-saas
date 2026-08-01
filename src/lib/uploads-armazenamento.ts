@@ -1,10 +1,14 @@
 /** Constantes e formatação — seguro para importar no cliente. */
 
 export const LIMITE_GALERIA_GB = 20;
-/** Alerta visual/notificação no Início quando o uso atinge este limiar. */
-export const ALERTA_ARMAZENAMENTO_GB = 18;
+/** Alerta visual/notificação no Início quando o uso atinge este limiar (80%). */
+export const ALERTA_ARMAZENAMENTO_PCT = 80;
+export const ALERTA_ARMAZENAMENTO_GB = Math.round(
+  (LIMITE_GALERIA_GB * ALERTA_ARMAZENAMENTO_PCT) / 100
+);
 export const LIMITE_ARMAZENAMENTO_BYTES = LIMITE_GALERIA_GB * 1024 ** 3;
-export const ALERTA_ARMAZENAMENTO_BYTES = ALERTA_ARMAZENAMENTO_GB * 1024 ** 3;
+export const ALERTA_ARMAZENAMENTO_BYTES =
+  (LIMITE_ARMAZENAMENTO_BYTES * ALERTA_ARMAZENAMENTO_PCT) / 100;
 export const UPLOADS_ATUALIZADO_EVENT = "labProteseUploadsAtualizado";
 
 export type UploadsResumoArmazenamento = {
@@ -26,16 +30,13 @@ export function armazenamentoGaleriaEsgotado(bytesLivres: number): boolean {
   return bytesLivres <= 0;
 }
 
-/** Quase cheio: ≥ 90% do limite (ou ≥ 18 GB no limite padrão de 20 GB). */
+/** Quase cheio / cheio visual: ≥ 80% do limite. */
 export function armazenamentoGaleriaEmAlerta(
   bytesUsados: number,
   limiteBytes: number = LIMITE_ARMAZENAMENTO_BYTES
 ): boolean {
   if (limiteBytes <= 0) return false;
-  if (limiteBytes === LIMITE_ARMAZENAMENTO_BYTES) {
-    return bytesUsados >= ALERTA_ARMAZENAMENTO_BYTES;
-  }
-  return bytesUsados >= limiteBytes * 0.9;
+  return bytesUsados >= limiteBytes * (ALERTA_ARMAZENAMENTO_PCT / 100);
 }
 
 export function somaBytesArquivos(arquivos: Iterable<File>): number {

@@ -149,7 +149,9 @@ export function CabecalhoFormularioOs({
     if (!selecionados.length) return;
     const bloqueio = mensagemBloqueioUpload();
     if (bloqueio) {
-      window.alert(bloqueio);
+      void import("@/lib/uploads-erro-armazenamento").then(({ notificarArmazenamentoCheio }) =>
+        notificarArmazenamentoCheio()
+      );
       event.target.value = "";
       return;
     }
@@ -166,8 +168,8 @@ export function CabecalhoFormularioOs({
       return;
     }
     if (!podeEnviarArquivos(paraAdicionar)) {
-      window.alert(
-        "Espaço insuficiente na galeria para estes arquivos. Libere espaço em Início → Uploads."
+      void import("@/lib/uploads-erro-armazenamento").then(({ notificarArmazenamentoCheio }) =>
+        notificarArmazenamentoCheio()
       );
       event.target.value = "";
       return;
