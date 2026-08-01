@@ -12,8 +12,9 @@ import { parsePermissoesUsuario } from "@/lib/usuarios-sistema";
 import {
   extrairIpLogin,
   limparFalhasLogin,
-  loginBloqueadoPorRateLimit,
+  mensagemBloqueioLogin,
   registrarFalhaLogin,
+  statusBloqueioLogin,
 } from "@/lib/login-rate-limit";
 import { z } from "zod";
 
@@ -44,6 +45,19 @@ const selectUsuarioLogin = {
   },
 } as const;
 
+function respostaBloqueioLogin(minutosRestantes: number) {
+  const res = NextResponse.json(
+    {
+      error: mensagemBloqueioLogin(minutosRestantes),
+      code: "LOGIN_BLOQUEADO",
+      minutosRestantes,
+    },
+    { status: 429 }
+  );
+  res.headers.set("Retry-After", String(Math.max(60, minutosRestantes * 60)));
+  return res;
+}
+
 export async function POST(request: Request) {
   if (!process.env.JWT_SECRET?.trim()) {
     return NextResponse.json(
@@ -72,14 +86,9 @@ export async function POST(request: Request) {
   const slugInformado = empresaSlug?.trim().toLowerCase();
   const ip = extrairIpLogin(request);
 
-  if (await loginBloqueadoPorRateLimit(ip, emailNorm)) {
-    return NextResponse.json(
-      {
-        error:
-          "Muitas tentativas de login. Aguarde alguns minutos e tente novamente.",
-      },
-      { status: 429 }
-    );
+  const bloqueio = await statusBloqueioLogin(ip, emailNorm);
+  if (bloqueio.bloqueado) {
+    return respostaBloqueioLogin(bloqueio.minutosRestantes);
   }
 
   try {
@@ -95,7 +104,10 @@ export async function POST(request: Request) {
     });
 
     if (candidatos.length === 0) {
-      await registrarFalhaLogin(ip, emailNorm);
+      const aposFalha = await registrarFalhaLogin(ip, emailNorm);
+      if (aposFalha.bloqueado) {
+        return respostaBloqueioLogin(aposFalha.minutosRestantes);
+      }
       return NextResponse.json(
         { error: "E-mail ou senha inválidos." },
         { status: 401 }
@@ -110,7 +122,10 @@ export async function POST(request: Request) {
     }
 
     if (comSenhaValida.length === 0) {
-      await registrarFalhaLogin(ip, emailNorm);
+      const aposFalha = await registrarFalhaLogin(ip, emailNorm);
+      if (aposFalha.bloqueado) {
+        return respostaBloqueioLogin(aposFalha.minutosRestantes);
+      }
       return NextResponse.json(
         { error: "E-mail ou senha inválidos." },
         { status: 401 }

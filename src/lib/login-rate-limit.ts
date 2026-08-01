@@ -1,11 +1,13 @@
 /**
- * Rate limit por IP + e-mail.
+ * Rate limit de login: 3 senhas erradas → bloqueio de 30 minutos (IP + e-mail).
  * Usa Redis quando REDIS_URL está definida; senão (ou se Redis falhar), memória do processo.
  */
-import { redisDel, redisGet, redisIncrComTtl } from "@/lib/redis-client";
+import { redisDel, redisGet, redisIncrComTtl, obterRedis } from "@/lib/redis-client";
 
-const MAX_FALHAS_LOGIN = 10;
-const JANELA_LOGIN_S = 15 * 60;
+/** Bloqueia após esta quantidade de falhas. */
+export const MAX_FALHAS_LOGIN = 3;
+/** Duração do bloqueio / janela de contagem (segundos). */
+export const JANELA_LOGIN_S = 30 * 60;
 
 const MAX_ACOES_EMAIL = 5;
 const MAX_ACOES_IP = 20;
@@ -21,6 +23,10 @@ const acoesEmail = new Map<string, Entrada>();
 
 function chaveLogin(ip: string, email: string) {
   return `${ip.trim()}|${email.trim().toLowerCase()}`;
+}
+
+function redisKeyLogin(k: string) {
+  return `rl:login:${k}`;
 }
 
 function incrementarMemoria(
@@ -47,6 +53,26 @@ function bloqueadoMemoria(mapa: Map<string, Entrada>, chave: string, max: number
     return false;
   }
   return atual.falhas >= max;
+}
+
+function minutosRestantesMemoria(mapa: Map<string, Entrada>, chave: string): number {
+  const atual = mapa.get(chave);
+  if (!atual) return 0;
+  const ms = atual.resetAt - Date.now();
+  if (ms <= 0) return 0;
+  return Math.max(1, Math.ceil(ms / 60_000));
+}
+
+async function redisTtlSegundos(chave: string): Promise<number | null> {
+  const redis = obterRedis();
+  if (!redis) return null;
+  try {
+    const ttl = await redis.ttl(chave);
+    if (ttl == null || ttl < 0) return null;
+    return ttl;
+  } catch {
+    return null;
+  }
 }
 
 async function contarOuMemoria(
@@ -79,23 +105,86 @@ export function extrairIpLogin(request: Request): string {
   return "desconhecido";
 }
 
+export function mensagemBloqueioLogin(minutosRestantes?: number): string {
+  const min =
+    minutosRestantes && minutosRestantes > 0
+      ? minutosRestantes
+      : Math.ceil(JANELA_LOGIN_S / 60);
+  if (min <= 1) {
+    return "Muitas tentativas de senha incorreta. Aguarde cerca de 1 minuto e tente novamente.";
+  }
+  return `Muitas tentativas de senha incorreta. Por segurança, o login ficou bloqueado por ${min} minutos.`;
+}
+
+export type StatusBloqueioLogin = {
+  bloqueado: boolean;
+  minutosRestantes: number;
+  falhas: number;
+};
+
+export async function statusBloqueioLogin(
+  ip: string,
+  email: string
+): Promise<StatusBloqueioLogin> {
+  const k = chaveLogin(ip, email);
+  const redisKey = redisKeyLogin(k);
+
+  const raw = await redisGet(redisKey);
+  if (raw != null) {
+    const falhas = Number(raw) || 0;
+    if (falhas >= MAX_FALHAS_LOGIN) {
+      const ttl = await redisTtlSegundos(redisKey);
+      return {
+        bloqueado: true,
+        minutosRestantes: ttl != null ? Math.max(1, Math.ceil(ttl / 60)) : Math.ceil(JANELA_LOGIN_S / 60),
+        falhas,
+      };
+    }
+    return { bloqueado: false, minutosRestantes: 0, falhas };
+  }
+
+  const atual = tentativasLogin.get(k);
+  if (!atual || Date.now() >= atual.resetAt) {
+    if (atual && Date.now() >= atual.resetAt) tentativasLogin.delete(k);
+    return { bloqueado: false, minutosRestantes: 0, falhas: 0 };
+  }
+  return {
+    bloqueado: atual.falhas >= MAX_FALHAS_LOGIN,
+    minutosRestantes: minutosRestantesMemoria(tentativasLogin, k),
+    falhas: atual.falhas,
+  };
+}
+
 export async function loginBloqueadoPorRateLimit(
   ip: string,
   email: string
 ): Promise<boolean> {
-  const k = chaveLogin(ip, email);
-  return bloqueadoOuMemoria(`rl:login:${k}`, tentativasLogin, k, MAX_FALHAS_LOGIN);
+  const status = await statusBloqueioLogin(ip, email);
+  return status.bloqueado;
 }
 
-export async function registrarFalhaLogin(ip: string, email: string) {
+/** Registra falha e retorna se já atingiu o bloqueio. */
+export async function registrarFalhaLogin(
+  ip: string,
+  email: string
+): Promise<StatusBloqueioLogin> {
   const k = chaveLogin(ip, email);
-  await contarOuMemoria(`rl:login:${k}`, tentativasLogin, k, JANELA_LOGIN_S);
+  const falhas = await contarOuMemoria(
+    redisKeyLogin(k),
+    tentativasLogin,
+    k,
+    JANELA_LOGIN_S
+  );
+  if (falhas >= MAX_FALHAS_LOGIN) {
+    return statusBloqueioLogin(ip, email);
+  }
+  return { bloqueado: false, minutosRestantes: 0, falhas };
 }
 
 export async function limparFalhasLogin(ip: string, email: string) {
   const k = chaveLogin(ip, email);
   tentativasLogin.delete(k);
-  await redisDel(`rl:login:${k}`);
+  await redisDel(redisKeyLogin(k));
 }
 
 /**

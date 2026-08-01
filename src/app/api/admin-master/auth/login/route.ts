@@ -6,8 +6,9 @@ import { executarSemRls } from "@/lib/prisma-tenant";
 import {
   extrairIpLogin,
   limparFalhasLogin,
-  loginBloqueadoPorRateLimit,
+  mensagemBloqueioLogin,
   registrarFalhaLogin,
+  statusBloqueioLogin,
 } from "@/lib/login-rate-limit";
 import { z } from "zod";
 
@@ -17,17 +18,28 @@ const schema = z.object({
   remember: z.boolean().optional(),
 });
 
+function respostaBloqueioLogin(minutosRestantes: number) {
+  const res = NextResponse.json(
+    {
+      error: mensagemBloqueioLogin(minutosRestantes),
+      code: "LOGIN_BLOQUEADO",
+      minutosRestantes,
+    },
+    { status: 429 }
+  );
+  res.headers.set("Retry-After", String(Math.max(60, minutosRestantes * 60)));
+  return res;
+}
+
 export async function POST(request: Request) {
   try {
     const body = schema.parse(await request.json());
     const email = body.email.trim().toLowerCase();
     const ip = extrairIpLogin(request);
 
-    if (await loginBloqueadoPorRateLimit(ip, email)) {
-      return NextResponse.json(
-        { error: "Muitas tentativas. Tente novamente em alguns minutos." },
-        { status: 429 }
-      );
+    const bloqueio = await statusBloqueioLogin(ip, email);
+    if (bloqueio.bloqueado) {
+      return respostaBloqueioLogin(bloqueio.minutosRestantes);
     }
 
     // executarSemRls: set_config na MESMA transação — o runWithRlsBypass
@@ -37,13 +49,19 @@ export async function POST(request: Request) {
       tx.masterUser.findUnique({ where: { email } })
     );
     if (!master || !master.ativo || master.role !== "MASTER_ADMIN") {
-      await registrarFalhaLogin(ip, email);
+      const aposFalha = await registrarFalhaLogin(ip, email);
+      if (aposFalha.bloqueado) {
+        return respostaBloqueioLogin(aposFalha.minutosRestantes);
+      }
       return NextResponse.json({ error: "Credenciais inválidas." }, { status: 401 });
     }
 
     const senhaOk = await verifyPassword(body.password, master.senhaHash);
     if (!senhaOk) {
-      await registrarFalhaLogin(ip, email);
+      const aposFalha = await registrarFalhaLogin(ip, email);
+      if (aposFalha.bloqueado) {
+        return respostaBloqueioLogin(aposFalha.minutosRestantes);
+      }
       return NextResponse.json({ error: "Credenciais inválidas." }, { status: 401 });
     }
 
