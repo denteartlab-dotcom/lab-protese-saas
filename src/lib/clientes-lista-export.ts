@@ -100,19 +100,47 @@ export async function gerarListaClientesPdf(clientes: ClienteListagemExport[]) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const hoje = formatDateImpressao(new Date().toISOString().slice(0, 10));
 
+  const margem = 12;
+  const larguraUtil = 210 - margem * 2;
+  const col2 = larguraUtil / 2;
+  const alturaLinha = 4.2;
+  const alturaBloco = alturaLinha * 4 + 3.5;
+
+  function truncar(textoValor: string, maxWidth: number) {
+    const t = (textoValor || "").trim();
+    if (!t) return "";
+    if (doc.getTextWidth(t) <= maxWidth) return t;
+    let s = t;
+    while (s.length > 1 && doc.getTextWidth(`${s}…`) > maxWidth) {
+      s = s.slice(0, -1);
+    }
+    return `${s}…`;
+  }
+
+  /** Label + valor na mesma linha, sem invadir a coluna seguinte. */
+  function campo(label: string, valor: string, x: number, y: number, largura: number) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(6);
+    const labelW = Math.min(doc.getTextWidth(label) + 1.2, largura * 0.55);
+    doc.text(label, x, y);
+    doc.setFont("helvetica", "normal");
+    const maxValor = Math.max(3, largura - labelW);
+    doc.text(truncar(valor, maxValor), x + labelW, y);
+  }
+
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
-  doc.text(pl("print.clientes.lista.titulo"), 105, 18, { align: "center" });
+  doc.text(pl("print.clientes.lista.titulo"), 105, 14, { align: "center" });
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6);
-  doc.text(hoje, 105, 24, { align: "center" });
+  doc.text(hoje, 105, 19, { align: "center" });
 
-  let y = 38;
+  let y = 26;
 
   for (const cliente of clientes) {
-    if (y > 275) {
+    if (y + alturaBloco > 287) {
       doc.addPage();
-      y = 18;
+      y = 16;
     }
 
     const { cpf, cnpj } = splitCpfCnpj(cliente.cnpjCpf);
@@ -124,47 +152,38 @@ export async function gerarListaClientesPdf(clientes: ClienteListagemExport[]) {
     const celular = texto(cliente.celular);
     const whatsapp = telefoneWhatsappCliente(cliente);
 
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(6);
-    doc.text(pl("print.clientes.lista.cliente"), 22, y);
-    doc.setFont("helvetica", "normal");
-    doc.text(cliente.nome || "", 35, y);
-    doc.setFont("helvetica", "bold");
-    doc.text(pl("print.clientes.lista.razaoSocial"), 73, y);
-    doc.setFont("helvetica", "normal");
-    doc.text(texto(cliente.razaoSocial), 92, y);
-    doc.setFont("helvetica", "bold");
-    doc.text(pl("print.clientes.lista.cpf"), 130, y);
-    doc.setFont("helvetica", "normal");
-    doc.text(cpf, 138, y);
-    doc.setFont("helvetica", "bold");
-    doc.text(pl("print.clientes.lista.cnpj"), 154, y);
-    doc.setFont("helvetica", "normal");
-    doc.text(cnpj, 163, y);
-    doc.setFont("helvetica", "bold");
-    doc.text(pl("print.clientes.lista.email"), 178, y);
-    doc.setFont("helvetica", "normal");
-    doc.text(texto(cliente.email), 188, y);
+    // Linha 1: Cliente | CPF | CNPJ
+    campo(pl("print.clientes.lista.cliente"), cliente.nome || "", margem, y, larguraUtil * 0.52);
+    campo(pl("print.clientes.lista.cpf"), cpf, margem + larguraUtil * 0.52, y, larguraUtil * 0.23);
+    campo(pl("print.clientes.lista.cnpj"), cnpj, margem + larguraUtil * 0.75, y, larguraUtil * 0.25);
+    y += alturaLinha;
 
-    y += 5;
-    doc.setFont("helvetica", "bold");
-    doc.text(pl("print.clientes.lista.telComercial"), 22, y);
-    doc.setFont("helvetica", "normal");
-    doc.text(telComercial, 42, y);
-    doc.setFont("helvetica", "bold");
-    doc.text(pl("print.clientes.lista.telResidencial"), 73, y);
-    doc.setFont("helvetica", "normal");
-    doc.text(telResidencial, 95, y);
-    doc.setFont("helvetica", "bold");
-    doc.text(pl("print.clientes.lista.celular"), 130, y);
-    doc.setFont("helvetica", "normal");
-    doc.text(celular, 142, y);
-    doc.setFont("helvetica", "bold");
-    doc.text(pl("print.clientes.lista.whatsapp"), 154, y);
-    doc.setFont("helvetica", "normal");
-    doc.text(whatsapp, 168, y);
+    // Linha 2: Razão Social | E-mail
+    campo(
+      pl("print.clientes.lista.razaoSocial"),
+      texto(cliente.razaoSocial),
+      margem,
+      y,
+      col2
+    );
+    campo(
+      pl("print.clientes.lista.email"),
+      texto(cliente.email),
+      margem + col2,
+      y,
+      col2
+    );
+    y += alturaLinha;
 
-    y += 7;
+    // Linha 3: Tel Comercial | Tel Residencial
+    campo(pl("print.clientes.lista.telComercial"), telComercial, margem, y, col2);
+    campo(pl("print.clientes.lista.telResidencial"), telResidencial, margem + col2, y, col2);
+    y += alturaLinha;
+
+    // Linha 4: Celular | WhatsApp
+    campo(pl("print.clientes.lista.celular"), celular, margem, y, col2);
+    campo(pl("print.clientes.lista.whatsapp"), whatsapp, margem + col2, y, col2);
+    y += alturaLinha + 3.5;
   }
 
   return doc.output("blob");
