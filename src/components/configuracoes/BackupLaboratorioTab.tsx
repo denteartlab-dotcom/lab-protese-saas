@@ -102,7 +102,6 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
   >([]);
   const [carregandoArquivosPasta, setCarregandoArquivosPasta] = useState(false);
   const [arquivoPastaSelecionado, setArquivoPastaSelecionado] = useState("");
-  const [excluirDreNaImportacao, setExcluirDreNaImportacao] = useState(false);
 
   async function carregarStatusAutomatico() {
     setCarregandoAuto(true);
@@ -241,9 +240,6 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
       const headers: Record<string, string> = {
         "x-backup-confirmar": "substituir-tudo",
       };
-      if (excluirDreNaImportacao) {
-        headers["x-backup-excluir-dre"] = "1";
-      }
 
       let resultado;
       if (fonteImportacao === "pasta") {
@@ -256,7 +252,6 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
           credentials: "same-origin",
           body: JSON.stringify({
             arquivo: arquivoPastaSelecionado,
-            excluirDre: excluirDreNaImportacao,
           }),
         });
         const data = await res.json().catch(() => ({}));
@@ -289,7 +284,6 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
       );
       setArquivo(null);
       setConfirmarSubstituir(false);
-      setExcluirDreNaImportacao(false);
       if (fonteImportacao === "pasta") {
         void carregarArquivosPastaAutomatica();
       }
@@ -323,9 +317,6 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                 <h3 className="text-sm font-medium text-emerald-950 dark:text-emerald-100">
                   {t("settings.backupAutoTitulo")}
                 </h3>
-                <p className="mt-1 text-xs text-emerald-900/90 dark:text-emerald-200/90">
-                  {t("settings.backupAutoDesc")}
-                </p>
               </div>
 
               {carregandoAuto ? (
@@ -348,129 +339,6 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                         : statusAuto.proximoBackupFormatado ||
                           t("settings.backupAutoProximoPendente")}
                     </p>
-                    {statusAuto?.hospedagemVercel && statusAuto.config.ativo && (
-                      <p className="mt-2 rounded border border-amber-300 bg-amber-50 px-2.5 py-2 text-[11px] text-amber-900 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-200">
-                        {t("settings.backupAutoAvisoVercel")}
-                      </p>
-                    )}
-                    {statusAuto?.pastaPadrao && (
-                      <p className="mt-1.5 text-[11px] text-emerald-800 dark:text-emerald-300">
-                        {t("settings.backupAutoPasta").replace(
-                          "{caminho}",
-                          statusAuto.pastaPadrao
-                        )}
-                      </p>
-                    )}
-                    {statusAuto?.pastaUploads ? (
-                      <p className="mt-1 text-[11px] text-emerald-800 dark:text-emerald-300">
-                        {t("settings.backupAutoPastaUploads").replace(
-                          "{caminho}",
-                          statusAuto.pastaUploads
-                        )}
-                        {typeof statusAuto.uploadsArquivos === "number"
-                          ? ` (${t("settings.backupAutoUploadsArquivos").replace(
-                              "{n}",
-                              String(statusAuto.uploadsArquivos)
-                            )})`
-                          : ""}
-                      </p>
-                    ) : null}
-                    {statusAuto?.onedriveSyncHabilitado ? (
-                      <p className="mt-1 text-[11px] text-emerald-800 dark:text-emerald-300">
-                        {t("settings.backupAutoOneDriveAtivo")}
-                      </p>
-                    ) : null}
-                    {statusAuto?.onedriveUploadsAtivo ? (
-                      <p className="mt-1 text-[11px] text-emerald-800 dark:text-emerald-300">
-                        {t("settings.backupAutoOneDriveUploads").replace(
-                          "{remote}",
-                          statusAuto.onedriveUploadsRemote || "OneDrive"
-                        )}
-                      </p>
-                    ) : (
-                      <p className="mt-1 text-[11px] font-medium text-amber-800 dark:text-amber-300">
-                        {statusAuto?.onedriveFaltandoCredenciais?.length
-                          ? `OneDrive inativo — falta no .env: ${statusAuto.onedriveFaltandoCredenciais.join(", ")}`
-                          : statusAuto?.uploadStorage === "database"
-                            ? t("settings.backupAutoUploadStorageDatabase")
-                            : t("settings.backupAutoUploadStorageDisk")}
-                      </p>
-                    )}
-                    {statusAuto?.padraoNomeArquivo && (
-                      <p className="mt-1 text-[11px] text-emerald-800 dark:text-emerald-300">
-                        {t("settings.backupAutoNomeArquivo").replace(
-                          "{nome}",
-                          statusAuto.padraoNomeArquivo
-                        )}
-                      </p>
-                    )}
-                    <p className="mt-1 text-[11px] text-emerald-800 dark:text-emerald-300">
-                      {statusAuto?.ultimoArquivoNome
-                        ? t("settings.backupAutoUltimoArquivo").replace(
-                            "{nome}",
-                            statusAuto.ultimoArquivoNome
-                          )
-                        : t("settings.backupAutoUltimoArquivoPendente")}
-                    </p>
-                    {statusAuto?.fusoHorario && (
-                      <p className="mt-1 text-[11px] text-emerald-800/90 dark:text-emerald-300/90">
-                        {t("settings.backupAutoFuso").replace(
-                          "{fuso}",
-                          statusAuto.fusoHorario
-                        )}
-                      </p>
-                    )}
-                    {statusAuto?.googleDrive?.habilitado ? (
-                      <div className="mt-2 rounded border border-sky-200 bg-sky-50/90 px-2.5 py-2 text-[11px] text-sky-950 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-100">
-                        <p className="font-semibold">Réplica no Google Drive</p>
-                        {!statusAuto.googleDrive.configurado ? (
-                          <p className="mt-1 text-sky-800 dark:text-sky-300">
-                            Ativo no servidor, mas faltam credenciais ou pasta compartilhada (
-                            <code className="text-[10px]">GOOGLE_DRIVE_FOLDER_ID</code>
-                            ).
-                          </p>
-                        ) : (
-                          <p className="mt-1 text-sky-800 dark:text-sky-300">
-                            Pasta desta empresa:{" "}
-                            <span className="font-medium">
-                              {statusAuto.googleDrive.caminhoEmpresa}/
-                            </span>
-                            <span className="text-sky-700">
-                              {" "}
-                              (criada automaticamente, igual à VPS)
-                            </span>
-                          </p>
-                        )}
-                        {statusAuto.googleDrive.configurado ? (
-                          statusAuto.googleDrive.statusUpload.tipo === "erro" ? (
-                            <p className="mt-1 text-red-700 dark:text-red-300">
-                              Último envio com erro:{" "}
-                              {statusAuto.googleDrive.statusUpload.mensagem}
-                            </p>
-                          ) : statusAuto.googleDrive.statusUpload.tipo === "ok" ? (
-                            <>
-                              <p className="mt-1">
-                                Último envio: {statusAuto.googleDrive.statusUpload.mensagem}
-                              </p>
-                              {statusAuto.googleDrive.statusUpload.arquivo ? (
-                                <p className="mt-0.5 text-sky-800 dark:text-sky-300">
-                                  Arquivo: {statusAuto.googleDrive.statusUpload.arquivo}
-                                </p>
-                              ) : null}
-                            </>
-                          ) : (
-                            <p className="mt-1 text-sky-800 dark:text-sky-300">
-                              {statusAuto.googleDrive.statusUpload.mensagem}
-                            </p>
-                          )
-                        ) : null}
-                        {statusAuto.googleDrive.retencaoDias ? (
-                          <p className="mt-1 text-sky-700 dark:text-sky-400">
-                            Retenção na nuvem: {statusAuto.googleDrive.retencaoDias} dias
-                          </p>
-                        ) : null}
-                      </div>
-                    ) : null}
                   </div>
 
                   <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-emerald-950 dark:text-emerald-100">
@@ -559,12 +427,6 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
             <h3 className="text-sm font-medium text-slate-800 dark:text-slate-100">
               {t("settings.backupExportarTitulo")}
             </h3>
-            <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-              {t("settings.backupExportarDesc")}
-            </p>
-            <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
-              {t("settings.backupExportarAvisoServidor")}
-            </p>
             <Button
               type="button"
               disabled={exportando}
@@ -586,9 +448,6 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
             <h3 className="text-sm font-medium text-amber-900 dark:text-amber-100">
               {t("settings.backupImportarTitulo")}
             </h3>
-            <p className="mt-1 text-xs text-amber-900/90 dark:text-amber-200/90">
-              {t("settings.backupImportarDesc")}
-            </p>
 
             <div className="mt-4 flex items-start gap-2 rounded border border-amber-300 bg-white/80 p-3 dark:border-amber-700 dark:bg-slate-900/60">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
@@ -677,17 +536,6 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
             )}
 
             <div className="mt-4 space-y-3 rounded-lg border border-amber-200/80 bg-white/60 p-4 dark:border-amber-800 dark:bg-slate-900/40">
-              <label className="flex cursor-pointer items-start gap-2 text-xs leading-relaxed text-slate-700 dark:text-slate-300">
-                <input
-                  type="checkbox"
-                  checked={excluirDreNaImportacao}
-                  onChange={(e) => setExcluirDreNaImportacao(e.target.checked)}
-                  className="mt-0.5"
-                  disabled={importando}
-                />
-                <span>{t("settings.backupExcluirDreImportacao")}</span>
-              </label>
-
               <label className="flex cursor-pointer items-start gap-2 text-xs leading-relaxed text-slate-700 dark:text-slate-300">
                 <input
                   type="checkbox"
