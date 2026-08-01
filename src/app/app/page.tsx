@@ -190,13 +190,31 @@ type DashboardSecundario = Pick<
       void carregarDashboard();
     }
     function atualizarUploads() {
-      void carregarDashboardSecundario();
+      void fetch("/api/uploads?force=1", {
+        cache: "no-store",
+        credentials: "same-origin",
+      })
+        .then(async (res) => {
+          if (!res.ok) return;
+          const uploadsResumo = await res.json();
+          setData((atual) => (atual ? { ...atual, uploadsResumo } : atual));
+        })
+        .catch(() => {
+          void carregarDashboardSecundario();
+        });
+    }
+    function onVisivel() {
+      if (document.visibilityState === "visible") atualizarUploads();
     }
     window.addEventListener(PRODUTOS_ESTOQUE_EVENT, atualizarEstoque);
     window.addEventListener(UPLOADS_ATUALIZADO_EVENT, atualizarUploads);
+    document.addEventListener("visibilitychange", onVisivel);
+    window.addEventListener("focus", onVisivel);
     return () => {
       window.removeEventListener(PRODUTOS_ESTOQUE_EVENT, atualizarEstoque);
       window.removeEventListener(UPLOADS_ATUALIZADO_EVENT, atualizarUploads);
+      document.removeEventListener("visibilitychange", onVisivel);
+      window.removeEventListener("focus", onVisivel);
     };
   }, [carregarDashboard, carregarDashboardSecundario]);
 

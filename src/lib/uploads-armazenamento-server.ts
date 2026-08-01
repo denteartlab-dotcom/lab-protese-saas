@@ -199,7 +199,8 @@ export function resumoArmazenamentoVazio() {
 export async function calcularArmazenamentoGaleria(
   empresaId?: string,
   empresaSlug?: string,
-  empresaNome?: string
+  empresaNome?: string,
+  opcoes?: { forceCota?: boolean }
 ) {
   const onedrive = uploadUsaOneDrive();
 
@@ -207,7 +208,7 @@ export async function calcularArmazenamentoGaleria(
   if (onedrive) {
     try {
       const { obterCotaOneDriveGraph } = await import("@/lib/onedrive-graph");
-      const cota = await obterCotaOneDriveGraph();
+      const cota = await obterCotaOneDriveGraph(Boolean(opcoes?.forceCota));
       if (cota && cota.total > 0) {
         const bytesUsados = cota.used;
         const bytesLivres = cota.remaining;

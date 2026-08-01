@@ -175,12 +175,16 @@ export function LiberarEspacoConteudo() {
       const data = (await res.json().catch(() => ({}))) as {
         excluidos?: number;
         erros?: string[];
+        resumo?: import("@/lib/uploads-armazenamento").UploadsResumoArmazenamento;
       };
       if (!res.ok || (data.erros?.length ?? 0) > 0) {
         setAlertaMsg(t("liberarEspaco.erroExcluir"));
       }
       await recarregarLista();
       notificarUploadsAtualizados();
+      // Graph às vezes demora a atualizar a cota — reconsulta em seguida.
+      window.setTimeout(() => notificarUploadsAtualizados(), 2000);
+      window.setTimeout(() => notificarUploadsAtualizados(), 6000);
     } finally {
       setExcluindo(false);
       setPathsExcluir(null);

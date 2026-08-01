@@ -3,6 +3,7 @@
  * Não usa rclone nem grava arquivos em disco na VPS.
  */
 import {
+  ajustarCotaOneDriveAposExclusao,
   caminhoRemotoEmpresaRaiz,
   caminhoRemotoEmpresaUploads,
   deleteItemOneDriveGraph,
@@ -81,9 +82,16 @@ export async function baixarArquivoOneDrive(remotePath: string): Promise<Buffer>
   return downloadBytesOneDriveGraph(remotePath);
 }
 
-export async function excluirArquivoOneDrive(remotePath: string): Promise<void> {
+export async function excluirArquivoOneDrive(
+  remotePath: string,
+  bytesRemovidos?: number
+): Promise<void> {
   await deleteItemOneDriveGraph(remotePath);
-  limparCacheCotaOneDriveGraph();
+  if (bytesRemovidos && bytesRemovidos > 0) {
+    ajustarCotaOneDriveAposExclusao(bytesRemovidos);
+  } else {
+    limparCacheCotaOneDriveGraph();
+  }
 }
 
 /** Remove a pasta inteira do laboratório no OneDrive (uploads + backups da estrutura). */

@@ -18,15 +18,19 @@ import {
   ehErroEspacoArmazenamento,
 } from "@/lib/uploads-erro-armazenamento";
 
-export async function GET() {
+export async function GET(request: Request) {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   const negado = await negarSeSemPermissao(ctx, "produtos", "ver");
   if (negado) return negado;
+  const force =
+    new URL(request.url).searchParams.get("force") === "1" ||
+    new URL(request.url).searchParams.get("refresh") === "1";
   const resumo = await calcularArmazenamentoGaleria(
     ctx.empresaId,
     ctx.empresaSlug,
-    ctx.empresaNome
+    ctx.empresaNome,
+    { forceCota: force }
   );
   return NextResponse.json(resumo);
 }

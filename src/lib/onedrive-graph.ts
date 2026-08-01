@@ -26,7 +26,7 @@ export type CotaOneDriveGraph = {
   state?: string;
 };
 
-const CACHE_COTA_MS = 5 * 60_000;
+const CACHE_COTA_MS = 45_000;
 
 const MODULOS_UPLOAD = [
   "os",
@@ -482,6 +482,30 @@ export function limparCacheCotaOneDriveGraph() {
 }
 
 /**
+ * Ajuste otimista da cota após exclusão — o Graph pode demorar a refletir.
+ * Mantém o card sincronizado em tempo real enquanto a nuvem atualiza.
+ */
+export function ajustarCotaOneDriveAposExclusao(bytesRemovidos: number) {
+  const n = Math.max(0, Math.floor(bytesRemovidos));
+  if (n <= 0) {
+    limparCacheCotaOneDriveGraph();
+    return;
+  }
+  const cache = globalGraph.__onedriveGraphQuota;
+  if (!cache) return;
+  const used = Math.max(0, cache.data.used - n);
+  const remaining = Math.max(0, cache.data.total - used);
+  globalGraph.__onedriveGraphQuota = {
+    atMs: Date.now(),
+    data: {
+      ...cache.data,
+      used,
+      remaining,
+    },
+  };
+}
+
+/**
  * Cota real do OneDrive (usado / livre / total) via Microsoft Graph.
  * Cache curto para não bater no Graph a cada refresh do dashboard.
  */
@@ -513,11 +537,19 @@ export async function obterCotaOneDriveGraph(
   if (!q) return null;
 
   const total = Math.max(0, Number(q.total) || 0);
-  const used = Math.max(0, Number(q.used) || 0);
+  const usedGraph = Math.max(0, Number(q.used) || 0);
   const remainingRaw = Number(q.remaining);
-  const remaining = Number.isFinite(remainingRaw)
+  const remainingGraph = Number.isFinite(remainingRaw)
     ? Math.max(0, remainingRaw)
-    : Math.max(0, total - used);
+    : Math.max(0, total - usedGraph);
+
+  // Graph pode atrasar após exclusão: mantém o otimista se ainda indicar mais espaço livre.
+  let remaining = remainingGraph;
+  let used = usedGraph;
+  if (cache && cache.data.total === total && cache.data.remaining > remainingGraph) {
+    remaining = cache.data.remaining;
+    used = Math.max(0, total - remaining);
+  }
 
   const data: CotaOneDriveGraph = {
     total,

@@ -520,12 +520,12 @@ export async function listarArquivosBanco(empresaId?: string) {
 export async function excluirArquivoBancoPorId(id: string, empresaId?: string) {
   const row = await prisma.arquivoUpload.findFirst({
     where: empresaId ? { id, empresaId } : { id },
-    select: { id: true, storage: true, remotePath: true },
+    select: { id: true, storage: true, remotePath: true, tamanho: true },
   });
   if (!row) return;
 
   if (row.storage === "onedrive" && row.remotePath) {
-    await excluirArquivoOneDrive(row.remotePath);
+    await excluirArquivoOneDrive(row.remotePath, row.tamanho || 0);
   }
 
   if (empresaId) {

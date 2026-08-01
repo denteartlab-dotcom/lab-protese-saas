@@ -14,9 +14,10 @@ export function useArmazenamentoGaleria() {
   const [resumo, setResumo] = useState<UploadsResumoArmazenamento | null>(null);
   const [carregando, setCarregando] = useState(true);
 
-  const recarregar = useCallback(async () => {
+  const recarregar = useCallback(async (force = false) => {
     try {
-      const res = await fetch("/api/uploads", {
+      const qs = force ? "?force=1" : "";
+      const res = await fetch(`/api/uploads${qs}`, {
         cache: "no-store",
         credentials: "same-origin",
       });
@@ -31,10 +32,19 @@ export function useArmazenamentoGaleria() {
   }, []);
 
   useEffect(() => {
-    void recarregar();
-    const onAtualizado = () => void recarregar();
+    void recarregar(false);
+    const onAtualizado = () => void recarregar(true);
+    const onVisivel = () => {
+      if (document.visibilityState === "visible") void recarregar(true);
+    };
     window.addEventListener(UPLOADS_ATUALIZADO_EVENT, onAtualizado);
-    return () => window.removeEventListener(UPLOADS_ATUALIZADO_EVENT, onAtualizado);
+    document.addEventListener("visibilitychange", onVisivel);
+    window.addEventListener("focus", onVisivel);
+    return () => {
+      window.removeEventListener(UPLOADS_ATUALIZADO_EVENT, onAtualizado);
+      document.removeEventListener("visibilitychange", onVisivel);
+      window.removeEventListener("focus", onVisivel);
+    };
   }, [recarregar]);
 
   const esgotado = resumo ? armazenamentoGaleriaEsgotado(resumo.bytesLivres) : false;
