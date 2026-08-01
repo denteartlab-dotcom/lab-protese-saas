@@ -3,6 +3,7 @@ import { requireEmpresaContext } from "@/lib/empresa-context";
 import { negarSeSemPermissao } from "@/lib/require-permissao";
 import {
   MENSAGEM_LIMITE_GALERIA_ESGOTADO,
+  MENSAGEM_NUVEM_POOL_ESGOTADO,
   armazenamentoGaleriaEsgotado,
 } from "@/lib/uploads-armazenamento";
 import { calcularArmazenamentoGaleria } from "@/lib/uploads-armazenamento-server";
@@ -14,7 +15,9 @@ import {
 import { onedriveGraphConfigurado } from "@/lib/onedrive-graph";
 import {
   CODIGO_ARMAZENAMENTO_CHEIO,
+  CODIGO_NUVEM_POOL_CHEIO,
   MENSAGEM_ARMAZENAMENTO_CHEIO,
+  MENSAGEM_NUVEM_POOL_CHEIO,
   ehErroEspacoArmazenamento,
 } from "@/lib/uploads-erro-armazenamento";
 
@@ -57,12 +60,39 @@ export async function POST(request: Request) {
     );
     const novosBytes = files.reduce((s, f) => s + f.size, 0);
     const limiteBytes = resumo.limiteBytes || 0;
-    const semEspaco =
+    const poolEsgotado =
+      resumo.motivoBloqueio === "nuvem_pool" ||
+      Boolean(resumo.nuvemPool?.esgotada) ||
+      (resumo.nuvemPool != null && novosBytes > resumo.nuvemPool.bytesLivres);
+    const planoEsgotado =
       armazenamentoGaleriaEsgotado(resumo.bytesLivres) ||
       novosBytes > resumo.bytesLivres ||
       (limiteBytes > 0 && resumo.bytesUsados + novosBytes > limiteBytes);
 
-    if (semEspaco) {
+    if (poolEsgotado && (resumo.nuvemPool?.esgotada || resumo.motivoBloqueio === "nuvem_pool")) {
+      return NextResponse.json(
+        {
+          error: MENSAGEM_NUVEM_POOL_CHEIO || MENSAGEM_NUVEM_POOL_ESGOTADO,
+          code: CODIGO_NUVEM_POOL_CHEIO,
+        },
+        { status: 507 }
+      );
+    }
+
+    if (planoEsgotado) {
+      const porPool =
+        resumo.nuvemPool != null &&
+        novosBytes > resumo.nuvemPool.bytesLivres &&
+        resumo.bytesUsados + novosBytes <= limiteBytes;
+      if (porPool) {
+        return NextResponse.json(
+          {
+            error: MENSAGEM_NUVEM_POOL_CHEIO || MENSAGEM_NUVEM_POOL_ESGOTADO,
+            code: CODIGO_NUVEM_POOL_CHEIO,
+          },
+          { status: 507 }
+        );
+      }
       return NextResponse.json(
         {
           error: MENSAGEM_ARMAZENAMENTO_CHEIO || MENSAGEM_LIMITE_GALERIA_ESGOTADO,
@@ -97,10 +127,12 @@ export async function POST(request: Request) {
         : "";
     const msg = err instanceof Error ? err.message : "Erro ao enviar arquivos.";
     if (ehErroEspacoArmazenamento(err) || ehErroEspacoArmazenamento(msg)) {
+      const pool =
+        /quotaLimitReached|Quota limit reached|507|CLOUD_POOL/i.test(msg);
       return NextResponse.json(
         {
-          error: MENSAGEM_ARMAZENAMENTO_CHEIO,
-          code: CODIGO_ARMAZENAMENTO_CHEIO,
+          error: pool ? MENSAGEM_NUVEM_POOL_CHEIO : MENSAGEM_ARMAZENAMENTO_CHEIO,
+          code: pool ? CODIGO_NUVEM_POOL_CHEIO : CODIGO_ARMAZENAMENTO_CHEIO,
         },
         { status: 507 }
       );

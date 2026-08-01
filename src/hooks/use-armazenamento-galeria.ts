@@ -3,12 +3,14 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   MENSAGEM_LIMITE_GALERIA_ESGOTADO,
+  MENSAGEM_NUVEM_POOL_ESGOTADO,
   UPLOADS_ATUALIZADO_EVENT,
   armazenamentoGaleriaCabeArquivos,
   armazenamentoGaleriaEsgotado,
   somaBytesArquivos,
   type UploadsResumoArmazenamento,
 } from "@/lib/uploads-armazenamento";
+import { registrarMotivoBloqueioArmazenamento } from "@/lib/uploads-erro-armazenamento";
 
 export function useArmazenamentoGaleria() {
   const [resumo, setResumo] = useState<UploadsResumoArmazenamento | null>(null);
@@ -59,6 +61,11 @@ export function useArmazenamentoGaleria() {
 
   function mensagemBloqueioUpload(): string | null {
     if (!resumo || !esgotado) return null;
+    if (resumo.motivoBloqueio === "nuvem_pool" || resumo.nuvemPool?.esgotada) {
+      registrarMotivoBloqueioArmazenamento("nuvem_pool");
+      return MENSAGEM_NUVEM_POOL_ESGOTADO;
+    }
+    registrarMotivoBloqueioArmazenamento("limite_empresa");
     return MENSAGEM_LIMITE_GALERIA_ESGOTADO;
   }
 

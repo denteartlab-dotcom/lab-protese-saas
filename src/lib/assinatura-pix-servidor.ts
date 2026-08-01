@@ -402,7 +402,7 @@ export async function aplicarRenovacaoAssinaturaPorPagamento(
 ): Promise<Date> {
   const empresa = await prisma.empresa.findUnique({
     where: { id: empresaId },
-    select: { dataVencimento: true, plano: true },
+    select: { dataVencimento: true, plano: true, observacoes: true },
   });
   if (!empresa) throw new Error("Empresa não encontrada.");
 
@@ -414,6 +414,10 @@ export async function aplicarRenovacaoAssinaturaPorPagamento(
     diasRenovacao
   );
 
+  const { limparMarcaTesteGratisObservacoes } = await import(
+    "@/lib/uploads-limites-plano"
+  );
+
   await prisma.empresa.update({
     where: { id: empresaId },
     data: {
@@ -422,6 +426,7 @@ export async function aplicarRenovacaoAssinaturaPorPagamento(
       plano: planoFinal,
       limiteUsuarios: limites.usuarios,
       limiteTrabalhos: limites.trabalhos,
+      observacoes: limparMarcaTesteGratisObservacoes(empresa.observacoes),
     },
   });
 

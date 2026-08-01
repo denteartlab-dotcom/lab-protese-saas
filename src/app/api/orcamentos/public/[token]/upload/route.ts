@@ -7,9 +7,12 @@ import { calcularArmazenamentoGaleria } from "@/lib/uploads-armazenamento-server
 import { salvarArquivosUpload } from "@/lib/upload-arquivo-server";
 import {
   CODIGO_ARMAZENAMENTO_CHEIO,
+  CODIGO_NUVEM_POOL_CHEIO,
   ehErroEspacoArmazenamento,
   MENSAGEM_ARMAZENAMENTO_CHEIO,
+  MENSAGEM_NUVEM_POOL_CHEIO,
 } from "@/lib/uploads-erro-armazenamento";
+import { MENSAGEM_NUVEM_POOL_ESGOTADO } from "@/lib/uploads-armazenamento";
 
 type Params = { params: Promise<{ token: string }> };
 
@@ -80,12 +83,20 @@ export async function POST(request: Request, { params }: Params) {
       (limiteBytes > 0 && resumo.bytesUsados + novosBytes > limiteBytes);
 
     if (semEspaco) {
+      const porPool =
+        resumo.motivoBloqueio === "nuvem_pool" ||
+        Boolean(resumo.nuvemPool?.esgotada) ||
+        (resumo.nuvemPool != null &&
+          novosBytes > resumo.nuvemPool.bytesLivres &&
+          resumo.bytesUsados + novosBytes <= limiteBytes);
       return NextResponse.json(
         {
-          error: MENSAGEM_ARMAZENAMENTO_CHEIO,
-          code: CODIGO_ARMAZENAMENTO_CHEIO,
+          error: porPool
+            ? MENSAGEM_NUVEM_POOL_CHEIO || MENSAGEM_NUVEM_POOL_ESGOTADO
+            : MENSAGEM_ARMAZENAMENTO_CHEIO,
+          code: porPool ? CODIGO_NUVEM_POOL_CHEIO : CODIGO_ARMAZENAMENTO_CHEIO,
         },
-        { status: 413 }
+        { status: porPool ? 507 : 413 }
       );
     }
 

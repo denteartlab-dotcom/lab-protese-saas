@@ -1,15 +1,24 @@
 /** Constantes e formatação — seguro para importar no cliente. */
 
-export const LIMITE_GALERIA_GB = 20;
+/** Limite por laboratório com assinatura ativa (pago). */
+export const LIMITE_GALERIA_ASSINANTE_GB = 25;
+/** Limite por laboratório em teste grátis. */
+export const LIMITE_GALERIA_TESTE_GB = 2;
+/** @deprecated Preferir LIMITE_GALERIA_ASSINANTE_GB / LIMITE_GALERIA_TESTE_GB. */
+export const LIMITE_GALERIA_GB = LIMITE_GALERIA_ASSINANTE_GB;
+
 /** Alerta visual/notificação no Início quando o uso atinge este limiar (80%). */
 export const ALERTA_ARMAZENAMENTO_PCT = 80;
 export const ALERTA_ARMAZENAMENTO_GB = Math.round(
-  (LIMITE_GALERIA_GB * ALERTA_ARMAZENAMENTO_PCT) / 100
+  (LIMITE_GALERIA_ASSINANTE_GB * ALERTA_ARMAZENAMENTO_PCT) / 100
 );
-export const LIMITE_ARMAZENAMENTO_BYTES = LIMITE_GALERIA_GB * 1024 ** 3;
+export const LIMITE_ARMAZENAMENTO_BYTES = LIMITE_GALERIA_ASSINANTE_GB * 1024 ** 3;
+export const LIMITE_ARMAZENAMENTO_TESTE_BYTES = LIMITE_GALERIA_TESTE_GB * 1024 ** 3;
 export const ALERTA_ARMAZENAMENTO_BYTES =
   (LIMITE_ARMAZENAMENTO_BYTES * ALERTA_ARMAZENAMENTO_PCT) / 100;
 export const UPLOADS_ATUALIZADO_EVENT = "labProteseUploadsAtualizado";
+
+export type MotivoBloqueioArmazenamento = "limite_empresa" | "nuvem_pool" | null;
 
 export type UploadsResumoArmazenamento = {
   bytesUsados: number;
@@ -21,10 +30,34 @@ export type UploadsResumoArmazenamento = {
   /** Onde os arquivos da galeria estão: onedrive | database | disk */
   storageMode?: "onedrive" | "database" | "disk";
   onedriveAtivo?: boolean;
+  /** Laboratório ainda em teste grátis (2 GB). */
+  emTesteGratis?: boolean;
+  /** Por que uploads estão bloqueados (se bytesLivres === 0). */
+  motivoBloqueio?: MotivoBloqueioArmazenamento;
+  /** Cota compartilhada da conta OneDrive (pool físico). */
+  nuvemPool?: {
+    bytesUsados: number;
+    bytesLivres: number;
+    limiteBytes: number;
+    esgotada: boolean;
+  };
 };
 
 export const MENSAGEM_LIMITE_GALERIA_ESGOTADO =
   "Espaço de uploads esgotado (0 GB livre). Libere espaço em Início → Uploads → Liberar espaço.";
+
+export const MENSAGEM_NUVEM_POOL_ESGOTADO =
+  "O armazenamento na nuvem do sistema está esgotado. Entre em contato com o administrador para ampliar a capacidade.";
+
+export function limiteGaleriaBytes(emTesteGratis: boolean): number {
+  return emTesteGratis
+    ? LIMITE_ARMAZENAMENTO_TESTE_BYTES
+    : LIMITE_ARMAZENAMENTO_BYTES;
+}
+
+export function limiteGaleriaGb(emTesteGratis: boolean): number {
+  return emTesteGratis ? LIMITE_GALERIA_TESTE_GB : LIMITE_GALERIA_ASSINANTE_GB;
+}
 
 export function armazenamentoGaleriaEsgotado(bytesLivres: number): boolean {
   return bytesLivres <= 0;

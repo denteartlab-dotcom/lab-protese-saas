@@ -680,13 +680,22 @@ export const messages = {
     "dashboard.uploadsNuvem": "Espaço na nuvem (OneDrive)",
     "dashboard.espacoQuaseCheio":
       "Armazenamento em 80% ou mais — libere espaço antes que acabe.",
+    "dashboard.nuvemPoolEsgotado":
+      "A nuvem do sistema está cheia. Entre em contato com o administrador para ampliar o armazenamento.",
+    "dashboard.limiteTesteGratis":
+      "Conta em teste grátis: limite de {gb} GB. Com assinatura o limite sobe para 25 GB.",
     "armazenamento.cheio.titulo": "Armazenamento cheio",
     "armazenamento.cheio.mensagem":
-      "O espaço de armazenamento na nuvem está cheio. Não é possível enviar novos arquivos.",
+      "O espaço de armazenamento do laboratório está cheio. Não é possível enviar novos arquivos.",
     "armazenamento.cheio.aviso":
       "Libere espaço excluindo imagens e anexos antigos para continuar usando os uploads.",
     "armazenamento.cheio.fechar": "Fechar",
     "armazenamento.cheio.liberarEspaco": "Liberar espaço",
+    "armazenamento.nuvem.titulo": "Nuvem do sistema esgotada",
+    "armazenamento.nuvem.mensagem":
+      "Não há mais espaço disponível na nuvem compartilhada do sistema. Novos uploads estão bloqueados.",
+    "armazenamento.nuvem.aviso":
+      "Entre em contato com o administrador para ampliar a capacidade da nuvem.",
     "dashboard.paraExcluirArquivos": "para excluir arquivos.",
     "dashboard.verLink": "ver",
     "dashboard.pdfErro": "Não foi possível gerar o PDF. Tente novamente.",
@@ -780,6 +789,7 @@ export const messages = {
     "notif.titulo.observacao_cliente": "Observação do cliente",
     "notif.titulo.anotacao_lembrete": "Lembrete",
     "notif.titulo.armazenamento_quase_cheio": "Armazenamento quase cheio",
+    "notif.titulo.nuvem_pool_esgotada": "Nuvem do sistema esgotada",
     "notif.titulo.geral": "Aviso",
     "notif.estoque_zerado": "Produto \"{produto}\" está com estoque zerado.",
     "notif.estoque_baixo": "Produto \"{produto}\" com estoque baixo ({qtd} un.).",
@@ -803,6 +813,8 @@ export const messages = {
     "notif.anotacao_lembrete": "{texto}",
     "notif.armazenamento_quase_cheio":
       "Uploads com {usado} usados (alerta a partir de {limiteGb} GB de {totalGb} GB). Libere espaço para evitar bloqueio.",
+    "notif.nuvem_pool_esgotada":
+      "A nuvem compartilhada do sistema está cheia ({usado}). Entre em contato com o administrador para ampliar a capacidade.",
     ...messagesProducaoPt,
     ...messagesProducaoSubPt,
     ...messagesFinanceiroPt,
@@ -1452,13 +1464,22 @@ export const messages = {
     "dashboard.espacoEsgotado": "Storage full — new uploads are blocked.",
     "dashboard.espacoQuaseCheio":
       "Storage at 80% or more — free up space before it runs out.",
+    "dashboard.nuvemPoolEsgotado":
+      "System cloud storage is full. Contact the administrator to expand capacity.",
+    "dashboard.limiteTesteGratis":
+      "Free trial account: {gb} GB limit. With a subscription the limit increases to 25 GB.",
     "armazenamento.cheio.titulo": "Storage full",
     "armazenamento.cheio.mensagem":
-      "Cloud storage is full. New files cannot be uploaded.",
+      "Your lab storage limit is full. New files cannot be uploaded.",
     "armazenamento.cheio.aviso":
       "Free up space by deleting old images and attachments to continue uploading.",
     "armazenamento.cheio.fechar": "Close",
     "armazenamento.cheio.liberarEspaco": "Free up space",
+    "armazenamento.nuvem.titulo": "System cloud exhausted",
+    "armazenamento.nuvem.mensagem":
+      "There is no space left on the shared system cloud. New uploads are blocked.",
+    "armazenamento.nuvem.aviso":
+      "Please contact the administrator to expand cloud capacity.",
     "dashboard.paraExcluirArquivos": "to delete files.",
     "dashboard.verLink": "view",
     "dashboard.pdfErro": "Could not generate the PDF. Try again.",
@@ -1552,6 +1573,7 @@ export const messages = {
     "notif.titulo.observacao_cliente": "Client note",
     "notif.titulo.anotacao_lembrete": "Reminder",
     "notif.titulo.armazenamento_quase_cheio": "Storage almost full",
+    "notif.titulo.nuvem_pool_esgotada": "System cloud exhausted",
     "notif.titulo.geral": "Alert",
     "notif.estoque_zerado": "Product \"{produto}\" is out of stock.",
     "notif.estoque_baixo": "Product \"{produto}\" low stock ({qtd} units).",
@@ -1575,6 +1597,8 @@ export const messages = {
     "notif.anotacao_lembrete": "{texto}",
     "notif.armazenamento_quase_cheio":
       "Uploads using {usado} (alert from {limiteGb} GB of {totalGb} GB). Free up space to avoid blocking.",
+    "notif.nuvem_pool_esgotada":
+      "Shared system cloud is full ({usado}). Contact the administrator to expand capacity.",
     ...messagesProducaoEn,
     ...messagesProducaoSubEn,
     ...messagesFinanceiroEn,
@@ -2225,13 +2249,22 @@ export const messages = {
     "dashboard.espacoEsgotado": "Espacio agotado — las nuevas subidas están bloqueadas.",
     "dashboard.espacoQuaseCheio":
       "Almacenamiento al 80% o más — libere espacio antes de que se agote.",
+    "dashboard.nuvemPoolEsgotado":
+      "La nube del sistema está llena. Contacte al administrador para ampliar el almacenamiento.",
+    "dashboard.limiteTesteGratis":
+      "Cuenta en prueba gratis: límite de {gb} GB. Con suscripción el límite sube a 25 GB.",
     "armazenamento.cheio.titulo": "Almacenamiento lleno",
     "armazenamento.cheio.mensagem":
-      "El espacio de almacenamiento en la nube está lleno. No es posible enviar nuevos archivos.",
+      "El espacio de almacenamiento del laboratorio está lleno. No es posible enviar nuevos archivos.",
     "armazenamento.cheio.aviso":
       "Libere espacio eliminando imágenes y adjuntos antiguos para seguir subiendo archivos.",
     "armazenamento.cheio.fechar": "Cerrar",
     "armazenamento.cheio.liberarEspaco": "Liberar espacio",
+    "armazenamento.nuvem.titulo": "Nube del sistema agotada",
+    "armazenamento.nuvem.mensagem":
+      "No hay más espacio en la nube compartida del sistema. Las nuevas subidas están bloqueadas.",
+    "armazenamento.nuvem.aviso":
+      "Contacte al administrador para ampliar la capacidad de la nube.",
     "dashboard.paraExcluirArquivos": "para eliminar archivos.",
     "dashboard.verLink": "ver",
     "dashboard.pdfErro": "No fue posible generar el PDF. Intente nuevamente.",
@@ -2325,6 +2358,7 @@ export const messages = {
     "notif.titulo.observacao_cliente": "Observación del cliente",
     "notif.titulo.anotacao_lembrete": "Recordatorio",
     "notif.titulo.armazenamento_quase_cheio": "Almacenamiento casi lleno",
+    "notif.titulo.nuvem_pool_esgotada": "Nube del sistema agotada",
     "notif.titulo.geral": "Aviso",
     "notif.estoque_zerado": "Producto \"{produto}\" sin stock.",
     "notif.estoque_baixo": "Producto \"{produto}\" con stock bajo ({qtd} u.).",
@@ -2348,6 +2382,8 @@ export const messages = {
     "notif.anotacao_lembrete": "{texto}",
     "notif.armazenamento_quase_cheio":
       "Subidas con {usado} usados (alerta desde {limiteGb} GB de {totalGb} GB). Libere espacio para evitar bloqueo.",
+    "notif.nuvem_pool_esgotada":
+      "La nube compartida del sistema está llena ({usado}). Contacte al administrador para ampliar la capacidad.",
     ...messagesProducaoEs,
     ...messagesProducaoSubEs,
     ...messagesFinanceiroEs,

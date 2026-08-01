@@ -136,7 +136,11 @@ export function PainelUploadsDashboard({
             {textoPercentual}%
           </div>
         </div>
-        {galeriaEsgotada ? (
+        {resumo.nuvemPool?.esgotada || resumo.motivoBloqueio === "nuvem_pool" ? (
+          <p className="mt-2 text-[11px] font-medium text-red-600">
+            {t("dashboard.nuvemPoolEsgotado")}
+          </p>
+        ) : galeriaEsgotada ? (
           <p className="mt-2 text-[11px] font-medium text-red-600">
             {t("dashboard.espacoEsgotado")}{" "}
             <Link href="/app/liberar-espaco" className="text-[#4a90d9] hover:underline">
@@ -151,6 +155,10 @@ export function PainelUploadsDashboard({
               {t("dashboard.liberarEspaco")}
             </Link>{" "}
             {t("dashboard.paraExcluirArquivos")}
+          </p>
+        ) : resumo.emTesteGratis ? (
+          <p className="mt-2 text-[11px] text-slate-500">
+            {t("dashboard.limiteTesteGratis", { gb: String(resumo.limiteGb) })}
           </p>
         ) : null}
         <div className="mt-3 flex justify-between text-[10px] text-slate-400">

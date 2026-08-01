@@ -75,7 +75,8 @@ export type NotificacaoApi = {
     | "observacao_cliente"
     | "boleto_vencido"
     | "boleto_vencendo"
-    | "armazenamento_quase_cheio";
+    | "armazenamento_quase_cheio"
+    | "nuvem_pool_esgotada";
   href: string;
   params: Record<string, string | number>;
   criadoEm: string;
@@ -404,6 +405,21 @@ export async function montarNotificacoesEmpresa(
       opts.empresaNome
     );
     if (
+      armazenamento.nuvemPool?.esgotada ||
+      armazenamento.motivoBloqueio === "nuvem_pool"
+    ) {
+      lista.unshift({
+        id: "nuvem-pool-esgotada",
+        kind: "nuvem_pool_esgotada",
+        href: "/app",
+        params: {
+          usado: formatarTamanhoArmazenamento(
+            armazenamento.nuvemPool?.bytesUsados ?? armazenamento.bytesUsados
+          ),
+        },
+        criadoEm: new Date().toISOString(),
+      });
+    } else if (
       armazenamentoGaleriaEmAlerta(
         armazenamento.bytesUsados,
         armazenamento.limiteBytes ?? LIMITE_ARMAZENAMENTO_BYTES

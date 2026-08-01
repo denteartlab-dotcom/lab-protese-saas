@@ -20,7 +20,13 @@ export async function POST(request: Request, { params }: Params) {
     const empresa = await executarSemRls((tx) =>
       tx.empresa.findUnique({
         where: { id },
-        select: { id: true, nome: true, status: true, dataVencimento: true },
+        select: {
+          id: true,
+          nome: true,
+          status: true,
+          dataVencimento: true,
+          observacoes: true,
+        },
       })
     );
     if (!empresa) {
@@ -28,6 +34,9 @@ export async function POST(request: Request, { params }: Params) {
     }
 
     const dataVencimento = calcularDataVencimentoAssinatura(body.dias);
+    const { limparMarcaTesteGratisObservacoes } = await import(
+      "@/lib/uploads-limites-plano"
+    );
 
     const atualizada = await executarSemRls((tx) =>
       tx.empresa.update({
@@ -35,6 +44,7 @@ export async function POST(request: Request, { params }: Params) {
         data: {
           status: "ativo",
           dataVencimento,
+          observacoes: limparMarcaTesteGratisObservacoes(empresa.observacoes),
         },
         select: {
           id: true,

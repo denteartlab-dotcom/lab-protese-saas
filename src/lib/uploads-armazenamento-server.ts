@@ -8,6 +8,8 @@ import type { ArquivoGaleriaItem } from "@/lib/galeria-uploads-types";
 import {
   LIMITE_ARMAZENAMENTO_BYTES,
   LIMITE_GALERIA_GB,
+  type MotivoBloqueioArmazenamento,
+  type UploadsResumoArmazenamento,
 } from "@/lib/uploads-armazenamento";
 import type { PastaUpload } from "@/lib/upload-arquivo-server";
 import { pastaBackupEmpresa } from "@/lib/backup-empresa-pasta";
@@ -17,6 +19,7 @@ import {
   listarArquivosBanco,
 } from "@/lib/upload-arquivo-server";
 import { uploadUsaOneDrive } from "@/lib/upload-onedrive-storage";
+import { resolverLimiteArmazenamentoEmpresa } from "@/lib/uploads-limites-plano";
 
 const PASTAS_UPLOAD: PastaUpload[] = [
   "os",
@@ -183,7 +186,7 @@ async function tamanhoDiretorio(dir: string): Promise<number> {
   return total;
 }
 
-export function resumoArmazenamentoVazio() {
+export function resumoArmazenamentoVazio(): UploadsResumoArmazenamento {
   return {
     bytesUsados: 0,
     bytesLivres: LIMITE_ARMAZENAMENTO_BYTES,
@@ -193,6 +196,8 @@ export function resumoArmazenamentoVazio() {
     percentualLivre: 100,
     storageMode: "disk" as const,
     onedriveAtivo: false,
+    emTesteGratis: false,
+    motivoBloqueio: null,
   };
 }
 
@@ -201,75 +206,84 @@ export async function calcularArmazenamentoGaleria(
   empresaSlug?: string,
   empresaNome?: string,
   opcoes?: { forceCota?: boolean }
-) {
+): Promise<UploadsResumoArmazenamento> {
   const onedrive = uploadUsaOneDrive();
-
-  // OneDrive: cota real da nuvem (Graph) — usado/livre sincronizado com a conta.
-  if (onedrive) {
-    try {
-      const { obterCotaOneDriveGraph } = await import("@/lib/onedrive-graph");
-      const cota = await obterCotaOneDriveGraph(Boolean(opcoes?.forceCota));
-      if (cota && cota.total > 0) {
-        const bytesUsados = cota.used;
-        const bytesLivres = cota.remaining;
-        const limiteBytes = cota.total;
-        const percentualUsado = Math.min(
-          100,
-          Math.round((bytesUsados / limiteBytes) * 100)
-        );
-        const limiteGb =
-          limiteBytes >= 1024 ** 3
-            ? Math.round((limiteBytes / 1024 ** 3) * 10) / 10
-            : Math.round((limiteBytes / 1024 ** 2) * 10) / 10 / 1024;
-        return {
-          bytesUsados,
-          bytesLivres,
-          limiteBytes,
-          limiteGb: Math.max(limiteGb, 0.1),
-          percentualUsado,
-          percentualLivre: 100 - percentualUsado,
-          storageMode: "onedrive" as const,
-          onedriveAtivo: true,
-        };
-      }
-    } catch (erro) {
-      console.warn("[uploads] cota OneDrive indisponível, usando metadados locais:", erro);
-    }
-  }
+  const plano = await resolverLimiteArmazenamentoEmpresa(empresaId);
+  const limiteBytes = plano.limiteBytes;
+  const limiteGb = plano.limiteGb;
 
   if (empresaSlug && !onedrive) {
     await garantirPastasUploadEmpresa(empresaSlug);
   }
+
   const bytesDisco =
     empresaSlug && !onedrive
       ? await tamanhoDiretorio(caminhoPastaUploads(empresaSlug))
       : 0;
   const bytesBanco = await bytesTotalArquivosBanco(empresaId);
-  // OneDrive (fallback): metadados do banco. Disco: inclui pasta local de backup.
   const bytesBackup =
     !onedrive && empresaSlug && empresaSlug.trim()
       ? await tamanhoDiretorio(pastaBackupEmpresa(empresaSlug, empresaNome))
       : 0;
+  // Uso do laboratório (por cliente), independente da cota física da nuvem.
   const bytesUsados = bytesDisco + bytesBanco + bytesBackup;
-  const bytesLivres = Math.max(0, LIMITE_ARMAZENAMENTO_BYTES - bytesUsados);
+  const livresPlano = Math.max(0, limiteBytes - bytesUsados);
+
+  let nuvemPool: UploadsResumoArmazenamento["nuvemPool"];
+  let livresPool = Number.POSITIVE_INFINITY;
+
+  if (onedrive) {
+    try {
+      const { obterCotaOneDriveGraph } = await import("@/lib/onedrive-graph");
+      const cota = await obterCotaOneDriveGraph(Boolean(opcoes?.forceCota));
+      if (cota && cota.total > 0) {
+        livresPool = cota.remaining;
+        nuvemPool = {
+          bytesUsados: cota.used,
+          bytesLivres: cota.remaining,
+          limiteBytes: cota.total,
+          esgotada: cota.remaining <= 0,
+        };
+      }
+    } catch (erro) {
+      console.warn("[uploads] cota OneDrive indisponível:", erro);
+    }
+  }
+
+  const bytesLivres = Math.max(
+    0,
+    Math.min(livresPlano, Number.isFinite(livresPool) ? livresPool : livresPlano)
+  );
+
+  let motivoBloqueio: MotivoBloqueioArmazenamento = null;
+  if (bytesLivres <= 0) {
+    if (nuvemPool?.esgotada || (Number.isFinite(livresPool) && livresPool <= 0)) {
+      motivoBloqueio = "nuvem_pool";
+    } else {
+      motivoBloqueio = "limite_empresa";
+    }
+  }
+
   const percentualUsado =
-    LIMITE_ARMAZENAMENTO_BYTES > 0
-      ? Math.min(100, Math.round((bytesUsados / LIMITE_ARMAZENAMENTO_BYTES) * 100))
+    limiteBytes > 0
+      ? Math.min(100, Math.round((bytesUsados / limiteBytes) * 100))
       : 0;
-  const percentualLivre = 100 - percentualUsado;
 
   return {
     bytesUsados,
     bytesLivres,
-    limiteBytes: LIMITE_ARMAZENAMENTO_BYTES,
-    limiteGb: LIMITE_GALERIA_GB,
+    limiteBytes,
+    limiteGb,
     percentualUsado,
-    percentualLivre,
+    percentualLivre: 100 - percentualUsado,
     storageMode: onedrive
       ? ("onedrive" as const)
       : bytesDisco > 0 || !empresaId
         ? ("disk" as const)
         : ("database" as const),
     onedriveAtivo: onedrive,
+    emTesteGratis: plano.emTesteGratis,
+    motivoBloqueio,
+    nuvemPool,
   };
 }
