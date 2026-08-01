@@ -19,6 +19,15 @@ type TokenCache = {
   expiresAtMs: number;
 };
 
+export type CotaOneDriveGraph = {
+  total: number;
+  used: number;
+  remaining: number;
+  state?: string;
+};
+
+const CACHE_COTA_MS = 5 * 60_000;
+
 const MODULOS_UPLOAD = [
   "os",
   "despesas",
@@ -33,6 +42,7 @@ const globalGraph = globalThis as typeof globalThis & {
   __onedriveGraphPastas?: Set<string>;
   __onedriveGraphRootResolvido?: string;
   __onedriveEstruturaEmpresa?: Set<string>;
+  __onedriveGraphQuota?: { atMs: number; data: CotaOneDriveGraph };
 };
 
 function env(nome: string) {
@@ -464,6 +474,59 @@ export async function quemSouOneDriveGraph(): Promise<{
     userPrincipalName?: string;
     mail?: string;
   };
+}
+
+/** Invalida cache da cota (após upload/exclusão). */
+export function limparCacheCotaOneDriveGraph() {
+  globalGraph.__onedriveGraphQuota = undefined;
+}
+
+/**
+ * Cota real do OneDrive (usado / livre / total) via Microsoft Graph.
+ * Cache curto para não bater no Graph a cada refresh do dashboard.
+ */
+export async function obterCotaOneDriveGraph(
+  force = false
+): Promise<CotaOneDriveGraph | null> {
+  if (!onedriveGraphConfigurado()) return null;
+
+  const cache = globalGraph.__onedriveGraphQuota;
+  if (!force && cache && Date.now() - cache.atMs < CACHE_COTA_MS) {
+    return cache.data;
+  }
+
+  const res = await graphFetch(`${driveBasePath()}?$select=id,quota`);
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Cota OneDrive falhou (${res.status}): ${text.slice(0, 300)}`);
+  }
+
+  const json = (await res.json()) as {
+    quota?: {
+      total?: number | string;
+      used?: number | string;
+      remaining?: number | string;
+      state?: string;
+    };
+  };
+  const q = json.quota;
+  if (!q) return null;
+
+  const total = Math.max(0, Number(q.total) || 0);
+  const used = Math.max(0, Number(q.used) || 0);
+  const remainingRaw = Number(q.remaining);
+  const remaining = Number.isFinite(remainingRaw)
+    ? Math.max(0, remainingRaw)
+    : Math.max(0, total - used);
+
+  const data: CotaOneDriveGraph = {
+    total,
+    used,
+    remaining,
+    state: typeof q.state === "string" ? q.state : undefined,
+  };
+  globalGraph.__onedriveGraphQuota = { atMs: Date.now(), data };
+  return data;
 }
 
 export async function downloadBytesOneDriveGraph(remotePath: string): Promise<Buffer> {

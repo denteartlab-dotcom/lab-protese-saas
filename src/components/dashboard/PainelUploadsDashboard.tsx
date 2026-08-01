@@ -36,13 +36,16 @@ export function PainelUploadsDashboard({
 }) {
   const { t, locale } = useI18n();
   const limiteBytes = resumo.limiteBytes ?? LIMITE_ARMAZENAMENTO_BYTES;
-  const bytesLivres = Math.max(0, limiteBytes - resumo.bytesUsados);
+  const bytesLivres = Math.max(0, resumo.bytesLivres);
   const pctUsado = percentualUsadoBarra(resumo);
   const textoPercentual = rotuloPercentualUsado(resumo, locale);
   const textoUsado = formatarTamanhoMbCard(resumo.bytesUsados);
   const textoLivre = formatarTamanhoMbCard(bytesLivres);
   const galeriaEsgotada = bytesLivres <= 0;
-  const galeriaEmAlerta = armazenamentoGaleriaEmAlerta(resumo.bytesUsados);
+  const galeriaEmAlerta = armazenamentoGaleriaEmAlerta(
+    resumo.bytesUsados,
+    limiteBytes
+  );
   const tituloCard =
     resumo.onedriveAtivo || resumo.storageMode === "onedrive"
       ? t("dashboard.uploadsNuvem")

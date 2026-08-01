@@ -26,9 +26,16 @@ export function armazenamentoGaleriaEsgotado(bytesLivres: number): boolean {
   return bytesLivres <= 0;
 }
 
-/** Quase cheio: ≥ 18 GB usados (de 20 GB). Volta ao normal ao liberar espaço. */
-export function armazenamentoGaleriaEmAlerta(bytesUsados: number): boolean {
-  return bytesUsados >= ALERTA_ARMAZENAMENTO_BYTES;
+/** Quase cheio: ≥ 90% do limite (ou ≥ 18 GB no limite padrão de 20 GB). */
+export function armazenamentoGaleriaEmAlerta(
+  bytesUsados: number,
+  limiteBytes: number = LIMITE_ARMAZENAMENTO_BYTES
+): boolean {
+  if (limiteBytes <= 0) return false;
+  if (limiteBytes === LIMITE_ARMAZENAMENTO_BYTES) {
+    return bytesUsados >= ALERTA_ARMAZENAMENTO_BYTES;
+  }
+  return bytesUsados >= limiteBytes * 0.9;
 }
 
 export function somaBytesArquivos(arquivos: Iterable<File>): number {

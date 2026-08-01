@@ -45,6 +45,7 @@ import { carregarStoreObservacoesCliente } from "@/lib/observacao-cliente-trabal
 import { calcularResumoEstoqueDashboardServer } from "@/lib/dashboard-estoque-server";
 import {
   ALERTA_ARMAZENAMENTO_GB,
+  LIMITE_ARMAZENAMENTO_BYTES,
   armazenamentoGaleriaEmAlerta,
   formatarTamanhoArmazenamento,
 } from "@/lib/uploads-armazenamento";
@@ -402,7 +403,12 @@ export async function montarNotificacoesEmpresa(
       opts.empresaSlug,
       opts.empresaNome
     );
-    if (armazenamentoGaleriaEmAlerta(armazenamento.bytesUsados)) {
+    if (
+      armazenamentoGaleriaEmAlerta(
+        armazenamento.bytesUsados,
+        armazenamento.limiteBytes ?? LIMITE_ARMAZENAMENTO_BYTES
+      )
+    ) {
       lista.unshift({
         id: "armazenamento-quase-cheio",
         kind: "armazenamento_quase_cheio",

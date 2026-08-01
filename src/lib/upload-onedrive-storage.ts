@@ -8,6 +8,7 @@ import {
   deleteItemOneDriveGraph,
   deletePastaOneDriveGraph,
   downloadBytesOneDriveGraph,
+  limparCacheCotaOneDriveGraph,
   onedriveGraphConfigurado,
   onedriveGraphRootFolder,
   uploadBytesOneDriveGraph,
@@ -72,6 +73,7 @@ export async function enviarBufferParaOneDrive(
     );
   }
   await uploadBytesOneDriveGraph(remotePath, bytes, mimeType, opcoes);
+  limparCacheCotaOneDriveGraph();
 }
 
 /** Baixa bytes do OneDrive (Graph). */
@@ -81,6 +83,7 @@ export async function baixarArquivoOneDrive(remotePath: string): Promise<Buffer>
 
 export async function excluirArquivoOneDrive(remotePath: string): Promise<void> {
   await deleteItemOneDriveGraph(remotePath);
+  limparCacheCotaOneDriveGraph();
 }
 
 /** Remove a pasta inteira do laboratório no OneDrive (uploads + backups da estrutura). */
@@ -95,6 +98,7 @@ export async function excluirPastaUploadsEmpresaOneDrive(
 
   try {
     await deletePastaOneDriveGraph(caminhoRemotoEmpresaRaiz(slug));
+    limparCacheCotaOneDriveGraph();
     return { ok: true };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

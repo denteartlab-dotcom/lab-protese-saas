@@ -202,6 +202,40 @@ export async function calcularArmazenamentoGaleria(
   empresaNome?: string
 ) {
   const onedrive = uploadUsaOneDrive();
+
+  // OneDrive: cota real da nuvem (Graph) — usado/livre sincronizado com a conta.
+  if (onedrive) {
+    try {
+      const { obterCotaOneDriveGraph } = await import("@/lib/onedrive-graph");
+      const cota = await obterCotaOneDriveGraph();
+      if (cota && cota.total > 0) {
+        const bytesUsados = cota.used;
+        const bytesLivres = cota.remaining;
+        const limiteBytes = cota.total;
+        const percentualUsado = Math.min(
+          100,
+          Math.round((bytesUsados / limiteBytes) * 100)
+        );
+        const limiteGb =
+          limiteBytes >= 1024 ** 3
+            ? Math.round((limiteBytes / 1024 ** 3) * 10) / 10
+            : Math.round((limiteBytes / 1024 ** 2) * 10) / 10 / 1024;
+        return {
+          bytesUsados,
+          bytesLivres,
+          limiteBytes,
+          limiteGb: Math.max(limiteGb, 0.1),
+          percentualUsado,
+          percentualLivre: 100 - percentualUsado,
+          storageMode: "onedrive" as const,
+          onedriveAtivo: true,
+        };
+      }
+    } catch (erro) {
+      console.warn("[uploads] cota OneDrive indisponível, usando metadados locais:", erro);
+    }
+  }
+
   if (empresaSlug && !onedrive) {
     await garantirPastasUploadEmpresa(empresaSlug);
   }
@@ -210,7 +244,7 @@ export async function calcularArmazenamentoGaleria(
       ? await tamanhoDiretorio(caminhoPastaUploads(empresaSlug))
       : 0;
   const bytesBanco = await bytesTotalArquivosBanco(empresaId);
-  // OneDrive: só metadados do banco (tamanho remoto). Não conta pasta local de backup da VPS.
+  // OneDrive (fallback): metadados do banco. Disco: inclui pasta local de backup.
   const bytesBackup =
     !onedrive && empresaSlug && empresaSlug.trim()
       ? await tamanhoDiretorio(pastaBackupEmpresa(empresaSlug, empresaNome))
@@ -230,7 +264,11 @@ export async function calcularArmazenamentoGaleria(
     limiteGb: LIMITE_GALERIA_GB,
     percentualUsado,
     percentualLivre,
-    storageMode: onedrive ? ("onedrive" as const) : bytesDisco > 0 || !empresaId ? ("disk" as const) : ("database" as const),
+    storageMode: onedrive
+      ? ("onedrive" as const)
+      : bytesDisco > 0 || !empresaId
+        ? ("disk" as const)
+        : ("database" as const),
     onedriveAtivo: onedrive,
   };
 }
