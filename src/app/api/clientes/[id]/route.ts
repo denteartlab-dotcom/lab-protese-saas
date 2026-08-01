@@ -82,6 +82,8 @@ export async function PUT(
       data: {
         ...data,
         ...(data.nome !== undefined ? { nome: data.nome } : {}),
+        // Restaurar da lixeira/arquivo: volta a aparecer nas listas.
+        ...(data.ativo === true ? { removidoEm: null } : {}),
       },
     });
 
@@ -172,39 +174,35 @@ export async function DELETE(
     existente._count.lancamentos > 0 ||
     existente._count.nfseEmissoes > 0;
 
-  if (!permanente && existente.ativo) {
-    if (temVinculos) {
-      await prisma.cliente.update({ where: { id }, data: { ativo: false } });
-      return NextResponse.json({ ok: true, modo: "inativado" });
+  // Remoção normal: envia para a lixeira (dados históricos permanecem).
+  if (!permanente) {
+    if (!existente.ativo && !existente.removidoEm) {
+      return NextResponse.json({ ok: true, modo: "ja_inativo" });
     }
-    try {
-      await prisma.cliente.delete({ where: { id } });
-      return NextResponse.json({ ok: true, modo: "removido" });
-    } catch {
-      await prisma.cliente.update({ where: { id }, data: { ativo: false } });
-      return NextResponse.json({ ok: true, modo: "inativado" });
-    }
+    await prisma.cliente.update({
+      where: { id },
+      data: { ativo: false, removidoEm: null },
+    });
+    return NextResponse.json({ ok: true, modo: "inativado" });
   }
 
-  if (!permanente && !existente.ativo) {
-    return NextResponse.json({ ok: true, modo: "ja_inativo" });
-  }
-
-  if (permanente && temVinculos) {
-    return NextResponse.json(
-      {
-        error:
-          "Este cliente possui pacientes, OS ou lançamentos e não pode ser removido definitivamente. Ele permanece apenas inativo.",
-      },
-      { status: 409 }
-    );
+  // Exclusão definitiva com vínculos: oculta o cadastro, mas mantém pacientes/OS/lançamentos.
+  if (temVinculos) {
+    await prisma.cliente.update({
+      where: { id },
+      data: { ativo: false, removidoEm: new Date() },
+    });
+    return NextResponse.json({ ok: true, modo: "arquivado", preservado: true });
   }
 
   try {
     await prisma.cliente.delete({ where: { id } });
     return NextResponse.json({ ok: true, modo: "removido" });
   } catch {
-    await prisma.cliente.update({ where: { id }, data: { ativo: false } });
-    return NextResponse.json({ ok: true, modo: "inativado" });
+    await prisma.cliente.update({
+      where: { id },
+      data: { ativo: false, removidoEm: new Date() },
+    });
+    return NextResponse.json({ ok: true, modo: "arquivado", preservado: true });
   }
 }

@@ -44,6 +44,7 @@ export async function GET(request: Request) {
     where: {
       empresaId: ctx.empresaId,
       ativo: excluidos ? false : true,
+      removidoEm: null,
       ...(q
         ? {
             OR: [

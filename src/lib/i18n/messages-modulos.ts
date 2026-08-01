@@ -808,15 +808,15 @@ export const messagesModulosPt = {
   "cadastros.clientes.excluirMultiploDefinitivoTitulo": "Excluir clientes definitivamente",
   "cadastros.clientes.excluirMultiploLixeiraTitulo": "Enviar clientes para a lixeira",
   "cadastros.clientes.excluirMultiploDefinitivoMensagem":
-    "Deseja remover {n} cliente(s) do sistema? Só é possível se não houver OS, pacientes ou lançamentos vinculados.",
+    "Deseja remover {n} cliente(s) do sistema? Pacientes, OS e lançamentos vinculados serão mantidos.",
   "cadastros.clientes.excluirMultiploLixeiraMensagem":
     "Deseja enviar {n} cliente(s) para a lixeira? Eles sairão da lista de ativos, mas OS e histórico permanecem.",
   "cadastros.clientes.excluirMultiploDefinitivoAviso":
-    "Se ainda existir vínculo, o cadastro continuará apenas inativo.",
+    "Com vínculos, o cadastro deixa de aparecer nas listas e o histórico (pacientes, OS, financeiro) continua no sistema.",
   "cadastros.clientes.excluirMultiploLixeiraAviso":
     "Clientes com OS ou pacientes ficam inativos (não apagam o histórico).",
   "cadastros.clientes.excluirUnicoDefinitivoMensagem":
-    "Deseja remover este cliente do sistema? Só é possível se não houver OS, pacientes ou lançamentos vinculados.",
+    "Deseja remover este cliente do sistema? Pacientes, OS e lançamentos vinculados serão mantidos.",
   "cadastros.clientes.excluirUnicoLixeiraMensagem":
     "Deseja enviar este cliente para a lixeira? Ele sairá da lista de ativos, mas OS e histórico permanecem.",
   "cadastros.clientes.gravarAlteracoes": "Gravar Alterações",
@@ -2649,15 +2649,15 @@ export const messagesModulosEn: Record<keyof typeof messagesModulosPt, string> =
   "cadastros.clientes.excluirMultiploDefinitivoTitulo": "Permanently delete clients",
   "cadastros.clientes.excluirMultiploLixeiraTitulo": "Move clients to trash",
   "cadastros.clientes.excluirMultiploDefinitivoMensagem":
-    "Remove {n} client(s) from the system? Only possible if there are no linked work orders, patients, or entries.",
+    "Remove {n} client(s) from the system? Linked patients, work orders, and entries will be kept.",
   "cadastros.clientes.excluirMultiploLixeiraMensagem":
     "Move {n} client(s) to trash? They will leave the active list, but work orders and history remain.",
   "cadastros.clientes.excluirMultiploDefinitivoAviso":
-    "If links still exist, the record will remain inactive only.",
+    "If links exist, the record disappears from lists and the history (patients, work orders, finance) stays in the system.",
   "cadastros.clientes.excluirMultiploLixeiraAviso":
     "Clients with work orders or patients become inactive (history is not deleted).",
   "cadastros.clientes.excluirUnicoDefinitivoMensagem":
-    "Remove this client from the system? Only possible if there are no linked work orders, patients, or entries.",
+    "Remove this client from the system? Linked patients, work orders, and entries will be kept.",
   "cadastros.clientes.excluirUnicoLixeiraMensagem":
     "Move this client to trash? They will leave the active list, but work orders and history remain.",
   "cadastros.clientes.gravarAlteracoes": "Save changes",
@@ -4489,15 +4489,15 @@ export const messagesModulosEs: Record<keyof typeof messagesModulosPt, string> =
   "cadastros.clientes.excluirMultiploDefinitivoTitulo": "Eliminar clientes definitivamente",
   "cadastros.clientes.excluirMultiploLixeiraTitulo": "Enviar clientes a la papelera",
   "cadastros.clientes.excluirMultiploDefinitivoMensagem":
-    "¿Eliminar {n} cliente(s) del sistema? Solo es posible si no hay OS, pacientes o registros vinculados.",
+    "¿Eliminar {n} cliente(s) del sistema? Pacientes, OS y registros vinculados se mantendrán.",
   "cadastros.clientes.excluirMultiploLixeiraMensagem":
     "¿Enviar {n} cliente(s) a la papelera? Saldrán de la lista activa, pero las OS y el historial permanecen.",
   "cadastros.clientes.excluirMultiploDefinitivoAviso":
-    "Si aún existe vínculo, el registro seguirá solo inactivo.",
+    "Con vínculos, el registro deja de aparecer en las listas y el historial (pacientes, OS, finanzas) continúa en el sistema.",
   "cadastros.clientes.excluirMultiploLixeiraAviso":
     "Los clientes con OS o pacientes quedan inactivos (no borran el historial).",
   "cadastros.clientes.excluirUnicoDefinitivoMensagem":
-    "¿Eliminar este cliente del sistema? Solo es posible si no hay OS, pacientes o registros vinculados.",
+    "¿Eliminar este cliente del sistema? Pacientes, OS y registros vinculados se mantendrán.",
   "cadastros.clientes.excluirUnicoLixeiraMensagem":
     "¿Enviar este cliente a la papelera? Saldrá de la lista activa, pero las OS y el historial permanecen.",
   "cadastros.clientes.gravarAlteracoes": "Guardar cambios",

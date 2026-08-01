@@ -174,6 +174,8 @@ model Cliente {
   representanteColaboradorId String?
   tokenAcompanhamento String?    @unique
   ativo               Boolean    @default(true)
+  /** Quando preenchido, some da lista/lixeira mas pacientes, OS e lançamentos permanecem. */
+  removidoEm          DateTime?
   createdAt           DateTime   @default(now())
   updatedAt           DateTime   @updatedAt
   pacientes           Paciente[]
@@ -182,6 +184,7 @@ model Cliente {
   nfseEmissoes        NfseEmissao[]
 
   @@index([empresaId])
+  @@index([removidoEm])
 }
 
 model Paciente {
