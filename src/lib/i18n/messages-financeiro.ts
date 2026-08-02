@@ -293,7 +293,7 @@ export const messagesFinanceiroPt = {
   "financeiro.receber.resumoAdiantamentosAReceber":
     "Adiantamentos {adiantamentos} | A Receber {aReceber}",
   "financeiro.receber.resumoAtraso": "Contas em Atraso",
-  "financeiro.receber.resumoRecebidas": "Contas Recebidas",
+  "financeiro.receber.resumoRecebidas": "Receitas do período",
   "financeiro.receber.naoFaturados": "Entregues | Finalizados não faturados",
   "financeiro.receber.lancarReceita": "Lançar Receita (Gerar Cobrança)",
   "financeiro.receber.relatorios": "Relatórios",
@@ -695,7 +695,7 @@ export const messagesFinanceiroEn = {
   "financeiro.receber.resumoAdiantamentosAReceber":
     "Advances {adiantamentos} | To Receive {aReceber}",
   "financeiro.receber.resumoAtraso": "Overdue Bills",
-  "financeiro.receber.resumoRecebidas": "Received Bills",
+  "financeiro.receber.resumoRecebidas": "Period revenue",
   "financeiro.receber.naoFaturados": "Delivered | Completed not invoiced",
   "financeiro.receber.lancarReceita": "Add Revenue (Generate Billing)",
   "financeiro.receber.relatorios": "Reports",

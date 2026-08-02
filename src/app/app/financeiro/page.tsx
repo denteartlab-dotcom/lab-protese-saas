@@ -104,7 +104,8 @@ import {
   exportarContasReceberClientesCsv,
   gerarContasReceberClientesPdf,
 } from "@/lib/contas-receber-clientes-export";
-import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, isRecebimentoParcial, deveExibirNoHistoricoRecebimentos, valorHistoricoRecebimentoCliente, referenciaLancamento as referenciaHistoricoRecebimento, recebidoNaFatura as recebidoNaFaturaLib, saldoFatura as saldoFaturaLib, classeReferenciaHistoricoRecebimento, faturaExibeSituacaoParcial, faturasExibicaoPainelCliente, faturaQuitada, recebimentosHistoricoCliente, movimentacoesRecebimentoDaFatura, ehFaturaCobrancaOsParaExclusao, idsLancamentosExclusaoAoRemoverFatura, ehDescricaoFaturaContasReceber, type LancamentoContasReceber } from "@/lib/contas-receber-financeiro";
+import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, isRecebimentoParcial, deveExibirNoHistoricoRecebimentos, valorHistoricoRecebimentoCliente, referenciaLancamento as referenciaHistoricoRecebimento, recebidoNaFatura as recebidoNaFaturaLib, saldoFatura as saldoFaturaLib, classeReferenciaHistoricoRecebimento, faturaExibeSituacaoParcial, faturasExibicaoPainelCliente, faturaQuitada, recebimentosHistoricoCliente, movimentacoesRecebimentoDaFatura, ehFaturaCobrancaOsParaExclusao, idsLancamentosExclusaoAoRemoverFatura, ehDescricaoFaturaContasReceber, lancamentoReceitaNoPeriodo, type LancamentoContasReceber } from "@/lib/contas-receber-financeiro";
+import { valorCaixaReceitaPaga } from "@/lib/lancamento-valor-caixa";
 import { fetchPainelFinanceiro } from "@/lib/financeiro-painel-cliente";
 import type { PainelFinanceiroReceita } from "@/lib/financeiro-painel-types";
 import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
@@ -388,9 +389,15 @@ function FinanceiroReceberConteudo() {
     status: "pendente",
   });
   const [osRemovidasEdicao, setOsRemovidasEdicao] = useState<string[]>([]);
-  const [periodo, setPeriodo] = useState("todos");
-  const [dataInicio, setDataInicio] = useState("");
-  const [dataFinal, setDataFinal] = useState("");
+  const [periodo, setPeriodo] = useState("mes");
+  const [dataInicio, setDataInicio] = useState(() => {
+    const hoje = new Date();
+    return dateToBrShort(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
+  });
+  const [dataFinal, setDataFinal] = useState(() => {
+    const hoje = new Date();
+    return dateToBrShort(new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0));
+  });
   const [situacao, setSituacao] = useState("");
   const [busca, setBusca] = useState("");
   const [form, setForm] = useState({
@@ -748,8 +755,9 @@ function FinanceiroReceberConteudo() {
     return Array.from(grupos.values())
       .map((grupo) => ({
         ...grupo,
+        // Recebido = receitas registradas no período (não o acumulado histórico).
         recebido: grupo.clienteId
-          ? calcularRecebidoCliente(grupo.clienteId, todosReceitas, null, null)
+          ? calcularRecebidoCliente(grupo.clienteId, todosReceitas, inicio, fim)
           : 0,
         adiantamentos: creditoDisponivelCliente(grupo.clienteId),
       }))
@@ -820,12 +828,33 @@ function FinanceiroReceberConteudo() {
   const resumoReceber = useMemo(() => {
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
+    const inicio = dataInicio ? parseBrShortDate(dataInicio) : null;
+    const fim = dataFinal ? parseBrShortDate(dataFinal) : null;
+    if (inicio) inicio.setHours(0, 0, 0, 0);
+    if (fim) fim.setHours(23, 59, 59, 999);
 
-    // KPIs alinhados à tabela visível (evita adiantamento gerado ≠ disponível / recebido).
+    const receitas = (data?.lancamentos || []).filter((l) => l.tipo === "receita");
+    // KPI "Contas Recebidas" = soma das receitas registradas (caixa) no período filtrado.
+    let recebidas = 0;
+    for (const l of receitas) {
+      if (!lancamentoReceitaNoPeriodo(l, inicio, fim)) continue;
+      recebidas += valorCaixaReceitaPaga(
+        {
+          id: l.id,
+          tipo: l.tipo,
+          descricao: l.descricao,
+          valor: l.valor,
+          status: l.status,
+          formaPagamento: l.formaPagamento,
+          cliente: l.cliente,
+        },
+        receitas
+      );
+    }
+
     return clientesReceber.reduce(
       (acc, cliente) => {
         acc.aReceber += cliente.aReceber;
-        acc.recebidas += cliente.recebido;
         acc.adiantamentos += cliente.adiantamentos;
         for (const l of cliente.lancamentos) {
           if (l.tipo !== "receita" || l.status === "pago" || l.status === "cancelado") {
@@ -837,9 +866,9 @@ function FinanceiroReceberConteudo() {
         }
         return acc;
       },
-      { aReceber: 0, atraso: 0, recebidas: 0, adiantamentos: 0, naoFaturados: 0 }
+      { aReceber: 0, atraso: 0, recebidas, adiantamentos: 0, naoFaturados: 0 }
     );
-  }, [clientesReceber]);
+  }, [clientesReceber, data, dataInicio, dataFinal]);
 
   const trabalhosSelecionados = useMemo(
     () => trabalhos.filter((trabalho) => osSelecionadas.includes(trabalho.id)),
