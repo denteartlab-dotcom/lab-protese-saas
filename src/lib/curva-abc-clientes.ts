@@ -1,13 +1,16 @@
 import { parseBrDate } from "@/lib/datas-br";
+import { valorCaixaReceitaPaga } from "@/lib/lancamento-valor-caixa";
 import { flagsUrgenciaTrabalho } from "@/lib/modulo-producao-os";
 
-/** Recebimento no financeiro (receita paga). */
+/** Recebimento no financeiro (receita paga) — valor efetivo de caixa na agregação. */
 export type RecebimentoCurvaAbc = {
   id: string;
   tipo: string;
   valor: number;
   data: string;
   status: string;
+  descricao?: string;
+  formaPagamento?: string | null;
   cliente?: { id?: string; nome?: string | null } | null;
   clienteId?: string | null;
   trabalhoId?: string | null;
@@ -20,6 +23,7 @@ export type TrabalhoCurvaAbc = {
   tipoProtese: string;
   instrucoes?: string | null;
   clienteId?: string | null;
+  clienteNome?: string | null;
 };
 
 export type FiltrosCurvaAbcClientes = {
@@ -81,11 +85,13 @@ function recebimentoNoPeriodo(
   inicio: Date | null,
   fim: Date | null
 ) {
-  if (!inicio || !fim) return true;
+  if (!inicio && !fim) return true;
   const d = new Date(dataIso);
   if (Number.isNaN(d.getTime())) return false;
   d.setHours(12, 0, 0, 0);
-  return d >= inicio && d <= fim;
+  if (inicio && d < inicio) return false;
+  if (fim && d > fim) return false;
+  return true;
 }
 
 function filtrosOsAtivos(filtros: FiltrosCurvaAbcClientes) {
@@ -148,6 +154,7 @@ function passaFiltroUrgenciaRepeticao(
   if (!filtrosOsAtivos(filtros)) return true;
 
   const trabalho = resolverTrabalhoDoRecebimento(recebimento, indice);
+  // OS excluída/inexistente: não entra na curva quando o filtro depende da OS.
   if (!trabalho) return false;
 
   const flags = flagsUrgenciaTrabalho(trabalho);
@@ -166,28 +173,108 @@ function filtrarRecebimentos(
 
   return recebimentos.filter((r) => {
     if (r.tipo !== "receita") return false;
-    if (r.status !== "pago") return false;
+    if (String(r.status || "").toLowerCase() !== "pago") return false;
     if (!recebimentoNoPeriodo(r.data, inicio, fim)) return false;
     if (!passaFiltroUrgenciaRepeticao(r, indice, filtros)) return false;
     return true;
   });
 }
 
-function nomeClienteRecebimento(r: RecebimentoCurvaAbc) {
-  return r.cliente?.nome?.trim() || "Sem cliente";
+function chaveENomeCliente(
+  r: RecebimentoCurvaAbc,
+  indice: IndiceTrabalhosCurvaAbc
+): { chave: string; nome: string } {
+  const id = (r.clienteId || r.cliente?.id || "").trim();
+  const nomeDireto = r.cliente?.nome?.trim();
+  if (id && nomeDireto) return { chave: `id:${id}`, nome: nomeDireto };
+  if (id) {
+    const trabalho = resolverTrabalhoDoRecebimento(r, indice);
+    const nome = trabalho?.clienteNome?.trim() || nomeDireto || "Sem cliente";
+    return { chave: `id:${id}`, nome };
+  }
+  const trabalho = resolverTrabalhoDoRecebimento(r, indice);
+  if (trabalho?.clienteId) {
+    return {
+      chave: `id:${trabalho.clienteId}`,
+      nome: trabalho.clienteNome?.trim() || nomeDireto || "Sem cliente",
+    };
+  }
+  const nome = nomeDireto || trabalho?.clienteNome?.trim() || "Sem cliente";
+  return { chave: `nome:${nome.toLowerCase()}`, nome };
 }
 
-function agregarPorCliente(recebimentos: RecebimentoCurvaAbc[]) {
-  const mapa = new Map<string, number>();
+function agregarPorCliente(
+  recebimentos: RecebimentoCurvaAbc[],
+  indice: IndiceTrabalhosCurvaAbc,
+  todosParaCaixa: RecebimentoCurvaAbc[]
+) {
+  const mapa = new Map<string, { nome: string; valor: number }>();
+  const baseCaixa = todosParaCaixa.map((r) => ({
+    id: r.id,
+    tipo: r.tipo,
+    descricao: r.descricao || "",
+    valor: r.valor,
+    status: r.status,
+    formaPagamento: r.formaPagamento,
+    cliente: r.cliente?.id ? { id: r.cliente.id, nome: r.cliente.nome || undefined } : null,
+  }));
+
   for (const r of recebimentos) {
-    const nome = nomeClienteRecebimento(r);
-    const valor = Number(r.valor) || 0;
-    if (valor <= 0) continue;
-    mapa.set(nome, (mapa.get(nome) || 0) + valor);
+    const valor = valorCaixaReceitaPaga(
+      {
+        id: r.id,
+        tipo: r.tipo,
+        descricao: r.descricao || "",
+        valor: r.valor,
+        status: r.status,
+        formaPagamento: r.formaPagamento,
+        cliente: r.cliente?.id
+          ? { id: r.cliente.id, nome: r.cliente.nome || undefined }
+          : null,
+      },
+      baseCaixa
+    );
+    if (valor <= 0.009) continue;
+    const { chave, nome } = chaveENomeCliente(r, indice);
+    const atual = mapa.get(chave);
+    if (atual) atual.valor += valor;
+    else mapa.set(chave, { nome, valor });
   }
-  return [...mapa.entries()]
-    .map(([cliente, valor]) => ({ cliente, valor }))
+
+  return [...mapa.values()]
+    .map(({ nome, valor }) => ({ cliente: nome, valor }))
     .sort((a, b) => b.valor - a.valor);
+}
+
+/**
+ * Curva ABC por valor atual das OS (produção).
+ * Exclusão/edição de OS ou valor reflete imediatamente.
+ */
+export function gerarCurvaAbcClientesPorOs(
+  trabalhos: Array<{
+    clienteId?: string | null;
+    clienteNome?: string | null;
+    valor: number;
+    status?: string | null;
+  }>
+): ResultadoCurvaAbcClientes {
+  const mapa = new Map<string, { nome: string; valor: number }>();
+  for (const t of trabalhos) {
+    if (String(t.status || "").toLowerCase() === "cancelado") continue;
+    const valor = Math.max(0, Number(t.valor) || 0);
+    if (valor <= 0.009) continue;
+    const id = (t.clienteId || "").trim();
+    const nome = t.clienteNome?.trim() || "Sem cliente";
+    const chave = id ? `id:${id}` : `nome:${nome.toLowerCase()}`;
+    const atual = mapa.get(chave);
+    if (atual) atual.valor += valor;
+    else mapa.set(chave, { nome, valor });
+  }
+  const agregados = [...mapa.values()]
+    .map(({ nome, valor }) => ({ cliente: nome, valor }))
+    .sort((a, b) => b.valor - a.valor);
+  const total = agregados.reduce((s, a) => s + a.valor, 0);
+  return classificarSecoes(agregados, total);
 }
 
 function classificarSecoes(agregados: { cliente: string; valor: number }[], total: number) {
@@ -257,14 +344,17 @@ export function classificarCurvaAbcPorNome(
   return classificarSecoes(agregados, total);
 }
 
-/** Curva ABC com base nos recebimentos (receita paga) do financeiro. */
+/**
+ * Curva ABC com base no dinheiro realmente recebido (caixa),
+ * sem duplicar fatura + parcial/crédito.
+ */
 export function gerarCurvaAbcClientes(
   recebimentos: RecebimentoCurvaAbc[],
   indice: IndiceTrabalhosCurvaAbc,
   filtros: FiltrosCurvaAbcClientes
 ): ResultadoCurvaAbcClientes {
   const filtrados = filtrarRecebimentos(recebimentos, indice, filtros);
-  const agregados = agregarPorCliente(filtrados);
+  const agregados = agregarPorCliente(filtrados, indice, recebimentos);
   const total = agregados.reduce((s, a) => s + a.valor, 0);
   return classificarSecoes(agregados, total);
 }

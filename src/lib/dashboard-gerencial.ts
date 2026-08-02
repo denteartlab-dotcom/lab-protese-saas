@@ -1,11 +1,14 @@
 import {
   classificarCurvaAbcPorNome,
+  criarIndiceTrabalhosCurvaAbc,
   gerarCurvaAbcClientes,
+  gerarCurvaAbcClientesPorOs,
   type RecebimentoCurvaAbc,
   type SecaoCurvaAbc,
 } from "@/lib/curva-abc-clientes";
 import { desempacotarDespesa } from "@/lib/lancamento-despesa";
 import { calcularMatrizDre, type LancamentoDre } from "@/lib/dre";
+import { valorEfetivoLancamentoFinanceiro } from "@/lib/lancamento-valor-caixa";
 import {
   calcularResumoFinanceiroDashboard,
   contarClientesInadimplentes,
@@ -26,6 +29,7 @@ import {
   type TrabalhoProducaoResumo,
 } from "@/lib/dashboard-producao";
 import { filtrarTrabalhosAtrasados } from "@/lib/controle-producao-prazos";
+import { dateToBrShort } from "@/lib/datas-br";
 export const MESES_DASHBOARD_GERENCIAL = [
   "Jan",
   "Fev",
@@ -321,7 +325,29 @@ export function calcularDashboardGerencial(input: {
     if (anoData(l.data) !== ano) continue;
     const m = mesIndex(l.data);
     if (l.status === "pago") {
-      contasReceber[m].recebido += Math.abs(l.valor);
+      const efetivo = valorEfetivoLancamentoFinanceiro(
+        {
+          id: l.id,
+          tipo: l.tipo,
+          descricao: l.descricao,
+          valor: l.valor,
+          status: l.status,
+          formaPagamento: l.formaPagamento,
+          cliente: l.clienteId ? { id: l.clienteId, nome: l.clienteNome || undefined } : null,
+        },
+        lancamentosFinanceiro.map((x) => ({
+          id: x.id,
+          tipo: x.tipo,
+          descricao: x.descricao,
+          valor: x.valor,
+          status: x.status,
+          formaPagamento: x.formaPagamento,
+          cliente: x.clienteId
+            ? { id: x.clienteId, nome: x.clienteNome || undefined }
+            : null,
+        }))
+      );
+      contasReceber[m].recebido += efetivo;
     } else {
       const saldo = saldoFaturaCobrancaOs(l, lancamentosFinanceiro);
       if (saldo > 0.005) contasReceber[m].aReceber += saldo;
@@ -332,26 +358,58 @@ export function calcularDashboardGerencial(input: {
     if (l.status === "cancelado") continue;
     if (anoData(l.data) !== ano) continue;
     const m = mesIndex(l.data);
+    const efetivo = valorEfetivoLancamentoFinanceiro(l, lancamentos);
+    if (efetivo <= 0.009) continue;
     if (isReceitaPaga(l)) {
-      receitasDespesas[m].receitas += Math.abs(l.valor);
+      receitasDespesas[m].receitas += efetivo;
     } else if (isDespesaRealizada(l)) {
-      receitasDespesas[m].despesas += Math.abs(l.valor);
+      receitasDespesas[m].despesas += efetivo;
     }
   }
 
-  const itensServicoValor = trabalhosServico.map((t) => ({
-    nome: nomeServicoExibicao(t.tipoProtese || ""),
-    valor: valorServicoTrabalhoFinanceiro(trabalhoParaValorFinanceiro(t)),
-  }));
+  const itensServicoValor = trabalhosServico
+    .map((t) => ({
+      nome: nomeServicoExibicao(t.tipoProtese || ""),
+      valor: valorServicoTrabalhoFinanceiro(trabalhoParaValorFinanceiro(t)),
+    }))
+    .filter((item) => item.valor > 0.009);
 
-  const curvaClientes = gerarCurvaAbcClientes(recebimentosCurva, { porId: new Map(), porNumeroOs: new Map() }, {
-    dataInicio: "",
-    dataFim: "",
-    repeticao: "",
-    urgente: "",
-  });
+  // ABC Clientes: valor atual das OS do ano (editar/excluir OS atualiza a curva).
+  // Complementa com recebimentos de caixa do ano (mesma regra do relatório ABC).
+  const curvaPorOs = gerarCurvaAbcClientesPorOs(
+    trabalhosAno.map((t) => ({
+      clienteId: t.clienteId,
+      clienteNome: t.clienteNome,
+      valor: valorServicoTrabalhoFinanceiro(trabalhoParaValorFinanceiro(t)),
+      status: t.status,
+    }))
+  );
 
-  const curvaAbcClientesSecoes = curvaClientes.secoes;
+  const indiceTrabalhos = criarIndiceTrabalhosCurvaAbc(
+    trabalhos.map((t) => ({
+      id: t.id,
+      numeroOs: t.numeroOs,
+      tipoProtese: t.tipoProtese || "",
+      instrucoes: t.instrucoes,
+      clienteId: t.clienteId,
+      clienteNome: t.clienteNome,
+    }))
+  );
+
+  const curvaPorRecebimentos = gerarCurvaAbcClientes(
+    recebimentosCurva,
+    indiceTrabalhos,
+    {
+      dataInicio: dateToBrShort(new Date(ano, 0, 1)),
+      dataFim: dateToBrShort(new Date(ano, 11, 31)),
+      repeticao: "",
+      urgente: "",
+    }
+  );
+
+  // Preferência: OS do ano (reflete edição/exclusão). Se não houver OS com valor, usa caixa.
+  const curvaAbcClientesSecoes =
+    curvaPorOs.total > 0.009 ? curvaPorOs.secoes : curvaPorRecebimentos.secoes;
 
   const secoesServicos = classificarCurvaAbcPorNome(itensServicoValor).secoes;
   const secoesFornecedores = classificarCurvaAbcPorNome(

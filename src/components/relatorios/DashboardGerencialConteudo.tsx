@@ -51,6 +51,7 @@ import {
   type ItemCurvaAbcDashboard,
 } from "@/lib/dashboard-gerencial";
 import { FINANCEIRO_ATUALIZADO_EVENT } from "@/lib/financeiro-events";
+import { TRABALHOS_ATUALIZADOS_EVENT } from "@/lib/trabalhos-events";
 import { cn } from "@/lib/utils";
 
 const COR = {
@@ -598,7 +599,9 @@ export function DashboardGerencialConteudo() {
   const carregar = useCallback(async (silencioso = false) => {
     if (!silencioso) setCarregando(true);
     try {
-      const res = await fetch(`/api/relatorios/dashboard-gerencial?ano=${ano}`);
+      const res = await fetch(`/api/relatorios/dashboard-gerencial?ano=${ano}`, {
+        cache: "no-store",
+      });
       const json = res.ok ? await res.json() : payloadVazio(ano);
       setDados(json);
     } catch {
@@ -621,10 +624,17 @@ export function DashboardGerencialConteudo() {
         void carregar(true);
       }, 320);
     };
+    const onVisivel = () => {
+      if (document.visibilityState === "visible") atualizar();
+    };
     window.addEventListener(FINANCEIRO_ATUALIZADO_EVENT, atualizar);
+    window.addEventListener(TRABALHOS_ATUALIZADOS_EVENT, atualizar);
+    document.addEventListener("visibilitychange", onVisivel);
     return () => {
       if (timer) clearTimeout(timer);
       window.removeEventListener(FINANCEIRO_ATUALIZADO_EVENT, atualizar);
+      window.removeEventListener(TRABALHOS_ATUALIZADOS_EVENT, atualizar);
+      document.removeEventListener("visibilitychange", onVisivel);
     };
   }, [carregar]);
 

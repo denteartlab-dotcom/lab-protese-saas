@@ -25,6 +25,8 @@ import {
 } from "@/lib/curva-abc-clientes";
 import { abrirPdfGerando } from "@/lib/pdf-viewer";
 import { gerarCurvaAbcClientesPdf } from "@/lib/relatorios-impressao-pdf";
+import { FINANCEIRO_ATUALIZADO_EVENT } from "@/lib/financeiro-events";
+import { TRABALHOS_ATUALIZADOS_EVENT } from "@/lib/trabalhos-events";
 
 const labelClass = "mb-1 block text-[11px] font-normal text-[#6b7280] dark:text-slate-400";
 const selectClass =
@@ -163,6 +165,8 @@ export function CurvaAbcClientesConteudo() {
             valor: number;
             data: string;
             status: string;
+            descricao?: string;
+            formaPagamento?: string | null;
             cliente?: { id?: string; nome?: string | null } | null;
             clienteId?: string | null;
             trabalhoId?: string | null;
@@ -173,6 +177,8 @@ export function CurvaAbcClientesConteudo() {
             valor: Number(l.valor) || 0,
             data: l.data,
             status: l.status,
+            descricao: l.descricao || "",
+            formaPagamento: l.formaPagamento,
             cliente: l.cliente,
             clienteId: l.clienteId ?? l.cliente?.id ?? null,
             trabalhoId: l.trabalhoId ?? l.trabalho?.id ?? null,
@@ -190,13 +196,14 @@ export function CurvaAbcClientesConteudo() {
               tipoProtese?: string;
               instrucoes?: string | null;
               clienteId?: string | null;
-              cliente?: { id?: string } | null;
+              cliente?: { id?: string; nome?: string | null } | null;
             }) => ({
               id: t.id,
               numeroOs: Number(t.numeroOs) || 0,
               tipoProtese: t.tipoProtese || "",
               instrucoes: t.instrucoes,
               clienteId: t.clienteId ?? t.cliente?.id ?? null,
+              clienteNome: t.cliente?.nome ?? null,
             })
           )
         : [];
@@ -213,6 +220,24 @@ export function CurvaAbcClientesConteudo() {
       await recarregarDados();
       setCarregando(false);
     })();
+  }, [recarregarDados]);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const atualizar = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        void recarregarDados();
+      }, 320);
+    };
+    window.addEventListener(FINANCEIRO_ATUALIZADO_EVENT, atualizar);
+    window.addEventListener(TRABALHOS_ATUALIZADOS_EVENT, atualizar);
+    return () => {
+      if (timer) clearTimeout(timer);
+      window.removeEventListener(FINANCEIRO_ATUALIZADO_EVENT, atualizar);
+      window.removeEventListener(TRABALHOS_ATUALIZADOS_EVENT, atualizar);
+    };
   }, [recarregarDados]);
 
   const resultado = useMemo<ResultadoCurvaAbcClientes | null>(() => {

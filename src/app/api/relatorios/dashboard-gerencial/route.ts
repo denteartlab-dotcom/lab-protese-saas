@@ -61,9 +61,11 @@ export async function GET(request: Request) {
         select: {
           id: true,
           tipo: true,
+          descricao: true,
           valor: true,
           data: true,
           status: true,
+          formaPagamento: true,
           clienteId: true,
           trabalhoId: true,
           cliente: { select: { id: true, nome: true } },
@@ -80,6 +82,7 @@ export async function GET(request: Request) {
       data: l.data.toISOString(),
       status: l.status,
       formaPagamento: l.formaPagamento,
+      cliente: l.cliente ? { id: l.cliente.id, nome: l.cliente.nome } : null,
     }));
 
     const lancamentosFinanceiro = lancamentosRaw.map((l) => ({
@@ -122,6 +125,8 @@ export async function GET(request: Request) {
         valor: r.valor,
         data: r.data.toISOString(),
         status: r.status,
+        descricao: r.descricao,
+        formaPagamento: r.formaPagamento,
         clienteId: r.clienteId,
         cliente: r.cliente,
         trabalhoId: r.trabalhoId,
