@@ -253,10 +253,7 @@ export function lancamentosDrilldownDre(
     if (!lancamentoEfetivadoFinanceiro(l)) return false;
     if (anoDaData(dataIso) !== ano) return false;
     if (mesIndexDaData(dataIso) !== mesIndex) return false;
-    const valor = valorEfetivoLancamentoFinanceiro(
-      { ...l, data: dataIso },
-      lancamentos
-    );
+    const valor = valorEfetivoLancamentoFinanceiro(l, lancamentos);
     if (valor <= 0.009) return false;
     const bucket = classificarLancamentoDre({ ...l, data: dataIso }, plano);
     if (linhaId === "receita_liquida") {
