@@ -1,5 +1,6 @@
 import { desempacotarDespesa } from "@/lib/lancamento-despesa";
 import { lancamentoEfetivadoFinanceiro } from "@/lib/lancamento-financeiro-realizado";
+import { valorEfetivoLancamentoFinanceiro } from "@/lib/lancamento-valor-caixa";
 import {
   carregarPlanoContas,
   categoriaPadraoLancamento,
@@ -17,6 +18,7 @@ export type LancamentoDre = {
   data: string;
   status: string;
   formaPagamento?: string | null;
+  cliente?: { id: string; nome?: string } | null;
 };
 
 export type DreLinhaId =
@@ -251,6 +253,11 @@ export function lancamentosDrilldownDre(
     if (!lancamentoEfetivadoFinanceiro(l)) return false;
     if (anoDaData(dataIso) !== ano) return false;
     if (mesIndexDaData(dataIso) !== mesIndex) return false;
+    const valor = valorEfetivoLancamentoFinanceiro(
+      { ...l, data: dataIso },
+      lancamentos
+    );
+    if (valor <= 0.009) return false;
     const bucket = classificarLancamentoDre({ ...l, data: dataIso }, plano);
     if (linhaId === "receita_liquida") {
       return bucket === "receita_bruta" || bucket === "impostos";
@@ -259,7 +266,10 @@ export function lancamentosDrilldownDre(
       return true;
     }
     return linhaPertenceDrilldown(bucket, linhaId);
-  });
+  }).map((l) => ({
+    ...l,
+    valor: valorEfetivoLancamentoFinanceiro(l, lancamentos),
+  }));
 }
 
 /** Preferência: lançamentos indexados na própria matriz (mesma origem dos totais). */
@@ -301,12 +311,13 @@ export function calcularMatrizDre(
     if (anoDaData(l.data) !== ano) continue;
     const m = mesIndexDaData(l.data);
     if (m < 0 || m > 11) continue;
+    const valor = valorEfetivoLancamentoFinanceiro(l, lancamentos);
+    if (valor <= 0.009) continue;
     const bucket = classificarLancamentoDre(l, plano);
-    const valor = Math.abs(l.valor);
     buckets[m][bucket] += valor;
-    drilldownPorMes[m].push(l);
+    drilldownPorMes[m].push({ ...l, valor });
     for (const linhaId of bucketsParaLinhaDrilldown(bucket)) {
-      adicionarDrilldownCelula(drilldownPorCelula, linhaId, m, l);
+      adicionarDrilldownCelula(drilldownPorCelula, linhaId, m, { ...l, valor });
     }
   }
 

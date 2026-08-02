@@ -181,11 +181,12 @@ export function DreConteudo() {
       const data = await res.json();
       const lista = Array.isArray(data.lancamentos) ? data.lancamentos : [];
       setLancamentos(
-        lista.map((item: LancamentoDre) => ({
+        lista.map((item: LancamentoDre & { cliente?: { id: string; nome?: string } | null }) => ({
           ...item,
           data: dataLancamentoDreIso(item.data) || String(item.data || ""),
           status: String(item.status || "").trim().toLowerCase(),
           tipo: String(item.tipo || "").trim().toLowerCase(),
+          cliente: item.cliente?.id ? { id: item.cliente.id, nome: item.cliente.nome } : null,
         }))
       );
       setPlanoContas(carregarPlanoContas());

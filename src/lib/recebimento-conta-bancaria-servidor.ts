@@ -6,6 +6,8 @@ import {
   normalizarNomeContaRecebimento,
 } from "@/lib/conta-bancaria";
 import { listarContasBancariasServidor } from "@/lib/conta-bancaria-servidor";
+import { findLancamentosFinanceiro } from "@/lib/lancamentos-cobranca";
+import { valorCaixaReceitaPaga } from "@/lib/lancamento-valor-caixa";
 import {
   contaReceitaLancamento,
   descricaoReceitaSemMeta,
@@ -23,6 +25,9 @@ type LancamentoRecebimento = {
   valor: number;
   status: string;
   data: Date;
+  formaPagamento?: string | null;
+  clienteId?: string | null;
+  cliente?: { id: string; nome?: string } | null;
 };
 
 async function contaIdParaRecebimento(empresaId: string, descricao: string) {
@@ -49,6 +54,38 @@ export async function sincronizarMovimentacaoRecebimentoServidor(
     return;
   }
 
+  const receitas = await findLancamentosFinanceiro({
+    where: { empresaId, tipo: "receita" },
+    orderBy: { data: "desc" },
+  });
+  const valorCaixa = valorCaixaReceitaPaga(
+    {
+      id: lancamento.id,
+      tipo: lancamento.tipo,
+      descricao: lancamento.descricao,
+      valor: lancamento.valor,
+      status: lancamento.status,
+      formaPagamento: lancamento.formaPagamento,
+      cliente:
+        lancamento.cliente ||
+        (lancamento.clienteId ? { id: lancamento.clienteId } : null),
+    },
+    receitas.map((r) => ({
+      id: r.id,
+      tipo: r.tipo,
+      descricao: r.descricao,
+      valor: r.valor,
+      status: r.status,
+      formaPagamento: r.formaPagamento,
+      cliente: r.cliente,
+    }))
+  );
+
+  if (valorCaixa <= 0.009) {
+    await removerMovimentacoesRecebimentoServidor(empresaId, [lancamento.id]);
+    return;
+  }
+
   const contaId = await contaIdParaRecebimento(empresaId, lancamento.descricao);
   if (!contaId) return;
 
@@ -63,14 +100,14 @@ export async function sincronizarMovimentacaoRecebimentoServidor(
       id: movId,
       contaId: contaIdDb,
       tipo: "entrada",
-      valor: lancamento.valor,
+      valor: valorCaixa,
       descricao,
       data: lancamento.data,
     },
     update: {
       contaId: contaIdDb,
       tipo: "entrada",
-      valor: lancamento.valor,
+      valor: valorCaixa,
       descricao,
       data: lancamento.data,
     },

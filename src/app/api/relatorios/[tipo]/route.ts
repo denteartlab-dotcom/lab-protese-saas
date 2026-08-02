@@ -64,7 +64,11 @@ export async function GET(request: Request, { params }: Params) {
   const formato = (url.searchParams.get("formato") || "json").toLowerCase();
 
   if (tipo === "fluxo-de-caixa") {
-    const lancamentos = await prisma.lancamento.findMany({
+    const { findLancamentosFinanceiro } = await import("@/lib/lancamentos-cobranca");
+    const { valorEfetivoLancamentoFinanceiro } = await import(
+      "@/lib/lancamento-valor-caixa"
+    );
+    const lancamentos = await findLancamentosFinanceiro({
       where: {
         empresaId: ctx.empresaId,
         ...(de && ate
@@ -76,18 +80,22 @@ export async function GET(request: Request, { params }: Params) {
 
     let entradas = 0;
     let saidas = 0;
-    const linhas = lancamentos.map((l) => {
-      if (l.tipo === "receita" && l.status === "pago") entradas += l.valor;
-      if (l.tipo === "despesa" && l.status === "pago") saidas += l.valor;
-      return {
-        id: l.id,
-        data: l.data.toISOString(),
-        descricao: l.descricao,
-        tipo: l.tipo,
-        valor: l.valor,
-        status: l.status,
-        formaPagamento: l.formaPagamento ?? null,
-      };
+    const base = lancamentos.map((l) => ({
+      id: l.id,
+      data: l.data.toISOString(),
+      descricao: l.descricao,
+      tipo: l.tipo,
+      valor: l.valor,
+      status: l.status,
+      formaPagamento: l.formaPagamento ?? null,
+      cliente: l.cliente ? { id: l.cliente.id, nome: l.cliente.nome } : null,
+    }));
+
+    const linhas = base.map((l) => {
+      const efetivo = valorEfetivoLancamentoFinanceiro(l, base);
+      if (l.tipo === "receita" && l.status === "pago") entradas += efetivo;
+      if (l.tipo === "despesa" && l.status === "pago") saidas += efetivo;
+      return l;
     });
 
     const resposta: RelatorioResposta = {

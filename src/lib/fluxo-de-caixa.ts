@@ -6,9 +6,10 @@ import {
 import { desempacotarDespesa } from "@/lib/lancamento-despesa";
 import { parseBrDate } from "@/lib/datas-br";
 import { lancamentoEfetivadoFinanceiro } from "@/lib/lancamento-financeiro-realizado";
+import { valorEfetivoLancamentoFinanceiro } from "@/lib/lancamento-valor-caixa";
 import { ehDescricaoReceitaOs } from "@/lib/os-faturamento";
 import { descricaoReceitaSemMeta } from "@/lib/receita-conta-bancaria";
-import { lancamentosComMovimentacaoRecebimento } from "@/lib/recebimento-conta-bancaria";
+import { movimentacaoEhDeRecebimento } from "@/lib/recebimento-conta-bancaria";
 
 export type LancamentoFluxo = {
   id: string;
@@ -18,6 +19,7 @@ export type LancamentoFluxo = {
   data: string;
   status: string;
   formaPagamento?: string | null;
+  cliente?: { id: string; nome?: string } | null;
 };
 
 export type ModoFluxoCaixa = "diario" | "mensal";
@@ -186,8 +188,6 @@ function movimentosBrutos(
   situacao: SituacaoFluxoCaixa = "realizado"
 ) {
   const contaPorId = new Map(contas.map((c) => [c.id, c]));
-  /** Mesmo dedupe da Conta Bancária: evita contar receita paga + mov-rec-* juntos. */
-  const receitasViaMovimentacao = lancamentosComMovimentacaoRecebimento(movimentacoes);
   const linhas: Array<{
     id: string;
     data: Date;
@@ -200,11 +200,15 @@ function movimentosBrutos(
 
   for (const l of lancamentos) {
     if (!lancamentoIncluido(l, situacao)) continue;
-    if (l.tipo === "receita" && l.id && receitasViaMovimentacao.has(l.id)) continue;
     const data = new Date(l.data);
     if (Number.isNaN(data.getTime())) continue;
     const conta = contaDeLancamento(l, "Caixa Principal");
-    const valor = l.tipo === "receita" ? l.valor : -l.valor;
+    const efetivo =
+      situacao === "realizado"
+        ? valorEfetivoLancamentoFinanceiro(l, lancamentos)
+        : Math.abs(l.valor);
+    if (efetivo <= 0.009) continue;
+    const valor = l.tipo === "receita" ? efetivo : -efetivo;
     linhas.push({
       id: l.id,
       data,
@@ -217,6 +221,8 @@ function movimentosBrutos(
   }
 
   for (const m of movimentacoes) {
+    // mov-rec-* já está refletido no valor de caixa do lançamento — não duplicar.
+    if (movimentacaoEhDeRecebimento(m)) continue;
     const conta = contaPorId.get(m.contaId);
     if (!conta || conta.excluida) continue;
     const data = new Date(m.data);

@@ -1,6 +1,7 @@
 import { desempacotarDespesa } from "@/lib/lancamento-despesa";
+import { valorEfetivoLancamentoFinanceiro } from "@/lib/lancamento-valor-caixa";
 import { contaReceitaLancamento } from "@/lib/receita-conta-bancaria";
-import { lancamentosComMovimentacaoRecebimento } from "@/lib/recebimento-conta-bancaria";
+import { movimentacaoEhDeRecebimento } from "@/lib/recebimento-conta-bancaria";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
 
 export type AcaoContaBancaria = "movimentar" | "baixar" | "adicionar_credito";
@@ -174,6 +175,8 @@ type LancamentoResumo = {
   descricao: string;
   valor: number;
   status: string;
+  formaPagamento?: string | null;
+  cliente?: { id: string; nome?: string } | null;
 };
 
 function normalizarSaldoLegado(contas: ContaBancaria[]): ContaBancaria[] {
@@ -329,19 +332,21 @@ export function calcularSaldoConta(
   movimentacoes: MovimentacaoContaBancaria[]
 ) {
   let saldo = conta.saldoInicial;
-  const receitasViaMovimentacao = lancamentosComMovimentacaoRecebimento(movimentacoes);
 
   for (const l of lancamentos) {
     if (l.status !== "pago") continue;
-    if (l.tipo === "receita" && l.id && receitasViaMovimentacao.has(l.id)) continue;
     const contaRef = contaDeLancamento(l, "Caixa Principal");
     if (contaRef !== conta.nome) continue;
-    if (l.tipo === "receita") saldo += l.valor;
-    else saldo -= l.valor;
+    const efetivo = valorEfetivoLancamentoFinanceiro(l, lancamentos);
+    if (efetivo <= 0.009) continue;
+    if (l.tipo === "receita") saldo += efetivo;
+    else saldo -= efetivo;
   }
 
   for (const m of movimentacoes) {
     if (m.contaId !== conta.id) continue;
+    // mov-rec-* já está no valor de caixa do lançamento — não duplicar.
+    if (movimentacaoEhDeRecebimento(m)) continue;
     if (m.tipo === "entrada") saldo += m.valor;
     else saldo -= m.valor;
   }
