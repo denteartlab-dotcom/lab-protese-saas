@@ -125,13 +125,22 @@ export function recebidoNaFatura(
 }
 
 export function lancamentoReceitaNoPeriodo(
-  lancamento: LancamentoContasReceber,
+  lancamento: Pick<LancamentoContasReceber, "data">,
   inicio: Date | null,
   fim: Date | null
 ) {
-  const dataLancamento = new Date(lancamento.data);
-  if (inicio && dataLancamento < inicio) return false;
-  if (fim && dataLancamento > fim) return false;
+  // Compara só o dia civil (evita deslocar ISO UTC para o dia anterior no BR).
+  const dataLancamento = dateOnly(lancamento.data);
+  if (inicio) {
+    const ini = new Date(inicio);
+    ini.setHours(0, 0, 0, 0);
+    if (dataLancamento < ini) return false;
+  }
+  if (fim) {
+    const fimDia = new Date(fim);
+    fimDia.setHours(0, 0, 0, 0);
+    if (dataLancamento > fimDia) return false;
+  }
   return true;
 }
 

@@ -104,8 +104,8 @@ import {
   exportarContasReceberClientesCsv,
   gerarContasReceberClientesPdf,
 } from "@/lib/contas-receber-clientes-export";
-import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, isRecebimentoParcial, deveExibirNoHistoricoRecebimentos, valorHistoricoRecebimentoCliente, referenciaLancamento as referenciaHistoricoRecebimento, recebidoNaFatura as recebidoNaFaturaLib, saldoFatura as saldoFaturaLib, classeReferenciaHistoricoRecebimento, faturaExibeSituacaoParcial, faturasExibicaoPainelCliente, faturaQuitada, recebimentosHistoricoCliente, movimentacoesRecebimentoDaFatura, ehFaturaCobrancaOsParaExclusao, idsLancamentosExclusaoAoRemoverFatura, ehDescricaoFaturaContasReceber, lancamentoReceitaNoPeriodo, type LancamentoContasReceber } from "@/lib/contas-receber-financeiro";
-import { valorCaixaReceitaPaga } from "@/lib/lancamento-valor-caixa";
+import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, isRecebimentoParcial, deveExibirNoHistoricoRecebimentos, valorHistoricoRecebimentoCliente, referenciaLancamento as referenciaHistoricoRecebimento, recebidoNaFatura as recebidoNaFaturaLib, saldoFatura as saldoFaturaLib, classeReferenciaHistoricoRecebimento, faturaExibeSituacaoParcial, faturasExibicaoPainelCliente, faturaQuitada, recebimentosHistoricoCliente, movimentacoesRecebimentoDaFatura, ehFaturaCobrancaOsParaExclusao, idsLancamentosExclusaoAoRemoverFatura, ehDescricaoFaturaContasReceber, type LancamentoContasReceber } from "@/lib/contas-receber-financeiro";
+import { calcularContasRecebidasPeriodo } from "@/lib/lancamento-valor-caixa";
 import { fetchPainelFinanceiro } from "@/lib/financeiro-painel-cliente";
 import type { PainelFinanceiroReceita } from "@/lib/financeiro-painel-types";
 import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
@@ -833,24 +833,20 @@ function FinanceiroReceberConteudo() {
     if (inicio) inicio.setHours(0, 0, 0, 0);
     if (fim) fim.setHours(23, 59, 59, 999);
 
-    const receitas = (data?.lancamentos || []).filter((l) => l.tipo === "receita");
-    // KPI "Contas Recebidas" = soma das receitas registradas (caixa) no período filtrado.
-    let recebidas = 0;
-    for (const l of receitas) {
-      if (!lancamentoReceitaNoPeriodo(l, inicio, fim)) continue;
-      recebidas += valorCaixaReceitaPaga(
-        {
-          id: l.id,
-          tipo: l.tipo,
-          descricao: l.descricao,
-          valor: l.valor,
-          status: l.status,
-          formaPagamento: l.formaPagamento,
-          cliente: l.cliente,
-        },
-        receitas
-      );
-    }
+    const receitas = (data?.lancamentos || [])
+      .filter((l) => l.tipo === "receita")
+      .map((l) => ({
+        id: l.id,
+        tipo: l.tipo,
+        descricao: l.descricao,
+        valor: l.valor,
+        data: l.data,
+        status: l.status,
+        formaPagamento: l.formaPagamento,
+        cliente: l.cliente,
+      }));
+    // KPI Contas Recebidas = mesma função do Relatório Financeiro Geral.
+    const { total: recebidas } = calcularContasRecebidasPeriodo(receitas, inicio, fim);
 
     return clientesReceber.reduce(
       (acc, cliente) => {

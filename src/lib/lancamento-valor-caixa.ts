@@ -1,5 +1,6 @@
 import {
   contribuiRecebidoCliente,
+  lancamentoReceitaNoPeriodo,
   type LancamentoContasReceber,
 } from "@/lib/contas-receber-financeiro";
 
@@ -14,13 +15,17 @@ export type LancamentoValorCaixa = {
   cliente?: { id: string; nome?: string } | null;
 };
 
-function comoContasReceber(l: LancamentoValorCaixa): LancamentoContasReceber {
+export type LancamentoReceitaPeriodo = LancamentoValorCaixa & {
+  data: string | Date;
+};
+
+function comoContasReceber(l: LancamentoValorCaixa & { data?: string | Date }): LancamentoContasReceber {
   return {
     id: l.id || "",
     tipo: l.tipo,
     descricao: l.descricao,
     valor: l.valor,
-    data: "",
+    data: l.data ? String(l.data) : "",
     status: l.status,
     formaPagamento: l.formaPagamento,
     cliente: l.cliente,
@@ -72,4 +77,49 @@ export function valorEfetivoLancamentoFinanceiro(
   if (tipo === "receita") return valorCaixaReceitaPaga(lancamento, todos);
   if (tipo === "despesa") return Math.max(0, Number(lancamento.valor) || 0);
   return 0;
+}
+
+/**
+ * Mesma regra do KPI "Contas Recebidas" / receitas do período em Contas a Receber:
+ * receitas no intervalo de datas, valor de caixa (sem duplicar fatura+parcial/crédito).
+ */
+export function calcularContasRecebidasPeriodo(
+  lancamentos: LancamentoReceitaPeriodo[],
+  inicio: Date | null,
+  fim: Date | null
+): { total: number; quantidade: number } {
+  const receitas = lancamentos.filter(
+    (l) => String(l.tipo || "").toLowerCase() === "receita"
+  );
+  const baseCaixa: LancamentoValorCaixa[] = receitas.map((l) => ({
+    id: l.id,
+    tipo: l.tipo,
+    descricao: l.descricao || "",
+    valor: l.valor,
+    status: l.status,
+    formaPagamento: l.formaPagamento,
+    cliente: l.cliente,
+  }));
+
+  let total = 0;
+  let quantidade = 0;
+  for (const l of receitas) {
+    if (!lancamentoReceitaNoPeriodo(comoContasReceber(l), inicio, fim)) continue;
+    const valor = valorCaixaReceitaPaga(
+      {
+        id: l.id,
+        tipo: l.tipo,
+        descricao: l.descricao || "",
+        valor: l.valor,
+        status: l.status,
+        formaPagamento: l.formaPagamento,
+        cliente: l.cliente,
+      },
+      baseCaixa
+    );
+    if (valor <= 0.009) continue;
+    total += valor;
+    quantidade += 1;
+  }
+  return { total, quantidade };
 }
