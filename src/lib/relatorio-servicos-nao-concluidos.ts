@@ -13,7 +13,7 @@ import { normalizarChaveStatusOs } from "@/lib/status-os";
 import {
   chaveInicioProducaoOs,
   interpretarInicioProducaoOs,
-} from "@/lib/tempo-producao-status-servidor";
+} from "@/lib/tempo-producao-inicio";
 
 export const ETAPAS_RELATORIO = [
   "Montagem",

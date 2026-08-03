@@ -1,17 +1,18 @@
 import { lerJsonStoreTenant, salvarJsonStoreTenant } from "@/lib/json-store-tenant";
-import { normalizarChaveStatusOs } from "@/lib/status-os";
-import { grupoOsIdOf } from "@/lib/trabalho-os-segmento";
+import {
+  chaveInicioProducaoOs,
+  statusContaTempoProducao,
+} from "@/lib/tempo-producao-inicio";
 
 export const TEMPO_PRODUCAO_INICIO_STORAGE_KEY = "labProteseTempoProducaoInicio";
 
-type MapaInicioProducao = Record<string, string>;
+export {
+  chaveInicioProducaoOs,
+  interpretarInicioProducaoOs,
+  statusContaTempoProducao,
+} from "@/lib/tempo-producao-inicio";
 
-export function chaveInicioProducaoOs(trabalho: {
-  id: string;
-  grupoOsId?: string | null;
-}) {
-  return grupoOsIdOf(trabalho);
-}
+type MapaInicioProducao = Record<string, string>;
 
 export async function lerInicioProducaoOsServidor(empresaId: string) {
   const mapa = await lerJsonStoreTenant<MapaInicioProducao>(
@@ -36,16 +37,6 @@ export async function removerInicioProducaoOsServidor(empresaId: string, chave: 
   if (!(chave in mapa)) return;
   delete mapa[chave];
   await salvarJsonStoreTenant(empresaId, TEMPO_PRODUCAO_INICIO_STORAGE_KEY, mapa);
-}
-
-export function interpretarInicioProducaoOs(value?: string | null) {
-  if (!value) return null;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
-export function statusContaTempoProducao(status?: string | null) {
-  return normalizarChaveStatusOs(status) === "producao";
 }
 
 /** Registra início ao entrar em Produção; remove ao sair; reinicia o cronômetro ao retornar. */
