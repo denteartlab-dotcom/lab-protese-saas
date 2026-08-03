@@ -1,5 +1,6 @@
 import { parseBrDate } from "@/lib/datas-br";
 import { lancamentoEfetivadoFinanceiro } from "@/lib/lancamento-financeiro-realizado";
+import { valorEfetivoLancamentoFinanceiro } from "@/lib/lancamento-valor-caixa";
 
 export type LancamentoRelatorioFinanceiro = {
   id: string;
@@ -55,7 +56,19 @@ function mesesNoPeriodo(
   return meses;
 }
 
-/** Receitas e despesas efetivamente realizadas (status Pago) no período. */
+function paraValorCaixa(l: LancamentoRelatorioFinanceiro) {
+  return {
+    id: l.id,
+    tipo: l.tipo,
+    descricao: l.descricao || "",
+    valor: l.valor,
+    status: l.status,
+    formaPagamento: l.formaPagamento,
+    cliente: l.clienteId ? { id: l.clienteId } : null,
+  };
+}
+
+/** Receitas e despesas efetivamente realizadas (status Pago) no período — valor de caixa. */
 export function calcularFinanceiroLancamentosPeriodo(
   lancamentos: LancamentoRelatorioFinanceiro[],
   dataInicio: string,
@@ -66,6 +79,8 @@ export function calcularFinanceiroLancamentosPeriodo(
     parseBrDate(dataInicio) ?? new Date(new Date().getFullYear(), 0, 1);
   const fim = parseBrDate(dataFim) ?? new Date();
   fim.setHours(23, 59, 59, 999);
+
+  const baseCaixa = lancamentos.map(paraValorCaixa);
 
   const noPeriodo = lancamentos.filter((l) => {
     if (!lancamentoEfetivadoFinanceiro(l)) return false;
@@ -80,7 +95,8 @@ export function calcularFinanceiroLancamentosPeriodo(
   let despesasQtd = 0;
 
   for (const l of noPeriodo) {
-    const valor = Math.abs(Number(l.valor) || 0);
+    const valor = valorEfetivoLancamentoFinanceiro(paraValorCaixa(l), baseCaixa);
+    if (valor <= 0.009) continue;
     if (l.tipo === "receita") {
       receitasTotal += valor;
       receitasQtd += 1;
@@ -97,12 +113,14 @@ export function calcularFinanceiroLancamentosPeriodo(
         const d = new Date(l.data);
         return d.getFullYear() === ano && d.getMonth() === mesIdx;
       });
-      const receitas = doMes
-        .filter((l) => l.tipo === "receita")
-        .reduce((s, l) => s + Math.abs(Number(l.valor) || 0), 0);
-      const despesas = doMes
-        .filter((l) => l.tipo === "despesa")
-        .reduce((s, l) => s + Math.abs(Number(l.valor) || 0), 0);
+      let receitas = 0;
+      let despesas = 0;
+      for (const l of doMes) {
+        const valor = valorEfetivoLancamentoFinanceiro(paraValorCaixa(l), baseCaixa);
+        if (valor <= 0.009) continue;
+        if (l.tipo === "receita") receitas += valor;
+        else if (l.tipo === "despesa") despesas += valor;
+      }
       return {
         mes: label,
         mesIdx,
