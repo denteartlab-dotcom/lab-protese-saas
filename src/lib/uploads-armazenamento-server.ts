@@ -375,16 +375,31 @@ export async function calcularArmazenamentoGaleria(
       ? await tamanhoDiretorio(pastaBackupEmpresa(empresaSlug, empresaNome))
       : 0;
 
-  // OneDrive: uso do lab = bytes na pasta do cliente na nuvem (não a cota da conta inteira).
+  // OneDrive: uso = pasta do lab na nuvem. No Início (sem force) não faz scan
+  // recursivo no Graph — usa cache quente ou soma do banco e aquece em background.
   let bytesUsados = bytesDisco + bytesBanco + bytesBackup;
   if (onedrive && empresaSlug?.trim()) {
     try {
-      const { tamanhoPastaUploadsEmpresaOneDrive } = await import(
-        "@/lib/onedrive-graph"
-      );
-      bytesUsados = await tamanhoPastaUploadsEmpresaOneDrive(empresaSlug, {
-        force: Boolean(opcoes?.forceCota),
-      });
+      const {
+        peekTamanhoPastaUploadsEmpresaOneDrive,
+        tamanhoPastaUploadsEmpresaOneDrive,
+      } = await import("@/lib/onedrive-graph");
+      const force = Boolean(opcoes?.forceCota);
+      if (force) {
+        bytesUsados = await tamanhoPastaUploadsEmpresaOneDrive(empresaSlug, {
+          force: true,
+        });
+      } else {
+        const peek = peekTamanhoPastaUploadsEmpresaOneDrive(empresaSlug);
+        if (peek != null) {
+          bytesUsados = peek;
+        } else {
+          bytesUsados = bytesBanco;
+          void tamanhoPastaUploadsEmpresaOneDrive(empresaSlug).catch((erro) => {
+            console.warn("[uploads] aquecimento cache pasta OneDrive:", erro);
+          });
+        }
+      }
     } catch (erro) {
       console.warn("[uploads] tamanho pasta OneDrive indisponível, usando banco:", erro);
       bytesUsados = bytesBanco;

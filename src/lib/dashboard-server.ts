@@ -34,6 +34,8 @@ export type ParametrosDashboard = {
   limiteClientesServico: number;
   mesAniversario: number;
   escopo: EscopoDashboard;
+  /** No Início: pula scan/cota OneDrive (card de nuvem carrega à parte). */
+  incluirUploads: boolean;
 };
 
 function parseEscopoDashboard(raw: string | null): EscopoDashboard {
@@ -61,6 +63,7 @@ export function parseParametrosDashboard(
     searchParams.get("mesAniversario") ?? new Date().getMonth()
   );
   const escopo = parseEscopoDashboard(searchParams.get("escopo"));
+  const incluirUploads = searchParams.get("incluirUploads") !== "0";
 
   return {
     empresaId: ctx.empresaId,
@@ -72,6 +75,7 @@ export function parseParametrosDashboard(
     limiteClientesServico,
     mesAniversario,
     escopo,
+    incluirUploads,
   };
 }
 
@@ -319,6 +323,7 @@ async function montarDashboardSecundario(params: ParametrosDashboard) {
     mesAniversario,
     mes,
     ano,
+    incluirUploads,
   } = params;
 
   const filtroEmpresa = { empresaId };
@@ -350,11 +355,13 @@ async function montarDashboardSecundario(params: ParametrosDashboard) {
         clienteId: true,
       },
     }),
-    calcularArmazenamentoGaleria(
-      params.empresaId,
-      params.empresaSlug,
-      params.empresaNome
-    ),
+    incluirUploads
+      ? calcularArmazenamentoGaleria(
+          params.empresaId,
+          params.empresaSlug,
+          params.empresaNome
+        )
+      : Promise.resolve(null),
   ]);
 
   const aniversariantesMes = clientesAtivos
@@ -385,7 +392,7 @@ async function montarDashboardSecundario(params: ParametrosDashboard) {
     escopo: "secundario" as const,
     aniversariantesMes,
     clientesSemServico,
-    uploadsResumo,
+    ...(uploadsResumo ? { uploadsResumo } : {}),
     diasSemServico,
     mes,
     ano,

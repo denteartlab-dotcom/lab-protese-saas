@@ -26,8 +26,9 @@ export type CotaOneDriveGraph = {
   state?: string;
 };
 
-const CACHE_COTA_MS = 45_000;
-const CACHE_PASTA_UPLOADS_MS = 45_000;
+const CACHE_COTA_MS = 5 * 60_000;
+/** Cache longo no Início — listagem recursiva no Graph é cara. */
+const CACHE_PASTA_UPLOADS_MS = 5 * 60_000;
 
 const MODULOS_UPLOAD = [
   "os",
@@ -530,6 +531,22 @@ export function limparCachePastaUploadsEmpresaOneDrive(empresaSlug?: string) {
     .replace(/[^a-z0-9-_]+/g, "-")
     .replace(/^-+|-+$/g, "");
   globalGraph.__onedrivePastaUploads.delete(slug);
+}
+
+/** Soma em cache da pasta uploads (null se expirado/ausente) — sem chamar Graph. */
+export function peekTamanhoPastaUploadsEmpresaOneDrive(
+  empresaSlug: string
+): number | null {
+  if (!globalGraph.__onedrivePastaUploads) return null;
+  const slug = empresaSlug
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-_]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  if (!slug) return null;
+  const cached = globalGraph.__onedrivePastaUploads.get(slug);
+  if (!cached || Date.now() - cached.atMs >= CACHE_PASTA_UPLOADS_MS) return null;
+  return cached.arquivos.reduce((s, a) => s + a.bytes, 0);
 }
 
 /** Soma bytes da pasta uploads do laboratório no OneDrive. */

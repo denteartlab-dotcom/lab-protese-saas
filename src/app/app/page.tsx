@@ -131,6 +131,7 @@ type DashboardSecundario = Pick<
   const [data, setData] = useState<Dashboard | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [carregandoSecundario, setCarregandoSecundario] = useState(false);
+  const [carregandoUploads, setCarregandoUploads] = useState(false);
   const [clientePronto, setClientePronto] = useState(false);
   const [error, setError] = useState("");
   const [prazoVencendo, setPrazoVencendo] = useState<TipoPrazoProducao>("lab");
@@ -154,15 +155,36 @@ type DashboardSecundario = Pick<
         mes: String(mesFiltro),
         ano: String(anoFiltro),
         diasSemServico: String(diasSemServico),
-        clientesSemServicoLimite: "0",
+        // Painel mostra poucos; lista completa só na impressão.
+        clientesSemServicoLimite: "25",
         mesAniversario: String(new Date().getMonth()),
       }),
     [mesFiltro, anoFiltro, diasSemServico]
   );
 
+  const carregarUploadsResumo = useCallback((force = false) => {
+    setCarregandoUploads(true);
+    const url = force ? "/api/uploads?force=1" : "/api/uploads";
+    return fetch(url, {
+      cache: "no-store",
+      credentials: "same-origin",
+    })
+      .then(async (res) => {
+        if (!res.ok) return;
+        const uploadsResumo = await res.json();
+        setData((atual) => (atual ? { ...atual, uploadsResumo } : atual));
+      })
+      .catch(() => {
+        /* card usa vazio até próxima tentativa */
+      })
+      .finally(() => setCarregandoUploads(false));
+  }, []);
+
   const carregarDashboardSecundario = useCallback(() => {
     const params = paramsBase();
     params.set("escopo", "secundario");
+    // Aniversariantes/clientes sem esperar OneDrive.
+    params.set("incluirUploads", "0");
     setCarregandoSecundario(true);
     return apiFetch<DashboardSecundario>(`/api/dashboard?${params}`)
       .then((secundario) => {
@@ -180,31 +202,24 @@ type DashboardSecundario = Pick<
       .then((dash) => {
         setData((atual) => ({ ...atual, ...dash }));
         void carregarDashboardSecundario();
+        void carregarUploadsResumo(false);
       })
       .catch((e) => setError(e.message))
       .finally(() => setCarregando(false));
-  }, [paramsBase, carregarDashboardSecundario]);
+  }, [paramsBase, carregarDashboardSecundario, carregarUploadsResumo]);
 
   useEffect(() => {
     function atualizarEstoque() {
       void carregarDashboard();
     }
     function atualizarUploads() {
-      void fetch("/api/uploads?force=1", {
-        cache: "no-store",
-        credentials: "same-origin",
-      })
-        .then(async (res) => {
-          if (!res.ok) return;
-          const uploadsResumo = await res.json();
-          setData((atual) => (atual ? { ...atual, uploadsResumo } : atual));
-        })
-        .catch(() => {
-          void carregarDashboardSecundario();
-        });
+      // Após exclusão/upload: força recálculo; no foco normal usa cache.
+      void carregarUploadsResumo(true);
     }
     function onVisivel() {
-      if (document.visibilityState === "visible") atualizarUploads();
+      if (document.visibilityState === "visible") {
+        void carregarUploadsResumo(false);
+      }
     }
     window.addEventListener(PRODUTOS_ESTOQUE_EVENT, atualizarEstoque);
     window.addEventListener(UPLOADS_ATUALIZADO_EVENT, atualizarUploads);
@@ -216,7 +231,7 @@ type DashboardSecundario = Pick<
       document.removeEventListener("visibilitychange", onVisivel);
       window.removeEventListener("focus", onVisivel);
     };
-  }, [carregarDashboard, carregarDashboardSecundario]);
+  }, [carregarDashboard, carregarUploadsResumo]);
 
   useEffect(() => {
     if (!clientePronto || !data) return;
@@ -485,6 +500,8 @@ type DashboardSecundario = Pick<
               carregarListaImpressao={async () => {
                 const params = paramsBase();
                 params.set("escopo", "secundario");
+                params.set("incluirUploads", "0");
+                params.set("clientesSemServicoLimite", "0");
                 const dash = await apiFetch<DashboardSecundario>(`/api/dashboard?${params}`);
                 return dash.clientesSemServico ?? [];
               }}
@@ -492,13 +509,13 @@ type DashboardSecundario = Pick<
           )
         ) : null}
 
-        {carregandoSecundario && !dashboard.uploadsResumo ? (
+        {carregandoUploads && !dashboard.uploadsResumo ? (
           <DashboardWidgetSkeleton />
         ) : (
           <PainelUploadsDashboard
             titulo={t("dashboard.uploads")}
             resumo={dashboard.uploadsResumo ?? uploadsResumoVazio}
-            onResumoAtualizado={() => void carregarDashboardSecundario()}
+            onResumoAtualizado={() => void carregarUploadsResumo(true)}
           />
         )}
       </div>
