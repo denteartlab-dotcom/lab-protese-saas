@@ -563,7 +563,7 @@ function passaFiltros(
   if (
     filtros.tipoServico &&
     filtros.tipoServico !== "Todos" &&
-    linha.categoriaServico !== filtros.tipoServico
+    linha.servico.trim() !== filtros.tipoServico.trim()
   ) {
     return false;
   }
@@ -692,9 +692,9 @@ export function calcularRelatorioFinanceiroGeral(
 ): RelatorioFinanceiroGeralPayload {
   const inicio =
     parseBrDate(filtros.dataInicio) ??
-    new Date(new Date().getFullYear(), 0, 1);
+    new Date(new Date().getFullYear(), new Date().getMonth(), 1);
   const fim =
-    parseBrDate(filtros.dataFim) ?? new Date(new Date().getFullYear(), 11, 31);
+    parseBrDate(filtros.dataFim) ?? new Date();
   fim.setHours(23, 59, 59, 999);
 
   // Igual Contas a Receber: cliente inativo/excluído não entra.
@@ -836,10 +836,17 @@ export function calcularRelatorioFinanceiroGeral(
   const pct = (valor: number) => (baseStatus > 0 ? (valor / baseStatus) * 100 : 0);
 
   const clientesOpcoes = [
-    ...new Set(todasLinhas.map((l) => l.cliente).filter(Boolean)),
+    ...new Set(todasLinhasBase.map((l) => l.cliente).filter(Boolean)),
   ].sort((a, b) => a.localeCompare(b, "pt-BR"));
 
-  const tiposServicoOpcoes = [...CATEGORIAS_TIPO_SERVICO];
+  // Nomes reais dos serviços cadastrados nas OS (não categorias genéricas).
+  const tiposServicoOpcoes = [
+    ...new Set(
+      todasLinhasBase
+        .map((l) => l.servico.trim())
+        .filter((nome) => nome.length > 0 && nome !== "—")
+    ),
+  ].sort((a, b) => a.localeCompare(b, "pt-BR"));
 
   const financeiroRealizado = calcularFinanceiroLancamentosPeriodo(
     lancamentos,

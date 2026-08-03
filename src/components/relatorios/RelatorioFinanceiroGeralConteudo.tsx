@@ -40,7 +40,6 @@ import {
   exportarRelatorioFinanceiroGeralPdf,
 } from "@/lib/relatorio-financeiro-geral-export";
 import {
-  CATEGORIAS_TIPO_SERVICO,
   formatarMoedaFinanceiroGeral,
   formatarPercentualFinanceiroGeral,
   type FiltrosRelatorioFinanceiroGeral,
@@ -75,9 +74,9 @@ const selectClass =
 const inputClass =
   "h-[36px] w-full rounded-lg border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 pl-8 pr-3 text-[12px] text-[#374151] dark:text-slate-200 shadow-none outline-none focus:border-[#3498db] focus:ring-1 focus:ring-[#3498db]/20";
 
-function primeiroDiaAnoBr() {
+function primeiroDiaMesVigenteBr() {
   const hoje = new Date();
-  return dateToBrShort(new Date(hoje.getFullYear(), 0, 1));
+  return dateToBrShort(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
 }
 
 function hojeBr() {
@@ -166,7 +165,7 @@ const ITENS_POR_PAGINA = 10;
 export function RelatorioFinanceiroGeralConteudo() {
   const { t, locale } = useI18n();
   const [filtros, setFiltros] = useState<FiltrosRelatorioFinanceiroGeral>({
-    dataInicio: primeiroDiaAnoBr(),
+    dataInicio: primeiroDiaMesVigenteBr(),
     dataFim: hojeBr(),
     cliente: "Todos",
     tipoServico: "Todos",
@@ -406,9 +405,9 @@ export function RelatorioFinanceiroGeralConteudo() {
                 onChange={(e) => setFiltros((f) => ({ ...f, tipoServico: e.target.value }))}
               >
                 <option value="Todos">{t("relatorio.opcao.todos")}</option>
-                {CATEGORIAS_TIPO_SERVICO.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
+                {(dados?.tiposServicoOpcoes ?? []).map((servico) => (
+                  <option key={servico} value={servico}>
+                    {servico}
                   </option>
                 ))}
               </select>
