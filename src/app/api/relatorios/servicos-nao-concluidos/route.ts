@@ -12,6 +12,7 @@ import {
   type FiltrosServicosNaoConcluidos,
 } from "@/lib/relatorio-servicos-nao-concluidos";
 import type { TrabalhoFinanceiroGeralInput } from "@/lib/relatorio-financeiro-geral";
+import { lerInicioProducaoOsServidor } from "@/lib/tempo-producao-status-servidor";
 
 function parseMapaEtapas(valor: unknown): Record<string, number[]> {
   if (!valor || typeof valor !== "object" || Array.isArray(valor)) return {};
@@ -44,7 +45,7 @@ export async function GET(request: Request) {
     : padrao;
 
   try {
-    const [trabalhosRaw, mapaRaw] = await Promise.all([
+    const [trabalhosRaw, mapaRaw, mapaInicioProducao] = await Promise.all([
       prisma.trabalho.findMany({
         where: { empresaId: ctx.empresaId, status: { not: "cancelado" } },
         orderBy: [{ dataEntrada: "desc" }, { numeroOs: "desc" }],
@@ -55,6 +56,7 @@ export async function GET(request: Request) {
           valor: true,
           status: true,
           segmentoFaturamento: true,
+          grupoOsId: true,
           dataEntrada: true,
           dataPrevista: true,
           dataEntrega: true,
@@ -64,6 +66,7 @@ export async function GET(request: Request) {
         },
       }),
       lerJsonStoreTenant(ctx.empresaId, MODULO_PRODUCAO_ETAPAS_STORAGE_KEY),
+      lerInicioProducaoOsServidor(ctx.empresaId),
     ]);
 
     const trabalhos: TrabalhoFinanceiroGeralInput[] = trabalhosRaw.map((t) => ({
@@ -73,6 +76,7 @@ export async function GET(request: Request) {
       valor: t.valor,
       status: t.status,
       segmentoFaturamento: t.segmentoFaturamento,
+      grupoOsId: t.grupoOsId,
       dataEntrada: t.dataEntrada.toISOString(),
       dataPrevista: t.dataPrevista?.toISOString() ?? null,
       dataEntrega: t.dataEntrega?.toISOString() ?? null,
@@ -82,7 +86,12 @@ export async function GET(request: Request) {
     }));
 
     const mapaEtapas = parseMapaEtapas(mapaRaw);
-    const payload = calcularRelatorioServicosNaoConcluidos(trabalhos, filtros, mapaEtapas);
+    const payload = calcularRelatorioServicosNaoConcluidos(
+      trabalhos,
+      filtros,
+      mapaEtapas,
+      mapaInicioProducao
+    );
 
     return NextResponse.json(payload);
   } catch (error) {

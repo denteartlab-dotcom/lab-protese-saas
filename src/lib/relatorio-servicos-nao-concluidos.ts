@@ -10,6 +10,10 @@ import {
   type TrabalhoFinanceiroGeralInput,
 } from "@/lib/relatorio-financeiro-geral";
 import { normalizarChaveStatusOs } from "@/lib/status-os";
+import {
+  chaveInicioProducaoOs,
+  interpretarInicioProducaoOs,
+} from "@/lib/tempo-producao-status-servidor";
 
 export const ETAPAS_RELATORIO = [
   "Montagem",
@@ -136,16 +140,27 @@ function mesesNoPeriodo(inicio: Date, fim: Date) {
   return meses;
 }
 
+/**
+ * Serviços vencidos: só com situação Produção e prazo ultrapassado.
+ * Dias contam a partir do prazo; se a OS saiu e voltou para Produção,
+ * a contagem reinicia na data da reentrada (início de produção).
+ */
 function diasAtrasoTrabalho(
   trabalho: TrabalhoFinanceiroGeralInput,
-  referencia = localDate(new Date())
+  referencia = localDate(new Date()),
+  inicioProducao?: Date | null
 ) {
   if (!servicoNaoConcluidoRelatorio(trabalho.status)) return 0;
   if (!isTrabalhoAtrasado(trabalho, "lab", referencia)) return 0;
   const prazo = prazoTrabalho(trabalho, "lab");
   if (!prazo) return 0;
+  let base = prazo;
+  if (inicioProducao) {
+    const inicio = localDate(inicioProducao);
+    if (inicio.getTime() > base.getTime()) base = inicio;
+  }
   const diff = Math.floor(
-    (referencia.getTime() - prazo.getTime()) / (1000 * 60 * 60 * 24)
+    (referencia.getTime() - base.getTime()) / (1000 * 60 * 60 * 24)
   );
   return Math.max(0, diff);
 }
@@ -153,7 +168,8 @@ function diasAtrasoTrabalho(
 export function calcularRelatorioServicosNaoConcluidos(
   trabalhos: TrabalhoFinanceiroGeralInput[],
   filtros: FiltrosServicosNaoConcluidos,
-  mapaEtapas: Record<string, number[]> = {}
+  mapaEtapas: Record<string, number[]> = {},
+  mapaInicioProducao: Record<string, string> = {}
 ): RelatorioServicosNaoConcluidosPayload {
   const inicio =
     parseBrDate(filtros.dataInicio) ?? new Date(new Date().getFullYear(), 0, 1);
@@ -185,7 +201,15 @@ export function calcularRelatorioServicosNaoConcluidos(
     .map((l) => {
       const trabalho = mapaTrabalho.get(l.id);
       if (!trabalho) return null;
-      const diasAtraso = diasAtrasoTrabalho(trabalho, referencia);
+      const chaveInicio = chaveInicioProducaoOs(trabalho);
+      const inicioProducao = interpretarInicioProducaoOs(
+        mapaInicioProducao[chaveInicio]
+      );
+      const diasAtraso = diasAtrasoTrabalho(
+        trabalho,
+        referencia,
+        inicioProducao
+      );
       if (diasAtraso <= 0) return null;
       return {
         numeroOs: l.numeroOs,

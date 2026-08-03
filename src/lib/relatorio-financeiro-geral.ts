@@ -76,6 +76,7 @@ export type TrabalhoFinanceiroGeralInput = {
   valor: number;
   status: string;
   segmentoFaturamento: string;
+  grupoOsId?: string | null;
   dataEntrada: string;
   dataPrevista: string | null;
   dataEntrega: string | null;
