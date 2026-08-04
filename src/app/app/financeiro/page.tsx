@@ -389,15 +389,9 @@ function FinanceiroReceberConteudo() {
     status: "pendente",
   });
   const [osRemovidasEdicao, setOsRemovidasEdicao] = useState<string[]>([]);
-  const [periodo, setPeriodo] = useState("mes");
-  const [dataInicio, setDataInicio] = useState(() => {
-    const hoje = new Date();
-    return dateToBrShort(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
-  });
-  const [dataFinal, setDataFinal] = useState(() => {
-    const hoje = new Date();
-    return dateToBrShort(new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0));
-  });
+  const [periodo, setPeriodo] = useState("todos");
+  const [dataInicio, setDataInicio] = useState("");
+  const [dataFinal, setDataFinal] = useState("");
   const [situacao, setSituacao] = useState("");
   const [busca, setBusca] = useState("");
   const [form, setForm] = useState({
