@@ -141,7 +141,7 @@ export function PainelAniversariantesDashboard({
                     <span className="truncate text-[12px] font-medium text-slate-700">
                       {enviandoId === c.id
                         ? t("dashboard.gerandoMensagemAniversario")
-                        : c.nome}
+                        : c.nomeExibicao || c.nome}
                     </span>
                     <span className="shrink-0 text-[10px] text-slate-400">
                       {c.dataNascimento}

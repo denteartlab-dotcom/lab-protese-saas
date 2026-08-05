@@ -8,6 +8,7 @@ import { lancamentoEfetivadoFinanceiro } from "@/lib/lancamento-financeiro-reali
 import {
   clienteAniversarioHoje,
   clienteAniversarioNoMes,
+  clienteNomeComAbreviacao,
   dataNascimentoCliente,
   telefoneWhatsappCliente,
 } from "@/lib/cliente-observacoes";
@@ -15,6 +16,14 @@ import {
   calcularClientesSemServico,
   type AniversarianteMesItem,
 } from "@/lib/dashboard-clientes-servico";
+import { calcularResumoProducaoDashboard } from "@/lib/dashboard-producao";
+import { calcularResumoEstoqueDashboardServer } from "@/lib/dashboard-estoque-server";
+import { calcularArmazenamentoGaleria } from "@/lib/uploads-armazenamento-server";
+import {
+  enriquecerLinksAcompanhamentoUrgentes,
+  montarUrgentesClienteDashboard,
+  podarEventosUrgenciaInativos,
+} from "@/lib/urgencia-cliente";
 
 function montarAniversariantesMes(
   clientes: Array<{
@@ -37,6 +46,7 @@ function montarAniversariantesMes(
       return {
         id: c.id,
         nome: c.nome,
+        nomeExibicao: clienteNomeComAbreviacao(c),
         dataNascimento,
         dia: Number.isFinite(dia) ? dia : 1,
         celular: c.celular,
@@ -52,14 +62,6 @@ function montarAniversariantesMes(
       return a.dia - b.dia;
     });
 }
-import { calcularResumoProducaoDashboard } from "@/lib/dashboard-producao";
-import { calcularResumoEstoqueDashboardServer } from "@/lib/dashboard-estoque-server";
-import { calcularArmazenamentoGaleria } from "@/lib/uploads-armazenamento-server";
-import {
-  enriquecerLinksAcompanhamentoUrgentes,
-  montarUrgentesClienteDashboard,
-  podarEventosUrgenciaInativos,
-} from "@/lib/urgencia-cliente";
 
 export type EscopoDashboard = "core" | "secundario" | "completo";
 

@@ -12,6 +12,8 @@ export type ClienteSemServicoItem = {
 export type AniversarianteMesItem = {
   id: string;
   nome: string;
+  /** Nome com Dr./Dra./Clínica do cadastro. */
+  nomeExibicao?: string;
   dataNascimento: string;
   dia: number;
   celular?: string | null;
