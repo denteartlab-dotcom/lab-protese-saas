@@ -6,13 +6,52 @@ import {
 import { calcularResumoFinanceiroDashboard } from "@/lib/dashboard-financeiro";
 import { lancamentoEfetivadoFinanceiro } from "@/lib/lancamento-financeiro-realizado";
 import {
+  clienteAniversarioHoje,
   clienteAniversarioNoMes,
   dataNascimentoCliente,
+  telefoneWhatsappCliente,
 } from "@/lib/cliente-observacoes";
 import {
   calcularClientesSemServico,
   type AniversarianteMesItem,
 } from "@/lib/dashboard-clientes-servico";
+
+function montarAniversariantesMes(
+  clientes: Array<{
+    id: string;
+    nome: string;
+    observacoes?: string | null;
+    celular?: string | null;
+    telefone?: string | null;
+  }>,
+  mesAniversario: number
+): AniversarianteMesItem[] {
+  const hoje = new Date();
+  return clientes
+    .filter((c) => clienteAniversarioNoMes(c.observacoes, mesAniversario))
+    .map((c) => {
+      const dataNascimento = dataNascimentoCliente(c.observacoes);
+      const partes = dataNascimento.split("/");
+      const dia = Number.parseInt(partes[0] || "1", 10);
+      const aniversarioHoje = clienteAniversarioHoje(c.observacoes, hoje);
+      return {
+        id: c.id,
+        nome: c.nome,
+        dataNascimento,
+        dia: Number.isFinite(dia) ? dia : 1,
+        celular: c.celular,
+        telefone: c.telefone,
+        whatsapp: telefoneWhatsappCliente(c) || null,
+        aniversarioHoje,
+      };
+    })
+    .sort((a, b) => {
+      if (a.aniversarioHoje !== b.aniversarioHoje) {
+        return a.aniversarioHoje ? -1 : 1;
+      }
+      return a.dia - b.dia;
+    });
+}
 import { calcularResumoProducaoDashboard } from "@/lib/dashboard-producao";
 import { calcularResumoEstoqueDashboardServer } from "@/lib/dashboard-estoque-server";
 import { calcularArmazenamentoGaleria } from "@/lib/uploads-armazenamento-server";
@@ -265,22 +304,7 @@ export async function montarDashboard(params: ParametrosDashboard) {
   let clientesSemServico: ReturnType<typeof calcularClientesSemServico> | undefined;
 
   if (incluirSecundario) {
-    aniversariantesMes = clientesAtivos
-      .filter((c) => clienteAniversarioNoMes(c.observacoes, mesAniversario))
-      .map((c) => {
-        const dataNascimento = dataNascimentoCliente(c.observacoes);
-        const partes = dataNascimento.split("/");
-        const dia = Number.parseInt(partes[0] || "1", 10);
-        return {
-          id: c.id,
-          nome: c.nome,
-          dataNascimento,
-          dia: Number.isFinite(dia) ? dia : 1,
-          celular: c.celular,
-          telefone: c.telefone,
-        };
-      })
-      .sort((a, b) => a.dia - b.dia);
+    aniversariantesMes = montarAniversariantesMes(clientesAtivos, mesAniversario);
 
     clientesSemServico = calcularClientesSemServico(
       clientesAtivos,
@@ -364,22 +388,7 @@ async function montarDashboardSecundario(params: ParametrosDashboard) {
       : Promise.resolve(null),
   ]);
 
-  const aniversariantesMes = clientesAtivos
-    .filter((c) => clienteAniversarioNoMes(c.observacoes, mesAniversario))
-    .map((c) => {
-      const dataNascimento = dataNascimentoCliente(c.observacoes);
-      const partes = dataNascimento.split("/");
-      const dia = Number.parseInt(partes[0] || "1", 10);
-      return {
-        id: c.id,
-        nome: c.nome,
-        dataNascimento,
-        dia: Number.isFinite(dia) ? dia : 1,
-        celular: c.celular,
-        telefone: c.telefone,
-      };
-    })
-    .sort((a, b) => a.dia - b.dia);
+  const aniversariantesMes = montarAniversariantesMes(clientesAtivos, mesAniversario);
 
   const clientesSemServico = calcularClientesSemServico(
     clientesAtivos,

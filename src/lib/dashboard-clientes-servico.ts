@@ -16,6 +16,8 @@ export type AniversarianteMesItem = {
   dia: number;
   celular?: string | null;
   telefone?: string | null;
+  whatsapp?: string | null;
+  aniversarioHoje?: boolean;
 };
 
 export type TrabalhoUltimoServicoCliente = {

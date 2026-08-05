@@ -173,6 +173,18 @@ export function clienteAniversarioNoMes(
   return parsed.month === mes + 1;
 }
 
+export function clienteAniversarioHoje(
+  observacoes: string | null | undefined,
+  referencia = new Date()
+): boolean {
+  const parsed = parseDataNascimentoBr(dataNascimentoCliente(observacoes));
+  if (!parsed) return false;
+  return (
+    parsed.day === referencia.getDate() &&
+    parsed.month === referencia.getMonth() + 1
+  );
+}
+
 export function linhaObservacaoDataNascimento(data: string): string {
   const limpo = data.trim();
   if (!limpo) return "";
