@@ -9,7 +9,10 @@ import type {
   DadosFaturaImpressao,
   LinhaFaturaImpressao,
 } from "@/lib/fatura-impressao-html";
-import { descontoFaturaImpressaoTotal } from "@/lib/fatura-impressao-html";
+import {
+  descontoFaturaImpressaoTotal,
+  resolverUsuarioFaturaImpressao,
+} from "@/lib/fatura-impressao-html";
 import type { FaturaModeloLayout } from "@/lib/fatura-modelo-layout";
 import {
   FATURA_SMART_ESPACO_ASSINATURA_PIX_MM,
@@ -649,11 +652,15 @@ export async function gerarPdfFaturaImpressao(opts: {
     opts.cfgLab ??
     (typeof window !== "undefined" ? carregarConfigLaboratorio() : CONFIG_LAB_PADRAO);
   definirLocaleImpressao(resolverLocaleImpressao({ configLab: cfgLab }));
+  const dados: DadosFaturaImpressao = {
+    ...opts.dados,
+    usuario: resolverUsuarioFaturaImpressao(opts.dados.usuario, cfgLab),
+  };
   const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
   renderFaturaA4SmartPdf(
     pdf as unknown as PdfApi,
-    opts.dados,
+    dados,
     cfgLab,
     opts.layout,
     opts.modelo

@@ -26,6 +26,7 @@ import {
   faturaSuportaPdfNativo,
   gerarPdfFaturaImpressao,
 } from "@/lib/pdf-fatura-impressao";
+import type { DadosFaturaImpressao } from "@/lib/fatura-impressao-html";
 import type { FaturaImpressaoSessao } from "@/lib/fatura-impressao-sessao";
 import {
   montarUrlPdfFaturaServidor,
@@ -129,8 +130,30 @@ export function FaturaPdfViewer({
             () => carregarConfiguracoesFaturas()
           );
           if (seq !== buildPdfSeqRef.current) return;
+          let dadosPdf: DadosFaturaImpressao = dados;
+          const usuarioVazio =
+            !dados.usuario?.trim() ||
+            dados.usuario.trim() === "—" ||
+            dados.usuario.trim() === "-" ||
+            dados.usuario.trim() === "---";
+          if (usuarioVazio) {
+            try {
+              const res = await fetch("/api/auth/me", {
+                cache: "no-store",
+                credentials: "include",
+              });
+              if (res.ok) {
+                const me = (await res.json()) as { name?: string };
+                const nome = (me.name || "").trim();
+                if (nome) dadosPdf = { ...dados, usuario: nome };
+              }
+            } catch {
+              /* mantém dados */
+            }
+          }
+          if (seq !== buildPdfSeqRef.current) return;
           blob = await gerarPdfFaturaImpressao({
-            dados,
+            dados: dadosPdf,
             cfgLab: configLaboratorioCabecalhoAtual(),
             layout: resolverLayoutFaturaImpressao(cfgFaturas, modelo),
             modelo,

@@ -468,6 +468,8 @@ export function montarDadosFaturaImpressao(params: {
   clienteTelefones?: string;
   clienteEmail?: string;
   clienteEndereco?: string;
+  /** Quem gerou/imprimiu a fatura (usuário logado). */
+  usuario?: string;
   formatDate: (iso: string) => string;
   money: (n: number) => string;
 }): DadosFaturaImpressao {
@@ -551,7 +553,7 @@ export function montarDadosFaturaImpressao(params: {
     dentista: trabalhos[0]?.cliente?.nome?.trim() || clienteNome,
     observacao,
     dataEmissao: `${agora.toLocaleDateString("pt-BR")} ${agora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
-    usuario: "—",
+    usuario: params.usuario?.trim() || "—",
     creditoFatura,
     descontoFatura,
     descontoServicos,
@@ -1320,6 +1322,21 @@ function gerarHtmlFaturaTermica(
   return `<!doctype html><html><head><meta charset="utf-8"><title>${pl("print.fatura.titulo")} ${dados.numeroFatura}</title>${estilosBaseTermica(fs)}</head><body>${corpo}</body></html>`;
 }
 
+/** Resolve o campo Usuário do cabeçalho da fatura (quem gerou, com fallback do lab). */
+export function resolverUsuarioFaturaImpressao(
+  usuarioDados?: string | null,
+  cfgLab?: ConfigLaboratorio | null
+): string {
+  const informado = (usuarioDados || "").trim();
+  if (informado && informado !== "—" && informado !== "-" && informado !== "---") {
+    return informado;
+  }
+  const doLab = nomeUsuarioDocumentosLaboratorio(cfgLab).trim();
+  if (doLab) return doLab;
+  const cabecalho = cabecalhoRelatorioLaboratorio(cfgLab ?? undefined).nome?.trim() || "";
+  return cabecalho || "—";
+}
+
 export function gerarHtmlFaturaImpressao(
   dados: DadosFaturaImpressao,
   cfgLab: ConfigLaboratorio,
@@ -1333,10 +1350,7 @@ export function gerarHtmlFaturaImpressao(
   );
   const dadosImpressao: DadosFaturaImpressao = {
     ...dados,
-    usuario:
-      nomeUsuarioDocumentosLaboratorio(cfgLab) ||
-      cabecalhoRelatorioLaboratorio(cfgLab).nome ||
-      dados.usuario,
+    usuario: resolverUsuarioFaturaImpressao(dados.usuario, cfgLab),
   };
   const termica = formatoPorModeloFatura(opcoes.modelo) === "termica" || opcoes.formato === "termica";
   const layout = resolverLayoutFaturaImpressao(

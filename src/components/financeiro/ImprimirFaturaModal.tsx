@@ -91,9 +91,48 @@ export function ImprimirFaturaModal({
   const [formato, setFormato] = useState<FormatoImpressaoFatura>("a4");
   const [modelo, setModelo] = useState<ModeloFaturaId>("modelo1");
   const [duasVias, setDuasVias] = useState("nao");
+  const [usuarioImpressao, setUsuarioImpressao] = useState("");
   const ultimoModeloPorFormato = useRef<Partial<Record<FormatoImpressaoFatura, ModeloFaturaId>>>(
     {}
   );
+
+  useEffect(() => {
+    if (!open) return;
+    let ativo = true;
+    void fetch("/api/auth/me", { cache: "no-store", credentials: "include" })
+      .then(async (res) => {
+        if (!res.ok) return;
+        const data = (await res.json()) as { name?: string };
+        if (ativo) setUsuarioImpressao((data.name || "").trim());
+      })
+      .catch(() => undefined);
+    return () => {
+      ativo = false;
+    };
+  }, [open]);
+
+  function comUsuario(dados: DadosFaturaImpressao, nomeUsuario?: string): DadosFaturaImpressao {
+    const nome = (nomeUsuario || usuarioImpressao).trim();
+    if (!nome) return dados;
+    return { ...dados, usuario: nome };
+  }
+
+  async function resolverNomeUsuarioImpressao() {
+    if (usuarioImpressao.trim()) return usuarioImpressao.trim();
+    try {
+      const res = await fetch("/api/auth/me", {
+        cache: "no-store",
+        credentials: "include",
+      });
+      if (!res.ok) return "";
+      const data = (await res.json()) as { name?: string };
+      const nome = (data.name || "").trim();
+      if (nome) setUsuarioImpressao(nome);
+      return nome;
+    } catch {
+      return "";
+    }
+  }
 
   const recarregarConfig = useCallback(async () => {
     setSincronizando(true);
@@ -216,12 +255,15 @@ export function ImprimirFaturaModal({
   }
 
   async function gerarPdfFaturaBlob() {
-    const { html, cfgFaturas } = await prepararHtmlImpressao();
+    const [{ html, cfgFaturas }, nomeUsuario] = await Promise.all([
+      prepararHtmlImpressao(),
+      resolverNomeUsuarioImpressao(),
+    ]);
     const opcoes = opcoesAtuais();
     if (montarDados && faturaSuportaPdfNativo(modelo, formato)) {
       await sincronizarConfigLaboratorioDoServidor().catch(() => undefined);
       return gerarPdfFaturaImpressao({
-        dados: montarDados(opcoes, cfgFaturas),
+        dados: comUsuario(montarDados(opcoes, cfgFaturas), nomeUsuario),
         cfgLab: carregarConfigLaboratorio(),
         layout: resolverLayoutFaturaImpressao(cfgFaturas, modelo),
         modelo,
@@ -236,8 +278,12 @@ export function ImprimirFaturaModal({
     setGerandoPdf(true);
     const janela = prepararAbaPdf();
     try {
-      const { html, cfgFaturas } = await prepararHtmlImpressao();
+      const [{ html, cfgFaturas }, nomeUsuario] = await Promise.all([
+        prepararHtmlImpressao(),
+        resolverNomeUsuarioImpressao(),
+      ]);
       const opcoes = opcoesAtuais();
+      const dadosBase = montarDados?.(opcoes, cfgFaturas);
       await abrirFaturaNoVisualizador(
         {
           html,
@@ -246,7 +292,7 @@ export function ImprimirFaturaModal({
           subtitulo: subtituloFatura(),
           formato,
           modelo,
-          dados: montarDados?.(opcoes, cfgFaturas),
+          dados: dadosBase ? comUsuario(dadosBase, nomeUsuario) : undefined,
         },
         { janela, imprimir: imprimirAoCarregar }
       );
