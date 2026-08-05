@@ -83,11 +83,19 @@ export async function PATCH(request: Request, { params }: Params) {
     if (body.estado !== undefined) dadosEmpresa.estado = body.estado.trim() || null;
     if (body.observacoes !== undefined) dadosEmpresa.observacoes = body.observacoes.trim() || null;
     if (body.status !== undefined) dadosEmpresa.status = body.status;
-    if (body.dataVencimento !== undefined) {
+    // Data explícita tem prioridade. diasAssinatura só recalcula quando a data
+    // não veio preenchida (antes o dias sempre sobrescrevia a data do formulário).
+    const dataVencimentoInformada =
+      typeof body.dataVencimento === "string" && body.dataVencimento.trim() !== "";
+    if (dataVencimentoInformada) {
       dadosEmpresa.dataVencimento = parseDataVencimento(body.dataVencimento);
-    }
-    if (body.diasAssinatura !== undefined && body.status === "ativo") {
+    } else if (
+      body.diasAssinatura !== undefined &&
+      (body.status === "ativo" || (body.status === undefined && existente.status === "ativo"))
+    ) {
       dadosEmpresa.dataVencimento = calcularDataVencimentoAssinatura(body.diasAssinatura);
+    } else if (body.dataVencimento !== undefined) {
+      dadosEmpresa.dataVencimento = null;
     }
     if (body.plano !== undefined) {
       const plano = normalizarPlanoEmpresa(body.plano);

@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
 import type { Locale, MessageKey } from "@/lib/i18n";
+import { calcularDataVencimentoAssinatura } from "@/lib/assinatura-empresa";
 import { LIMITES_PLANO_PADRAO } from "@/lib/master-planos";
 import { cn } from "@/lib/utils";
 import {
@@ -31,6 +32,13 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+
+function dataParaInputDate(data: Date): string {
+  const y = data.getFullYear();
+  const m = String(data.getMonth() + 1).padStart(2, "0");
+  const d = String(data.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
 
 type Dashboard = {
   totalEmpresas: number;
@@ -718,9 +726,14 @@ export function AdminMasterPainel() {
                   type="number"
                   min={1}
                   value={form.diasAssinatura}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, diasAssinatura: Number(e.target.value) || 30 }))
-                  }
+                  onChange={(e) => {
+                    const dias = Math.max(1, Number(e.target.value) || 30);
+                    setForm((f) => ({
+                      ...f,
+                      diasAssinatura: dias,
+                      dataVencimento: dataParaInputDate(calcularDataVencimentoAssinatura(dias)),
+                    }));
+                  }}
                   className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#4a90d9]"
                 />
                 <p className="mt-1 text-[10px] text-slate-400">{t("admin.master.dica.diasAssinatura")}</p>
