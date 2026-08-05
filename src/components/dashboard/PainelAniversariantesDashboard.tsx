@@ -76,7 +76,12 @@ export function PainelAniversariantesDashboard({
       const res = await fetch("/api/dashboard/aniversariantes/mensagem", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clienteId: c.id, nomeCliente: c.nome }),
+        cache: "no-store",
+        body: JSON.stringify({
+          clienteId: c.id,
+          nomeCliente: c.nome,
+          semente: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.mensagem) {
