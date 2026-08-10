@@ -1,8 +1,8 @@
 "use client";
 
 import { I18nPortal } from "@/components/I18nPortal";
-import { useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal, flushSync } from "react-dom";
 import {
   ChevronsUpDown,
   Eye,
@@ -346,8 +346,31 @@ export function VisualizacaoClienteReceberModal({
   const [buscaExtrato, setBuscaExtrato] = useState("");
   const [gerandoExtrato, setGerandoExtrato] = useState(false);
   const [whatsappExtratoAberto, setWhatsappExtratoAberto] = useState(false);
+  const fechandoRef = useRef(false);
 
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    if (open) fechandoRef.current = false;
+  }, [open]);
+
+  function fecharModal(e?: {
+    preventDefault?: () => void;
+    stopPropagation?: () => void;
+  }) {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+    if (fechandoRef.current) return;
+    fechandoRef.current = true;
+    try {
+      (document.activeElement as HTMLElement | null)?.blur?.();
+    } catch {
+      /* ignore */
+    }
+    flushSync(() => {
+      onClose();
+    });
+  }
 
   useEffect(() => {
     if (!open || !cliente) return;
@@ -373,11 +396,6 @@ export function VisualizacaoClienteReceberModal({
     filtrosPainel.dataFinal,
     filtrosPainel.situacao,
   ]);
-
-  useEffect(() => {
-    if (!open || aba !== "extrato") return;
-    void onRecarregarDados?.();
-  }, [open, aba, onRecarregarDados]);
 
   const anosDisponiveis = useMemo(() => {
     const set = new Set<number>([new Date().getFullYear()]);
@@ -714,12 +732,12 @@ export function VisualizacaoClienteReceberModal({
   return createPortal(
     <I18nPortal>
       <div className="fixed inset-0 z-[65] flex p-2 sm:p-3">
-      <div className="absolute inset-0 bg-black/45" onClick={onClose} aria-hidden />
+      <div className="absolute inset-0 bg-black/45" onPointerDown={fecharModal} aria-hidden />
       <div
         role="dialog"
         aria-modal="true"
         className="relative flex h-full w-full flex-col rounded-sm border border-[#d1d5db] bg-white shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
       >
         <div className="shrink-0 border-b border-[#e5e7eb] bg-[#f9fafb] px-4 py-3">
           <div
@@ -741,7 +759,6 @@ export function VisualizacaoClienteReceberModal({
                   if (escolhido) onClienteChange(escolhido);
                 }}
                 inputClassName={selectClass}
-                menuEmPortal
                 options={clientes.map((c) => ({
                   value: c.clienteId ?? c.nome,
                   label: c.nome,
@@ -849,11 +866,12 @@ export function VisualizacaoClienteReceberModal({
             )}
             <button
               type="button"
-              onClick={onClose}
-              className="mb-0.5 flex h-8 w-8 items-center justify-center rounded-sm bg-[#dc2626] text-white hover:bg-[#b91c1c]"
+              onPointerDown={fecharModal}
+              onClick={fecharModal}
+              className="relative z-[11000] mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-[#dc2626] text-white hover:bg-[#b91c1c]"
               aria-label="Fechar"
             >
-              <X className="h-4 w-4" />
+              <X className="h-4 w-4 pointer-events-none" />
             </button>
           </div>
         </div>

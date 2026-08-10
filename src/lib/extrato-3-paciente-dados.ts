@@ -25,9 +25,9 @@ import { desempacotarDespesa } from "@/lib/lancamento-despesa";
 import { formatDate } from "@/lib/utils";
 import {
   classificarItemOs,
-  nomeExibicaoItemOs,
 } from "@/lib/trabalho-os-segmento";
 import {
+  descricaoItemComRotuloExtrato,
   descricaoServicoExtrato,
   formatarDentesExtratoOs,
   numeroOsExtrato,
@@ -272,10 +272,13 @@ export function montarExtrato3Paciente(
         lista.push(t);
         grupos.set(t.numeroOs, lista);
       }
-      const ordemOs =
-        osNums.length > 0
-          ? osNums.filter((n) => grupos.has(n))
-          : Array.from(grupos.keys()).sort((a, b) => a - b);
+      const ordemOs = [
+        ...new Set(
+          osNums.length > 0
+            ? osNums.filter((n) => grupos.has(n))
+            : Array.from(grupos.keys()).sort((a, b) => a - b)
+        ),
+      ];
 
       for (const numeroOs of ordemOs) {
         const grupo = grupos.get(numeroOs) ?? [];
@@ -307,71 +310,54 @@ export function montarExtrato3Paciente(
         const servicos = todosItens.filter(
           (i) => classificarItemOs({ servico: i.descricao }) === "servico"
         );
-        const extras = todosItens.filter(
-          (i) => classificarItemOs({ servico: i.descricao }) !== "servico"
+        const produtos = todosItens.filter(
+          (i) => classificarItemOs({ servico: i.descricao }) === "produto"
+        );
+        const transportes = todosItens.filter(
+          (i) => classificarItemOs({ servico: i.descricao }) === "transporte"
         );
 
-        if (servicos.length > 0) {
+        const empurrarGrupo = (
+          itens: ItemFaturaModelo3[],
+          opts: { dentes: string; fallback: string }
+        ) => {
+          if (!itens.length) return;
           const nomes = [
             ...new Set(
-              servicos
-                .map((i) =>
-                  descricaoServicoExtrato(nomeExibicaoItemOs({ servico: i.descricao }))
-                )
+              itens
+                .map((i) => descricaoItemComRotuloExtrato(i.descricao))
                 .filter((d) => d && d !== "—")
             ),
           ];
-          const valor = servicos.reduce((s, i) => s + i.subtotal, 0);
-          const qtdTotal = servicos.reduce(
+          const valor = itens.reduce((s, i) => s + i.subtotal, 0);
+          const qtdTotal = itens.reduce(
             (s, i) => s + (Number(String(i.qtd).replace(",", ".")) || 1),
             0
           );
-          const dentes = formatarDentesExtratoOs([
-            ...servicos.map((i) => i.numDente),
-            ...grupo.map((t) => t.dentes),
-          ]);
           const lista = porPaciente.get(nomePacTrabalho) ?? [];
           lista.push({
             os: osTxt,
             qtd: String(qtdTotal || 1),
             servico:
-              (nomes.join(", ") || "Cobrança") +
-              (dentes ? ` (${dentes})` : ""),
+              (nomes.join(", ") || opts.fallback) +
+              (opts.dentes ? ` (${opts.dentes})` : ""),
             entrega: entregue,
             valorUn: valor,
             descPercent: "0,00",
             valor,
           });
           porPaciente.set(nomePacTrabalho, lista);
-        }
+        };
 
-        if (extras.length > 0) {
-          const nomes = [
-            ...new Set(
-              extras
-                .map((i) =>
-                  descricaoServicoExtrato(nomeExibicaoItemOs({ servico: i.descricao }))
-                )
-                .filter((d) => d && d !== "—")
-            ),
-          ];
-          const valor = extras.reduce((s, i) => s + i.subtotal, 0);
-          const qtdTotal = extras.reduce(
-            (s, i) => s + (Number(String(i.qtd).replace(",", ".")) || 1),
-            0
-          );
-          const lista = porPaciente.get(nomePacTrabalho) ?? [];
-          lista.push({
-            os: osTxt,
-            qtd: String(qtdTotal || 1),
-            servico: nomes.join(", ") || "Produto / Transporte",
-            entrega: entregue,
-            valorUn: valor,
-            descPercent: "0,00",
-            valor,
-          });
-          porPaciente.set(nomePacTrabalho, lista);
-        }
+        empurrarGrupo(servicos, {
+          dentes: formatarDentesExtratoOs([
+            ...servicos.map((i) => i.numDente),
+            ...grupo.map((t) => t.dentes),
+          ]),
+          fallback: "Cobrança",
+        });
+        empurrarGrupo(produtos, { dentes: "", fallback: "Produto" });
+        empurrarGrupo(transportes, { dentes: "", fallback: "Frete" });
       }
     }
 

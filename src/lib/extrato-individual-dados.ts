@@ -136,8 +136,17 @@ function segmentoItemFatura(item: ItemFaturaModelo3): SegmentoFaturamento {
   return classificarItemOs({ servico: item.descricao });
 }
 
+/** Nome do item no Extrato, com sufixo (Produto) / (Frete) quando aplicável. */
+export function descricaoItemComRotuloExtrato(descricao: string): string {
+  const nome = descricaoServicoExtrato(nomeExibicaoItemOs({ servico: descricao }));
+  const seg = classificarItemOs({ servico: descricao });
+  if (seg === "produto") return `${nome} (Produto)`;
+  if (seg === "transporte") return `${nome} (Frete)`;
+  return nome;
+}
+
 function descricaoItemExtrato(item: ItemFaturaModelo3) {
-  return descricaoServicoExtrato(nomeExibicaoItemOs({ servico: item.descricao }));
+  return descricaoItemComRotuloExtrato(item.descricao);
 }
 
 /** SUP/INF quando a OS tem as duas arcadas; senão lista todos os dentes selecionados. */
@@ -253,10 +262,13 @@ function linhasServicoDaFaturaExtrato(
 
   if (trabalhosLinha.length > 0) {
     const grupos = agruparTrabalhosPorOs(trabalhosLinha);
-    const ordemOs =
-      osNums.length > 0
-        ? osNums.filter((n) => grupos.has(n))
-        : Array.from(grupos.keys()).sort((a, b) => a - b);
+    const ordemOs = [
+      ...new Set(
+        osNums.length > 0
+          ? osNums.filter((n) => grupos.has(n))
+          : Array.from(grupos.keys()).sort((a, b) => a - b)
+      ),
+    ];
 
     for (const numeroOs of ordemOs) {
       const grupo = grupos.get(numeroOs) ?? [];
@@ -287,55 +299,47 @@ function linhasServicoDaFaturaExtrato(
       }
 
       const servicos = todosItens.filter((i) => segmentoItemFatura(i) === "servico");
-      const extras = todosItens.filter((i) => segmentoItemFatura(i) !== "servico");
+      const produtos = todosItens.filter((i) => segmentoItemFatura(i) === "produto");
+      const transportes = todosItens.filter(
+        (i) => segmentoItemFatura(i) === "transporte"
+      );
 
-      if (servicos.length > 0) {
+      const empurrarGrupo = (
+        itens: ItemFaturaModelo3[],
+        opts: { dentes: string; fallback: string }
+      ) => {
+        if (!itens.length) return;
         const nomes = [
-          ...new Set(servicos.map(descricaoItemExtrato).filter((d) => d && d !== "—")),
+          ...new Set(itens.map(descricaoItemExtrato).filter((d) => d && d !== "—")),
         ];
-        const subtotal = servicos.reduce((s, i) => s + i.subtotal, 0);
-        const qtdTotal = servicos.reduce(
+        const subtotal = itens.reduce((s, i) => s + i.subtotal, 0);
+        const qtdTotal = itens.reduce(
           (s, i) => s + (Number(String(i.qtd).replace(",", ".")) || 1),
           0
         );
-        const dentes = formatarDentesExtratoOs([
+        linhasOs.push({
+          os: osTxt,
+          paciente,
+          numDente: opts.dentes,
+          dataEntrega,
+          descricao: nomes.join(", ") || opts.fallback,
+          qtd: String(qtdTotal || 1),
+          valorUn: subtotal,
+          subtotal,
+        });
+      };
+
+      empurrarGrupo(servicos, {
+        dentes: formatarDentesExtratoOs([
           ...servicos.map((i) => i.numDente),
           ...grupo.map((t) => t.dentes),
-        ]);
-        linhasOs.push({
-          os: osTxt,
-          paciente,
-          numDente: dentes,
-          dataEntrega,
-          descricao: nomes.join(", ") || descricaoBase,
-          qtd: String(qtdTotal || 1),
-          valorUn: subtotal,
-          subtotal,
-        });
-      }
+        ]),
+        fallback: descricaoBase,
+      });
+      empurrarGrupo(produtos, { dentes: "", fallback: "Produto" });
+      empurrarGrupo(transportes, { dentes: "", fallback: "Frete" });
 
-      if (extras.length > 0) {
-        const nomes = [
-          ...new Set(extras.map(descricaoItemExtrato).filter((d) => d && d !== "—")),
-        ];
-        const subtotal = extras.reduce((s, i) => s + i.subtotal, 0);
-        const qtdTotal = extras.reduce(
-          (s, i) => s + (Number(String(i.qtd).replace(",", ".")) || 1),
-          0
-        );
-        linhasOs.push({
-          os: osTxt,
-          paciente,
-          numDente: "",
-          dataEntrega,
-          descricao: nomes.join(", ") || "Produto / Transporte",
-          qtd: String(qtdTotal || 1),
-          valorUn: subtotal,
-          subtotal,
-        });
-      }
-
-      if (servicos.length === 0 && extras.length === 0) {
+      if (servicos.length === 0 && produtos.length === 0 && transportes.length === 0) {
         const valor = grupo.reduce((s, t) => s + valorTrabalho(t), 0);
         linhasOs.push({
           os: osTxt,
