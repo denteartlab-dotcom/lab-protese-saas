@@ -450,7 +450,7 @@ export async function abrirPdfGerandoComNomeNaUrl(
 ) {
   const janela = consumirJanelaReservada(opcoes?.janela) ?? prepararAbaPdf();
   const titulo = tituloAba.trim() || nomeArquivo.replace(/\.pdf$/i, "") || pl("print.comum.documento");
-  const nome = limparSegmentoNomeArquivo(nomeArquivo).replace(/\s+/g, "-");
+  const nome = limparSegmentoNomeArquivo(nomeArquivo);
   const nomeFinal = nome.toLowerCase().endsWith(".pdf") ? nome : `${nome}.pdf`;
 
   try {

@@ -20,8 +20,7 @@ export function sanitizarNomeArquivoPdf(nome: string) {
   const limpo = nome
     .trim()
     .replace(/[\\/:*?"<>|]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
+    .replace(/\s+/g, " ")
     .slice(0, 120);
   if (!limpo) return "documento.pdf";
   return limpo.toLowerCase().endsWith(".pdf") ? limpo : `${limpo}.pdf`;

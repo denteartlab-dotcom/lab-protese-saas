@@ -8,8 +8,7 @@ import {
   carregarConfigLaboratorio,
   telefoneWhatsappLaboratorio,
 } from "@/lib/configuracoes-lab";
-import { prepararAbaPdf } from "@/lib/pdf-viewer";
-import { abrirPdfBlobGerandoNoVisualizadorUnificado } from "@/lib/pdf-viewer-unificado";
+import { prepararAbaPdf, abrirPdfGerandoComNomeNaUrl } from "@/lib/pdf-viewer";
 import { gerarReciboRecebimentoPdf } from "@/lib/recibo-recebimento-pdf";
 import { proximoNomeArquivoReciboPdf } from "@/lib/recibo-arquivo-nome";
 import {
@@ -43,12 +42,12 @@ export function ImprimirReciboModal({
 
   function imprimir() {
     const janela = prepararAbaPdf();
-    const nomeArquivo = proximoNomeArquivoReciboPdf();
-    void abrirPdfBlobGerandoNoVisualizadorUnificado(
+    const nomeArquivo = proximoNomeArquivoReciboPdf(clienteNome);
+    void abrirPdfGerandoComNomeNaUrl(
       () => gerarReciboRecebimentoPdf(modelo, { clienteNome, linhas, locale }),
-      "Recibo",
+      `Recibo — ${clienteNome}`,
       nomeArquivo,
-      { janela, origem: "Financeiro · Recibo" }
+      { janela }
     );
   }
 
