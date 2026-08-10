@@ -62,6 +62,27 @@ export default async function RootLayout({
           }}
         />
         <Script
+          id="aplicar-zoom-sistema"
+          strategy="beforeInteractive"
+          nonce={nonce}
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function () {
+                try {
+                  var html = document.documentElement;
+                  html.style.setProperty("--site-zoom", "0.9");
+                  if (
+                    !html.classList.contains("site-zoom-full") &&
+                    !html.classList.contains("modo-tv-producao")
+                  ) {
+                    html.style.zoom = "0.9";
+                  }
+                } catch (e) { /* ignore */ }
+              })();
+            `,
+          }}
+        />
+        <Script
           id="aplicar-idioma-inicial"
           strategy="beforeInteractive"
           nonce={nonce}

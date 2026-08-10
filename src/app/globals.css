@@ -2,20 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Zoom global do sistema (90%). Fora do @layer para não ser sobrescrito pelo Tailwind. */
+/* Zoom global do sistema: 90% em todas as telas (exceto impressão / TV / editores full). */
 :root {
   --site-zoom: 0.9;
 }
 
 html {
-  zoom: var(--site-zoom);
+  zoom: 0.9 !important;
 }
 
 /* Telas de impressão / editor de modelos e módulo TV usam 100%. */
 html.site-zoom-full,
 html.modo-tv-producao {
   --site-zoom: 1;
-  zoom: 1;
+  zoom: 1 !important;
 }
 
 @layer base {

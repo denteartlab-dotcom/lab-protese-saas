@@ -280,13 +280,19 @@ function AppShellInner({
     const body = document.body;
     if (isPrint) {
       html.classList.add("site-zoom-full");
+      html.style.zoom = "1";
+      html.style.setProperty("--site-zoom", "1");
       body.classList.add("site-editor-tela-cheia");
     } else {
       html.classList.remove("site-zoom-full");
+      html.style.zoom = "0.9";
+      html.style.setProperty("--site-zoom", "0.9");
       body.classList.remove("site-editor-tela-cheia");
     }
     return () => {
       html.classList.remove("site-zoom-full");
+      html.style.zoom = "0.9";
+      html.style.setProperty("--site-zoom", "0.9");
       body.classList.remove("site-editor-tela-cheia");
     };
   }, [isPrint]);
