@@ -176,7 +176,10 @@ function linhasServicoDaFaturaExtrato(
   if (valorFatura <= 0.009) return [];
 
   const pack = desempacotarDespesa(l.descricao);
-  const osNums = numerosOsDoLancamentoFatura(l);
+  const osNums =
+    relacionados.length > 0
+      ? [...new Set(relacionados.map((t) => t.numeroOs).filter((n) => n > 0 && n < 1_000_000))]
+      : numerosOsDoLancamentoFatura(l);
   return [
     {
       tipo: "servico",
@@ -184,7 +187,7 @@ function linhasServicoDaFaturaExtrato(
       dataOrdem: base.dataOrdem,
       dataOrdemPeriodo: base.dataOrdemPeriodo,
       numFatura: base.numFatura,
-      os: osNums.length ? osNums.map(numeroOsExtrato).join(", ") : "",
+      os: osNums.length ? osNums.map(numeroOsExtrato).filter(Boolean).join(", ") : "",
       servico: descricaoServicoExtrato(pack.texto.split("\n")[0]?.trim() || "Cobrança"),
       qtd: "1",
       paciente: "—",
@@ -253,12 +256,17 @@ function descontoItem(qtd: string, valorUn: number, subtotal: number) {
   return Math.max(0, parseQtd(qtd) * valorUn - subtotal);
 }
 
-/** Apenas dígitos da OS (sem prefixo "OS" / "OS #"). */
+/** Apenas número da OS registrada (sem prefixo "OS" / "OS #" e sem ids aleatórios). */
 export function numeroOsExtrato(valor: string | number | null | undefined): string {
   if (valor == null || valor === "") return "";
+  if (typeof valor === "number") {
+    if (!Number.isInteger(valor) || valor <= 0 || valor >= 1_000_000) return "";
+    return String(valor);
+  }
   const texto = String(valor).trim();
-  const match = texto.match(/(\d+)/);
-  return match ? match[1] : texto.replace(/^OS\s*#?\s*/i, "").trim();
+  const limpo = texto.replace(/^OS\s*#?\s*/i, "").trim();
+  const match = limpo.match(/^(\d{1,6})$/);
+  return match ? match[1] : "";
 }
 
 /** Descrição do serviço sem "OS #" (a OS fica só na coluna OS). */

@@ -10,17 +10,27 @@ export type LancamentoFaturaOs = {
 
 export function numerosOsDoLancamentoFatura(lancamento: LancamentoFaturaOs): number[] {
   const numeros = new Set<number>();
-  if (lancamento.trabalho?.numeroOs) numeros.add(lancamento.trabalho.numeroOs);
-  const descricao = lancamento.descricao.replace(/\s+/g, " ");
-  const match = descricao.match(/cobran[cç]a\s+os\s+(.+)$/i);
+  if (lancamento.trabalho?.numeroOs && lancamento.trabalho.numeroOs > 0) {
+    numeros.add(lancamento.trabalho.numeroOs);
+  }
+
+  // Remove @@trab:ids@@ e outros metadados — senão dígitos do id viram "OS" falsas.
+  const descricao = lancamento.descricao
+    .replace(/@@trab:[a-zA-Z0-9_,-]+@@/gi, " ")
+    .replace(/@@[^@\n]+@@/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // Só a lista numérica logo após "Cobrança OS" (ex.: "12, 4"), nunca o restante da descrição.
+  const match = descricao.match(/cobran[cç]a\s+os\s+([\d]+(?:\s*,\s*[\d]+)*)/i);
   if (match) {
     match[1]
-      .split(" - ")[0]
-      .split(/[,\s]+/)
-      .map((value) => Number(value.replace(/\D/g, "")))
-      .filter((value) => Number.isFinite(value) && value > 0)
+      .split(",")
+      .map((value) => Number(value.trim()))
+      .filter((value) => Number.isInteger(value) && value > 0 && value < 1_000_000)
       .forEach((value) => numeros.add(value));
   }
+
   return Array.from(numeros);
 }
 
