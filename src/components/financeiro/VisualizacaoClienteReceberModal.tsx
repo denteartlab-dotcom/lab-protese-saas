@@ -31,8 +31,8 @@ import {
   valorHistoricoRecebimentoCliente,
 } from "@/lib/contas-receber-financeiro";
 import { parseParcelaNaDescricao } from "@/lib/fatura-financeiro-util";
-import { prepararAbaPdf } from "@/lib/pdf-viewer";
-import { abrirPdfBlobGerandoNoVisualizadorUnificado } from "@/lib/pdf-viewer-unificado";
+import { prepararAbaPdf, abrirPdfGerandoComNomeNaUrl } from "@/lib/pdf-viewer";
+import { proximoNomeArquivoExtratoPdf, tituloViewerExtratoModelo } from "@/lib/extrato-arquivo-nome";
 import type { TrabalhoRelatorioFatura } from "@/lib/relatorio-faturas-modelo3-dados";
 import { filtrarTrabalhosCliente } from "@/lib/relatorio-faturas-modelo3-dados";
 import { baixarCsv } from "@/lib/exportar-csv";
@@ -652,12 +652,14 @@ export function VisualizacaoClienteReceberModal({
     if (!cliente) return;
     setGerandoExtrato(true);
     const janela = prepararAbaPdf();
+    const tituloViewer = tituloViewerExtratoModelo(extratoModelo);
+    const nomeArquivo = proximoNomeArquivoExtratoPdf(cliente.nome);
     try {
-      await abrirPdfBlobGerandoNoVisualizadorUnificado(
+      await abrirPdfGerandoComNomeNaUrl(
         gerarExtratoPdfBlob,
-        `Extrato — ${cliente.nome}`,
-        "extrato-cliente.pdf",
-        { janela, origem: "Financeiro · Extrato cliente" }
+        tituloViewer,
+        nomeArquivo,
+        { janela }
       );
     } catch {
       janela?.close();

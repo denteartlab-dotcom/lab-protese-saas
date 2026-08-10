@@ -12,8 +12,11 @@ import { dateToBrShort } from "@/lib/datas-br";
 import { exportarExtratoRelatorioExcel } from "@/lib/extrato-relatorio-export";
 import type { LancamentoContasReceber } from "@/lib/contas-receber-financeiro";
 import { labelModeloRelatorioReceitasI18n } from "@/lib/i18n/relatorio-receitas-i18n";
-import { prepararAbaPdf } from "@/lib/pdf-viewer";
-import { abrirPdfBlobGerandoNoVisualizadorUnificado } from "@/lib/pdf-viewer-unificado";
+import { prepararAbaPdf, abrirPdfGerandoComNomeNaUrl } from "@/lib/pdf-viewer";
+import {
+  proximoNomeArquivoExtratoPdf,
+  tituloViewerExtratoModelo,
+} from "@/lib/extrato-arquivo-nome";
 import { cn } from "@/lib/utils";
 import type { TrabalhoRelatorioFatura } from "@/lib/relatorio-faturas-modelo3-dados";
 import {
@@ -26,6 +29,9 @@ import {
 import {
   MODELOS_RELATORIO_RECEITAS,
   modeloEhExtratoPorCliente,
+  modeloEhExtrato2Individual,
+  modeloEhExtrato3Paciente,
+  modeloEhExtratoIndividual,
   modeloEhParcelasAReceber,
   type ModeloRelatorioReceitas,
 } from "@/lib/relatorio-receitas-modelos";
@@ -319,7 +325,19 @@ export function RelatorioContasReceberModal({
 
     setGerandoPdf(true);
     const janela = prepararAbaPdf();
-    void abrirPdfBlobGerandoNoVisualizadorUnificado(
+    const ehExtrato = modeloEhExtratoPorCliente(modelo);
+    const tituloViewer = ehExtrato
+      ? modeloEhExtrato3Paciente(modelo)
+        ? tituloViewerExtratoModelo("3")
+        : modeloEhExtrato2Individual(modelo)
+          ? tituloViewerExtratoModelo("2")
+          : tituloViewerExtratoModelo("1")
+      : modeloLabel;
+    const nomeArquivo = ehExtrato
+      ? proximoNomeArquivoExtratoPdf(nomeClienteExtrato)
+      : "relatorio-receitas.pdf";
+
+    void abrirPdfGerandoComNomeNaUrl(
       () =>
         gerarRelatorioContasReceberBlob(
           ordenadas,
@@ -341,9 +359,9 @@ export function RelatorioContasReceberModal({
             recebimentosAgruparPorCliente: filtro.recebimentosAgruparPorCliente,
           }
         ),
-      modeloLabel,
-      "relatorio-receitas.pdf",
-      { janela, origem: "Financeiro · Extrato receitas" }
+      tituloViewer,
+      nomeArquivo,
+      { janela }
     )
       .catch(() => {
         janela?.close();
