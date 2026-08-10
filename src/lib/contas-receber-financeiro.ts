@@ -120,10 +120,26 @@ export function creditoUsadoNaFatura(
   );
 }
 
+/**
+ * Valor cheio da nota em Contas a Receber.
+ * Corrige Cobrança OS salva com valor 0 no abatimento total de crédito (bug legado).
+ */
+export function valorNotaFatura(
+  lancamento: LancamentoContasReceber,
+  lancamentos: LancamentoContasReceber[]
+) {
+  const valor = Math.max(0, Number(lancamento.valor) || 0);
+  if (!ehDescricaoFaturaContasReceber(lancamento.descricao)) return valor;
+  if (valor > 0.009) return valor;
+  const credito = creditoUsadoNaFatura(lancamento, lancamentos);
+  return credito > 0.009 ? credito : valor;
+}
+
 export function recebidoNaFatura(
   lancamento: LancamentoContasReceber,
   lancamentos: LancamentoContasReceber[]
 ) {
+  const valorNota = valorNotaFatura(lancamento, lancamentos);
   const credito = creditoUsadoNaFatura(lancamento, lancamentos);
   const parciais = recebimentosParciaisDaFatura(lancamento, lancamentos).reduce(
     (sum, item) => sum + item.valor,
@@ -132,9 +148,9 @@ export function recebidoNaFatura(
   const totalParcialCredito = credito + parciais;
   if (lancamento.status === "pago") {
     const cashFinal = valorRecebidoCashNaFaturaPaga(lancamento, lancamentos);
-    return Math.min(lancamento.valor, totalParcialCredito + cashFinal);
+    return Math.min(valorNota, totalParcialCredito + cashFinal);
   }
-  return Math.min(totalParcialCredito, lancamento.valor);
+  return Math.min(totalParcialCredito, valorNota);
 }
 
 export function lancamentoReceitaNoPeriodo(
@@ -303,7 +319,10 @@ export function saldoFatura(
   lancamento: LancamentoContasReceber,
   lancamentos: LancamentoContasReceber[]
 ) {
-  return Math.max(lancamento.valor - recebidoNaFatura(lancamento, lancamentos), 0);
+  return Math.max(
+    valorNotaFatura(lancamento, lancamentos) - recebidoNaFatura(lancamento, lancamentos),
+    0
+  );
 }
 
 export function trabalhosDaFatura(
@@ -769,4 +788,16 @@ export function payloadReparoFaturaDeAbatimento(
     descricao: orfao.descricaoFatura,
     trabalhoId: ids.length === 1 ? ids[0] : undefined,
   };
+}
+
+/** Cobrança OS com valor 0 quitada por abatimento — precisa gravar o valor da nota. */
+export function listarFaturasAbatimentoComValorZerado(
+  lancamentos: LancamentoContasReceber[]
+): LancamentoContasReceber[] {
+  return lancamentos.filter((l) => {
+    if (l.tipo !== "receita" || l.status === "cancelado") return false;
+    if (!ehDescricaoFaturaContasReceber(l.descricao)) return false;
+    if (Math.abs(Number(l.valor) || 0) > 0.009) return false;
+    return creditoUsadoNaFatura(l, lancamentos) > 0.009;
+  });
 }

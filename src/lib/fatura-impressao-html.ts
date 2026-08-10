@@ -18,6 +18,7 @@ import {
 import {
   creditosUtilizadosDaFatura,
   recebimentosParciaisDaFatura,
+  valorNotaFatura,
   type LancamentoContasReceber,
 } from "@/lib/contas-receber-financeiro";
 import { resolverDataFinalizadoImpressao } from "@/lib/os-itens-impressao";
@@ -541,10 +542,28 @@ export function montarDadosFaturaImpressao(params: {
   const liquidoItens = Math.max(0, totalServicos - descontoServicos);
   // Desconto comercial da fatura (form.desconto) embutido em lancamento.valor.
   // Abatimento de crédito NÃO entra em Desconto Fatura — conta como pagamento nas condições.
+  const lancamentoComoContas: LancamentoContasReceber = {
+    id: "",
+    tipo: "receita",
+    descricao: lancamento.descricao,
+    valor: lancamento.valor,
+    data: lancamento.data,
+    status: lancamento.status,
+    formaPagamento: lancamento.formaPagamento,
+    cliente: params.clienteId
+      ? { id: params.clienteId, nome: params.clienteNome || clienteNome }
+      : null,
+  };
+  const valorNotaEfetivo = valorNotaFatura(
+    lancamentoComoContas,
+    (params.lancamentosCliente || []) as LancamentoContasReceber[]
+  );
+  // Preferir o maior entre valor da nota efetiva e líquido dos itens (nota cheia).
+  const valorBaseNota = Math.max(valorNotaEfetivo, trabalhos.length ? liquidoItens : 0);
   const descontoFatura = trabalhos.length
-    ? Math.max(0, Math.round((liquidoItens - lancamento.valor) * 100) / 100)
+    ? Math.max(0, Math.round((liquidoItens - valorBaseNota) * 100) / 100)
     : 0;
-  const totalFinal = Math.max(lancamento.valor, 0);
+  const totalFinal = Math.max(valorBaseNota, 0);
   const agora = new Date();
 
   return {
@@ -564,7 +583,7 @@ export function montarDadosFaturaImpressao(params: {
     saldoAnterior: params.saldoAnterior,
     linhas,
     parcelas: montarParcelasCondicaoPagamentoFatura({
-      lancamento,
+      lancamento: { ...lancamento, valor: totalFinal },
       clienteId: params.clienteId,
       clienteNome: params.clienteNome,
       lancamentos: params.lancamentosCliente,

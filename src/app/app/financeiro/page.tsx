@@ -104,7 +104,7 @@ import {
   exportarContasReceberClientesCsv,
   gerarContasReceberClientesPdf,
 } from "@/lib/contas-receber-clientes-export";
-import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, isRecebimentoParcial, deveExibirNoHistoricoRecebimentos, valorHistoricoRecebimentoCliente, referenciaLancamento as referenciaHistoricoRecebimento, recebidoNaFatura as recebidoNaFaturaLib, saldoFatura as saldoFaturaLib, classeReferenciaHistoricoRecebimento, faturaExibeSituacaoParcial, faturasExibicaoPainelCliente, faturaQuitada, recebimentosHistoricoCliente, movimentacoesRecebimentoDaFatura, ehFaturaCobrancaOsParaExclusao, idsLancamentosExclusaoAoRemoverFatura, ehDescricaoFaturaContasReceber, listarAbatimentosCreditoSemFatura, payloadReparoFaturaDeAbatimento, type LancamentoContasReceber } from "@/lib/contas-receber-financeiro";
+import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, isRecebimentoParcial, deveExibirNoHistoricoRecebimentos, valorHistoricoRecebimentoCliente, referenciaLancamento as referenciaHistoricoRecebimento, recebidoNaFatura as recebidoNaFaturaLib, saldoFatura as saldoFaturaLib, valorNotaFatura as valorNotaFaturaLib, classeReferenciaHistoricoRecebimento, faturaExibeSituacaoParcial, faturasExibicaoPainelCliente, faturaQuitada, recebimentosHistoricoCliente, movimentacoesRecebimentoDaFatura, ehFaturaCobrancaOsParaExclusao, idsLancamentosExclusaoAoRemoverFatura, ehDescricaoFaturaContasReceber, listarAbatimentosCreditoSemFatura, listarFaturasAbatimentoComValorZerado, payloadReparoFaturaDeAbatimento, type LancamentoContasReceber } from "@/lib/contas-receber-financeiro";
 import { calcularContasRecebidasPeriodo } from "@/lib/lancamento-valor-caixa";
 import { fetchPainelFinanceiro } from "@/lib/financeiro-painel-cliente";
 import type { PainelFinanceiroReceita } from "@/lib/financeiro-painel-types";
@@ -454,7 +454,7 @@ function FinanceiroReceberConteudo() {
       const orfaos = listarAbatimentosCreditoSemFatura(
         lancamentosSerializados as unknown as LancamentoContasReceber[]
       );
-      let criados = 0;
+      let alterados = 0;
       for (const orfao of orfaos) {
         try {
           const res = await fetch("/api/financeiro", {
@@ -464,12 +464,35 @@ function FinanceiroReceberConteudo() {
               payloadReparoFaturaDeAbatimento(orfao, FORMA_PAGAMENTO_ABATIMENTO_CREDITO)
             ),
           });
-          if (res.ok) criados += 1;
+          if (res.ok) alterados += 1;
         } catch {
           /* segue nos demais */
         }
       }
-      if (criados > 0) {
+
+      // Repara Cobrança OS salva com valor 0 no abatimento total (mostra nota = crédito usado).
+      const zeradas = listarFaturasAbatimentoComValorZerado(
+        lancamentosSerializados as unknown as LancamentoContasReceber[]
+      );
+      for (const fatura of zeradas) {
+        const valorNota = valorNotaFaturaLib(
+          fatura,
+          lancamentosSerializados as unknown as LancamentoContasReceber[]
+        );
+        if (valorNota <= 0.009) continue;
+        try {
+          const res = await fetch(`/api/financeiro/${fatura.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ valor: valorNota }),
+          });
+          if (res.ok) alterados += 1;
+        } catch {
+          /* segue nos demais */
+        }
+      }
+
+      if (alterados > 0) {
         return carregarPainelReceita({ refresh: true, aposReparo: true });
       }
     }
@@ -1052,13 +1075,16 @@ function FinanceiroReceberConteudo() {
 
     function valorParcelaFatura(parcela: ParcelaLinhaReceita, totalParcelas: number) {
       const qtd = Math.max(totalParcelas, 1);
+      // Abatimento total: parcela na UI fica 0 (cash), mas a nota deve guardar o bruto.
+      if (totalAReceberComCredito <= 0.009) {
+        const base = totalLiquido / qtd;
+        const juros = valorCampoMoedaPercentual(parcela.juros, parcela.jurosTipo, base);
+        return Math.max(0, Math.round((base + juros) * 100) / 100);
+      }
       if (creditoAplicado <= 0.009) {
         return valorParcelaNumerico(parcela, totalLiquido / qtd);
       }
-      // Fatura sempre no valor bruto dos serviços; o crédito vira lançamento à parte.
-      if (totalAReceberComCredito <= 0.009) {
-        return valorParcelaNumerico(parcela, totalLiquido / qtd);
-      }
+      // Fatura no valor bruto; crédito vira lançamento à parte.
       const valorCobrancaParcela = valorParcelaNumerico(
         parcela,
         totalAReceberComCredito / qtd
@@ -2056,6 +2082,10 @@ function FinanceiroReceberConteudo() {
     return recebidoNaFaturaLib(lancamento, data?.lancamentos || []);
   }
 
+  function valorNotaFatura(lancamento: Lancamento) {
+    return valorNotaFaturaLib(lancamento, data?.lancamentos || []);
+  }
+
   function saldoFatura(lancamento: Lancamento) {
     return saldoFaturaLib(lancamento, data?.lancamentos || []);
   }
@@ -2700,7 +2730,9 @@ function FinanceiroReceberConteudo() {
                                           <td className="px-2 py-2">{numeroFatura(l)}</td>
                                           <td className="px-2 py-2">1 / 1</td>
                                           <td className="px-2 py-2">{l.formaPagamento || "-"}</td>
-                                          <td className="px-2 py-2 text-right">{money(l.valor)}</td>
+                                          <td className="px-2 py-2 text-right">
+                                            {money(valorNotaFatura(l))}
+                                          </td>
                                           <td className="px-2 py-2 text-right">
                                             {money(recebidoNaFatura(l))}
                                           </td>

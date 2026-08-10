@@ -14,6 +14,7 @@ import {
   movimentacoesRecebimentoDaFatura,
   numeroFaturaDeLancamento,
   observacaoRecebimentoCurta,
+  valorNotaFatura,
   valorRecebidoCashNaFaturaPaga,
   type LancamentoContasReceber,
 } from "@/lib/contas-receber-financeiro";
@@ -132,9 +133,10 @@ function linhasServicoDaFaturaExtrato(
     dataOrdem: Date;
     dataOrdemPeriodo: Date;
     numFatura: string;
-  }
+  },
+  receitas: LancamentoContasReceber[]
 ): LinhaExtratoIndividual[] {
-  const valorFatura = valorNumerico(l.valor);
+  const valorFatura = valorNotaFatura(l, receitas);
   const itens =
     relacionados.length > 0
       ? relacionados.flatMap((t) =>
@@ -374,12 +376,17 @@ export function montarExtratoIndividual(
       );
       const relacionados = trabalhosDaFaturaParaExtrato(l, trabalhosCliente, receitas);
       linhasBrutas.push(
-        ...linhasServicoDaFaturaExtrato(l, relacionados, {
-          dataFatura: texto,
-          dataOrdem: ordem,
-          dataOrdemPeriodo,
-          numFatura: numFat,
-        })
+        ...linhasServicoDaFaturaExtrato(
+          l,
+          relacionados,
+          {
+            dataFatura: texto,
+            dataOrdem: ordem,
+            dataOrdemPeriodo,
+            numFatura: numFat,
+          },
+          receitas
+        )
       );
     }
   }
