@@ -6,6 +6,7 @@ import {
   trabalhosDaFaturaParaExtrato,
   chaveAgrupamentoFatura,
   valorTrabalho,
+  type ItemFaturaModelo3,
   type TrabalhoRelatorioFatura,
 } from "@/lib/relatorio-faturas-modelo3-dados";
 import {
@@ -22,6 +23,11 @@ import {
 } from "@/lib/contas-receber-financeiro";
 import { calcularCreditoDisponivelClienteFaturaAte } from "@/lib/fatura-cliente-financeiro";
 import { desempacotarDespesa } from "@/lib/lancamento-despesa";
+import {
+  classificarItemOs,
+  nomeExibicaoItemOs,
+  type SegmentoFaturamento,
+} from "@/lib/trabalho-os-segmento";
 import { formatDate } from "@/lib/utils";
 
 export type TipoLinhaExtratoIndividual =
@@ -126,7 +132,80 @@ function ehLinhaAbatimentoCredito(linha: Pick<LinhaExtratoIndividual, "tipo" | "
   return /abatimento|cr[eé]dito/i.test(linha.servico);
 }
 
-/** Itens da Cobrança no extrato — uma linha por OS, com paciente e valor separados. */
+function segmentoItemFatura(item: ItemFaturaModelo3): SegmentoFaturamento {
+  return classificarItemOs({ servico: item.descricao });
+}
+
+function descricaoItemExtrato(item: ItemFaturaModelo3) {
+  return descricaoServicoExtrato(nomeExibicaoItemOs({ servico: item.descricao }));
+}
+
+/** SUP/INF quando a OS tem as duas arcadas; senão lista todos os dentes selecionados. */
+export function formatarDentesExtratoOs(dentes: Array<string | null | undefined>): string {
+  const tokens = new Set<string>();
+  let temSup = false;
+  let temInf = false;
+
+  for (const bruto of dentes) {
+    const texto = String(bruto ?? "")
+      .trim()
+      .replace(/—/g, "")
+      .replace(/-/g, " ");
+    if (!texto) continue;
+
+    for (const parte of texto.split(/[,;/|]+|\s+/)) {
+      const t = parte.trim();
+      if (!t) continue;
+      if (/^(sup(erior)?|arcada\s*sup)/i.test(t)) {
+        temSup = true;
+        continue;
+      }
+      if (/^(inf(erior)?|arcada\s*inf)/i.test(t)) {
+        temInf = true;
+        continue;
+      }
+      if (/^(sup\s*\/\s*inf|sup\s*-\s*inf)$/i.test(t)) {
+        temSup = true;
+        temInf = true;
+        continue;
+      }
+      tokens.add(t.toUpperCase());
+    }
+
+    if (/sup/i.test(texto) && /inf/i.test(texto)) {
+      temSup = true;
+      temInf = true;
+    }
+  }
+
+  if (temSup && temInf) return "SUP/INF";
+  if (temSup) return "SUP";
+  if (temInf) return "INF";
+
+  const lista = Array.from(tokens);
+  if (!lista.length) return "";
+  lista.sort((a, b) => {
+    const na = Number(a.replace(/\D/g, ""));
+    const nb = Number(b.replace(/\D/g, ""));
+    if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return na - nb;
+    return a.localeCompare(b, "pt-BR");
+  });
+  return lista.join(", ");
+}
+
+function agruparTrabalhosPorOs(trabalhos: TrabalhoRelatorioFatura[]) {
+  const grupos = new Map<number, TrabalhoRelatorioFatura[]>();
+  for (const t of trabalhos) {
+    const n = t.numeroOs;
+    if (!n || n <= 0) continue;
+    const lista = grupos.get(n) ?? [];
+    lista.push(t);
+    grupos.set(n, lista);
+  }
+  return grupos;
+}
+
+/** Itens da Cobrança no extrato — serviços da mesma OS numa linha; produto/transporte em outra. */
 function linhasServicoDaFaturaExtrato(
   l: LancamentoContasReceber,
   relacionados: ReturnType<typeof trabalhosDaFaturaParaExtrato>,
@@ -173,30 +252,97 @@ function linhasServicoDaFaturaExtrato(
           .filter((t): t is TrabalhoRelatorioFatura => Boolean(t));
 
   if (trabalhosLinha.length > 0) {
-    for (const t of trabalhosLinha) {
-      const itens = itensDoTrabalho(t);
-      const somaTrabalho = itens.reduce((s, i) => s + i.subtotal, 0);
-      if (itens.length > 0 && somaTrabalho > 0.009) {
-        for (const item of itens) {
-          linhasOs.push({
-            os: numeroOsExtrato(item.os),
-            paciente: item.paciente?.trim() || nomePacienteTrabalho(t) || "—",
-            numDente: item.numDente && item.numDente !== "—" ? item.numDente : "",
-            dataEntrega: dataEntregaTrabalho(t),
-            descricao: descricaoServicoExtrato(item.descricao),
-            qtd: item.qtd,
-            valorUn: item.valorUn,
-            subtotal: item.subtotal,
+    const grupos = agruparTrabalhosPorOs(trabalhosLinha);
+    const ordemOs =
+      osNums.length > 0
+        ? osNums.filter((n) => grupos.has(n))
+        : Array.from(grupos.keys()).sort((a, b) => a - b);
+
+    for (const numeroOs of ordemOs) {
+      const grupo = grupos.get(numeroOs) ?? [];
+      if (!grupo.length) continue;
+
+      const paciente = nomePacienteTrabalho(grupo[0]!) || "—";
+      const dataEntrega = dataEntregaTrabalho(grupo[0]!);
+      const osTxt = numeroOsExtrato(numeroOs);
+
+      const todosItens: ItemFaturaModelo3[] = [];
+      for (const t of grupo) {
+        const itens = itensDoTrabalho(t);
+        if (itens.length) todosItens.push(...itens);
+        else {
+          const valor = valorTrabalho(t);
+          todosItens.push({
+            os: osTxt,
+            descricao: t.tipoProtese || descricaoBase,
+            numDente: t.dentes || "—",
+            paciente,
+            dentista: "—",
+            qtd: "1",
+            valorUn: valor,
+            descPercent: "0,00",
+            subtotal: valor,
           });
         }
-      } else {
-        const valor = valorTrabalho(t);
+      }
+
+      const servicos = todosItens.filter((i) => segmentoItemFatura(i) === "servico");
+      const extras = todosItens.filter((i) => segmentoItemFatura(i) !== "servico");
+
+      if (servicos.length > 0) {
+        const nomes = [
+          ...new Set(servicos.map(descricaoItemExtrato).filter((d) => d && d !== "—")),
+        ];
+        const subtotal = servicos.reduce((s, i) => s + i.subtotal, 0);
+        const qtdTotal = servicos.reduce(
+          (s, i) => s + (Number(String(i.qtd).replace(",", ".")) || 1),
+          0
+        );
+        const dentes = formatarDentesExtratoOs([
+          ...servicos.map((i) => i.numDente),
+          ...grupo.map((t) => t.dentes),
+        ]);
         linhasOs.push({
-          os: numeroOsExtrato(t.numeroOs),
-          paciente: nomePacienteTrabalho(t) || "—",
-          numDente: t.dentes && t.dentes !== "—" ? String(t.dentes) : "",
-          dataEntrega: dataEntregaTrabalho(t),
-          descricao: descricaoServicoExtrato(t.tipoProtese || descricaoBase),
+          os: osTxt,
+          paciente,
+          numDente: dentes,
+          dataEntrega,
+          descricao: nomes.join(", ") || descricaoBase,
+          qtd: String(qtdTotal || 1),
+          valorUn: subtotal,
+          subtotal,
+        });
+      }
+
+      if (extras.length > 0) {
+        const nomes = [
+          ...new Set(extras.map(descricaoItemExtrato).filter((d) => d && d !== "—")),
+        ];
+        const subtotal = extras.reduce((s, i) => s + i.subtotal, 0);
+        const qtdTotal = extras.reduce(
+          (s, i) => s + (Number(String(i.qtd).replace(",", ".")) || 1),
+          0
+        );
+        linhasOs.push({
+          os: osTxt,
+          paciente,
+          numDente: "",
+          dataEntrega,
+          descricao: nomes.join(", ") || "Produto / Transporte",
+          qtd: String(qtdTotal || 1),
+          valorUn: subtotal,
+          subtotal,
+        });
+      }
+
+      if (servicos.length === 0 && extras.length === 0) {
+        const valor = grupo.reduce((s, t) => s + valorTrabalho(t), 0);
+        linhasOs.push({
+          os: osTxt,
+          paciente,
+          numDente: formatarDentesExtratoOs(grupo.map((t) => t.dentes)),
+          dataEntrega,
+          descricao: descricaoBase,
           qtd: "1",
           valorUn: valor,
           subtotal: valor,

@@ -5,6 +5,7 @@ import {
   nomePacienteTrabalho,
   trabalhosDaFaturaParaExtrato,
   valorTrabalho,
+  type ItemFaturaModelo3,
   type TrabalhoRelatorioFatura,
 } from "@/lib/relatorio-faturas-modelo3-dados";
 import {
@@ -23,7 +24,12 @@ import { calcularCreditoDisponivelClienteFaturaAte } from "@/lib/fatura-cliente-
 import { desempacotarDespesa } from "@/lib/lancamento-despesa";
 import { formatDate } from "@/lib/utils";
 import {
+  classificarItemOs,
+  nomeExibicaoItemOs,
+} from "@/lib/trabalho-os-segmento";
+import {
   descricaoServicoExtrato,
+  formatarDentesExtratoOs,
   numeroOsExtrato,
 } from "@/lib/extrato-individual-dados";
 
@@ -259,36 +265,106 @@ export function montarExtrato3Paciente(
     const valorFatura = valorNotaFatura(l, receitas);
 
     if (trabalhosLinha.length > 0) {
+      const grupos = new Map<number, TrabalhoRelatorioFatura[]>();
       for (const t of trabalhosLinha) {
-        const entregue = dataEntregaTrabalho(t);
-        const nomePacTrabalho = nomePacienteTrabalho(t);
-        const itens = itensDoTrabalho(t);
-        const somaTrabalho = itens.reduce((s, i) => s + i.subtotal, 0);
-        if (itens.length > 0 && somaTrabalho > 0.009) {
-          for (const item of itens) {
-            const pac =
-              item.paciente?.trim() && item.paciente !== "—"
-                ? item.paciente.trim()
-                : nomePacTrabalho;
-            const lista = porPaciente.get(pac) ?? [];
-            lista.push({
-              os: numeroOsExtrato(item.os),
-              qtd: item.qtd,
-              servico: descricaoServicoExtrato(item.descricao),
-              entrega: entregue,
-              valorUn: item.valorUn,
-              descPercent: item.descPercent || "0,00",
-              valor: item.subtotal,
+        if (!t.numeroOs) continue;
+        const lista = grupos.get(t.numeroOs) ?? [];
+        lista.push(t);
+        grupos.set(t.numeroOs, lista);
+      }
+      const ordemOs =
+        osNums.length > 0
+          ? osNums.filter((n) => grupos.has(n))
+          : Array.from(grupos.keys()).sort((a, b) => a - b);
+
+      for (const numeroOs of ordemOs) {
+        const grupo = grupos.get(numeroOs) ?? [];
+        if (!grupo.length) continue;
+        const nomePacTrabalho = nomePacienteTrabalho(grupo[0]!);
+        const entregue = dataEntregaTrabalho(grupo[0]!);
+        const osTxt = numeroOsExtrato(numeroOs);
+
+        const todosItens: ItemFaturaModelo3[] = [];
+        for (const t of grupo) {
+          const itens = itensDoTrabalho(t);
+          if (itens.length) todosItens.push(...itens);
+          else {
+            const valor = valorTrabalho(t);
+            todosItens.push({
+              os: osTxt,
+              descricao: t.tipoProtese || "Cobrança",
+              numDente: t.dentes || "—",
+              paciente: nomePacTrabalho,
+              dentista: "—",
+              qtd: "1",
+              valorUn: valor,
+              descPercent: "0,00",
+              subtotal: valor,
             });
-            porPaciente.set(pac, lista);
           }
-        } else {
-          const valor = valorTrabalho(t);
+        }
+
+        const servicos = todosItens.filter(
+          (i) => classificarItemOs({ servico: i.descricao }) === "servico"
+        );
+        const extras = todosItens.filter(
+          (i) => classificarItemOs({ servico: i.descricao }) !== "servico"
+        );
+
+        if (servicos.length > 0) {
+          const nomes = [
+            ...new Set(
+              servicos
+                .map((i) =>
+                  descricaoServicoExtrato(nomeExibicaoItemOs({ servico: i.descricao }))
+                )
+                .filter((d) => d && d !== "—")
+            ),
+          ];
+          const valor = servicos.reduce((s, i) => s + i.subtotal, 0);
+          const qtdTotal = servicos.reduce(
+            (s, i) => s + (Number(String(i.qtd).replace(",", ".")) || 1),
+            0
+          );
+          const dentes = formatarDentesExtratoOs([
+            ...servicos.map((i) => i.numDente),
+            ...grupo.map((t) => t.dentes),
+          ]);
           const lista = porPaciente.get(nomePacTrabalho) ?? [];
           lista.push({
-            os: numeroOsExtrato(t.numeroOs),
-            qtd: "1",
-            servico: descricaoServicoExtrato(t.tipoProtese || "Cobrança"),
+            os: osTxt,
+            qtd: String(qtdTotal || 1),
+            servico:
+              (nomes.join(", ") || "Cobrança") +
+              (dentes ? ` (${dentes})` : ""),
+            entrega: entregue,
+            valorUn: valor,
+            descPercent: "0,00",
+            valor,
+          });
+          porPaciente.set(nomePacTrabalho, lista);
+        }
+
+        if (extras.length > 0) {
+          const nomes = [
+            ...new Set(
+              extras
+                .map((i) =>
+                  descricaoServicoExtrato(nomeExibicaoItemOs({ servico: i.descricao }))
+                )
+                .filter((d) => d && d !== "—")
+            ),
+          ];
+          const valor = extras.reduce((s, i) => s + i.subtotal, 0);
+          const qtdTotal = extras.reduce(
+            (s, i) => s + (Number(String(i.qtd).replace(",", ".")) || 1),
+            0
+          );
+          const lista = porPaciente.get(nomePacTrabalho) ?? [];
+          lista.push({
+            os: osTxt,
+            qtd: String(qtdTotal || 1),
+            servico: nomes.join(", ") || "Produto / Transporte",
             entrega: entregue,
             valorUn: valor,
             descPercent: "0,00",
