@@ -242,6 +242,7 @@ export function montarExtrato3Paciente(
     const relacionados = trabalhosDaFaturaParaExtrato(l, trabalhosCliente, receitas);
 
     const porPaciente = new Map<string, ItemServico3[]>();
+    const valorFatura = valorNumerico(l.valor);
 
     if (relacionados.length > 0) {
       for (const t of relacionados) {
@@ -265,21 +266,50 @@ export function montarExtrato3Paciente(
           porPaciente.set(pac, lista);
         }
       }
-    } else {
+    }
+
+    const somaItens = Array.from(porPaciente.values())
+      .flat()
+      .reduce((s, item) => s + item.valor, 0);
+
+    if (somaItens <= 0.009 && valorFatura > 0.009) {
       const pack = desempacotarDespesa(l.descricao);
-      const subtotal = valorNumerico(l.valor);
+      porPaciente.clear();
       porPaciente.set("—", [
         {
           os: "",
           qtd: "1",
           servico: descricaoServicoExtrato(pack.texto.split("\n")[0]?.trim() || "Cobrança"),
           entrega: "—",
-          valorUn: subtotal,
+          valorUn: valorFatura,
           descPercent: "0,00",
-          valor: subtotal,
+          valor: valorFatura,
+        },
+      ]);
+    } else if (valorFatura > 0.009 && somaItens > 0.009 && Math.abs(somaItens - valorFatura) > 0.02) {
+      const fator = valorFatura / somaItens;
+      for (const [, lista] of porPaciente) {
+        for (const item of lista) {
+          item.valor = Math.round(item.valor * fator * 100) / 100;
+          item.valorUn = Math.round(item.valorUn * fator * 100) / 100;
+        }
+      }
+    } else if (porPaciente.size === 0 && valorFatura > 0.009) {
+      const pack = desempacotarDespesa(l.descricao);
+      porPaciente.set("—", [
+        {
+          os: "",
+          qtd: "1",
+          servico: descricaoServicoExtrato(pack.texto.split("\n")[0]?.trim() || "Cobrança"),
+          entrega: "—",
+          valorUn: valorFatura,
+          descPercent: "0,00",
+          valor: valorFatura,
         },
       ]);
     }
+
+    if (porPaciente.size === 0) continue;
 
     const pacientes = Array.from(porPaciente.entries())
       .sort(([a], [b]) => a.localeCompare(b, "pt-BR"))
@@ -506,10 +536,23 @@ export function montarExtrato3Paciente(
   for (const linha of linhasFiltradas) {
     let saldoLinha = saldo;
     if (linha.tipo === "pagamento" || linha.tipo === "desconto") {
-      saldo += linha.valor;
+      let valorEfetivo = linha.valor;
+      if (
+        linha.tipo === "pagamento" &&
+        valorEfetivo < -0.009 &&
+        /abatimento|cr[eé]dito/i.test(linha.servico)
+      ) {
+        const maxAbater = Math.max(0, saldo);
+        const abater = Math.min(Math.abs(valorEfetivo), maxAbater);
+        valorEfetivo = -abater;
+        if (abater <= 0.009) continue;
+      }
+      saldo += valorEfetivo;
       saldoLinha = saldo;
-      if (linha.tipo === "pagamento") totalPagamentos += Math.abs(linha.valor);
-      else totalDescontos += Math.abs(linha.valor);
+      if (linha.tipo === "pagamento") totalPagamentos += Math.abs(valorEfetivo);
+      else totalDescontos += Math.abs(valorEfetivo);
+      comSaldo.push({ ...linha, valor: valorEfetivo, saldo: saldoLinha });
+      continue;
     } else if (linha.tipo === "subtotal") {
       saldo += linha.valor;
       saldoLinha = saldo;

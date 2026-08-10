@@ -118,6 +118,85 @@ function ehFaturaContasReceberExtrato(l: LancamentoContasReceber) {
   return ehDescricaoFaturaContasReceber(descricaoBaseReceita(l));
 }
 
+function ehLinhaAbatimentoCredito(linha: Pick<LinhaExtratoIndividual, "tipo" | "servico">) {
+  if (linha.tipo !== "pagamento") return false;
+  return /abatimento|cr[eé]dito/i.test(linha.servico);
+}
+
+/** Itens da Cobrança no extrato — valor da fatura é a fonte da verdade. */
+function linhasServicoDaFaturaExtrato(
+  l: LancamentoContasReceber,
+  relacionados: ReturnType<typeof trabalhosDaFaturaParaExtrato>,
+  base: {
+    dataFatura: string;
+    dataOrdem: Date;
+    dataOrdemPeriodo: Date;
+    numFatura: string;
+  }
+): LinhaExtratoIndividual[] {
+  const valorFatura = valorNumerico(l.valor);
+  const itens =
+    relacionados.length > 0
+      ? relacionados.flatMap((t) =>
+          itensDoTrabalho(t).map((item) => ({
+            ...item,
+            dataEntrega: dataEntregaTrabalho(t),
+          }))
+        )
+      : [];
+  const somaItens = itens.reduce((s, item) => s + item.subtotal, 0);
+
+  if (itens.length > 0 && somaItens > 0.009) {
+    const fator =
+      valorFatura > 0.009 && Math.abs(somaItens - valorFatura) > 0.02
+        ? valorFatura / somaItens
+        : 1;
+    return itens.map((item) => {
+      const subtotal = Math.round(item.subtotal * fator * 100) / 100;
+      const valorUn = Math.round(item.valorUn * fator * 100) / 100;
+      return {
+        tipo: "servico" as const,
+        dataFatura: base.dataFatura,
+        dataOrdem: base.dataOrdem,
+        dataOrdemPeriodo: base.dataOrdemPeriodo,
+        numFatura: base.numFatura,
+        os: numeroOsExtrato(item.os),
+        servico: descricaoServicoExtrato(item.descricao),
+        qtd: item.qtd,
+        paciente: item.paciente || "—",
+        numDente: item.numDente && item.numDente !== "—" ? item.numDente : "",
+        dataEntrega: item.dataEntrega,
+        valorUn,
+        desconto: descontoItem(item.qtd, valorUn, subtotal),
+        subtotal,
+      };
+    });
+  }
+
+  if (valorFatura <= 0.009) return [];
+
+  const pack = desempacotarDespesa(l.descricao);
+  const osNums = numerosOsDoLancamentoFatura(l);
+  return [
+    {
+      tipo: "servico",
+      dataFatura: base.dataFatura,
+      dataOrdem: base.dataOrdem,
+      dataOrdemPeriodo: base.dataOrdemPeriodo,
+      numFatura: base.numFatura,
+      os: osNums.length ? osNums.map(numeroOsExtrato).join(", ") : "",
+      servico: descricaoServicoExtrato(pack.texto.split("\n")[0]?.trim() || "Cobrança"),
+      qtd: "1",
+      paciente: "—",
+      numDente: "",
+      dataEntrega: "",
+      valorUn: valorFatura,
+      desconto: 0,
+      subtotal: valorFatura,
+    },
+  ];
+}
+
 function pushPagamentoExtrato(
   linhas: LinhaExtratoIndividual[],
   l: LancamentoContasReceber,
@@ -286,49 +365,14 @@ export function montarExtratoIndividual(
         faturaPorGrupo.get(chaveGrupo) ?? numerosFatura.get(l.id) ?? ""
       );
       const relacionados = trabalhosDaFaturaParaExtrato(l, trabalhosCliente, receitas);
-      if (relacionados.length > 0) {
-        for (const t of relacionados) {
-          for (const item of itensDoTrabalho(t)) {
-            linhasBrutas.push({
-              tipo: "servico",
-              dataFatura: texto,
-              dataOrdem: ordem,
-              dataOrdemPeriodo,
-              numFatura: numFat,
-              os: numeroOsExtrato(item.os),
-              servico: descricaoServicoExtrato(item.descricao),
-              qtd: item.qtd,
-              paciente: item.paciente || "—",
-              numDente: item.numDente && item.numDente !== "—" ? item.numDente : "",
-              dataEntrega: dataEntregaTrabalho(t),
-              valorUn: item.valorUn,
-              desconto: descontoItem(item.qtd, item.valorUn, item.subtotal),
-              subtotal: item.subtotal,
-            });
-          }
-        }
-      } else {
-        // Nota existe sem OS resolvida: ainda assim mostra o valor faturado.
-        const pack = desempacotarDespesa(l.descricao);
-        const subtotal = valorNumerico(l.valor);
-        const osNums = numerosOsDoLancamentoFatura(l);
-        linhasBrutas.push({
-          tipo: "servico",
+      linhasBrutas.push(
+        ...linhasServicoDaFaturaExtrato(l, relacionados, {
           dataFatura: texto,
           dataOrdem: ordem,
           dataOrdemPeriodo,
           numFatura: numFat,
-          os: osNums.length ? osNums.map(numeroOsExtrato).join(", ") : "",
-          servico: descricaoServicoExtrato(pack.texto.split("\n")[0]?.trim() || "Cobrança"),
-          qtd: "1",
-          paciente: "—",
-          numDente: "",
-          dataEntrega: "",
-          valorUn: subtotal,
-          desconto: 0,
-          subtotal,
-        });
-      }
+        })
+      );
     }
   }
 
@@ -450,11 +494,19 @@ export function montarExtratoIndividual(
   let totalDescontos = 0;
 
   for (const linha of linhasPeriodo) {
-    saldo += linha.subtotal;
-    comSaldo.push({ ...linha, saldo });
-    if (linha.tipo === "servico" && linha.subtotal > 0) totalServicos += linha.subtotal;
-    if (linha.tipo === "pagamento") totalPagamentos += Math.abs(linha.subtotal);
-    if (linha.tipo === "desconto") totalDescontos += Math.abs(linha.subtotal);
+    let subtotalEfetivo = linha.subtotal;
+    // Abatimento de crédito só liquida cobrança em aberto — nunca gera saldo negativo (C).
+    if (ehLinhaAbatimentoCredito(linha) && subtotalEfetivo < -0.009) {
+      const maxAbater = Math.max(0, saldo);
+      const abater = Math.min(Math.abs(subtotalEfetivo), maxAbater);
+      subtotalEfetivo = -abater;
+      if (abater <= 0.009) continue;
+    }
+    saldo += subtotalEfetivo;
+    comSaldo.push({ ...linha, subtotal: subtotalEfetivo, saldo });
+    if (linha.tipo === "servico" && subtotalEfetivo > 0) totalServicos += subtotalEfetivo;
+    if (linha.tipo === "pagamento") totalPagamentos += Math.abs(subtotalEfetivo);
+    if (linha.tipo === "desconto") totalDescontos += Math.abs(subtotalEfetivo);
   }
 
   return {
