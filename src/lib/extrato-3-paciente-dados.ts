@@ -4,6 +4,7 @@ import {
   itensDoTrabalho,
   nomePacienteTrabalho,
   trabalhosDaFaturaParaExtrato,
+  valorTrabalho,
   type TrabalhoRelatorioFatura,
 } from "@/lib/relatorio-faturas-modelo3-dados";
 import {
@@ -13,9 +14,11 @@ import {
   movimentacoesRecebimentoDaFatura,
   numeroFaturaDeLancamento,
   observacaoRecebimentoCurta,
+  valorNotaFatura,
   valorRecebidoCashNaFaturaPaga,
   type LancamentoContasReceber,
 } from "@/lib/contas-receber-financeiro";
+import { numerosOsDoLancamentoFatura } from "@/lib/os-faturamento";
 import { calcularCreditoDisponivelClienteFaturaAte } from "@/lib/fatura-cliente-financeiro";
 import { desempacotarDespesa } from "@/lib/lancamento-despesa";
 import { formatDate } from "@/lib/utils";
@@ -240,30 +243,58 @@ export function montarExtrato3Paciente(
     const { texto, ordem } = dataFaturaLancamento(l);
     const numFat = String(faturaPorGrupo.get(chaveGrupo) ?? "");
     const relacionados = trabalhosDaFaturaParaExtrato(l, trabalhosCliente, receitas);
+    const osNums = numerosOsDoLancamentoFatura(l);
+    const porOs = new Map<number, TrabalhoRelatorioFatura>();
+    for (const t of [...relacionados, ...trabalhosCliente]) {
+      if (t.numeroOs > 0 && !porOs.has(t.numeroOs)) porOs.set(t.numeroOs, t);
+    }
+    const trabalhosLinha =
+      relacionados.length > 0
+        ? relacionados
+        : osNums
+            .map((n) => porOs.get(n))
+            .filter((t): t is TrabalhoRelatorioFatura => Boolean(t));
 
     const porPaciente = new Map<string, ItemServico3[]>();
-    const valorFatura = valorNumerico(l.valor);
+    const valorFatura = valorNotaFatura(l, receitas);
 
-    if (relacionados.length > 0) {
-      for (const t of relacionados) {
+    if (trabalhosLinha.length > 0) {
+      for (const t of trabalhosLinha) {
         const entregue = dataEntregaTrabalho(t);
         const nomePacTrabalho = nomePacienteTrabalho(t);
-        for (const item of itensDoTrabalho(t)) {
-          const pac =
-            item.paciente?.trim() && item.paciente !== "—"
-              ? item.paciente.trim()
-              : nomePacTrabalho;
-          const lista = porPaciente.get(pac) ?? [];
+        const itens = itensDoTrabalho(t);
+        const somaTrabalho = itens.reduce((s, i) => s + i.subtotal, 0);
+        if (itens.length > 0 && somaTrabalho > 0.009) {
+          for (const item of itens) {
+            const pac =
+              item.paciente?.trim() && item.paciente !== "—"
+                ? item.paciente.trim()
+                : nomePacTrabalho;
+            const lista = porPaciente.get(pac) ?? [];
+            lista.push({
+              os: numeroOsExtrato(item.os),
+              qtd: item.qtd,
+              servico: descricaoServicoExtrato(item.descricao),
+              entrega: entregue,
+              valorUn: item.valorUn,
+              descPercent: item.descPercent || "0,00",
+              valor: item.subtotal,
+            });
+            porPaciente.set(pac, lista);
+          }
+        } else {
+          const valor = valorTrabalho(t);
+          const lista = porPaciente.get(nomePacTrabalho) ?? [];
           lista.push({
-            os: numeroOsExtrato(item.os),
-            qtd: item.qtd,
-            servico: descricaoServicoExtrato(item.descricao),
+            os: numeroOsExtrato(t.numeroOs),
+            qtd: "1",
+            servico: descricaoServicoExtrato(t.tipoProtese || "Cobrança"),
             entrega: entregue,
-            valorUn: item.valorUn,
-            descPercent: item.descPercent || "0,00",
-            valor: item.subtotal,
+            valorUn: valor,
+            descPercent: "0,00",
+            valor,
           });
-          porPaciente.set(pac, lista);
+          porPaciente.set(nomePacTrabalho, lista);
         }
       }
     }
@@ -272,20 +303,26 @@ export function montarExtrato3Paciente(
       .flat()
       .reduce((s, item) => s + item.valor, 0);
 
-    if (somaItens <= 0.009 && valorFatura > 0.009) {
+    if (porPaciente.size === 0 && osNums.length > 0 && valorFatura > 0.009) {
       const pack = desempacotarDespesa(l.descricao);
-      porPaciente.clear();
-      porPaciente.set("—", [
-        {
-          os: "",
+      const valorCada = Math.round((valorFatura / osNums.length) * 100) / 100;
+      osNums.forEach((n, idx) => {
+        const restante =
+          idx === osNums.length - 1
+            ? Math.round((valorFatura - valorCada * (osNums.length - 1)) * 100) / 100
+            : valorCada;
+        const lista = porPaciente.get("—") ?? [];
+        lista.push({
+          os: numeroOsExtrato(n),
           qtd: "1",
           servico: descricaoServicoExtrato(pack.texto.split("\n")[0]?.trim() || "Cobrança"),
           entrega: "—",
-          valorUn: valorFatura,
+          valorUn: restante,
           descPercent: "0,00",
-          valor: valorFatura,
-        },
-      ]);
+          valor: restante,
+        });
+        porPaciente.set("—", lista);
+      });
     } else if (valorFatura > 0.009 && somaItens > 0.009 && Math.abs(somaItens - valorFatura) > 0.02) {
       const fator = valorFatura / somaItens;
       for (const [, lista] of porPaciente) {

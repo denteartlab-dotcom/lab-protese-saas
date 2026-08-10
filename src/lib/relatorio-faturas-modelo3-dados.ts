@@ -248,12 +248,15 @@ export function trabalhosDaFatura(
   const clienteId = lancamento.cliente?.id;
   const clienteNome = lancamento.cliente?.nome;
 
-  return trabalhos.filter((t) => {
-    if (!trabalhoPertenceAoCliente(t, clienteId, clienteNome)) return false;
-    if (ids.has(t.id)) return true;
-    if (temMetaIds) return false;
-    return numeros.includes(t.numeroOs);
-  });
+  const doCliente = trabalhos.filter((t) =>
+    trabalhoPertenceAoCliente(t, clienteId, clienteNome)
+  );
+
+  const porMeta = temMetaIds ? doCliente.filter((t) => ids.has(t.id)) : [];
+  if (porMeta.length > 0) return porMeta;
+
+  // Meta @@trab@@ ausente ou desatualizada: usa os números reais da Cobrança OS.
+  return doCliente.filter((t) => numeros.includes(t.numeroOs));
 }
 
 function dataCriacaoLancamento(lancamento: LancamentoContasReceber) {
@@ -305,10 +308,13 @@ export function trabalhosDaFaturaParaExtrato(
   trabalhos: TrabalhoRelatorioFatura[],
   lancamentosReceita: LancamentoContasReceber[]
 ): TrabalhoRelatorioFatura[] {
-  return trabalhosDaFatura(lancamento, trabalhos).filter((trabalho) => {
+  const daFatura = trabalhosDaFatura(lancamento, trabalhos);
+  const exclusivos = daFatura.filter((trabalho) => {
     const dono = lancamentoDonoTrabalhoFatura(trabalho, lancamentosReceita);
-    return dono?.id === lancamento.id;
+    return !dono || dono.id === lancamento.id;
   });
+  // Se o filtro de "dono" esvaziar (legado), mantém os trabalhos da própria Cobrança.
+  return exclusivos.length > 0 ? exclusivos : daFatura;
 }
 
 function dataEmissaoLancamento(lancamento: LancamentoContasReceber) {

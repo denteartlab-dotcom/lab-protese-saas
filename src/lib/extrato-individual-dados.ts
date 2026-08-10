@@ -2,8 +2,10 @@ import { numerosOsDoLancamentoFatura } from "@/lib/os-faturamento";
 import {
   filtrarTrabalhosCliente,
   itensDoTrabalho,
+  nomePacienteTrabalho,
   trabalhosDaFaturaParaExtrato,
   chaveAgrupamentoFatura,
+  valorTrabalho,
   type TrabalhoRelatorioFatura,
 } from "@/lib/relatorio-faturas-modelo3-dados";
 import {
@@ -124,7 +126,7 @@ function ehLinhaAbatimentoCredito(linha: Pick<LinhaExtratoIndividual, "tipo" | "
   return /abatimento|cr[eé]dito/i.test(linha.servico);
 }
 
-/** Itens da Cobrança no extrato — valor da fatura é a fonte da verdade. */
+/** Itens da Cobrança no extrato — uma linha por OS, com paciente e valor separados. */
 function linhasServicoDaFaturaExtrato(
   l: LancamentoContasReceber,
   relacionados: ReturnType<typeof trabalhosDaFaturaParaExtrato>,
@@ -134,72 +136,138 @@ function linhasServicoDaFaturaExtrato(
     dataOrdemPeriodo: Date;
     numFatura: string;
   },
-  receitas: LancamentoContasReceber[]
+  receitas: LancamentoContasReceber[],
+  trabalhosCliente: TrabalhoRelatorioFatura[]
 ): LinhaExtratoIndividual[] {
   const valorFatura = valorNotaFatura(l, receitas);
-  const itens =
-    relacionados.length > 0
-      ? relacionados.flatMap((t) =>
-          itensDoTrabalho(t).map((item) => ({
-            ...item,
-            dataEntrega: dataEntregaTrabalho(t),
-          }))
-        )
-      : [];
-  const somaItens = itens.reduce((s, item) => s + item.subtotal, 0);
+  const pack = desempacotarDespesa(l.descricao);
+  const descricaoBase = descricaoServicoExtrato(
+    pack.texto.split("\n")[0]?.trim() || "Cobrança"
+  );
 
-  if (itens.length > 0 && somaItens > 0.009) {
-    const fator =
-      valorFatura > 0.009 && Math.abs(somaItens - valorFatura) > 0.02
-        ? valorFatura / somaItens
-        : 1;
-    return itens.map((item) => {
-      const subtotal = Math.round(item.subtotal * fator * 100) / 100;
-      const valorUn = Math.round(item.valorUn * fator * 100) / 100;
-      return {
-        tipo: "servico" as const,
-        dataFatura: base.dataFatura,
-        dataOrdem: base.dataOrdem,
-        dataOrdemPeriodo: base.dataOrdemPeriodo,
-        numFatura: base.numFatura,
-        os: numeroOsExtrato(item.os),
-        servico: descricaoServicoExtrato(item.descricao),
-        qtd: item.qtd,
-        paciente: item.paciente || "—",
-        numDente: item.numDente && item.numDente !== "—" ? item.numDente : "",
-        dataEntrega: item.dataEntrega,
-        valorUn,
-        desconto: descontoItem(item.qtd, valorUn, subtotal),
-        subtotal,
-      };
+  // Resolve trabalhos: relacionados da fatura; senão busca por nº OS no cliente.
+  const osNums = numerosOsDoLancamentoFatura(l);
+  const porOs = new Map<number, TrabalhoRelatorioFatura>();
+  for (const t of [...relacionados, ...trabalhosCliente]) {
+    if (t.numeroOs > 0 && !porOs.has(t.numeroOs)) porOs.set(t.numeroOs, t);
+  }
+
+  type LinhaOs = {
+    os: string;
+    paciente: string;
+    numDente: string;
+    dataEntrega: string;
+    descricao: string;
+    qtd: string;
+    valorUn: number;
+    subtotal: number;
+  };
+
+  const linhasOs: LinhaOs[] = [];
+
+  const trabalhosLinha =
+    relacionados.length > 0
+      ? relacionados
+      : osNums
+          .map((n) => porOs.get(n))
+          .filter((t): t is TrabalhoRelatorioFatura => Boolean(t));
+
+  if (trabalhosLinha.length > 0) {
+    for (const t of trabalhosLinha) {
+      const itens = itensDoTrabalho(t);
+      const somaTrabalho = itens.reduce((s, i) => s + i.subtotal, 0);
+      if (itens.length > 0 && somaTrabalho > 0.009) {
+        for (const item of itens) {
+          linhasOs.push({
+            os: numeroOsExtrato(item.os),
+            paciente: item.paciente?.trim() || nomePacienteTrabalho(t) || "—",
+            numDente: item.numDente && item.numDente !== "—" ? item.numDente : "",
+            dataEntrega: dataEntregaTrabalho(t),
+            descricao: descricaoServicoExtrato(item.descricao),
+            qtd: item.qtd,
+            valorUn: item.valorUn,
+            subtotal: item.subtotal,
+          });
+        }
+      } else {
+        const valor = valorTrabalho(t);
+        linhasOs.push({
+          os: numeroOsExtrato(t.numeroOs),
+          paciente: nomePacienteTrabalho(t) || "—",
+          numDente: t.dentes && t.dentes !== "—" ? String(t.dentes) : "",
+          dataEntrega: dataEntregaTrabalho(t),
+          descricao: descricaoServicoExtrato(t.tipoProtese || descricaoBase),
+          qtd: "1",
+          valorUn: valor,
+          subtotal: valor,
+        });
+      }
+    }
+  } else if (osNums.length > 0) {
+    // OS citadas na cobrança sem cadastro carregado: uma linha por OS.
+    const valorCada =
+      valorFatura > 0.009
+        ? Math.round((valorFatura / osNums.length) * 100) / 100
+        : 0;
+    osNums.forEach((n, idx) => {
+      const restante =
+        idx === osNums.length - 1
+          ? Math.round((valorFatura - valorCada * (osNums.length - 1)) * 100) / 100
+          : valorCada;
+      linhasOs.push({
+        os: numeroOsExtrato(n),
+        paciente: "—",
+        numDente: "",
+        dataEntrega: "",
+        descricao: descricaoBase,
+        qtd: "1",
+        valorUn: restante,
+        subtotal: restante,
+      });
+    });
+  } else if (valorFatura > 0.009) {
+    linhasOs.push({
+      os: "",
+      paciente: "—",
+      numDente: "",
+      dataEntrega: "",
+      descricao: descricaoBase,
+      qtd: "1",
+      valorUn: valorFatura,
+      subtotal: valorFatura,
     });
   }
 
-  if (valorFatura <= 0.009) return [];
+  if (linhasOs.length === 0) return [];
 
-  const pack = desempacotarDespesa(l.descricao);
-  const osNums =
-    relacionados.length > 0
-      ? [...new Set(relacionados.map((t) => t.numeroOs).filter((n) => n > 0 && n < 1_000_000))]
-      : numerosOsDoLancamentoFatura(l);
-  return [
-    {
-      tipo: "servico",
+  const somaItens = linhasOs.reduce((s, i) => s + i.subtotal, 0);
+  const fator =
+    valorFatura > 0.009 && somaItens > 0.009 && Math.abs(somaItens - valorFatura) > 0.02
+      ? valorFatura / somaItens
+      : 1;
+
+  return linhasOs.map((item) => {
+    const subtotal =
+      fator === 1 ? item.subtotal : Math.round(item.subtotal * fator * 100) / 100;
+    const valorUn =
+      fator === 1 ? item.valorUn : Math.round(item.valorUn * fator * 100) / 100;
+    return {
+      tipo: "servico" as const,
       dataFatura: base.dataFatura,
       dataOrdem: base.dataOrdem,
       dataOrdemPeriodo: base.dataOrdemPeriodo,
       numFatura: base.numFatura,
-      os: osNums.length ? osNums.map(numeroOsExtrato).filter(Boolean).join(", ") : "",
-      servico: descricaoServicoExtrato(pack.texto.split("\n")[0]?.trim() || "Cobrança"),
-      qtd: "1",
-      paciente: "—",
-      numDente: "",
-      dataEntrega: "",
-      valorUn: valorFatura,
-      desconto: 0,
-      subtotal: valorFatura,
-    },
-  ];
+      os: item.os,
+      servico: item.descricao,
+      qtd: item.qtd,
+      paciente: item.paciente || "—",
+      numDente: item.numDente,
+      dataEntrega: item.dataEntrega,
+      valorUn,
+      desconto: descontoItem(item.qtd, valorUn, subtotal),
+      subtotal,
+    };
+  });
 }
 
 function pushPagamentoExtrato(
@@ -385,7 +453,8 @@ export function montarExtratoIndividual(
             dataOrdemPeriodo,
             numFatura: numFat,
           },
-          receitas
+          receitas,
+          trabalhosCliente
         )
       );
     }
