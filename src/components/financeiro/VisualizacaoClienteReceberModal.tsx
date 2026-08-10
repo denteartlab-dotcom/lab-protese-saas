@@ -471,7 +471,10 @@ export function VisualizacaoClienteReceberModal({
           l as LancamentoContasReceber,
           (cliente?.lancamentos ?? []) as LancamentoContasReceber[]
         );
-        // Total de recebimentos em dinheiro: ignora abatimento de crédito (negativo).
+        // Dinheiro positivo + abatimento de crédito (valor histórico vem negativo).
+        if (isCreditoUtilizado(l as LancamentoContasReceber)) {
+          return s + Math.abs(valor);
+        }
         return s + Math.max(0, valor);
       }, 0),
     [recebimentosVisiveis, cliente?.lancamentos]

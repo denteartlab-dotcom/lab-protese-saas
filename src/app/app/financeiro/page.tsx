@@ -816,7 +816,7 @@ function FinanceiroReceberConteudo() {
     if (!detalheCliente) return;
     const chave = clienteKey(detalheCliente);
     const atualizado = clientesReceber.find((c) => clienteKey(c) === chave);
-    if (atualizado) setDetalheCliente(atualizado);
+    if (atualizado) setDetalheCliente(enriquecerClienteReceber(atualizado));
   }, [clientesReceber]);
 
   const resumoReceber = useMemo(() => {
@@ -1001,7 +1001,11 @@ function FinanceiroReceberConteudo() {
         ? Math.min(creditoDisponivel, totalLiquido)
         : 0;
     const totalAReceberComCredito = Math.max(0, totalLiquido - creditoAplicado);
-    const deveCriarFaturaReceber = Math.round(totalAReceberComCredito * 100) > 0;
+    // Sempre cria a Cobrança OS (nota), mesmo com abatimento total de crédito.
+    // Antes, cash=0 pulava a fatura e só criava "Desconto com crédito" órfão.
+    const deveCriarFaturaReceber = Math.round(totalLiquido * 100) > 0;
+    const cobrancaQuitadaSoComCredito =
+      creditoAplicado > 0.009 && Math.round(totalAReceberComCredito * 100) <= 0;
     const descricaoBase = form.semOs
       ? `Cobrança sem O.S.${form.descricao?.trim() ? ` - ${form.descricao.trim()}` : ""}`
       : trabalhosSelecionados.length
@@ -1015,20 +1019,36 @@ function FinanceiroReceberConteudo() {
     const descricaoCobranca = descricaoReceitaComPlano(descricaoBase, anexos);
     const hojeIso = brShortToIso(dateToBrShort(new Date()));
     const lancamentosCriados: Lancamento[] = [];
-    const algumRecebido = parcelas.some((p) => p.recebido);
+    const emitirAsaas =
+      !cobrancaQuitadaSoComCredito &&
+      !parcelas.some((p) => p.recebido) &&
+      Math.round(totalAReceberComCredito * 100) > 0;
 
     function valorParcelaFatura(parcela: ParcelaLinhaReceita, totalParcelas: number) {
       const qtd = Math.max(totalParcelas, 1);
       if (creditoAplicado <= 0.009) {
         return valorParcelaNumerico(parcela, totalLiquido / qtd);
       }
+      // Fatura sempre no valor bruto dos serviços; o crédito vira lançamento à parte.
+      if (totalAReceberComCredito <= 0.009) {
+        return valorParcelaNumerico(parcela, totalLiquido / qtd);
+      }
       const valorCobrancaParcela = valorParcelaNumerico(
         parcela,
         totalAReceberComCredito / qtd
       );
-      if (totalAReceberComCredito <= 0.009) return 0;
       const proporcao = valorCobrancaParcela / totalAReceberComCredito;
       return Math.round(totalLiquido * proporcao * 100) / 100;
+    }
+
+    function statusParcelaFatura(parcela: ParcelaLinhaReceita) {
+      if (cobrancaQuitadaSoComCredito || parcela.recebido) return "pago" as const;
+      return "pendente" as const;
+    }
+
+    function formaParcelaFatura(parcela: ParcelaLinhaReceita) {
+      if (cobrancaQuitadaSoComCredito) return FORMA_PAGAMENTO_ABATIMENTO_CREDITO;
+      return formaPagamentoValida(parcela.formaPagamento || form.formaPagamento);
     }
 
     if (deveCriarFaturaReceber) {
@@ -1044,13 +1064,16 @@ function FinanceiroReceberConteudo() {
               form.semOs || trabalhosSelecionados.length !== 1
                 ? undefined
                 : trabalhosSelecionados[0].id,
-            emitirBoleto: formaSelecionadaEhBoleto(parcelas) && !algumRecebido,
-            emitirPix: formaSelecionadaEhPix(parcelas) && !algumRecebido,
+            emitirBoleto: emitirAsaas && formaSelecionadaEhBoleto(parcelas),
+            emitirPix: emitirAsaas && formaSelecionadaEhPix(parcelas),
             parcelas: parcelas.map((p) => ({
               valor: valorParcelaFatura(p, parcelas.length),
-              data: p.recebido ? hojeIso : brShortToIso(p.vencimento || form.data),
-              status: p.recebido ? "pago" : "pendente",
-              formaPagamento: formaPagamentoValida(p.formaPagamento),
+              data:
+                cobrancaQuitadaSoComCredito || p.recebido
+                  ? hojeIso
+                  : brShortToIso(p.vencimento || form.data),
+              status: statusParcelaFatura(p),
+              formaPagamento: formaParcelaFatura(p),
             })),
           }),
         });
@@ -1087,7 +1110,7 @@ function FinanceiroReceberConteudo() {
           setMensagemLancamentoTipo("erro");
           setMensagemLancamento(String(payload.avisosBoletos[0]));
           return;
-        } else if (formaSelecionadaEhBoleto(parcelas) && !algumRecebido) {
+        } else if (emitirAsaas && formaSelecionadaEhBoleto(parcelas)) {
           setMensagemLancamentoTipo("sucesso");
           setMensagemLancamento(
             payload.boletosEmitidos
@@ -1101,7 +1124,7 @@ function FinanceiroReceberConteudo() {
           setMensagemLancamentoTipo("erro");
           setMensagemLancamento(String(payload.avisosPix[0]));
           return;
-        } else if (payload.pixQr && formaSelecionadaEhPix(parcelas) && !algumRecebido) {
+        } else if (payload.pixQr && emitirAsaas && formaSelecionadaEhPix(parcelas)) {
           const clienteNome =
             clientes.find((c) => c.id === form.clienteId)?.nome || "Cliente";
           setPixQrRecebimento({
@@ -1119,17 +1142,23 @@ function FinanceiroReceberConteudo() {
         }
       } else {
         const p = parcelas[0];
-        const valorLancamento = p
-          ? valorParcelaFatura(p, 1)
-          : creditoAplicado > 0.009
-            ? totalLiquido
-            : totalAReceberComCredito;
+        const valorLancamento = p ? valorParcelaFatura(p, 1) : totalLiquido;
         const valorPixBoleto =
           creditoAplicado > 0.009
             ? p
               ? valorParcelaNumerico(p, totalAReceberComCredito)
               : totalAReceberComCredito
             : valorLancamento;
+        const statusFatura = p
+          ? statusParcelaFatura(p)
+          : cobrancaQuitadaSoComCredito
+            ? "pago"
+            : form.status || "pendente";
+        const formaFatura = p
+          ? formaParcelaFatura(p)
+          : cobrancaQuitadaSoComCredito
+            ? FORMA_PAGAMENTO_ABATIMENTO_CREDITO
+            : formaPagamentoValida(form.formaPagamento);
         const res = await fetch("/api/financeiro", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1137,16 +1166,19 @@ function FinanceiroReceberConteudo() {
             tipo: "receita",
             clienteId: form.clienteId || undefined,
             valor: valorLancamento,
-            data: p?.recebido ? hojeIso : brShortToIso(p?.vencimento || form.vencimento || form.data),
-            formaPagamento: formaPagamentoValida(p?.formaPagamento || form.formaPagamento),
-            status: p?.recebido ? "pago" : form.status || "pendente",
+            data:
+              cobrancaQuitadaSoComCredito || p?.recebido
+                ? hojeIso
+                : brShortToIso(p?.vencimento || form.vencimento || form.data),
+            formaPagamento: formaFatura,
+            status: statusFatura,
             trabalhoId:
               form.semOs || trabalhosSelecionados.length !== 1
                 ? undefined
                 : trabalhosSelecionados[0].id,
             descricao: descricaoCobranca,
-            emitirBoleto: formaSelecionadaEhBoleto(parcelas) && !algumRecebido,
-            emitirPix: formaSelecionadaEhPix(parcelas) && !algumRecebido,
+            emitirBoleto: emitirAsaas && formaSelecionadaEhBoleto(parcelas),
+            emitirPix: emitirAsaas && formaSelecionadaEhPix(parcelas),
             valorCobrancaAsaas: valorPixBoleto,
           }),
         });
@@ -1165,7 +1197,7 @@ function FinanceiroReceberConteudo() {
           setMensagemLancamentoTipo("sucesso");
           setMensagemLancamento("Boleto emitido no Asaas. Abrindo PDF…");
           window.open(payload.cobrancaAsaas.bankSlipUrl, "_blank", "noopener,noreferrer");
-        } else if (payload.pixQr && formaSelecionadaEhPix(parcelas) && !algumRecebido) {
+        } else if (payload.pixQr && emitirAsaas && formaSelecionadaEhPix(parcelas)) {
           const clienteNome =
             clientes.find((c) => c.id === form.clienteId)?.nome || "Cliente";
           setPixQrRecebimento({
@@ -1188,12 +1220,17 @@ function FinanceiroReceberConteudo() {
           setMensagemLancamentoTipo("erro");
           setMensagemLancamento(payload.avisoPix);
           return;
-        } else if (formaSelecionadaEhBoleto(parcelas) && !algumRecebido) {
+        } else if (emitirAsaas && formaSelecionadaEhBoleto(parcelas)) {
           setMensagemLancamentoTipo("sucesso");
           setMensagemLancamento(
             payload.boletoEmitido
               ? "Cobrança lançada com boleto emitido."
               : "Cobrança lançada."
+          );
+        } else if (cobrancaQuitadaSoComCredito) {
+          setMensagemLancamentoTipo("sucesso");
+          setMensagemLancamento(
+            "Cobrança quitada com abatimento de crédito e registrada em Contas a Receber."
           );
         }
       }
@@ -1206,7 +1243,7 @@ function FinanceiroReceberConteudo() {
           tipo: "receita",
           clienteId: form.clienteId || undefined,
           valor: creditoAplicado,
-          data: brShortToIso(form.vencimento || form.data),
+          data: hojeIso,
           status: "pago",
           formaPagamento: FORMA_PAGAMENTO_ABATIMENTO_CREDITO,
           descricao: `Desconto com crédito - ${descricaoCobranca}`,
@@ -1221,7 +1258,11 @@ function FinanceiroReceberConteudo() {
       ) {
         await marcarOsFaturadasComoEntregues();
       }
-      if (enviarControleEntrega && trabalhosSelecionados.length > 0 && deveCriarFaturaReceber) {
+      if (
+        enviarControleEntrega &&
+        trabalhosSelecionados.length > 0 &&
+        (deveCriarFaturaReceber || creditoAplicado > 0)
+      ) {
         for (const trabalho of trabalhosSelecionados) {
           adicionarTrabalhoControleEntregasAutomatico(
             {
@@ -2066,8 +2107,26 @@ function FinanceiroReceberConteudo() {
     };
   }
 
+  function enriquecerClienteReceber(cliente: ClienteReceber): ClienteReceber {
+    if (!cliente.clienteId || !data?.lancamentos?.length) return cliente;
+    const todosDoCliente = data.lancamentos.filter(
+      (l) => l.tipo === "receita" && l.cliente?.id === cliente.clienteId
+    );
+    if (todosDoCliente.length === 0) return cliente;
+    const porId = new Map(cliente.lancamentos.map((l) => [l.id, l]));
+    for (const l of todosDoCliente) {
+      if (!porId.has(l.id)) porId.set(l.id, l);
+    }
+    return {
+      ...cliente,
+      lancamentos: Array.from(porId.values()).sort(
+        (a, b) => new Date(b.data).getTime() - new Date(a.data).getTime()
+      ),
+    };
+  }
+
   function abrirClienteModal(cliente: ClienteReceber) {
-    setDetalheCliente(cliente);
+    setDetalheCliente(enriquecerClienteReceber(cliente));
   }
 
   function abrirImprimirFatura(cliente: ClienteReceber, lancamento: Lancamento) {

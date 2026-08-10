@@ -580,6 +580,14 @@ export function recebimentosHistoricoCliente(
   lancamentos: LancamentoContasReceber[]
 ) {
   const faturas = faturasCobrancaOsDoCliente(clienteId, lancamentos);
+  const resultado: LancamentoContasReceber[] = [];
+  const visto = new Set<string>();
+  const push = (item: LancamentoContasReceber) => {
+    if (!item.id || visto.has(item.id)) return;
+    visto.add(item.id);
+    resultado.push(item);
+  };
+
   if (faturas.length === 0) {
     return lancamentos
       .filter(
@@ -593,13 +601,27 @@ export function recebimentosHistoricoCliente(
   }
 
   // Todas as faturas do cliente — não só a mais recente (senão Pix pago some quando há boleto mais novo).
-  const resultado: LancamentoContasReceber[] = [];
-  const visto = new Set<string>();
   for (const fatura of faturas) {
     for (const mov of movimentacoesRecebimentoDaFatura(fatura, lancamentos)) {
-      if (visto.has(mov.id)) continue;
-      visto.add(mov.id);
-      resultado.push(mov);
+      push(mov);
+    }
+  }
+
+  // Adiantamentos/créditos gerados e abatimentos órfãos (sem fatura vinculada) também entram.
+  for (const item of lancamentos) {
+    if (item.cliente?.id !== clienteId || item.tipo !== "receita" || item.status !== "pago") {
+      continue;
+    }
+    if (isCreditoGerado(item)) {
+      push(item);
+      continue;
+    }
+    if (isCreditoUtilizado(item)) {
+      const vinculo = descricaoFaturaVinculadaAoPagamento(item.descricao);
+      const faturaVinculada = vinculo
+        ? localizarFaturaPorDescricao(vinculo, clienteId, lancamentos)
+        : null;
+      if (!faturaVinculada) push(item);
     }
   }
 
