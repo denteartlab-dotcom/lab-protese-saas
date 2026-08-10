@@ -104,7 +104,7 @@ import {
   exportarContasReceberClientesCsv,
   gerarContasReceberClientesPdf,
 } from "@/lib/contas-receber-clientes-export";
-import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, isRecebimentoParcial, deveExibirNoHistoricoRecebimentos, valorHistoricoRecebimentoCliente, referenciaLancamento as referenciaHistoricoRecebimento, recebidoNaFatura as recebidoNaFaturaLib, saldoFatura as saldoFaturaLib, classeReferenciaHistoricoRecebimento, faturaExibeSituacaoParcial, faturasExibicaoPainelCliente, faturaQuitada, recebimentosHistoricoCliente, movimentacoesRecebimentoDaFatura, ehFaturaCobrancaOsParaExclusao, idsLancamentosExclusaoAoRemoverFatura, ehDescricaoFaturaContasReceber, type LancamentoContasReceber } from "@/lib/contas-receber-financeiro";
+import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, isRecebimentoParcial, deveExibirNoHistoricoRecebimentos, valorHistoricoRecebimentoCliente, referenciaLancamento as referenciaHistoricoRecebimento, recebidoNaFatura as recebidoNaFaturaLib, saldoFatura as saldoFaturaLib, classeReferenciaHistoricoRecebimento, faturaExibeSituacaoParcial, faturasExibicaoPainelCliente, faturaQuitada, recebimentosHistoricoCliente, movimentacoesRecebimentoDaFatura, ehFaturaCobrancaOsParaExclusao, idsLancamentosExclusaoAoRemoverFatura, ehDescricaoFaturaContasReceber, listarAbatimentosCreditoSemFatura, payloadReparoFaturaDeAbatimento, type LancamentoContasReceber } from "@/lib/contas-receber-financeiro";
 import { calcularContasRecebidasPeriodo } from "@/lib/lancamento-valor-caixa";
 import { fetchPainelFinanceiro } from "@/lib/financeiro-painel-cliente";
 import type { PainelFinanceiroReceita } from "@/lib/financeiro-painel-types";
@@ -430,7 +430,7 @@ function FinanceiroReceberConteudo() {
     }
   }
 
-  async function carregarPainelReceita(opts?: { refresh?: boolean }) {
+  async function carregarPainelReceita(opts?: { refresh?: boolean; aposReparo?: boolean }) {
     const painel = await fetchPainelFinanceiro<PainelFinanceiroReceita>("receita", opts);
     if (!painel.ok || !painel.dados.lancamentos) {
       setMensagemLancamentoTipo("erro");
@@ -448,6 +448,32 @@ function FinanceiroReceberConteudo() {
     const lancamentosSerializados = JSON.parse(
       JSON.stringify(painelData.lancamentos)
     ) as typeof painelData.lancamentos;
+
+    // Repara Cobrança OS faltante quando só existe "Desconto com crédito" (bug legado).
+    if (!opts?.aposReparo) {
+      const orfaos = listarAbatimentosCreditoSemFatura(
+        lancamentosSerializados as unknown as LancamentoContasReceber[]
+      );
+      let criados = 0;
+      for (const orfao of orfaos) {
+        try {
+          const res = await fetch("/api/financeiro", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(
+              payloadReparoFaturaDeAbatimento(orfao, FORMA_PAGAMENTO_ABATIMENTO_CREDITO)
+            ),
+          });
+          if (res.ok) criados += 1;
+        } catch {
+          /* segue nos demais */
+        }
+      }
+      if (criados > 0) {
+        return carregarPainelReceita({ refresh: true, aposReparo: true });
+      }
+    }
+
     setData({
       lancamentos: lancamentosSerializados as unknown as Lancamento[],
       resumo: painelData.resumo || {

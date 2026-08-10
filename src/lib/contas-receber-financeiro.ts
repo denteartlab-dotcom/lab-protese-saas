@@ -1,4 +1,7 @@
-import { numerosOsDoLancamentoFatura } from "@/lib/os-faturamento";
+import {
+  idsTrabalhosFaturadosNoLancamento,
+  numerosOsDoLancamentoFatura,
+} from "@/lib/os-faturamento";
 import { parseParcelaNaDescricao, textoParcelaLog } from "@/lib/fatura-financeiro-util";
 import { descricaoReceitaSemMeta } from "@/lib/receita-conta-bancaria";
 
@@ -693,4 +696,67 @@ export function idsLancamentosExclusaoAoRemoverFatura(
     }
   }
   return Array.from(ids);
+}
+
+/** Abatimento de crédito sem Cobrança OS correspondente (bug legado: só criava o Desconto). */
+export type AbatimentoCreditoSemFatura = {
+  abatimento: LancamentoContasReceber;
+  descricaoFatura: string;
+};
+
+export function dataIsoDeLancamento(data: string) {
+  const m = String(data).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  const d = new Date(data);
+  if (Number.isNaN(d.getTime())) {
+    const hoje = new Date();
+    return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}`;
+  }
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/**
+ * Lista "Desconto com crédito - Cobrança OS…" sem fatura correspondente.
+ * Usado para reparar lançamentos antigos e exibir os trabalhos em Contas a Receber.
+ */
+export function listarAbatimentosCreditoSemFatura(
+  lancamentos: LancamentoContasReceber[]
+): AbatimentoCreditoSemFatura[] {
+  const resultado: AbatimentoCreditoSemFatura[] = [];
+  for (const l of lancamentos) {
+    if (l.tipo !== "receita" || l.status === "cancelado") continue;
+    if (!isCreditoUtilizado(l)) continue;
+    const descricaoFatura = descricaoFaturaVinculadaAoPagamento(l.descricao);
+    if (!descricaoFatura || !ehDescricaoFaturaContasReceber(descricaoFatura)) continue;
+    const clienteId = l.cliente?.id;
+    if (!clienteId) continue;
+    if (localizarFaturaPorDescricao(descricaoFatura, clienteId, lancamentos)) continue;
+    resultado.push({ abatimento: l, descricaoFatura });
+  }
+  return resultado;
+}
+
+/** Payload POST /api/financeiro para recriar a Cobrança OS faltante (paga só com crédito). */
+export function payloadReparoFaturaDeAbatimento(
+  orfao: AbatimentoCreditoSemFatura,
+  formaPagamentoAbatimento: string
+) {
+  const ids = idsTrabalhosFaturadosNoLancamento({
+    id: orfao.abatimento.id,
+    status: "pago",
+    descricao: orfao.descricaoFatura,
+    trabalho: orfao.abatimento.trabalho
+      ? { id: orfao.abatimento.trabalho.id, numeroOs: orfao.abatimento.trabalho.numeroOs }
+      : null,
+  });
+  return {
+    tipo: "receita" as const,
+    clienteId: orfao.abatimento.cliente!.id,
+    valor: Math.abs(orfao.abatimento.valor),
+    data: dataIsoDeLancamento(orfao.abatimento.data),
+    status: "pago" as const,
+    formaPagamento: formaPagamentoAbatimento,
+    descricao: orfao.descricaoFatura,
+    trabalhoId: ids.length === 1 ? ids[0] : undefined,
+  };
 }
