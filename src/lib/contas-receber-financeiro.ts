@@ -41,22 +41,32 @@ function dateOnly(value: string) {
 }
 
 export function isCreditoGerado(lancamento: LancamentoContasReceber) {
-  const descricao = lancamento.descricao.toLowerCase();
-  return descricao.startsWith("adiantamento") || descricao.includes("crédito cliente");
+  const descricao = lancamento.descricao
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase();
+  return descricao.startsWith("adiantamento") || descricao.includes("credito cliente");
 }
 
 export function isCreditoUtilizado(lancamento: { descricao: string }) {
-  const descricao = lancamento.descricao.toLowerCase();
-  return descricao.startsWith("crédito utilizado") || descricao.includes("desconto com crédito");
+  const descricao = lancamento.descricao
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase();
+  return descricao.startsWith("credito utilizado") || descricao.includes("desconto com credito");
 }
 
 /** Fatura de Contas a Receber: Cobrança OS… ou Cobrança sem O.S.… */
 export function ehDescricaoFaturaContasReceber(descricao: string): boolean {
-  const d = descricao.toLowerCase().trim();
+  const d = descricao
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .trim();
   return (
-    d.startsWith("cobrança os") ||
-    d.startsWith("cobrança sem o.s") ||
-    d.startsWith("cobrança sem os")
+    d.startsWith("cobranca os") ||
+    d.startsWith("cobranca sem o.s") ||
+    d.startsWith("cobranca sem os")
   );
 }
 
@@ -205,9 +215,9 @@ export function descricaoFaturaVinculadaAoPagamento(descricao: string) {
   const base = descricaoReceitaSemMeta(descricao).trim();
   const parcial = base.match(/^recebimento parcial\s*-\s*(.+)$/i);
   if (parcial) return parcial[1].trim();
-  const credito = base.match(/^desconto com crédito\s*-\s*(.+)$/i);
+  const credito = base.match(/^desconto com cr[eé]dito\s*-\s*(.+)$/i);
   if (credito) return credito[1].trim();
-  const creditoLegado = base.match(/^crédito utilizado\s*-\s*(.+)$/i);
+  const creditoLegado = base.match(/^cr[eé]dito utilizado\s*-\s*(.+)$/i);
   if (creditoLegado) return creditoLegado[1].trim();
   return null;
 }
@@ -314,7 +324,7 @@ export function isFaturaContasReceber(
 ) {
   if (isCreditoGerado(lancamento) || isCreditoUtilizado(lancamento)) return false;
   if (!ehDescricaoFaturaContasReceber(lancamento.descricao)) return false;
-  if (lancamento.formaPagamento?.toLowerCase().includes("crédito")) return false;
+  // Fatura paga só com crédito continua sendo Cobrança OS (não ocultar pela forma).
   const creditoQuitouFatura =
     creditoUsadoNaFatura(lancamento, lancamentos) > 0 &&
     Math.round(saldoFatura(lancamento, lancamentos) * 100) <= 0;
@@ -460,7 +470,7 @@ export function clienteVisivelContasReceber(totais: TotaisContasReceberCliente):
 export function isFaturaExibicaoContasReceber(lancamento: LancamentoContasReceber) {
   if (isCreditoGerado(lancamento) || isCreditoUtilizado(lancamento)) return false;
   if (!ehDescricaoFaturaContasReceber(lancamento.descricao)) return false;
-  if (lancamento.formaPagamento?.toLowerCase().includes("crédito")) return false;
+  // Inclui notas quitadas com "Abatimento de Crédito" (forma na própria Cobrança OS).
   return true;
 }
 

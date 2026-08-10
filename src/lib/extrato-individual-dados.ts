@@ -1,7 +1,4 @@
-import {
-  ehDescricaoReceitaOs,
-  numerosOsDoLancamentoFatura,
-} from "@/lib/os-faturamento";
+import { numerosOsDoLancamentoFatura } from "@/lib/os-faturamento";
 import {
   filtrarTrabalhosCliente,
   itensDoTrabalho,
@@ -10,6 +7,7 @@ import {
   type TrabalhoRelatorioFatura,
 } from "@/lib/relatorio-faturas-modelo3-dados";
 import {
+  ehDescricaoFaturaContasReceber,
   isCreditoGerado,
   isCreditoUtilizado,
   isRecebimentoParcial,
@@ -115,8 +113,9 @@ function textoPagamento(l: LancamentoContasReceber) {
   return `Recebimento ${forma}`;
 }
 
-function ehReceitaOs(l: LancamentoContasReceber) {
-  return ehDescricaoReceitaOs(descricaoBaseReceita(l));
+/** Só Cobrança OS / Cobrança sem O.S. de Contas a Receber — ignora OS # legado. */
+function ehFaturaContasReceberExtrato(l: LancamentoContasReceber) {
+  return ehDescricaoFaturaContasReceber(descricaoBaseReceita(l));
 }
 
 function pushPagamentoExtrato(
@@ -143,24 +142,6 @@ function pushPagamentoExtrato(
     desconto: 0,
     subtotal: -Math.abs(valor),
   });
-}
-
-function lancamentoSemTrabalhosValidos(
-  l: LancamentoContasReceber,
-  trabalhosCliente: TrabalhoRelatorioFatura[],
-  receitas: LancamentoContasReceber[]
-) {
-  if (ehReceitaOs(l)) {
-    return trabalhosDaFaturaParaExtrato(l, trabalhosCliente, receitas).length === 0;
-  }
-  if (l.trabalho?.id) {
-    return !trabalhosCliente.some((t) => t.id === l.trabalho?.id);
-  }
-  const numerosOs = numerosOsDoLancamentoFatura(l);
-  if (numerosOs.length === 0) return false;
-  return !numerosOs.some((numero) =>
-    trabalhosCliente.some((t) => t.numeroOs === numero)
-  );
 }
 
 function dataRefLancamento(
@@ -250,7 +231,7 @@ export function montarExtratoIndividual(
 
   const faturaPorGrupo = new Map<string, number>();
   for (const l of receitas) {
-    if (!ehReceitaOs(l)) continue;
+    if (!ehFaturaContasReceberExtrato(l)) continue;
     const chave = chaveAgrupamentoFatura(l);
     if (!faturaPorGrupo.has(chave)) {
       faturaPorGrupo.set(chave, numeroFaturaDeLancamento(l, receitas));
@@ -290,38 +271,8 @@ export function montarExtratoIndividual(
       continue;
     }
 
-    if (lancamentoSemTrabalhosValidos(l, trabalhosCliente, receitas)) {
-      continue;
-    }
-
-    if (!ehReceitaOs(l)) {
-      if (l.status === "pago") {
-        pushPagamentoExtrato(linhasBrutas, l, valorNumerico(l.valor), periodoCampo);
-        continue;
-      }
-      if (l.status !== "pendente") continue;
-      const { texto, ordem } = dataFaturaLancamento(l);
-      const pack = desempacotarDespesa(l.descricao);
-      const subtotal = valorNumerico(l.valor);
-      const osNum = l.trabalho?.numeroOs
-        ? numeroOsExtrato(l.trabalho.numeroOs)
-        : numeroOsExtrato(pack.texto);
-      linhasBrutas.push({
-        tipo: "servico",
-        dataFatura: texto,
-        dataOrdem: ordem,
-        dataOrdemPeriodo: dataRefLancamento(l, periodoCampo),
-        numFatura: String(numerosFatura.get(l.id) ?? ""),
-        os: osNum,
-        servico: descricaoServicoExtrato(pack.texto.split("\n")[0]?.trim() || "Receita"),
-        qtd: "1",
-        paciente: "—",
-        numDente: "",
-        dataEntrega: "",
-        valorUn: subtotal,
-        desconto: 0,
-        subtotal,
-      });
+    // Extrato só com Cobrança OS / Cobrança sem O.S. de Contas a Receber.
+    if (!ehFaturaContasReceberExtrato(l)) {
       continue;
     }
 
@@ -356,13 +307,34 @@ export function montarExtratoIndividual(
             });
           }
         }
+      } else {
+        // Nota existe sem OS resolvida: ainda assim mostra o valor faturado.
+        const pack = desempacotarDespesa(l.descricao);
+        const subtotal = valorNumerico(l.valor);
+        const osNums = numerosOsDoLancamentoFatura(l);
+        linhasBrutas.push({
+          tipo: "servico",
+          dataFatura: texto,
+          dataOrdem: ordem,
+          dataOrdemPeriodo,
+          numFatura: numFat,
+          os: osNums.length ? osNums.map(numeroOsExtrato).join(", ") : "",
+          servico: descricaoServicoExtrato(pack.texto.split("\n")[0]?.trim() || "Cobrança"),
+          qtd: "1",
+          paciente: "—",
+          numDente: "",
+          dataEntrega: "",
+          valorUn: subtotal,
+          desconto: 0,
+          subtotal,
+        });
       }
     }
   }
 
   // Pagamentos/abatimentos alinhados ao histórico da fatura (sem duplicar órfãos).
   for (const fatura of receitas) {
-    if (!ehReceitaOs(fatura)) continue;
+    if (!ehFaturaContasReceberExtrato(fatura)) continue;
     for (const mov of movimentacoesRecebimentoDaFatura(fatura, receitas)) {
       if (movimentosPagamentoVistos.has(mov.id)) continue;
       movimentosPagamentoVistos.add(mov.id);
@@ -403,6 +375,20 @@ export function montarExtratoIndividual(
         );
       }
     }
+  }
+
+  // Abatimentos órfãos (sem Cobrança OS correspondente) ainda entram como pagamento.
+  for (const l of receitas) {
+    if (!isCreditoUtilizado(l)) continue;
+    if (movimentosPagamentoVistos.has(l.id)) continue;
+    movimentosPagamentoVistos.add(l.id);
+    pushPagamentoExtrato(
+      linhasBrutas,
+      l,
+      valorNumerico(l.valor),
+      periodoCampo,
+      observacaoRecebimentoCurta(l.descricao)
+    );
   }
 
   linhasBrutas.sort((a, b) => {

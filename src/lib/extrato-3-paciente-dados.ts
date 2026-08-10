@@ -124,7 +124,12 @@ function filtrarReceitasCliente(
 
 function ehCobrancaOs(l: LancamentoContasReceber) {
   const base = desempacotarDespesa(l.descricao).texto;
-  return normalizarTexto(base).startsWith("cobranca os");
+  const d = normalizarTexto(base);
+  return (
+    d.startsWith("cobranca os") ||
+    d.startsWith("cobranca sem o.s") ||
+    d.startsWith("cobranca sem os")
+  );
 }
 
 function dataFaturaLancamento(l: LancamentoContasReceber) {
@@ -223,56 +228,8 @@ export function montarExtrato3Paciente(
       continue;
     }
 
-    if (ehCobrancaOs(l) && trabalhosDaFaturaParaExtrato(l, trabalhosCliente, receitas).length === 0) {
-      continue;
-    }
-
-    if (
-      !ehCobrancaOs(l) &&
-      l.trabalho?.id &&
-      !trabalhosCliente.some((t) => t.id === l.trabalho?.id)
-    ) {
-      continue;
-    }
-
+    // Extrato 3: apenas Cobrança OS / Cobrança sem O.S. de Contas a Receber.
     if (!ehCobrancaOs(l)) {
-      if (l.status !== "pendente" && l.status !== "pago") continue;
-      // Receita avulsa paga já entra como pagamento abaixo se for movimento de fatura;
-      // aqui só monta bloco de serviço quando ainda é cobrança de serviço (não recebimento).
-      if (l.status === "pago") continue;
-      const { texto, ordem } = dataFaturaLancamento(l);
-      const pack = desempacotarDespesa(l.descricao);
-      const subtotal = valorNumerico(l.valor);
-      const tRef = trabalhosCliente.find((t) => t.id === l.trabalho?.id);
-      if (l.trabalho?.id && !tRef) continue;
-      const paciente = tRef ? nomePacienteTrabalho(tRef) : "—";
-      const bloco: BlocoFatura3 = {
-        dataOrdem: ordem,
-        dataOrdemPeriodo: dataRefLancamento(l, periodoCampo),
-        dataFatura: texto,
-        numFatura: String(numeroFaturaDeLancamento(l, receitas)),
-        pacientes: [
-          {
-            nome: paciente,
-            itens: [
-              {
-                os: l.trabalho?.numeroOs
-                  ? numeroOsExtrato(l.trabalho.numeroOs)
-                  : numeroOsExtrato(pack.texto),
-                qtd: "1",
-                servico: descricaoServicoExtrato(
-                  pack.texto.split("\n")[0]?.trim() || "Receita"
-                ),
-                entrega: "—",
-                valorUn: subtotal,
-                descPercent: "0,00",
-                valor: subtotal,
-              },
-            ],
-          },
-        ],
-      };
-      eventos.push({ tipo: "bloco", ordem: seq++, dataOrdem: ordem, bloco });
       continue;
     }
 
@@ -283,30 +240,45 @@ export function montarExtrato3Paciente(
     const { texto, ordem } = dataFaturaLancamento(l);
     const numFat = String(faturaPorGrupo.get(chaveGrupo) ?? "");
     const relacionados = trabalhosDaFaturaParaExtrato(l, trabalhosCliente, receitas);
-    if (relacionados.length === 0) continue;
 
     const porPaciente = new Map<string, ItemServico3[]>();
 
-    for (const t of relacionados) {
-      const entregue = dataEntregaTrabalho(t);
-      const nomePacTrabalho = nomePacienteTrabalho(t);
-      for (const item of itensDoTrabalho(t)) {
-        const pac =
-          item.paciente?.trim() && item.paciente !== "—"
-            ? item.paciente.trim()
-            : nomePacTrabalho;
-        const lista = porPaciente.get(pac) ?? [];
-        lista.push({
-          os: numeroOsExtrato(item.os),
-          qtd: item.qtd,
-          servico: descricaoServicoExtrato(item.descricao),
-          entrega: entregue,
-          valorUn: item.valorUn,
-          descPercent: item.descPercent || "0,00",
-          valor: item.subtotal,
-        });
-        porPaciente.set(pac, lista);
+    if (relacionados.length > 0) {
+      for (const t of relacionados) {
+        const entregue = dataEntregaTrabalho(t);
+        const nomePacTrabalho = nomePacienteTrabalho(t);
+        for (const item of itensDoTrabalho(t)) {
+          const pac =
+            item.paciente?.trim() && item.paciente !== "—"
+              ? item.paciente.trim()
+              : nomePacTrabalho;
+          const lista = porPaciente.get(pac) ?? [];
+          lista.push({
+            os: numeroOsExtrato(item.os),
+            qtd: item.qtd,
+            servico: descricaoServicoExtrato(item.descricao),
+            entrega: entregue,
+            valorUn: item.valorUn,
+            descPercent: item.descPercent || "0,00",
+            valor: item.subtotal,
+          });
+          porPaciente.set(pac, lista);
+        }
       }
+    } else {
+      const pack = desempacotarDespesa(l.descricao);
+      const subtotal = valorNumerico(l.valor);
+      porPaciente.set("—", [
+        {
+          os: "",
+          qtd: "1",
+          servico: descricaoServicoExtrato(pack.texto.split("\n")[0]?.trim() || "Cobrança"),
+          entrega: "—",
+          valorUn: subtotal,
+          descPercent: "0,00",
+          valor: subtotal,
+        },
+      ]);
     }
 
     const pacientes = Array.from(porPaciente.entries())
@@ -374,6 +346,28 @@ export function montarExtrato3Paciente(
         });
       }
     }
+  }
+
+  // Abatimentos órfãos (sem Cobrança OS) ainda entram como pagamento.
+  for (const l of receitas) {
+    if (!isCreditoUtilizado(l)) continue;
+    if (movimentosPagamentoVistos.has(l.id)) continue;
+    movimentosPagamentoVistos.add(l.id);
+    const valor = valorNumerico(l.valor);
+    if (valor <= 0.009) continue;
+    const ordem = dateOnly(l.data);
+    eventos.push({
+      tipo: "movimento",
+      ordem: seq++,
+      dataOrdem: ordem,
+      linha: linhaVazia3("pagamento", {
+        dataFatura: formatDate(l.data),
+        dataOrdem: ordem,
+        dataOrdemPeriodo: dataRefLancamento(l, periodoCampo),
+        servico: observacaoRecebimentoCurta(l.descricao),
+        valor: -Math.abs(valor),
+      }),
+    });
   }
 
   eventos.sort((a, b) => {

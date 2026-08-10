@@ -12,7 +12,7 @@ export function numerosOsDoLancamentoFatura(lancamento: LancamentoFaturaOs): num
   const numeros = new Set<number>();
   if (lancamento.trabalho?.numeroOs) numeros.add(lancamento.trabalho.numeroOs);
   const descricao = lancamento.descricao.replace(/\s+/g, " ");
-  const match = descricao.match(/cobrança os\s+(.+)$/i);
+  const match = descricao.match(/cobran[cç]a\s+os\s+(.+)$/i);
   if (match) {
     match[1]
       .split(" - ")[0]
@@ -25,15 +25,23 @@ export function numerosOsDoLancamentoFatura(lancamento: LancamentoFaturaOs): num
 }
 
 export function lancamentoCreditoUtilizado(lancamento: LancamentoFaturaOs) {
-  const descricao = lancamento.descricao.toLowerCase();
-  return descricao.startsWith("crédito utilizado") || descricao.includes("desconto com crédito");
+  const descricao = lancamento.descricao
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase();
+  return descricao.startsWith("credito utilizado") || descricao.includes("desconto com credito");
 }
 
 /** Receita gerada por faturamento de OS (contas a receber), não movimento de caixa até o pagamento. */
 export function ehDescricaoReceitaOs(descricao: string) {
-  const d = descricao.replace(/\s+/g, " ").trim().toLowerCase();
-  if (d.includes("desconto com crédito") || d.startsWith("crédito utilizado")) return false;
-  if (d.startsWith("cobrança os")) return true;
+  const d = descricao
+    .replace(/\s+/g, " ")
+    .trim()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase();
+  if (d.includes("desconto com credito") || d.startsWith("credito utilizado")) return false;
+  if (d.startsWith("cobranca os")) return true;
   return /^os\s*#\d+/i.test(d) || /\bos\s*#\d+/i.test(d);
 }
 

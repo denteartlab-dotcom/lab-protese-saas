@@ -1908,13 +1908,19 @@ function FinanceiroReceberConteudo() {
   }
 
   function isCreditoGerado(lancamento: Lancamento) {
-    const descricao = lancamento.descricao.toLowerCase();
-    return descricao.startsWith("adiantamento") || descricao.includes("crédito cliente");
+    const descricao = lancamento.descricao
+      .normalize("NFD")
+      .replace(/\p{M}/gu, "")
+      .toLowerCase();
+    return descricao.startsWith("adiantamento") || descricao.includes("credito cliente");
   }
 
   function isCreditoUtilizado(lancamento: Lancamento) {
-    const descricao = lancamento.descricao.toLowerCase();
-    return descricao.startsWith("crédito utilizado") || descricao.includes("desconto com crédito");
+    const descricao = lancamento.descricao
+      .normalize("NFD")
+      .replace(/\p{M}/gu, "")
+      .toLowerCase();
+    return descricao.startsWith("credito utilizado") || descricao.includes("desconto com credito");
   }
 
   function referenciaLancamento(lancamento: Lancamento) {
@@ -1971,7 +1977,7 @@ function FinanceiroReceberConteudo() {
   function isFaturaContasReceber(lancamento: Lancamento) {
     if (isCreditoGerado(lancamento) || isCreditoUtilizado(lancamento)) return false;
     if (!ehDescricaoFaturaContasReceber(lancamento.descricao)) return false;
-    if (lancamento.formaPagamento?.toLowerCase().includes("crédito")) return false;
+    // Não ocultar Cobrança OS só porque a forma é Abatimento de Crédito.
     const creditoQuitouFatura =
       creditoUsadoNaFatura(lancamento) > 0 &&
       Math.round(saldoFatura(lancamento) * 100) <= 0;
