@@ -14,7 +14,7 @@ export function mensagemWhatsappExtratoConferencia(input: {
   clienteNome: string;
   publicUrl: string;
 }) {
-  return `Extrato Financeiro — ${input.clienteNome}\nSolicito o extrato para conferência.\n\n${input.publicUrl}`;
+  return `Extrato Financeiro — ${input.clienteNome}\nSegue o PDF do extrato para conferência.\n\n${input.publicUrl}`;
 }
 
 export async function publicarExtratoPublica(input: {
@@ -38,10 +38,19 @@ export async function publicarExtratoPublica(input: {
   const json = (await res.json().catch(() => ({}))) as {
     token?: string;
     url?: string;
+    pdfUrl?: string;
     error?: string;
   };
-  if (!res.ok || !json.url) {
+  if (!res.ok || !(json.pdfUrl || json.url)) {
     throw new Error(json.error || "Não foi possível publicar o extrato.");
   }
-  return garantirUrlPublicaAbsoluta(json.url);
+  const pdfUrl = garantirUrlPublicaAbsoluta(json.pdfUrl || json.url!);
+  const paginaUrl = json.url ? garantirUrlPublicaAbsoluta(json.url) : pdfUrl;
+  return {
+    token: json.token || "",
+    /** Link direto do arquivo PDF (preferencial para WhatsApp). */
+    pdfUrl,
+    /** Página de visualização (fallback). */
+    url: paginaUrl,
+  };
 }

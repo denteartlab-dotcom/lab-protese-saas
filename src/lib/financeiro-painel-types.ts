@@ -86,6 +86,7 @@ export type PainelFinanceiroReceita = {
     celular: string | null;
     telefone: string | null;
     email: string | null;
+    observacoes?: string | null;
   }>;
   trabalhos: TrabalhoPainelReceita[];
 };

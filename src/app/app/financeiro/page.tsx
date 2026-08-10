@@ -106,6 +106,7 @@ import {
 } from "@/lib/contas-receber-clientes-export";
 import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, isRecebimentoParcial, deveExibirNoHistoricoRecebimentos, valorHistoricoRecebimentoCliente, referenciaLancamento as referenciaHistoricoRecebimento, recebidoNaFatura as recebidoNaFaturaLib, saldoFatura as saldoFaturaLib, valorNotaFatura as valorNotaFaturaLib, classeReferenciaHistoricoRecebimento, faturaExibeSituacaoParcial, faturasExibicaoPainelCliente, faturaQuitada, recebimentosHistoricoCliente, movimentacoesRecebimentoDaFatura, ehFaturaCobrancaOsParaExclusao, idsLancamentosExclusaoAoRemoverFatura, ehDescricaoFaturaContasReceber, listarAbatimentosCreditoSemFatura, listarFaturasAbatimentoComValorZerado, payloadReparoFaturaDeAbatimento, type LancamentoContasReceber } from "@/lib/contas-receber-financeiro";
 import { calcularContasRecebidasPeriodo } from "@/lib/lancamento-valor-caixa";
+import { telefoneWhatsappCliente } from "@/lib/cliente-observacoes";
 import { fetchPainelFinanceiro } from "@/lib/financeiro-painel-cliente";
 import type { PainelFinanceiroReceita } from "@/lib/financeiro-painel-types";
 import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
@@ -146,6 +147,8 @@ type Cliente = {
   nome: string;
   cro?: string | null;
   celular?: string | null;
+  telefone?: string | null;
+  observacoes?: string | null;
 };
 
 type Trabalho = {
@@ -3014,11 +3017,14 @@ function FinanceiroReceberConteudo() {
         clientes={clientesReceber}
         clienteTelefone={
           detalheCliente
-            ? clientes.find(
-                (c) =>
-                  c.id === detalheCliente.clienteId ||
-                  c.nome.trim().toLowerCase() === detalheCliente.nome.trim().toLowerCase()
-              )?.celular
+            ? telefoneWhatsappCliente(
+                clientes.find(
+                  (c) =>
+                    c.id === detalheCliente.clienteId ||
+                    c.nome.trim().toLowerCase() ===
+                      detalheCliente.nome.trim().toLowerCase()
+                ) || {}
+              ) || undefined
             : undefined
         }
         trabalhos={trabalhos.map((t) => ({
@@ -3486,12 +3492,16 @@ function FinanceiroReceberConteudo() {
             onClose={() => setFaturaImprimindo(null)}
             numeroFatura={numeroFatura(faturaImprimindo.lancamento)}
             clienteNome={faturaImprimindo.cliente.nome}
-            clienteTelefone={clientes.find(
-              (c) =>
-                c.id ===
-                (faturaImprimindo.cliente.clienteId ||
-                  faturaImprimindo.lancamento.cliente?.id)
-            )?.celular}
+            clienteTelefone={
+              telefoneWhatsappCliente(
+                clientes.find(
+                  (c) =>
+                    c.id ===
+                    (faturaImprimindo.cliente.clienteId ||
+                      faturaImprimindo.lancamento.cliente?.id)
+                ) || {}
+              ) || undefined
+            }
             valorFatura={faturaImprimindo.lancamento.valor}
             montarDados={(_opcoes, _configFaturas) => {
               const lancamento = faturaImprimindo.lancamento;

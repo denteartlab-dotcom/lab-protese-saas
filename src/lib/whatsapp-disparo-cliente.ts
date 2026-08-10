@@ -70,8 +70,15 @@ export async function dispararOuAbrirWhatsapp(
     }
   }
 
-  const url = buildFaturaConferenciaWhatsAppUrl(telefoneNorm, mensagem);
-  const abriu = abrirWhatsAppFaturaConferencia(telefoneNorm, mensagem, opts?.janelaWhatsapp);
+  const url = buildFaturaConferenciaWhatsAppUrl(telefoneNorm, mensagem, {
+    preferirWhatsAppWeb: Boolean(opts?.forcarWhatsAppWeb),
+  });
+  const abriu = abrirWhatsAppFaturaConferencia(
+    telefoneNorm,
+    mensagem,
+    opts?.janelaWhatsapp,
+    { preferirWhatsAppWeb: Boolean(opts?.forcarWhatsAppWeb) }
+  );
   if (abriu) return { modo: "manual" };
   if (!url) return { modo: "erro", error: "Telefone inválido" };
   return { modo: "erro", error: "Não foi possível abrir o WhatsApp" };

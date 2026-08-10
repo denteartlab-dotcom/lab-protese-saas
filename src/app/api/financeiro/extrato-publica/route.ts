@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import {
   chaveExtratoPublica,
   criarTokenExtratoPublica,
+  extratoPublicaPdfUrl,
   extratoPublicaUrl,
   montarRegistroExtratoPublica,
 } from "@/lib/extrato-publica";
@@ -49,5 +50,6 @@ export async function POST(request: Request) {
   return NextResponse.json({
     token,
     url: extratoPublicaUrl(token),
+    pdfUrl: extratoPublicaPdfUrl(token),
   });
 }

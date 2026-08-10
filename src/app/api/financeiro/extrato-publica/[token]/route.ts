@@ -23,12 +23,16 @@ export async function GET(_request: Request, { params }: Params) {
   }
 
   const body = Buffer.from(registro.base64, "base64");
+  const nomeArquivo = (registro.nomeArquivo || "extrato.pdf").replace(
+    /[\\/:*?"<>|]/g,
+    "_"
+  );
   return new NextResponse(body, {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Length": String(body.length),
       "Cache-Control": "public, max-age=3600",
-      "Content-Disposition": `inline; filename="${encodeURIComponent(registro.nomeArquivo || "extrato.pdf")}"`,
+      "Content-Disposition": `inline; filename="${encodeURIComponent(nomeArquivo)}"; filename*=UTF-8''${encodeURIComponent(nomeArquivo)}`,
     },
   });
 }

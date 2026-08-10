@@ -80,6 +80,12 @@ function buildWhatsAppSendUrl(phone: string, text: string) {
   return `https://api.whatsapp.com/send/?phone=${digits}&text=${encodeURIComponent(text)}&type=phone_number&app_absent=0`;
 }
 
+function buildWhatsAppWebSendUrl(phone: string, text: string) {
+  const digits = formatWhatsAppPhone(phone);
+  if (!digits) return null;
+  return `https://web.whatsapp.com/send?phone=${digits}&text=${encodeURIComponent(text)}`;
+}
+
 export function buildOrcamentoWhatsAppUrl(phone: string, publicUrl: string) {
   return buildWhatsAppSendUrl(phone, mensagemSolicitarOrcamento(publicUrl));
 }
@@ -146,11 +152,17 @@ export function abrirWhatsAppAcompanhamentoCliente(
 
 export function buildFaturaConferenciaWhatsAppUrl(
   phone: string | null | undefined,
-  texto: string
+  texto: string,
+  opts?: { preferirWhatsAppWeb?: boolean }
 ) {
   const digits = phone ? formatWhatsAppPhone(phone) : "";
   if (!digits) {
-    return `https://api.whatsapp.com/send/?text=${encodeURIComponent(texto)}&type=phone_number&app_absent=0`;
+    return opts?.preferirWhatsAppWeb
+      ? `https://web.whatsapp.com/send?text=${encodeURIComponent(texto)}`
+      : `https://api.whatsapp.com/send/?text=${encodeURIComponent(texto)}&type=phone_number&app_absent=0`;
+  }
+  if (opts?.preferirWhatsAppWeb) {
+    return buildWhatsAppWebSendUrl(digits, texto);
   }
   return buildWhatsAppSendUrl(digits, texto);
 }
@@ -158,7 +170,11 @@ export function buildFaturaConferenciaWhatsAppUrl(
 export function abrirWhatsAppFaturaConferencia(
   phone: string | null | undefined,
   texto: string,
-  janela?: Window | null
+  janela?: Window | null,
+  opts?: { preferirWhatsAppWeb?: boolean }
 ) {
-  return abrirWhatsAppUrl(buildFaturaConferenciaWhatsAppUrl(phone, texto), janela);
+  return abrirWhatsAppUrl(
+    buildFaturaConferenciaWhatsAppUrl(phone, texto, opts),
+    janela
+  );
 }
