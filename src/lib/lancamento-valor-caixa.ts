@@ -44,6 +44,17 @@ export function valorCaixaReceitaPaga(
   if (String(lancamento.tipo || "").toLowerCase() !== "receita") return 0;
   if (String(lancamento.status || "").toLowerCase() !== "pago") return 0;
 
+  const forma = String(lancamento.formaPagamento || "").trim().toLowerCase();
+  const descricao = String(lancamento.descricao || "").toLowerCase();
+  // Abatimento de crédito não movimenta caixa (já entrou no adiantamento).
+  if (
+    forma === "abatimento de crédito" ||
+    descricao.startsWith("crédito utilizado") ||
+    descricao.includes("desconto com crédito")
+  ) {
+    return 0;
+  }
+
   const lista = todos.map(comoContasReceber);
   const atual = comoContasReceber(lancamento);
   const viaContasReceber = contribuiRecebidoCliente(atual, lista);

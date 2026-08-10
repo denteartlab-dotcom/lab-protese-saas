@@ -1051,6 +1051,23 @@ function FinanceiroReceberConteudo() {
       return formaPagamentoValida(parcela.formaPagamento || form.formaPagamento);
     }
 
+    // Abatimento primeiro: assim a fatura paga já calcula caixa só com o valor em dinheiro.
+    if (creditoAplicado > 0) {
+      await fetch("/api/financeiro", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tipo: "receita",
+          clienteId: form.clienteId || undefined,
+          valor: creditoAplicado,
+          data: hojeIso,
+          status: "pago",
+          formaPagamento: FORMA_PAGAMENTO_ABATIMENTO_CREDITO,
+          descricao: `Desconto com crédito - ${descricaoCobranca}`,
+        }),
+      });
+    }
+
     if (deveCriarFaturaReceber) {
       if (parcelas.length > 1) {
         const res = await fetch("/api/financeiro", {
@@ -1234,21 +1251,6 @@ function FinanceiroReceberConteudo() {
           );
         }
       }
-    }
-    if (creditoAplicado > 0) {
-      await fetch("/api/financeiro", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tipo: "receita",
-          clienteId: form.clienteId || undefined,
-          valor: creditoAplicado,
-          data: hojeIso,
-          status: "pago",
-          formaPagamento: FORMA_PAGAMENTO_ABATIMENTO_CREDITO,
-          descricao: `Desconto com crédito - ${descricaoCobranca}`,
-        }),
-      });
     }
     if (!mensagemLancamento || mensagemLancamentoTipo !== "erro") {
       if (

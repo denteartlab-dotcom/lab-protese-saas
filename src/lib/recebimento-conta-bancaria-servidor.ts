@@ -54,6 +54,18 @@ export async function sincronizarMovimentacaoRecebimentoServidor(
     return;
   }
 
+  const forma = String(lancamento.formaPagamento || "").trim().toLowerCase();
+  const descricaoLower = String(lancamento.descricao || "").toLowerCase();
+  // Abatimento de crédito não entra no saldo do caixa — o valor já entrou no adiantamento.
+  if (
+    forma === "abatimento de crédito" ||
+    descricaoLower.startsWith("crédito utilizado") ||
+    descricaoLower.includes("desconto com crédito")
+  ) {
+    await removerMovimentacoesRecebimentoServidor(empresaId, [lancamento.id]);
+    return;
+  }
+
   const receitas = await findLancamentosFinanceiro({
     where: { empresaId, tipo: "receita" },
     orderBy: { data: "desc" },

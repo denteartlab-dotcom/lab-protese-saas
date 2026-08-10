@@ -172,6 +172,12 @@ export function contribuiRecebidoCliente(
 ) {
   if (lancamento.tipo !== "receita" || lancamento.status !== "pago") return 0;
   if (isCreditoUtilizado(lancamento)) return 0;
+  // Quitação só com crédito: o dinheiro já entrou no caixa no adiantamento.
+  if (
+    (lancamento.formaPagamento || "").trim().toLowerCase() === "abatimento de crédito"
+  ) {
+    return 0;
+  }
   if (isCreditoGerado(lancamento)) return lancamento.valor;
   if (isRecebimentoParcial(lancamento)) return lancamento.valor;
   if (ehDescricaoFaturaContasReceber(lancamento.descricao)) {
