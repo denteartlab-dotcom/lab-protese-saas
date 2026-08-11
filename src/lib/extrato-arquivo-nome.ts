@@ -15,6 +15,13 @@ export function tituloViewerExtratoModelo(modelo: "1" | "2" | "3" | string): str
   return "Extrato Modelo 1";
 }
 
+/** Nome amigável do PDF público/WhatsApp: Extrato - Nome do Cliente.pdf */
+export function nomeArquivoExtratoCliente(clienteNome?: string | null): string {
+  const cliente = limparSegmentoNomeArquivo(clienteNome ?? "");
+  if (cliente) return `Extrato - ${cliente}.pdf`;
+  return "Extrato.pdf";
+}
+
 /** Próximo nome sequencial para salvar extrato (ex.: Extrato 1 - Apure Saude.pdf). */
 export function proximoNomeArquivoExtratoPdf(clienteNome?: string | null): string {
   let proximo = 1;

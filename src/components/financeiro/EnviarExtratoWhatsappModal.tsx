@@ -8,7 +8,7 @@ import {
   mensagemWhatsappExtratoConferencia,
   publicarExtratoPublica,
 } from "@/lib/extrato-publica-cliente";
-import { proximoNomeArquivoExtratoPdf } from "@/lib/extrato-arquivo-nome";
+import { nomeArquivoExtratoCliente } from "@/lib/extrato-arquivo-nome";
 import { formatWhatsAppPhone, formatWhatsappInput } from "@/lib/whatsapp";
 import { dispararOuAbrirWhatsapp } from "@/lib/whatsapp-disparo-cliente";
 import { cn } from "@/lib/utils";
@@ -108,7 +108,7 @@ export function EnviarExtratoWhatsappModal({
 
     // Reserva a aba no clique (antes do await) para não ser bloqueada pelo navegador.
     const janela = reservarJanelaWhatsapp();
-    const nomeArquivo = proximoNomeArquivoExtratoPdf(clienteNome);
+    const nomeArquivo = nomeArquivoExtratoCliente(clienteNome);
     const titulo = `Extrato Financeiro - ${clienteNome}`.slice(0, 240);
 
     setEnviando(true);

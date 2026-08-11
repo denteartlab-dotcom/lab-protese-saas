@@ -1,18 +1,15 @@
 import { NextResponse } from "next/server";
 import {
   buscarRegistroExtratoPublicaPorToken,
-  extratoPublicaPdfUrl,
   registroExtratoPublicaValido,
 } from "@/lib/extrato-publica";
+import { respostaPdfExtratoPublica } from "@/lib/extrato-publica-pdf-resposta";
 
-type Params = { params: Promise<{ token: string }> };
+type Params = { params: Promise<{ token: string; arquivo: string }> };
 
 export const runtime = "nodejs";
 
-/**
- * URL antiga `/api/financeiro/extrato-publica/{token}`:
- * redireciona para a URL com nome amigável (título da aba no navegador).
- */
+/** URL com nome amigável: `/api/financeiro/extrato-publica/{token}/Extrato - Cliente.pdf` */
 export async function GET(_request: Request, { params }: Params) {
   const { token } = await params;
   const limpo = token?.trim();
@@ -29,10 +26,5 @@ export async function GET(_request: Request, { params }: Params) {
     return NextResponse.json({ error: "Link expirado" }, { status: 410 });
   }
 
-  const destino = extratoPublicaPdfUrl(
-    limpo,
-    registro.nomeArquivo,
-    registro.clienteNome
-  );
-  return NextResponse.redirect(destino, 302);
+  return respostaPdfExtratoPublica(registro);
 }

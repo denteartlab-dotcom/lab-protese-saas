@@ -8,6 +8,7 @@ import {
   extratoPublicaUrl,
   montarRegistroExtratoPublica,
 } from "@/lib/extrato-publica";
+import { nomeArquivoExtratoCliente } from "@/lib/extrato-arquivo-nome";
 import { salvarJsonStoreTenant } from "@/lib/json-store-tenant";
 
 export const runtime = "nodejs";
@@ -19,10 +20,12 @@ const bodySchema = z.object({
   clienteNome: z.string().min(1).max(240),
 });
 
-function limparNomeArquivo(nome: string) {
-  return nome
-    .trim()
+function limparNomeArquivo(nome: string, clienteNome?: string) {
+  const bruto = nome.trim() || nomeArquivoExtratoCliente(clienteNome);
+  return bruto
     .replace(/[\\/:*?"<>|]/g, "_")
+    .replace(/\s+/g, " ")
+    .trim()
     .slice(0, 180);
 }
 
@@ -47,7 +50,10 @@ async function lerPayload(request: Request): Promise<{
     const buffer = Buffer.from(await file.arrayBuffer());
     return {
       base64: buffer.toString("base64"),
-      nomeArquivo: limparNomeArquivo(nomeArquivoRaw || file.name || "extrato.pdf"),
+      nomeArquivo: limparNomeArquivo(
+        nomeArquivoRaw || file.name || nomeArquivoExtratoCliente(clienteNome),
+        clienteNome
+      ),
       titulo: titulo.slice(0, 240),
       clienteNome: clienteNome.slice(0, 240),
     };
@@ -63,7 +69,7 @@ async function lerPayload(request: Request): Promise<{
   if (!parsed.success) return null;
   return {
     ...parsed.data,
-    nomeArquivo: limparNomeArquivo(parsed.data.nomeArquivo),
+    nomeArquivo: limparNomeArquivo(parsed.data.nomeArquivo, parsed.data.clienteNome),
   };
 }
 
@@ -87,7 +93,8 @@ export async function POST(request: Request) {
     return NextResponse.json({
       token,
       url: extratoPublicaUrl(token),
-      pdfUrl: extratoPublicaPdfUrl(token),
+      pdfUrl: extratoPublicaPdfUrl(token, data.nomeArquivo, data.clienteNome),
+      nomeArquivo: data.nomeArquivo,
     });
   } catch (err) {
     const mensagem =
