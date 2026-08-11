@@ -17,8 +17,8 @@ import {
   type LinhaExtrato3ComSaldo,
   type ResumoExtrato3,
 } from "@/lib/extrato-3-paciente-dados";
-import { labImpressaoFromConfig } from "@/lib/lab-logo";
 import { textoSaldoExtratoComPrefixo } from "@/lib/fatura-cliente-financeiro";
+import { desenharCabecalhoLabRelatorioPdf } from "@/lib/pdf-lab-cabecalho";
 import { moneyBr, PRETO } from "@/lib/pdf-relatorio-faturas-smart-comum";
 import type { TrabalhoRelatorioFatura } from "@/lib/relatorio-faturas-modelo3-dados";
 import { parseBrDate } from "@/lib/datas-br";
@@ -176,33 +176,7 @@ function novaPagina(ctx: Ctx, altura: number) {
 }
 
 function desenharCabecalhoLabExtrato(ctx: Ctx) {
-  const lab = labImpressaoFromConfig();
-  const x = ctx.margin;
-  let y = ctx.y + 4;
-
-  ctx.pdf.setFont("helvetica", "bold");
-  ctx.pdf.setFontSize(11);
-  ctx.pdf.setTextColor(51, 51, 51);
-  ctx.pdf.text(lab.responsavel || "", x, y);
-  y += 5;
-
-  ctx.pdf.setFont("helvetica", "normal");
-  ctx.pdf.setFontSize(9);
-  ctx.pdf.setTextColor(...PRETO);
-  if (lab.telefones) {
-    ctx.pdf.text(lab.telefones, x, y);
-    y += 4.2;
-  }
-  if (lab.email) {
-    ctx.pdf.text(lab.email, x, y);
-    y += 4.2;
-  }
-
-  y += 2;
-  ctx.pdf.setDrawColor(0, 0, 0);
-  ctx.pdf.setLineWidth(0.35);
-  ctx.pdf.line(ctx.margin, y, ctx.pageW - ctx.margin, y);
-  ctx.y = y + 8;
+  ctx.y = desenharCabecalhoLabRelatorioPdf(ctx.pdf, ctx.margin, ctx.y);
 }
 
 function desenharTituloExtrato(ctx: Ctx, nomeCliente: string) {
