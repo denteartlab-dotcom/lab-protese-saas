@@ -48,6 +48,24 @@ function fecharJanela(janela: Window | null | undefined) {
   }
 }
 
+function baixarPdfLocal(blob: Blob, nomeArquivo: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = nomeArquivo;
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
+}
+
+function mensagemErro(err: unknown, fallback: string) {
+  if (err instanceof Error && err.message.trim()) return err.message.trim();
+  if (typeof err === "string" && err.trim()) return err.trim();
+  return fallback;
+}
+
 export function EnviarExtratoWhatsappModal({
   open,
   onClose,
@@ -91,20 +109,55 @@ export function EnviarExtratoWhatsappModal({
     // Reserva a aba no clique (antes do await) para não ser bloqueada pelo navegador.
     const janela = reservarJanelaWhatsapp();
     const nomeArquivo = proximoNomeArquivoExtratoPdf(clienteNome);
-    const titulo = `Extrato Financeiro — ${clienteNome}`;
+    const titulo = `Extrato Financeiro - ${clienteNome}`.slice(0, 240);
 
     setEnviando(true);
     try {
-      const blob = await gerarPdf();
-      const publicado = await publicarExtratoPublica({
-        blob,
-        clienteNome,
-        nomeArquivo,
-        titulo,
-      });
+      let blob: Blob;
+      try {
+        blob = await gerarPdf();
+      } catch (err) {
+        throw new Error(
+          mensagemErro(err, "Falha ao gerar o PDF do extrato.")
+        );
+      }
+
+      if (!blob || blob.size < 50) {
+        throw new Error("O PDF do extrato foi gerado vazio. Tente imprimir o PDF primeiro.");
+      }
+
+      let publicUrl = "";
+      try {
+        const publicado = await publicarExtratoPublica({
+          blob,
+          clienteNome,
+          nomeArquivo,
+          titulo,
+        });
+        publicUrl = publicado.pdfUrl;
+      } catch (err) {
+        // Fallback: baixa o PDF e abre o WhatsApp para o usuário anexar manualmente.
+        console.error("[EnviarExtratoWhatsappModal] publicar", err);
+        baixarPdfLocal(blob, nomeArquivo);
+        const textoFallback = `Extrato Financeiro — ${clienteNome}\nSegue o extrato em PDF. O arquivo foi baixado neste computador — anexe-o nesta conversa.`;
+        const resultadoFallback = await dispararOuAbrirWhatsapp(
+          telefoneNorm,
+          textoFallback,
+          { forcarWhatsAppWeb: true, janelaWhatsapp: janela }
+        );
+        if (resultadoFallback.modo === "erro") {
+          fecharJanela(janela);
+        }
+        window.alert(
+          `${mensagemErro(err, "Não foi possível criar o link público do PDF.")}\n\nO PDF foi baixado. Anexe o arquivo na conversa do WhatsApp.`
+        );
+        onClose();
+        return;
+      }
+
       const texto = mensagemWhatsappExtratoConferencia({
         clienteNome,
-        publicUrl: publicado.pdfUrl,
+        publicUrl,
       });
       const resultado = await dispararOuAbrirWhatsapp(telefoneNorm, texto, {
         forcarWhatsAppWeb: true,
@@ -112,9 +165,9 @@ export function EnviarExtratoWhatsappModal({
       });
       if (resultado.modo === "erro") {
         fecharJanela(janela);
+        baixarPdfLocal(blob, nomeArquivo);
         window.alert(
-          resultado.error ||
-            "Não foi possível abrir o WhatsApp Web. Verifique o número do cliente."
+          `${resultado.error || "Não foi possível abrir o WhatsApp Web."}\n\nO PDF foi baixado para você anexar manualmente.`
         );
         return;
       }
@@ -123,7 +176,10 @@ export function EnviarExtratoWhatsappModal({
       fecharJanela(janela);
       console.error("[EnviarExtratoWhatsappModal]", err);
       window.alert(
-        "Não foi possível gerar o PDF do extrato para o WhatsApp. Tente novamente."
+        mensagemErro(
+          err,
+          "Não foi possível gerar o PDF do extrato para o WhatsApp. Tente novamente."
+        )
       );
     } finally {
       setEnviando(false);

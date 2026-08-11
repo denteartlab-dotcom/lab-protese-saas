@@ -633,37 +633,46 @@ export function VisualizacaoClienteReceberModal({
     const opcoes = opcoesExtratoModalPdf();
     const lancamentos = cliente.lancamentos as LancamentoContasReceber[];
 
-    if (extratoModelo === "3") {
-      const { gerarRelatorioExtrato3PacienteSmartPdf } = await import(
-        "@/lib/pdf-relatorio-extrato-3-paciente-smart"
+    try {
+      if (extratoModelo === "3") {
+        const { gerarRelatorioExtrato3PacienteSmartPdf } = await import(
+          "@/lib/pdf-relatorio-extrato-3-paciente-smart"
+        );
+        return await gerarRelatorioExtrato3PacienteSmartPdf(
+          lancamentos,
+          trabalhosCliente,
+          cliente.nome,
+          opcoes
+        );
+      }
+      if (extratoModelo === "2") {
+        const { gerarRelatorioExtrato2IndividualSmartPdf } = await import(
+          "@/lib/pdf-relatorio-extrato-2-individual-smart"
+        );
+        return await gerarRelatorioExtrato2IndividualSmartPdf(
+          lancamentos,
+          trabalhosCliente,
+          cliente.nome,
+          opcoes
+        );
+      }
+      const { gerarRelatorioExtratoIndividualSmartPdf } = await import(
+        "@/lib/pdf-relatorio-extrato-individual-smart"
       );
-      return gerarRelatorioExtrato3PacienteSmartPdf(
+      return await gerarRelatorioExtratoIndividualSmartPdf(
         lancamentos,
         trabalhosCliente,
         cliente.nome,
         opcoes
       );
-    }
-    if (extratoModelo === "2") {
-      const { gerarRelatorioExtrato2IndividualSmartPdf } = await import(
-        "@/lib/pdf-relatorio-extrato-2-individual-smart"
-      );
-      return gerarRelatorioExtrato2IndividualSmartPdf(
-        lancamentos,
-        trabalhosCliente,
-        cliente.nome,
-        opcoes
+    } catch (err) {
+      console.error("[gerarExtratoPdfBlob]", err);
+      throw new Error(
+        err instanceof Error && err.message
+          ? `Falha ao gerar PDF: ${err.message}`
+          : "Falha ao gerar o PDF do extrato."
       );
     }
-    const { gerarRelatorioExtratoIndividualSmartPdf } = await import(
-      "@/lib/pdf-relatorio-extrato-individual-smart"
-    );
-    return gerarRelatorioExtratoIndividualSmartPdf(
-      lancamentos,
-      trabalhosCliente,
-      cliente.nome,
-      opcoes
-    );
   }
 
   async function imprimirExtratoPdf() {

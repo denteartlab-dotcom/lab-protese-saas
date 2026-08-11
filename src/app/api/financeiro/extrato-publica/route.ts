@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getSession } from "@/lib/auth";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import {
   chaveExtratoPublica,
   criarTokenExtratoPublica,
@@ -10,6 +10,8 @@ import {
 } from "@/lib/extrato-publica";
 import { salvarJsonStoreTenant } from "@/lib/json-store-tenant";
 
+export const runtime = "nodejs";
+
 const bodySchema = z.object({
   base64: z.string().min(1),
   nomeArquivo: z.string().min(1).max(180),
@@ -17,39 +19,83 @@ const bodySchema = z.object({
   clienteNome: z.string().min(1).max(240),
 });
 
-export async function POST(request: Request) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-  }
-  if (!session.empresaId) {
-    return NextResponse.json({ error: "Empresa não identificada." }, { status: 401 });
+function limparNomeArquivo(nome: string) {
+  return nome
+    .trim()
+    .replace(/[\\/:*?"<>|]/g, "_")
+    .slice(0, 180);
+}
+
+async function lerPayload(request: Request): Promise<{
+  base64: string;
+  nomeArquivo: string;
+  titulo: string;
+  clienteNome: string;
+} | null> {
+  const contentType = request.headers.get("content-type") || "";
+
+  if (contentType.includes("multipart/form-data")) {
+    const form = await request.formData();
+    const file = form.get("file");
+    const clienteNome = String(form.get("clienteNome") || "").trim();
+    const titulo = String(form.get("titulo") || "").trim();
+    const nomeArquivoRaw = String(form.get("nomeArquivo") || "").trim();
+
+    if (!(file instanceof File) || file.size < 1) return null;
+    if (!clienteNome || !titulo) return null;
+
+    const buffer = Buffer.from(await file.arrayBuffer());
+    return {
+      base64: buffer.toString("base64"),
+      nomeArquivo: limparNomeArquivo(nomeArquivoRaw || file.name || "extrato.pdf"),
+      titulo: titulo.slice(0, 240),
+      clienteNome: clienteNome.slice(0, 240),
+    };
   }
 
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
+    return null;
   }
-
   const parsed = bodySchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Dados inválidos" }, { status: 400 });
+  if (!parsed.success) return null;
+  return {
+    ...parsed.data,
+    nomeArquivo: limparNomeArquivo(parsed.data.nomeArquivo),
+  };
+}
+
+export async function POST(request: Request) {
+  try {
+    const ctx = await requireEmpresaContext();
+    const data = await lerPayload(request);
+    if (!data) {
+      return NextResponse.json({ error: "Dados inválidos do extrato." }, { status: 400 });
+    }
+
+    const token = criarTokenExtratoPublica();
+    const registro = montarRegistroExtratoPublica(data);
+
+    await salvarJsonStoreTenant(
+      ctx.empresaId,
+      chaveExtratoPublica(token),
+      registro
+    );
+
+    return NextResponse.json({
+      token,
+      url: extratoPublicaUrl(token),
+      pdfUrl: extratoPublicaPdfUrl(token),
+    });
+  } catch (err) {
+    const mensagem =
+      err instanceof Error ? err.message : "Erro ao publicar extrato.";
+    if (/não autorizado|nao autorizado|sessão|sessao/i.test(mensagem)) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    }
+    console.error("[extrato-publica POST]", err);
+    return NextResponse.json({ error: mensagem }, { status: 500 });
   }
-
-  const token = criarTokenExtratoPublica();
-  const registro = montarRegistroExtratoPublica(parsed.data);
-
-  await salvarJsonStoreTenant(
-    session.empresaId,
-    chaveExtratoPublica(token),
-    registro
-  );
-
-  return NextResponse.json({
-    token,
-    url: extratoPublicaUrl(token),
-    pdfUrl: extratoPublicaPdfUrl(token),
-  });
 }
