@@ -1,5 +1,9 @@
+import { carregarConfigLaboratorio } from "@/lib/configuracoes-lab";
+import {
+  dimensoesLogoCabecalhoPdf,
+  normalizarCabecalhoRequisicao,
+} from "@/lib/cabecalho-requisicao";
 import { labImpressaoFromConfig } from "@/lib/lab-logo";
-import { escalaLogoMultiplicador } from "@/lib/lab-logo";
 
 type PdfApi = {
   internal: { pageSize: { getWidth: () => number } };
@@ -27,23 +31,25 @@ type PdfApi = {
   getTextWidth: (text: string) => number;
 };
 
-/** Cabeçalho do laboratório (canto superior esquerdo), estilo Smart. */
+/** Cabeçalho do laboratório (canto superior esquerdo), mesmo padrão da requisição/OS. */
 export function desenharCabecalhoLabRelatorioPdf(
   pdf: PdfApi,
   margin: number,
   yInicio: number
 ): number {
   const lab = labImpressaoFromConfig();
+  const cab = normalizarCabecalhoRequisicao(
+    carregarConfigLaboratorio().cabecalhoRequisicao
+  );
   let y = yInicio;
-  const labX = margin;
   let logoW = 0;
   let logoH = 0;
 
   const dataUrl = lab.logoDataUrl?.trim();
   if (dataUrl?.startsWith("data:image")) {
-    const s = escalaLogoMultiplicador(lab.logoTamanho);
-    logoW = 18 * s;
-    logoH = 14 * s;
+    const dim = dimensoesLogoCabecalhoPdf(cab, lab.logoTamanho);
+    logoW = dim.largura;
+    logoH = dim.altura;
     const fmt = dataUrl.includes("image/png") ? "PNG" : "JPEG";
     try {
       pdf.addImage(dataUrl, fmt, margin, y, logoW, logoH);
@@ -53,16 +59,26 @@ export function desenharCabecalhoLabRelatorioPdf(
     }
   }
 
-  const textoX = margin + (logoW > 0 ? logoW + 4 : 0);
-  const larguraTexto = pdf.internal.pageSize.getWidth() - margin * 2 - logoW - 4;
+  const gapLogoTexto = logoW > 0 ? 6 : 0;
+  const textoX = margin + (logoW > 0 ? logoW + gapLogoTexto : 0);
+  const larguraTexto =
+    pdf.internal.pageSize.getWidth() - margin * 2 - logoW - gapLogoTexto;
 
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(11);
   pdf.setTextColor(51, 51, 51);
   const nomeLinhas = pdf.splitTextToSize(lab.responsavel || "", larguraTexto);
-  pdf.text(nomeLinhas, textoX, y + 4);
+  // Alinha o bloco de texto verticalmente com o logo quando houver.
+  const alturaTextoEstimada =
+    nomeLinhas.length * 4.2 +
+    (lab.enderecoLinha1 || lab.endereco ? 3.8 : 0) +
+    (lab.telefones ? 3.8 : 0) +
+    (lab.email ? 3.8 : 0);
+  const offsetTextoY =
+    logoH > 0 ? Math.max(0, (logoH - Math.min(alturaTextoEstimada, logoH)) / 2) : 0;
+  pdf.text(nomeLinhas, textoX, y + 4 + offsetTextoY);
 
-  let yTexto = y + 4 + nomeLinhas.length * 4.2;
+  let yTexto = y + 4 + offsetTextoY + nomeLinhas.length * 4.2;
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(8.5);
 
