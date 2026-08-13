@@ -10,6 +10,7 @@ import {
   Eye,
   Pencil,
   Plus,
+  Receipt,
   Trash2,
 } from "lucide-react";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
@@ -322,7 +323,9 @@ export function ContaBancariaConteudo() {
     if (!abaUrl && !veioContaDigital) return;
 
     const aba: ContaDigitalAba =
-      abaUrl === "pagar" || abaUrl === "transferir" ? abaUrl : "extrato";
+      abaUrl === "pagar" || abaUrl === "transferir" || abaUrl === "boletos"
+        ? abaUrl
+        : "extrato";
     if (aba === "extrato" && !podeVisualizarContaAsaas) return;
     if (aba !== "extrato" && !contaAsaasAtiva) return;
 
@@ -723,6 +726,21 @@ export function ContaBancariaConteudo() {
                                   className="inline-flex h-8 w-8 items-center justify-center text-slate-500 hover:text-[#4a90d9] dark:text-slate-400 dark:hover:text-sky-300"
                                 >
                                   <Pencil className="h-4 w-4" />
+                                </button>
+                              ) : null}
+                              {conta.id === ID_CONTA_CARTEIRA ? (
+                                <button
+                                  type="button"
+                                  title={
+                                    contaAsaasAtiva
+                                      ? t("financeiro.conta.digital.aba.boletos")
+                                      : mensagemContaAsaasIndisponivel()
+                                  }
+                                  onClick={() => abrirContaBancariaAsaas("boletos")}
+                                  disabled={!contaAsaasAtiva}
+                                  className="inline-flex h-8 w-8 items-center justify-center text-slate-500 hover:text-[#4a90d9] dark:text-slate-400 dark:hover:text-sky-300 disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                  <Receipt className="h-4 w-4" />
                                 </button>
                               ) : null}
                               {conta.id !== ID_CONTA_CARTEIRA ? (

@@ -28,7 +28,10 @@ export async function manipularJobWebhookAsaasAssinatura(ctx: ContextoExecucaoJo
   }
 
   const paymentId = data.paymentId;
-  const status = data.status;
+  let status = data.status;
+  if (data.evento === "PAYMENT_DELETED") {
+    status = "DELETED";
+  }
   if (!paymentId || !status) {
     return { ignorado: true, motivo: "sem_pagamento" };
   }

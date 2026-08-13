@@ -237,8 +237,19 @@ export async function emitirBoletoAsaas(params: {
   valor: number;
   vencimento: Date;
   descricao: string;
+  /** Percentual de juros ao mês (Asaas). Omitir ou 0 = sem juros. */
+  interest?: number | null;
+  /** Percentual de multa (Asaas, type PERCENTAGE). Omitir ou 0 = sem multa. */
+  fine?: number | null;
 }): Promise<AsaasPayment> {
   const dueDate = params.vencimento.toISOString().slice(0, 10);
+  const interestValue =
+    params.interest != null && Number.isFinite(params.interest)
+      ? Number(params.interest)
+      : null;
+  const fineValue =
+    params.fine != null && Number.isFinite(params.fine) ? Number(params.fine) : null;
+
   return asaasFetch<AsaasPayment>(params.config, "/payments", {
     method: "POST",
     body: JSON.stringify({
@@ -247,6 +258,12 @@ export async function emitirBoletoAsaas(params: {
       value: Number(params.valor.toFixed(2)),
       dueDate,
       description: params.descricao.slice(0, 500),
+      ...(interestValue != null && interestValue > 0
+        ? { interest: { value: interestValue } }
+        : {}),
+      ...(fineValue != null && fineValue > 0
+        ? { fine: { value: fineValue, type: "PERCENTAGE" } }
+        : {}),
     }),
   });
 }

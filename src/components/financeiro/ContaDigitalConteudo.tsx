@@ -10,6 +10,7 @@ import {
   ExternalLink,
   FileText,
   Loader2,
+  Receipt,
   Shield,
   Wallet,
   XCircle,
@@ -18,6 +19,7 @@ import { Button } from "@/components/ui";
 import { useI18n } from "@/components/i18n-provider";
 import { AsaasSeloInstitucional } from "@/components/AsaasSeloInstitucional";
 import { ConfirmarPixSubcontaModal } from "@/components/financeiro/ConfirmarPixSubcontaModal";
+import { BoletosAsaasContaDigital } from "@/components/financeiro/BoletosAsaasContaDigital";
 import { analisarCaminhoApp, montarCaminhoAppComSlug } from "@/lib/rotas-app";
 import { fetchPainelFinanceiro } from "@/lib/financeiro-painel-cliente";
 import type { PainelFinanceiroContaDigital } from "@/lib/financeiro-painel-types";
@@ -64,7 +66,7 @@ function linkConfiguracoes(pathname: string) {
   return "/app/configuracoes?aba=boletos";
 }
 
-export type ContaDigitalAba = "extrato" | "pagar" | "transferir";
+export type ContaDigitalAba = "extrato" | "pagar" | "transferir" | "boletos";
 
 type Props = {
   /** Quando embutido na página Conta Bancária. */
@@ -151,7 +153,7 @@ export function ContaDigitalConteudo({
       balance: number;
     }>
   >([]);
-  const [aba, setAba] = useState<"extrato" | "pagar" | "transferir">("extrato");
+  const [aba, setAba] = useState<ContaDigitalAba>("extrato");
   const [carregando, setCarregando] = useState(true);
   const [processando, setProcessando] = useState(false);
   const [mensagem, setMensagem] = useState<{ texto: string; tipo: TipoMensagemForm } | null>(
@@ -228,11 +230,10 @@ export function ContaDigitalConteudo({
   }, [carregar]);
 
   useEffect(() => {
-    if (searchParams.get("acao") === "transferir") {
-      setAba("transferir");
-    } else if (searchParams.get("acao") === "pagar") {
-      setAba("pagar");
-    }
+    const acao = searchParams.get("acao");
+    if (acao === "transferir") setAba("transferir");
+    else if (acao === "pagar") setAba("pagar");
+    else if (acao === "boletos") setAba("boletos");
   }, [searchParams]);
 
   useEffect(() => {
@@ -571,6 +572,7 @@ export function ContaDigitalConteudo({
         {(
           [
             ["extrato", t("financeiro.conta.digital.aba.extrato"), FileText],
+            ["boletos", t("financeiro.conta.digital.aba.boletos"), Receipt],
             ["pagar", t("financeiro.conta.digital.aba.pagar"), FileText],
             ["transferir", t("financeiro.conta.digital.aba.transferir"), ArrowLeftRight],
           ] as const
@@ -792,6 +794,12 @@ export function ContaDigitalConteudo({
             {t("financeiro.conta.digital.transferirPix")}
           </Button>
         </div>
+      ) : null}
+
+      {aba === "boletos" && modoOperacoes ? (
+        <BoletosAsaasContaDigital
+          onMensagem={(texto, tipo) => setMensagem({ texto, tipo })}
+        />
       ) : null}
 
       <ConfirmarPixSubcontaModal

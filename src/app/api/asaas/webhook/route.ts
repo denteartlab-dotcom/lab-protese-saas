@@ -78,7 +78,9 @@ async function processarWebhookAsaas(request: Request) {
 
     const evento = body.event || "";
     const paymentId = body.payment?.id;
-    const status = body.payment?.status;
+    const status =
+      body.payment?.status ||
+      (evento === "PAYMENT_DELETED" ? "DELETED" : undefined);
     const accountId = body.account?.id;
 
     const empresaId = await resolverEmpresaIdWebhookAsaas({
@@ -118,6 +120,9 @@ async function processarWebhookAsaas(request: Request) {
       return NextResponse.json({ ok: true, ignored: true });
     }
 
+    const statusSync =
+      evento === "PAYMENT_DELETED" ? "DELETED" : status;
+
     const chaveIdempotencia = `asaas:${evento}:${paymentId}`;
     const enfileirado = await enfileirarJobWebhookAssinatura({
       empresaId,
@@ -127,7 +132,7 @@ async function processarWebhookAsaas(request: Request) {
         chaveIdempotencia,
         evento,
         paymentId,
-        status,
+        status: statusSync,
       },
     });
 

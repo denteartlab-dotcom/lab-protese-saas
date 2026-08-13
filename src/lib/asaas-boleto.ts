@@ -17,7 +17,8 @@ function formaEhBoleto(forma?: string | null): boolean {
 
 export async function tentarEmitirBoletoParaLancamento(
   lancamentoId: string,
-  valorOverride?: number
+  valorOverride?: number,
+  opcoes?: { interest?: number | null; fine?: number | null }
 ) {
   const lancamento = await prisma.lancamento.findUnique({
     where: { id: lancamentoId },
@@ -68,6 +69,8 @@ export async function tentarEmitirBoletoParaLancamento(
     valor: valorOverride ?? lancamento.valor,
     vencimento: lancamento.data,
     descricao: descricaoPublicaLancamento(lancamento.descricao),
+    interest: opcoes?.interest,
+    fine: opcoes?.fine,
   });
 
   return prisma.cobrancaAsaas.create({
@@ -93,12 +96,29 @@ export async function sincronizarPagamentoAsaas(
   });
   if (!cobranca) return;
 
+  const statusNorm = (statusAsaas || "").toUpperCase();
+
   await prisma.cobrancaAsaas.update({
     where: { id: cobranca.id },
-    data: { statusAsaas },
+    data: { statusAsaas: statusNorm || statusAsaas },
   });
 
-  const pago = ["RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH"].includes(statusAsaas);
+  if (statusNorm === "DELETED" || statusNorm === "REFUNDED") {
+    const lancamento = cobranca.lancamento;
+    if (
+      lancamento.status !== "pago" &&
+      lancamento.status !== "cancelado"
+    ) {
+      await prisma.lancamento.update({
+        where: { id: lancamento.id },
+        data: { status: "cancelado" },
+      });
+      invalidarCachePainelFinanceiro(lancamento.empresaId);
+    }
+    return;
+  }
+
+  const pago = ["RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH"].includes(statusNorm);
   if (!pago) return;
 
   const lancamento = cobranca.lancamento;

@@ -1,0 +1,475 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import {
+  ExternalLink,
+  Loader2,
+  Pencil,
+  Trash2,
+  Ban,
+  RefreshCw,
+} from "lucide-react";
+import { Button } from "@/components/ui";
+import { useI18n } from "@/components/i18n-provider";
+import type { MessageKey } from "@/lib/i18n";
+import { formatMoedaContaBancaria } from "@/lib/i18n/conta-bancaria-i18n";
+import { cn } from "@/lib/utils";
+
+type BoletoItem = {
+  id: string;
+  status: string;
+  valor: number;
+  vencimento: string;
+  clienteNome: string | null;
+  numeroOs: string | number | null;
+  descricao: string;
+  bankSlipUrl: string | null;
+  invoiceUrl: string | null;
+  linhaDigitavel: string | null;
+  interest: number | null;
+  fine: number | null;
+  editavel: boolean;
+};
+
+type Props = {
+  onMensagem?: (texto: string, tipo: "sucesso" | "erro") => void;
+};
+
+const labelClass = "mb-1 block text-[11px] font-medium text-slate-600";
+const inputClass =
+  "h-9 w-full rounded border border-slate-300 bg-white px-2.5 text-[12px] text-slate-800 outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]";
+
+function rotuloStatus(
+  status: string,
+  t: (key: MessageKey, params?: Record<string, string | number>) => string
+) {
+  const s = status.toUpperCase();
+  if (s === "PENDING") return t("financeiro.conta.digital.boletos.status.pending");
+  if (s === "OVERDUE") return t("financeiro.conta.digital.boletos.status.overdue");
+  if (s === "RECEIVED" || s === "CONFIRMED" || s === "RECEIVED_IN_CASH") {
+    return t("financeiro.conta.digital.boletos.status.paid");
+  }
+  if (s === "DELETED") return t("financeiro.conta.digital.boletos.status.deleted");
+  return status;
+}
+
+export function BoletosAsaasContaDigital({ onMensagem }: Props) {
+  const { t, locale } = useI18n();
+  const money = useCallback(
+    (value: number) => formatMoedaContaBancaria(value, locale),
+    [locale]
+  );
+
+  const [boletos, setBoletos] = useState<BoletoItem[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [processandoId, setProcessandoId] = useState<string | null>(null);
+  const [statusFiltro, setStatusFiltro] = useState("");
+  const [busca, setBusca] = useState("");
+  const [vencimentoDe, setVencimentoDe] = useState("");
+  const [vencimentoAte, setVencimentoAte] = useState("");
+  const [editando, setEditando] = useState<BoletoItem | null>(null);
+  const [formDueDate, setFormDueDate] = useState("");
+  const [formInterest, setFormInterest] = useState("");
+  const [formFine, setFormFine] = useState("");
+
+  const carregar = useCallback(async () => {
+    setCarregando(true);
+    try {
+      const sp = new URLSearchParams();
+      if (statusFiltro) sp.set("status", statusFiltro);
+      if (busca.trim()) sp.set("busca", busca.trim());
+      if (vencimentoDe) sp.set("vencimentoDe", vencimentoDe);
+      if (vencimentoAte) sp.set("vencimentoAte", vencimentoAte);
+      const res = await fetch(`/api/asaas/boletos?${sp.toString()}`, {
+        cache: "no-store",
+      });
+      const data = (await res.json()) as { boletos?: BoletoItem[]; error?: string };
+      if (!res.ok) {
+        throw new Error(data.error || t("financeiro.conta.digital.boletos.erroCarregar"));
+      }
+      setBoletos(data.boletos || []);
+    } catch (err) {
+      onMensagem?.(
+        err instanceof Error
+          ? err.message
+          : t("financeiro.conta.digital.boletos.erroCarregar"),
+        "erro"
+      );
+    } finally {
+      setCarregando(false);
+    }
+  }, [statusFiltro, busca, vencimentoDe, vencimentoAte, onMensagem, t]);
+
+  useEffect(() => {
+    void carregar();
+    // Carrega ao montar e quando status/período mudam; busca via botão Atualizar.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- busca intencional só no refresh
+  }, [statusFiltro, vencimentoDe, vencimentoAte]);
+
+  function abrirEdicao(boleto: BoletoItem) {
+    setEditando(boleto);
+    setFormDueDate(boleto.vencimento?.slice(0, 10) || "");
+    setFormInterest(
+      boleto.interest != null && Number.isFinite(boleto.interest)
+        ? String(boleto.interest)
+        : "0"
+    );
+    setFormFine(
+      boleto.fine != null && Number.isFinite(boleto.fine) ? String(boleto.fine) : "0"
+    );
+  }
+
+  async function salvarEdicao() {
+    if (!editando) return;
+    setProcessandoId(editando.id);
+    try {
+      const res = await fetch(`/api/asaas/boletos/${encodeURIComponent(editando.id)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          dueDate: formDueDate || undefined,
+          interest: Number(formInterest.replace(",", ".")) || 0,
+          fine: Number(formFine.replace(",", ".")) || 0,
+        }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        throw new Error(data.error || t("financeiro.conta.digital.boletos.erroAtualizar"));
+      }
+      onMensagem?.(t("financeiro.conta.digital.boletos.sucessoAtualizar"), "sucesso");
+      setEditando(null);
+      await carregar();
+    } catch (err) {
+      onMensagem?.(
+        err instanceof Error
+          ? err.message
+          : t("financeiro.conta.digital.boletos.erroAtualizar"),
+        "erro"
+      );
+    } finally {
+      setProcessandoId(null);
+    }
+  }
+
+  async function removerJurosMulta(boleto: BoletoItem) {
+    if (!boleto.editavel) return;
+    setProcessandoId(boleto.id);
+    try {
+      const res = await fetch(`/api/asaas/boletos/${encodeURIComponent(boleto.id)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ removerJurosMulta: true }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        throw new Error(data.error || t("financeiro.conta.digital.boletos.erroAtualizar"));
+      }
+      onMensagem?.(t("financeiro.conta.digital.boletos.sucessoRemoverJuros"), "sucesso");
+      await carregar();
+    } catch (err) {
+      onMensagem?.(
+        err instanceof Error
+          ? err.message
+          : t("financeiro.conta.digital.boletos.erroAtualizar"),
+        "erro"
+      );
+    } finally {
+      setProcessandoId(null);
+    }
+  }
+
+  async function cancelarBoleto(boleto: BoletoItem) {
+    if (!boleto.editavel) return;
+    const ok = window.confirm(t("financeiro.conta.digital.boletos.confirmarCancelar"));
+    if (!ok) return;
+    setProcessandoId(boleto.id);
+    try {
+      const res = await fetch(`/api/asaas/boletos/${encodeURIComponent(boleto.id)}`, {
+        method: "DELETE",
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        throw new Error(data.error || t("financeiro.conta.digital.boletos.erroCancelar"));
+      }
+      onMensagem?.(t("financeiro.conta.digital.boletos.sucessoCancelar"), "sucesso");
+      await carregar();
+    } catch (err) {
+      onMensagem?.(
+        err instanceof Error
+          ? err.message
+          : t("financeiro.conta.digital.boletos.erroCancelar"),
+        "erro"
+      );
+    } finally {
+      setProcessandoId(null);
+    }
+  }
+
+  const linkBoleto = (b: BoletoItem) => b.bankSlipUrl || b.invoiceUrl;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+        <div className="min-w-[140px] flex-1">
+          <label className={labelClass}>{t("financeiro.conta.digital.boletos.filtroBusca")}</label>
+          <input
+            type="text"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            className={inputClass}
+            placeholder={t("financeiro.conta.digital.boletos.placeholderBusca")}
+          />
+        </div>
+        <div className="w-[150px]">
+          <label className={labelClass}>{t("financeiro.conta.digital.boletos.filtroStatus")}</label>
+          <select
+            value={statusFiltro}
+            onChange={(e) => setStatusFiltro(e.target.value)}
+            className={inputClass}
+          >
+            <option value="">{t("financeiro.conta.digital.boletos.statusTodos")}</option>
+            <option value="PENDING">{t("financeiro.conta.digital.boletos.status.pending")}</option>
+            <option value="OVERDUE">{t("financeiro.conta.digital.boletos.status.overdue")}</option>
+            <option value="RECEIVED">{t("financeiro.conta.digital.boletos.status.paid")}</option>
+            <option value="DELETED">{t("financeiro.conta.digital.boletos.status.deleted")}</option>
+          </select>
+        </div>
+        <div className="w-[140px]">
+          <label className={labelClass}>{t("financeiro.conta.digital.boletos.vencimentoDe")}</label>
+          <input
+            type="date"
+            value={vencimentoDe}
+            onChange={(e) => setVencimentoDe(e.target.value)}
+            className={inputClass}
+          />
+        </div>
+        <div className="w-[140px]">
+          <label className={labelClass}>{t("financeiro.conta.digital.boletos.vencimentoAte")}</label>
+          <input
+            type="date"
+            value={vencimentoAte}
+            onChange={(e) => setVencimentoAte(e.target.value)}
+            className={inputClass}
+          />
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          className="h-9 gap-1.5 text-[12px]"
+          onClick={() => void carregar()}
+          disabled={carregando}
+        >
+          {carregando ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <RefreshCw className="h-3.5 w-3.5" />
+          )}
+          {t("financeiro.conta.digital.boletos.atualizar")}
+        </Button>
+      </div>
+
+      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+        <table className="w-full text-left text-[12px]">
+          <thead className="border-b border-slate-200 bg-slate-50 text-[11px] text-slate-500">
+            <tr>
+              <th className="px-3 py-2">{t("financeiro.conta.digital.boletos.col.cliente")}</th>
+              <th className="px-3 py-2 text-right">{t("financeiro.conta.digital.boletos.col.valor")}</th>
+              <th className="px-3 py-2">{t("financeiro.conta.digital.boletos.col.vencimento")}</th>
+              <th className="px-3 py-2">{t("financeiro.conta.digital.boletos.col.status")}</th>
+              <th className="px-3 py-2 text-right">{t("financeiro.conta.digital.boletos.col.juros")}</th>
+              <th className="px-3 py-2 text-right">{t("financeiro.conta.digital.boletos.col.multa")}</th>
+              <th className="px-3 py-2 text-right">{t("financeiro.conta.digital.boletos.col.acoes")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {carregando ? (
+              <tr>
+                <td colSpan={7} className="px-3 py-8 text-center text-slate-500">
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {t("financeiro.conta.digital.boletos.carregando")}
+                  </span>
+                </td>
+              </tr>
+            ) : boletos.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="px-3 py-8 text-center text-slate-500">
+                  {t("financeiro.conta.digital.boletos.vazio")}
+                </td>
+              </tr>
+            ) : (
+              boletos.map((b) => {
+                const busy = processandoId === b.id;
+                const href = linkBoleto(b);
+                return (
+                  <tr key={b.id} className="border-b border-slate-100">
+                    <td className="px-3 py-2">
+                      <p className="font-medium text-slate-800">
+                        {b.clienteNome || t("financeiro.conta.digital.boletos.semCliente")}
+                      </p>
+                      <p className="text-[10px] text-slate-500">
+                        {b.numeroOs != null
+                          ? t("financeiro.conta.digital.boletos.os", {
+                              os: String(b.numeroOs),
+                            })
+                          : b.descricao.slice(0, 60)}
+                      </p>
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums font-medium">
+                      {money(b.valor)}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap">{b.vencimento}</td>
+                    <td className="px-3 py-2">
+                      <span
+                        className={cn(
+                          "inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium",
+                          b.status === "OVERDUE"
+                            ? "border-red-200 bg-red-50 text-red-700"
+                            : b.editavel
+                              ? "border-amber-200 bg-amber-50 text-amber-800"
+                              : b.status === "DELETED"
+                                ? "border-slate-200 bg-slate-50 text-slate-600"
+                                : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        )}
+                      >
+                        {rotuloStatus(b.status, t)}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums">
+                      {b.interest != null ? `${b.interest}%` : "—"}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums">
+                      {b.fine != null ? `${b.fine}%` : "—"}
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="flex items-center justify-end gap-1">
+                        {href ? (
+                          <a
+                            href={href}
+                            target="_blank"
+                            rel="noreferrer"
+                            title={t("financeiro.conta.digital.boletos.verBoleto")}
+                            className="inline-flex h-7 w-7 items-center justify-center rounded text-slate-500 hover:bg-slate-100 hover:text-[#4a90d9]"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </a>
+                        ) : null}
+                        {b.editavel ? (
+                          <>
+                            <button
+                              type="button"
+                              disabled={busy}
+                              title={t("financeiro.conta.digital.boletos.editar")}
+                              onClick={() => abrirEdicao(b)}
+                              className="inline-flex h-7 w-7 items-center justify-center rounded text-slate-500 hover:bg-slate-100 hover:text-[#4a90d9] disabled:opacity-40"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              disabled={busy}
+                              title={t("financeiro.conta.digital.boletos.removerJurosMulta")}
+                              onClick={() => void removerJurosMulta(b)}
+                              className="inline-flex h-7 w-7 items-center justify-center rounded text-slate-500 hover:bg-slate-100 hover:text-amber-700 disabled:opacity-40"
+                            >
+                              <Ban className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              disabled={busy}
+                              title={t("financeiro.conta.digital.boletos.cancelar")}
+                              onClick={() => void cancelarBoleto(b)}
+                              className="inline-flex h-7 w-7 items-center justify-center rounded text-red-500 hover:bg-red-50 hover:text-red-700 disabled:opacity-40"
+                            >
+                              {busy ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-3.5 w-3.5" />
+                              )}
+                            </button>
+                          </>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {editando ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-4 shadow-xl">
+            <h4 className="text-[14px] font-semibold text-slate-800">
+              {t("financeiro.conta.digital.boletos.modalTitulo")}
+            </h4>
+            <p className="mt-1 text-[11px] text-slate-500">
+              {editando.clienteNome || editando.descricao}
+            </p>
+            <div className="mt-4 space-y-3">
+              <div>
+                <label className={labelClass}>
+                  {t("financeiro.conta.digital.boletos.campoVencimento")}
+                </label>
+                <input
+                  type="date"
+                  value={formDueDate}
+                  onChange={(e) => setFormDueDate(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>
+                  {t("financeiro.conta.digital.boletos.campoJuros")}
+                </label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={formInterest}
+                  onChange={(e) => setFormInterest(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>
+                  {t("financeiro.conta.digital.boletos.campoMulta")}
+                </label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={formFine}
+                  onChange={(e) => setFormFine(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9 text-[12px]"
+                onClick={() => setEditando(null)}
+                disabled={processandoId === editando.id}
+              >
+                {t("financeiro.conta.digital.boletos.cancelarModal")}
+              </Button>
+              <Button
+                type="button"
+                className="h-9 bg-[#4a90d9] text-[12px] text-white hover:bg-[#3d7fc4]"
+                onClick={() => void salvarEdicao()}
+                disabled={processandoId === editando.id}
+              >
+                {processandoId === editando.id ? (
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                ) : null}
+                {t("financeiro.conta.digital.boletos.salvar")}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
