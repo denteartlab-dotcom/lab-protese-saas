@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ExternalLink,
   Loader2,
@@ -11,10 +11,13 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
+import { PaginacaoLista } from "@/components/listagem/PaginacaoLista";
 import { useI18n } from "@/components/i18n-provider";
 import type { MessageKey } from "@/lib/i18n";
 import { formatMoedaContaBancaria } from "@/lib/i18n/conta-bancaria-i18n";
 import { cn } from "@/lib/utils";
+
+const LINHAS_POR_PAGINA = 20;
 
 type BoletoItem = {
   id: string;
@@ -107,6 +110,7 @@ export function BoletosAsaasContaDigital({ onMensagem }: Props) {
   const [formDueDate, setFormDueDate] = useState("");
   const [formInterest, setFormInterest] = useState("");
   const [formFine, setFormFine] = useState("");
+  const [pagina, setPagina] = useState(1);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -116,6 +120,7 @@ export function BoletosAsaasContaDigital({ onMensagem }: Props) {
       if (busca.trim()) sp.set("busca", busca.trim());
       if (vencimentoDe) sp.set("vencimentoDe", vencimentoDe);
       if (vencimentoAte) sp.set("vencimentoAte", vencimentoAte);
+      sp.set("limit", "500");
       const res = await fetch(`/api/asaas/boletos?${sp.toString()}`, {
         cache: "no-store",
       });
@@ -124,6 +129,7 @@ export function BoletosAsaasContaDigital({ onMensagem }: Props) {
         throw new Error(data.error || t("financeiro.conta.digital.boletos.erroCarregar"));
       }
       setBoletos(data.boletos || []);
+      setPagina(1);
     } catch (err) {
       onMensagem?.(
         err instanceof Error
@@ -140,6 +146,16 @@ export function BoletosAsaasContaDigital({ onMensagem }: Props) {
     void carregar();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- busca intencional só no refresh
   }, [statusFiltro, vencimentoDe, vencimentoAte]);
+
+  const totalPaginas = Math.max(1, Math.ceil(boletos.length / LINHAS_POR_PAGINA));
+  const paginaAtual = Math.min(pagina, totalPaginas);
+  const boletosPagina = useMemo(() => {
+    const inicio = (paginaAtual - 1) * LINHAS_POR_PAGINA;
+    return boletos.slice(inicio, inicio + LINHAS_POR_PAGINA);
+  }, [boletos, paginaAtual]);
+  const inicioExibido =
+    boletos.length === 0 ? 0 : (paginaAtual - 1) * LINHAS_POR_PAGINA + 1;
+  const fimExibido = Math.min(paginaAtual * LINHAS_POR_PAGINA, boletos.length);
 
   function abrirEdicao(boleto: BoletoItem) {
     setEditando(boleto);
@@ -326,7 +342,7 @@ export function BoletosAsaasContaDigital({ onMensagem }: Props) {
                 </td>
               </tr>
             ) : (
-              boletos.map((b) => {
+              boletosPagina.map((b) => {
                 const busy = processandoId === b.id;
                 const href = linkBoleto(b);
                 return (
@@ -425,6 +441,23 @@ export function BoletosAsaasContaDigital({ onMensagem }: Props) {
             )}
           </tbody>
         </table>
+        {!carregando && boletos.length > 0 ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 bg-slate-50/80 px-3 py-1">
+            <p className="px-2 text-[11px] text-slate-500">
+              {t("financeiro.conta.digital.boletos.paginacaoResumo", {
+                inicio: inicioExibido,
+                fim: fimExibido,
+                total: boletos.length,
+              })}
+            </p>
+            <PaginacaoLista
+              pagina={paginaAtual}
+              totalPaginas={totalPaginas}
+              onPagina={setPagina}
+              className="border-t-0 py-2"
+            />
+          </div>
+        ) : null}
       </div>
 
       {editando ? (

@@ -108,7 +108,7 @@ export async function listarBoletosAsaasEmpresa(
   filtros: FiltrosListagemBoletosAsaas = {}
 ): Promise<BoletoAsaasListagem[]> {
   const config = await configContaDigitalObrigatoria(empresaId);
-  const limit = Math.min(Math.max(filtros.limit ?? 80, 1), 100);
+  const limit = Math.min(Math.max(filtros.limit ?? 500, 1), 500);
   const statusFiltro = filtros.status?.trim().toUpperCase() || undefined;
   const busca = filtros.busca?.trim().toLowerCase() || "";
 

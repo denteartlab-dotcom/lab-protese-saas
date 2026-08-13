@@ -22,7 +22,7 @@ export async function GET(request: Request) {
       busca: searchParams.get("busca") || undefined,
       vencimentoDe: searchParams.get("vencimentoDe") || undefined,
       vencimentoAte: searchParams.get("vencimentoAte") || undefined,
-      limit: Number(searchParams.get("limit") || "80") || 80,
+      limit: Number(searchParams.get("limit") || "500") || 500,
     });
     return NextResponse.json({ boletos });
   } catch (err) {
