@@ -113,16 +113,8 @@ export async function excluirCobrancaAsaas(
   );
 }
 
-export function cobrancaAsaasEditavel(status: string | null | undefined): boolean {
-  const s = (status || "").toUpperCase();
-  return s === "PENDING" || s === "OVERDUE";
-}
-
-export function cobrancaAsaasJaPaga(status: string | null | undefined): boolean {
-  const s = (status || "").toUpperCase();
-  return (
-    s === "RECEIVED" ||
-    s === "CONFIRMED" ||
-    s === "RECEIVED_IN_CASH"
-  );
-}
+export {
+  cobrancaAsaasEditavel,
+  cobrancaAsaasJaPaga,
+  cobrancaAsaasPermiteSegundaVia,
+} from "@/lib/asaas-cobranca-status";

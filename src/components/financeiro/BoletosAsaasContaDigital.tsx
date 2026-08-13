@@ -14,6 +14,7 @@ import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal"
 import { PaginacaoLista } from "@/components/listagem/PaginacaoLista";
 import { useI18n } from "@/components/i18n-provider";
 import type { MessageKey } from "@/lib/i18n";
+import { cobrancaAsaasPermiteSegundaVia } from "@/lib/asaas-cobranca-status";
 import { formatMoedaContaBancaria } from "@/lib/i18n/conta-bancaria-i18n";
 import { cn } from "@/lib/utils";
 
@@ -344,7 +345,8 @@ export function BoletosAsaasContaDigital({ onMensagem }: Props) {
             ) : (
               boletosPagina.map((b) => {
                 const busy = processandoId === b.id;
-                const href = linkBoleto(b);
+                const href =
+                  cobrancaAsaasPermiteSegundaVia(b.status) ? linkBoleto(b) : null;
                 return (
                   <tr key={b.id} className="border-b border-slate-100">
                     <td className="px-3 py-2">
