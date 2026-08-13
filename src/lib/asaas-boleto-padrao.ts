@@ -1,5 +1,5 @@
 import { lerJsonStoreTenant, salvarJsonStoreTenant } from "@/lib/json-store-tenant";
-import { parseBrDate } from "@/lib/datas-br";
+import { dateToBrShort, parseBrDate } from "@/lib/datas-br";
 
 export const JSON_KEY_BOLETO_ASAAS_PADRAO = "labProteseBoletoAsaasPadrao";
 
@@ -213,4 +213,19 @@ export function resolverVencimentoPadraoBoletoAsaas(
   }
 
   return null;
+}
+
+/** Vencimento do padrão em dd/mm/aaaa para a UI de lançamento. */
+export function vencimentoPadraoBoletoAsaasBr(
+  padrao: Partial<PadraoBoletoAsaas> | null | undefined,
+  indiceParcela = 0,
+  referencia = new Date()
+): string | null {
+  const normalizado = normalizarPadraoBoletoAsaas(padrao);
+  const data = resolverVencimentoPadraoBoletoAsaas(
+    normalizado,
+    referencia,
+    indiceParcela
+  );
+  return data ? dateToBrShort(data) : null;
 }

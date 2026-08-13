@@ -21,6 +21,11 @@ import { AnexosReciboCampo,
 import { SelectFormaRecebimentoAsaas } from "@/components/financeiro/SelectFormaRecebimentoAsaas";
 import { ConfigurarBoletoAsaasModal } from "@/components/financeiro/ConfigurarBoletoAsaasModal";
 import { formaExigeAsaasCobranca } from "@/lib/formas-recebimento-asaas";
+import {
+  normalizarPadraoBoletoAsaas,
+  vencimentoPadraoBoletoAsaasBr,
+  type PadraoBoletoAsaas,
+} from "@/lib/asaas-boleto-padrao";
 import type { AnexoDespesa } from "@/lib/lancamento-despesa";
 import { cn, STATUS_TRABALHO } from "@/lib/utils";
 import { useEntradaLeitorCodigo } from "@/hooks/use-entrada-leitor-codigo-barras";
@@ -395,8 +400,11 @@ export function LancarReceitaOsModal({
       recebido: false,
     },
   ]);
-  const [padraoBoletoCadastrado, setPadraoBoletoCadastrado] = useState(false);
+  const [padraoBoleto, setPadraoBoleto] = useState<PadraoBoletoAsaas>(
+    () => normalizarPadraoBoletoAsaas(null)
+  );
   const [modalBoletoAsaas, setModalBoletoAsaas] = useState(false);
+  const padraoBoletoCadastrado = padraoBoleto.cadastrado;
 
   const algumaParcelaRecebida = parcelas.some((p) => p.recebido);
 
@@ -477,11 +485,23 @@ export function LancarReceitaOsModal({
     setForm((f) => ({ ...f, categoria: padrao }));
     void fetch("/api/asaas/boletos/padrao", { cache: "no-store" })
       .then((res) => res.json())
-      .then((json: { padrao?: { cadastrado?: boolean } }) => {
-        setPadraoBoletoCadastrado(Boolean(json.padrao?.cadastrado));
+      .then((json: { padrao?: Partial<PadraoBoletoAsaas> }) => {
+        setPadraoBoleto(normalizarPadraoBoletoAsaas(json.padrao));
       })
-      .catch(() => setPadraoBoletoCadastrado(false));
+      .catch(() => setPadraoBoleto(normalizarPadraoBoletoAsaas(null)));
   }, [open, setForm]);
+
+  useEffect(() => {
+    if (!open || !padraoBoleto.vencimentoConfigurado) return;
+    setParcelas((lista) =>
+      lista.map((p, i) => {
+        if (!(p.formaPagamento || "").toLowerCase().includes("boleto")) return p;
+        const vencimento = vencimentoPadraoBoletoAsaasBr(padraoBoleto, i);
+        if (!vencimento || vencimento === p.vencimento) return p;
+        return { ...p, vencimento };
+      })
+    );
+  }, [open, padraoBoleto]);
 
   useEffect(() => {
     if (!open) return;
@@ -521,12 +541,18 @@ export function LancarReceitaOsModal({
         atual[0]?.vencimento || form.vencimento || dateToBrShort(new Date());
       return Array.from({ length: numParcelas }, (_, i) => {
         const existente = atual[i];
+        const formaPagamento =
+          existente?.formaPagamento || form.formaPagamento || "Forma Pagamento";
         return {
           parcela: `${i + 1}/${numParcelas}`,
-          formaPagamento: existente?.formaPagamento || form.formaPagamento || "Forma Pagamento",
+          formaPagamento,
           conta: existente?.conta || form.conta || "Caixa Principal",
           vencimento:
-            existente?.vencimento || somarMesesDataBr(vencimentoBase, i),
+            existente?.vencimento ||
+            ((formaPagamento || "").toLowerCase().includes("boleto")
+              ? vencimentoPadraoBoletoAsaasBr(padraoBoleto, i)
+              : null) ||
+            somarMesesDataBr(vencimentoBase, i),
           valor: valorParcela,
           valorTipo: existente?.valorTipo || "valor",
           juros: existente?.juros || form.juros || "0,00",
@@ -544,6 +570,7 @@ export function LancarReceitaOsModal({
     form.juros,
     form.jurosTipo,
     form.recebido,
+    padraoBoleto,
   ]);
 
   useEffect(() => {
@@ -1280,14 +1307,22 @@ export function LancarReceitaOsModal({
                           value={p.formaPagamento}
                           asaasDisponivel={pixAsaasDisponivel}
                           className="h-8 w-full rounded-sm border border-[#d1d5db] bg-white px-2 text-[12px] outline-none"
-                          onChange={(formaPagamento) =>
-                            atualizarParcela(index, {
+                          onChange={(formaPagamento) => {
+                            const patch: Partial<ParcelaLinhaReceita> = {
                               formaPagamento,
-                              ...(formaExigeAsaasCobranca(formaPagamento)
-                                ? { conta: "Conta Bancária" }
-                                : {}),
-                            })
-                          }
+                            };
+                            if (formaExigeAsaasCobranca(formaPagamento)) {
+                              patch.conta = "Conta Bancária";
+                            }
+                            if ((formaPagamento || "").toLowerCase().includes("boleto")) {
+                              const vencimento = vencimentoPadraoBoletoAsaasBr(
+                                padraoBoleto,
+                                index
+                              );
+                              if (vencimento) patch.vencimento = vencimento;
+                            }
+                            atualizarParcela(index, patch);
+                          }}
                         />
                       </td>
                       <td className="px-1.5 py-1.5 align-middle">
