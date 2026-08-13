@@ -341,3 +341,87 @@ export async function cancelarBoletoAsaasEmpresa(
   await sincronizarPagamentoAsaas(asaasPaymentId, "DELETED");
   return { ok: true };
 }
+
+/**
+ * Cancela no Asaas as cobranças (boleto/Pix) dos lançamentos antes da exclusão local.
+ * Boletos já pagos ou já cancelados são ignorados.
+ */
+export async function cancelarCobrancasAsaasAntesExcluirLancamentos(
+  empresaId: string,
+  lancamentoIds: string[]
+) {
+  const ids = [...new Set(lancamentoIds.filter(Boolean))];
+  if (!ids.length) return;
+
+  const locais = await prisma.cobrancaAsaas.findMany({
+    where: {
+      lancamentoId: { in: ids },
+      lancamento: { empresaId, tipo: "receita" },
+    },
+  });
+  if (!locais.length) return;
+
+  const { config } = await resolverContaDigitalOperacional(empresaId);
+  if (!config) {
+    throw new Error(
+      "Não foi possível cancelar o boleto no Asaas: conta digital/API não configurada."
+    );
+  }
+
+  for (const local of locais) {
+    if ((local.statusAsaas || "").toUpperCase() === "DELETED") continue;
+
+    let atual: AsaasCobrancaDetalhe;
+    try {
+      atual = await obterCobrancaAsaas(config, local.asaasPaymentId);
+    } catch (err) {
+      console.error(
+        "[cancelarCobrancasAsaasAntesExcluir] obter",
+        local.asaasPaymentId,
+        err
+      );
+      throw new Error(
+        "Não foi possível consultar o boleto no Asaas para cancelar junto com a exclusão."
+      );
+    }
+
+    if (atual.deleted === true) {
+      await prisma.cobrancaAsaas
+        .update({
+          where: { id: local.id },
+          data: { statusAsaas: "DELETED" },
+        })
+        .catch(() => undefined);
+      continue;
+    }
+    if (cobrancaAsaasJaPaga(atual.status)) {
+      throw new Error(
+        "Não é possível excluir este lançamento: o boleto Asaas já está pago. Estorne ou trate o pagamento antes."
+      );
+    }
+    if (!cobrancaAsaasEditavel(atual.status)) {
+      throw new Error(
+        "Não é possível cancelar o boleto Asaas vinculado a este lançamento no status atual."
+      );
+    }
+
+    try {
+      await excluirCobrancaAsaas(config, local.asaasPaymentId);
+      await prisma.cobrancaAsaas.update({
+        where: { id: local.id },
+        data: { statusAsaas: "DELETED" },
+      });
+    } catch (err) {
+      console.error(
+        "[cancelarCobrancasAsaasAntesExcluir] delete",
+        local.asaasPaymentId,
+        err
+      );
+      throw new Error(
+        err instanceof Error
+          ? err.message
+          : "Falha ao cancelar o boleto no Asaas ao excluir o lançamento."
+      );
+    }
+  }
+}

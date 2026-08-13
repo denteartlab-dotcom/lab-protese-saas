@@ -11,6 +11,7 @@ import {
 } from "@/lib/os-faturamento";
 import { removerMovimentacoesRecebimentoServidor } from "@/lib/recebimento-conta-bancaria-servidor";
 import { valorTrabalho } from "@/lib/relatorio-faturas-modelo3-dados";
+import { cancelarCobrancasAsaasAntesExcluirLancamentos } from "@/lib/asaas-boletos-servidor";
 
 type LancamentoFaturaExcluida = {
   id: string;
@@ -125,6 +126,8 @@ export async function excluirFaturaCobrancaOsServidor(
 
   const idsParaExcluir = idsLancamentosExclusaoAoRemoverFatura(fatura, resumo);
   const trabalhos = await carregarTrabalhosDaFaturaExcluida(empresaId, lancamento);
+
+  await cancelarCobrancasAsaasAntesExcluirLancamentos(empresaId, idsParaExcluir);
 
   await prisma.$transaction(
     idsParaExcluir.map((id) => prisma.lancamento.delete({ where: { id } }))

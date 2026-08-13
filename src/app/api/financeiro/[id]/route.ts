@@ -16,6 +16,7 @@ import { sincronizarTrabalhosAposAlteracaoLancamento } from "@/lib/os-faturament
 import { restaurarFaturaAposExclusaoPagamento } from "@/lib/recebimento-estorno-servidor";
 import { excluirFaturaCobrancaOsServidor } from "@/lib/fatura-exclusao-servidor";
 import { ehFaturaCobrancaOsParaExclusao } from "@/lib/contas-receber-financeiro";
+import { cancelarCobrancasAsaasAntesExcluirLancamentos } from "@/lib/asaas-boletos-servidor";
 import { z } from "zod";
 
 const schema = z.object({
@@ -162,9 +163,25 @@ export async function DELETE(
       });
     } catch (err) {
       console.error("[financeiro DELETE] exclusão fatura", err);
-      return NextResponse.json({ error: "Erro ao excluir fatura" }, { status: 500 });
+      const msg =
+        err instanceof Error ? err.message : "Erro ao excluir fatura";
+      return NextResponse.json({ error: msg }, { status: 500 });
     }
   } else {
+    try {
+      await cancelarCobrancasAsaasAntesExcluirLancamentos(ctx.empresaId, [id]);
+    } catch (err) {
+      console.error("[financeiro DELETE] cancelar Asaas", err);
+      return NextResponse.json(
+        {
+          error:
+            err instanceof Error
+              ? err.message
+              : "Não foi possível cancelar o boleto Asaas ao excluir.",
+        },
+        { status: 422 }
+      );
+    }
     await prisma.lancamento.delete({ where: { id } });
     try {
       await restaurarFaturaAposExclusaoPagamento(ctx.empresaId, {
