@@ -10,7 +10,7 @@ import { invalidarCachePainelFinanceiro } from "@/lib/financeiro-painel-cache";
 import { descricaoPublicaLancamento } from "@/lib/lancamento-despesa";
 import { cobrancaPorLancamentoId } from "@/lib/lancamentos-cobranca";
 import { empacotarReceitaConta, RECEITA_CONTA_SEP } from "@/lib/receita-conta-bancaria";
-import { obterPadraoBoletoAsaas } from "@/lib/asaas-boleto-padrao";
+import { obterPadraoBoletoAsaas, resolverVencimentoPadraoBoletoAsaas } from "@/lib/asaas-boleto-padrao";
 
 function formaEhBoleto(forma?: string | null): boolean {
   return (forma || "").toLowerCase().includes("boleto");
@@ -49,7 +49,7 @@ export async function validarPreRequisitosBoletoAsaas(params: {
 export async function tentarEmitirBoletoParaLancamento(
   lancamentoId: string,
   valorOverride?: number,
-  opcoes?: { interest?: number | null; fine?: number | null }
+  opcoes?: { interest?: number | null; fine?: number | null; indiceParcela?: number }
 ) {
   const lancamento = await prisma.lancamento.findUnique({
     where: { id: lancamentoId },
@@ -82,6 +82,26 @@ export async function tentarEmitirBoletoParaLancamento(
         : 0;
   const fine =
     opcoes?.fine != null ? opcoes.fine : padrao.cadastrado ? padrao.fine : 0;
+  const vencimentoCalculado = resolverVencimentoPadraoBoletoAsaas(
+    padrao,
+    new Date(),
+    opcoes?.indiceParcela ?? 0
+  );
+  const vencimento = vencimentoCalculado ?? lancamento.data;
+  if (vencimentoCalculado) {
+    const ymd = (date: Date) => {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    };
+    if (ymd(vencimentoCalculado) !== ymd(lancamento.data)) {
+      await prisma.lancamento.update({
+        where: { id: lancamento.id },
+        data: { data: vencimentoCalculado },
+      });
+    }
+  }
 
   const asaasCustomerId = await criarOuBuscarClienteAsaas({
     config,
@@ -97,7 +117,7 @@ export async function tentarEmitirBoletoParaLancamento(
     config,
     asaasCustomerId,
     valor: valorOverride ?? lancamento.valor,
-    vencimento: lancamento.data,
+    vencimento,
     descricao: descricaoPublicaLancamento(lancamento.descricao),
     interest,
     fine,

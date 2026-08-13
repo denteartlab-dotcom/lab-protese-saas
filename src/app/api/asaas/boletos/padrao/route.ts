@@ -39,6 +39,10 @@ export async function PUT(request: Request) {
     const body = (await request.json()) as {
       interest?: number;
       fine?: number;
+      vencimentoTipo?: "data_fixa" | "dias_apos" | "dia_mes";
+      dataFixa?: string | null;
+      diasApos?: number;
+      diaMes?: number;
       limpar?: boolean;
     };
     if (body.limpar === true) {
@@ -48,6 +52,10 @@ export async function PUT(request: Request) {
     const padrao = await salvarPadraoBoletoAsaas(ctx.empresaId, {
       interest: Number(body.interest) || 0,
       fine: Number(body.fine) || 0,
+      vencimentoTipo: body.vencimentoTipo || "dias_apos",
+      dataFixa: body.dataFixa,
+      diasApos: body.diasApos,
+      diaMes: body.diaMes,
     });
     return NextResponse.json({ padrao });
   } catch (err) {

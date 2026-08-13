@@ -315,6 +315,7 @@ export async function POST(request: Request) {
       let pixQrResposta: Awaited<ReturnType<typeof tentarEmitirPixParaLancamento>> = null;
 
       if (deveEmitirBoletos) {
+        let indiceBoleto = 0;
         for (const lancamento of criados) {
           const forma = (lancamento.formaPagamento || "").toLowerCase();
           if (!forma.includes("boleto") || lancamento.status === "pago") continue;
@@ -322,8 +323,12 @@ export async function POST(request: Request) {
             const cobranca = await tentarEmitirBoletoParaLancamento(
               lancamento.id,
               undefined,
-              opcoesBoletoAsaas
+              {
+                ...(opcoesBoletoAsaas ?? {}),
+                indiceParcela: indiceBoleto,
+              }
             );
+            indiceBoleto += 1;
             if (cobranca) boletosEmitidos += 1;
           } catch (err) {
             console.error("[financeiro POST] boleto parcela asaas", err);

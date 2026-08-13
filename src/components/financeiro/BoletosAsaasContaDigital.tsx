@@ -26,6 +26,26 @@ import { cn } from "@/lib/utils";
 
 const LINHAS_POR_PAGINA = 20;
 
+type TipoVencimentoPadrao = "data_fixa" | "dias_apos" | "dia_mes";
+
+type PadraoBoletoApi = {
+  cadastrado?: boolean;
+  interest?: number;
+  fine?: number;
+  vencimentoTipo?: TipoVencimentoPadrao;
+  dataFixa?: string | null;
+  diasApos?: number;
+  diaMes?: number;
+};
+
+function isoHojeLocal() {
+  const agora = new Date();
+  const y = agora.getFullYear();
+  const m = String(agora.getMonth() + 1).padStart(2, "0");
+  const d = String(agora.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 type BoletoItem = {
   id: string;
   status: string;
@@ -87,22 +107,33 @@ export function BoletosAsaasContaDigital({ onMensagem }: Props) {
   const [padraoCadastrado, setPadraoCadastrado] = useState(false);
   const [padraoInterest, setPadraoInterest] = useState(percentualParaInput(0));
   const [padraoFine, setPadraoFine] = useState(percentualParaInput(0));
+  const [padraoVencimentoTipo, setPadraoVencimentoTipo] =
+    useState<TipoVencimentoPadrao>("dias_apos");
+  const [padraoDataFixa, setPadraoDataFixa] = useState(isoHojeLocal);
+  const [padraoDiasApos, setPadraoDiasApos] = useState("5");
+  const [padraoDiaMes, setPadraoDiaMes] = useState("10");
   const [salvandoPadrao, setSalvandoPadrao] = useState(false);
+
+  const aplicarPadraoNoFormulario = useCallback((padrao?: PadraoBoletoApi | null) => {
+    const cadastrado = Boolean(padrao?.cadastrado);
+    setPadraoCadastrado(cadastrado);
+    setPadraoInterest(percentualParaInput(cadastrado ? padrao?.interest : 0));
+    setPadraoFine(percentualParaInput(cadastrado ? padrao?.fine : 0));
+    setPadraoVencimentoTipo(padrao?.vencimentoTipo || "dias_apos");
+    setPadraoDataFixa(padrao?.dataFixa || isoHojeLocal());
+    setPadraoDiasApos(String(padrao?.diasApos ?? 5));
+    setPadraoDiaMes(String(padrao?.diaMes ?? 10));
+  }, []);
 
   const carregarPadrao = useCallback(async () => {
     try {
       const res = await fetch("/api/asaas/boletos/padrao", { cache: "no-store" });
-      const data = (await res.json()) as {
-        padrao?: { cadastrado?: boolean; interest?: number; fine?: number };
-      };
-      const padrao = data.padrao;
-      setPadraoCadastrado(Boolean(padrao?.cadastrado));
-      setPadraoInterest(percentualParaInput(padrao?.cadastrado ? padrao.interest : 0));
-      setPadraoFine(percentualParaInput(padrao?.cadastrado ? padrao.fine : 0));
+      const data = (await res.json()) as { padrao?: PadraoBoletoApi };
+      aplicarPadraoNoFormulario(data.padrao);
     } catch {
       setPadraoCadastrado(false);
     }
-  }, []);
+  }, [aplicarPadraoNoFormulario]);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -152,10 +183,14 @@ export function BoletosAsaasContaDigital({ onMensagem }: Props) {
         body: JSON.stringify({
           interest: parsePercentualBr(padraoInterest),
           fine: parsePercentualBr(padraoFine),
+          vencimentoTipo: padraoVencimentoTipo,
+          dataFixa: padraoDataFixa || null,
+          diasApos: Number(padraoDiasApos) || 0,
+          diaMes: Number(padraoDiaMes) || 10,
         }),
       });
       const data = (await res.json()) as {
-        padrao?: { cadastrado?: boolean };
+        padrao?: PadraoBoletoApi;
         error?: string;
       };
       if (!res.ok) {
@@ -163,7 +198,7 @@ export function BoletosAsaasContaDigital({ onMensagem }: Props) {
           data.error || t("financeiro.conta.digital.boletos.erroPadrao")
         );
       }
-      setPadraoCadastrado(Boolean(data.padrao?.cadastrado));
+      aplicarPadraoNoFormulario(data.padrao);
       onMensagem?.(t("financeiro.conta.digital.boletos.sucessoPadrao"), "sucesso");
     } catch (err) {
       onMensagem?.(
@@ -191,9 +226,15 @@ export function BoletosAsaasContaDigital({ onMensagem }: Props) {
           data.error || t("financeiro.conta.digital.boletos.erroPadrao")
         );
       }
-      setPadraoCadastrado(false);
-      setPadraoInterest(percentualParaInput(0));
-      setPadraoFine(percentualParaInput(0));
+      aplicarPadraoNoFormulario({
+        cadastrado: false,
+        interest: 0,
+        fine: 0,
+        vencimentoTipo: "dias_apos",
+        dataFixa: isoHojeLocal(),
+        diasApos: 5,
+        diaMes: 10,
+      });
       onMensagem?.(t("financeiro.conta.digital.boletos.sucessoLimparPadrao"), "sucesso");
     } catch (err) {
       onMensagem?.(
@@ -322,6 +363,76 @@ export function BoletosAsaasContaDigital({ onMensagem }: Props) {
             ? t("financeiro.conta.digital.boletos.padraoAtivo")
             : t("financeiro.conta.digital.boletos.padraoInativo")}
         </p>
+        <div className="mt-3 flex flex-wrap items-end gap-2">
+          <div className="min-w-[220px] flex-1 sm:max-w-[280px]">
+            <label className={labelClass}>
+              {t("financeiro.conta.digital.boletos.campoVencimentoPadrao")}
+            </label>
+            <select
+              value={padraoVencimentoTipo}
+              onChange={(e) =>
+                setPadraoVencimentoTipo(e.target.value as TipoVencimentoPadrao)
+              }
+              className={inputClass}
+            >
+              <option value="data_fixa">
+                {t("financeiro.conta.digital.boletos.vencimentoTipoDataFixa")}
+              </option>
+              <option value="dias_apos">
+                {t("financeiro.conta.digital.boletos.vencimentoTipoDiasApos")}
+              </option>
+              <option value="dia_mes">
+                {t("financeiro.conta.digital.boletos.vencimentoTipoDiaMes")}
+              </option>
+            </select>
+          </div>
+          {padraoVencimentoTipo === "data_fixa" ? (
+            <div className="w-[170px]">
+              <label className={labelClass}>
+                {t("financeiro.conta.digital.boletos.campoDataFixa")}
+              </label>
+              <input
+                type="date"
+                value={padraoDataFixa}
+                onChange={(e) => setPadraoDataFixa(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+          ) : null}
+          {padraoVencimentoTipo === "dias_apos" ? (
+            <div className="w-[160px]">
+              <label className={labelClass}>
+                {t("financeiro.conta.digital.boletos.campoDiasApos")}
+              </label>
+              <input
+                type="number"
+                min={0}
+                max={365}
+                value={padraoDiasApos}
+                onChange={(e) => setPadraoDiasApos(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+          ) : null}
+          {padraoVencimentoTipo === "dia_mes" ? (
+            <div className="w-[140px]">
+              <label className={labelClass}>
+                {t("financeiro.conta.digital.boletos.campoDiaMes")}
+              </label>
+              <select
+                value={padraoDiaMes}
+                onChange={(e) => setPadraoDiaMes(e.target.value)}
+                className={inputClass}
+              >
+                {Array.from({ length: 31 }, (_, i) => i + 1).map((dia) => (
+                  <option key={dia} value={String(dia)}>
+                    {dia}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+        </div>
         <div className="mt-3 flex flex-wrap items-end gap-2">
           <div className="w-[140px]">
             <label className={labelClass}>
