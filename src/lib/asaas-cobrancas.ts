@@ -1,8 +1,5 @@
-import {
-  asaasFetch,
-  type AsaasConfig,
-  type AsaasPayment,
-} from "@/lib/asaas-client";
+import { asaasFetch, type AsaasPayment } from "@/lib/asaas-client";
+import type { AsaasConfig } from "@/lib/asaas-config";
 
 export type AsaasInterestFine = {
   value?: number;

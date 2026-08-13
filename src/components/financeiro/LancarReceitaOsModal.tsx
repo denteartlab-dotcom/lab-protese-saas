@@ -25,7 +25,7 @@ import {
   normalizarPadraoBoletoAsaas,
   vencimentoPadraoBoletoAsaasBr,
   type PadraoBoletoAsaas,
-} from "@/lib/asaas-boleto-padrao";
+} from "@/lib/asaas-boleto-padrao-core";
 import type { AnexoDespesa } from "@/lib/lancamento-despesa";
 import { cn, STATUS_TRABALHO } from "@/lib/utils";
 import { useEntradaLeitorCodigo } from "@/hooks/use-entrada-leitor-codigo-barras";
