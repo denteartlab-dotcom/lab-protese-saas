@@ -3,8 +3,9 @@
 import { I18nPortal } from "@/components/I18nPortal";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Plus } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { CampoDataBr } from "@/components/ui";
+import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { brShortToIso, dateToBrShort } from "@/lib/datas-br";
 import {
   extrairDadosPagarDespesa,
@@ -149,6 +150,7 @@ export function PagarDespesaModal({
   const [formas, setFormas] = useState<FormaPagamentoLinha[]>([novaFormaPagamento()]);
   const [anexarComprovante, setAnexarComprovante] = useState(false);
   const [salvando, setSalvando] = useState(false);
+  const [alerta, setAlerta] = useState("");
 
   const dados = useMemo(
     () =>
@@ -173,6 +175,7 @@ export function PagarDespesaModal({
         : dateToBrShort(new Date())
     );
     setAnexarComprovante(false);
+    setAlerta("");
   }, [open, dados]);
 
   if (!open || !lancamento || !dados || !portalPronto) return null;
@@ -209,12 +212,12 @@ export function PagarDespesaModal({
       .filter((p) => p.pagarAgora && !p.pago && p.lancamentoId)
       .map((p) => p.lancamentoId as string);
     if (!ids.length) {
-      alert("Selecione ao menos uma parcela para pagar.");
+      setAlerta("Selecione ao menos uma parcela para pagar.");
       return;
     }
     const forma = formas[0];
     if (!forma?.forma?.trim()) {
-      alert("Informe a forma de pagamento.");
+      setAlerta("Informe a forma de pagamento.");
       return;
     }
 
@@ -232,7 +235,7 @@ export function PagarDespesaModal({
         });
         if (!res.ok) {
           const json = (await res.json().catch(() => ({}))) as { error?: string };
-          alert(json.error || "Não foi possível confirmar o pagamento.");
+          setAlerta(json.error || "Não foi possível confirmar o pagamento.");
           return;
         }
       }
@@ -256,18 +259,21 @@ export function PagarDespesaModal({
       aria-labelledby="pagar-despesa-titulo"
     >
       <div className="absolute inset-0" onClick={onClose} aria-hidden />
-      <div className="relative my-auto flex w-full max-w-[1080px] flex-col rounded-sm border border-slate-200 bg-white shadow-[0_8px_32px_rgba(0,0,0,0.15)]">
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
-          <h2 id="pagar-despesa-titulo" className="text-[15px] font-normal text-slate-800">
+      <div className="relative my-auto flex w-full max-w-[1080px] flex-col overflow-visible rounded-md bg-white shadow-2xl dark:border dark:border-slate-700 dark:bg-slate-900">
+        <div className="rounded-t bg-slate-50 px-5 py-4 dark:bg-slate-800">
+          <h2
+            id="pagar-despesa-titulo"
+            className="pr-8 text-base font-medium text-slate-600 dark:text-slate-200"
+          >
             Pagar Despesa
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="text-[18px] leading-none text-slate-400 hover:text-slate-600"
+            className="absolute right-[-8px] top-[-3px] flex h-9 w-9 items-center justify-center rounded-md bg-white text-slate-500 shadow-md hover:bg-slate-50 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
             aria-label="Fechar"
           >
-            ✕
+            <X className="h-5 w-5" strokeWidth={1.5} />
           </button>
         </div>
 
@@ -481,22 +487,22 @@ export function PagarDespesaModal({
             </div>
           </div>
 
-          <div className="mt-5 grid grid-cols-2 gap-3 pt-1">
-            <button
-              type="button"
-              disabled={salvando}
-              onClick={() => void confirmarPagamento()}
-              className="h-10 rounded-sm bg-[#4a90d9] text-[13px] font-normal text-white hover:bg-[#3d7fc4] disabled:opacity-60"
-            >
-              {salvando ? "Confirmando…" : "Confirmar Pagamento"}
-            </button>
+          <div className="mt-5 flex justify-end gap-3 pt-1">
             <button
               type="button"
               disabled={salvando}
               onClick={onClose}
-              className="h-10 rounded-sm border border-slate-300 bg-white text-[13px] font-normal text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+              className="h-10 rounded-md border border-slate-300 bg-white px-8 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
             >
               Cancelar
+            </button>
+            <button
+              type="button"
+              disabled={salvando}
+              onClick={() => void confirmarPagamento()}
+              className="h-10 rounded-md bg-[#4a90d9] px-8 text-sm font-semibold text-white hover:bg-[#3d7fc4] disabled:opacity-60"
+            >
+              {salvando ? "Confirmando…" : "Confirmar Pagamento"}
             </button>
           </div>
         </div>
@@ -504,5 +510,18 @@ export function PagarDespesaModal({
     </div>
   );
 
-  return createPortal(conteudo, document.body);
+  return createPortal(
+    <I18nPortal>
+      {conteudo}
+      <ConfirmacaoExclusaoModal
+        open={Boolean(alerta)}
+        titulo="Aviso"
+        mensagem={alerta}
+        modo="alerta"
+        onClose={() => setAlerta("")}
+        onConfirm={() => setAlerta("")}
+      />
+    </I18nPortal>,
+    document.body
+  );
 }

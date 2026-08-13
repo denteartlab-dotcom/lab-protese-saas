@@ -539,11 +539,7 @@ export function extrairDadosEdicaoDespesa(
   refOs?: string
 ): DadosVisualizacaoDespesa {
   const base = extrairDadosVisualizacaoDespesa(lancamento, refOs);
-  const chave = chaveGrupoDespesa(lancamento.descricao);
-  const irmaos = todosLancamentos.filter(
-    (item) =>
-      item.id !== lancamento.id && chaveGrupoDespesa(item.descricao) === chave
-  );
+  const irmaos = listarIrmaosParcelaDespesa(lancamento, todosLancamentos);
   const grupo = [lancamento, ...irmaos];
 
   if (grupo.length > 1) {
@@ -731,16 +727,63 @@ export function chaveGrupoDespesa(descricao: string) {
   return `${pack.nome}::${texto}`;
 }
 
+function mesReferenciaLancamentoDespesa(item: {
+  descricao: string;
+  data: string;
+}) {
+  const pack = desempacotarDespesa(item.descricao);
+  if (pack.meta.fixaMes) return pack.meta.fixaMes;
+  const match = String(item.data).match(/^(\d{4})-(\d{2})/);
+  return match ? `${match[1]}-${match[2]}` : "";
+}
+
+/** Irmãos reais da mesma compra/mês — não junta 1/1 de meses diferentes. */
+export function ehIrmaoParcelaDespesa(
+  atual: LancamentoDespesaDetalhe,
+  candidato: LancamentoDespesaDetalhe
+) {
+  if (candidato.id === atual.id) return false;
+  const status = (candidato.status || "").toLowerCase();
+  if (status === "cancelado") return false;
+  if (chaveGrupoDespesa(atual.descricao) !== chaveGrupoDespesa(candidato.descricao)) {
+    return false;
+  }
+
+  const packA = desempacotarDespesa(atual.descricao);
+  const packB = desempacotarDespesa(candidato.descricao);
+  const numsA = parcelaNumeros(packA.texto, packA.parcela);
+  const numsB = parcelaNumeros(packB.texto, packB.parcela);
+  const grupoA = packA.meta.fixaGrupoId;
+  const grupoB = packB.meta.fixaGrupoId;
+
+  if (grupoA || grupoB) {
+    if (!grupoA || grupoA !== grupoB) return false;
+    return (
+      mesReferenciaLancamentoDespesa(atual) ===
+      mesReferenciaLancamentoDespesa(candidato)
+    );
+  }
+
+  if (numsA.total <= 1 && numsB.total <= 1) return false;
+  return numsA.total > 1 && numsB.total === numsA.total;
+}
+
+export function listarIrmaosParcelaDespesa(
+  lancamento: LancamentoDespesaDetalhe,
+  todosLancamentos: LancamentoDespesaDetalhe[] = []
+) {
+  return todosLancamentos.filter((item) =>
+    ehIrmaoParcelaDespesa(lancamento, item)
+  );
+}
+
 export function extrairDadosPagarDespesa(
   lancamento: LancamentoDespesaDetalhe,
   refOs?: string,
   todosLancamentos: LancamentoDespesaDetalhe[] = []
 ): DadosPagarDespesa {
   const dados = extrairDadosVisualizacaoDespesa(lancamento, refOs);
-  const chave = chaveGrupoDespesa(lancamento.descricao);
-  const irmaos = todosLancamentos.filter(
-    (item) => item.id !== lancamento.id && chaveGrupoDespesa(item.descricao) === chave
-  );
+  const irmaos = listarIrmaosParcelaDespesa(lancamento, todosLancamentos);
   const grupo = [lancamento, ...irmaos];
 
   let parcelasGrupo: ParcelaPagarDespesa[] = [];

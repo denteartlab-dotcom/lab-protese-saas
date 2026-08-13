@@ -54,7 +54,7 @@ const LancarDespesaModal = dynamic(
 import { brShortToIso, dateToBrShort, intervaloMesVigente, parseBrDate } from "@/lib/datas-br";
 import {
   carregarEntidadesDespesaLocal,
-  chaveGrupoDespesa,
+  listarIrmaosParcelaDespesa,
   classificarEntidadeDespesa,
   desempacotarDespesa,
   descricaoDespesaComParcela,
@@ -887,12 +887,7 @@ export function ContasPagarConteudo() {
       }
 
       if (editando) {
-        const chave = chaveGrupoDespesa(editando.descricao);
-        const irmaos = lancamentos.filter(
-          (item) =>
-            item.id !== editando.id &&
-            chaveGrupoDespesa(item.descricao) === chave
-        );
+        const irmaos = listarIrmaosParcelaDespesa(editando, lancamentos);
         const registrosGrupo = [editando, ...irmaos].sort((a, b) => {
           const pa = desempacotarDespesa(a.descricao).texto.match(
             /\((\d+)\s*\/\s*(\d+)\)/
