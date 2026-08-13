@@ -8,9 +8,10 @@ import {
   useState,
 } from "react";
 import Image from "next/image";
-import { FileText, ImageUp, Loader2, Trash2 } from "lucide-react";
+import { FileText, FileUp, ImageUp, Loader2, Trash2 } from "lucide-react";
 import {
   arquivoEhAnexoFinanceiro,
+  ACCEPT_ANEXOS_FINANCEIRO,
   ANEXOS_FINANCEIRO_VAZIOS,
   LIMITE_ANEXOS_FINANCEIRO,
   type AnexoDespesa,
@@ -75,6 +76,7 @@ export const AnexosReciboCampo = forwardRef<AnexosReciboCampoRef, Props>(
     const [erroUpload, setErroUpload] = useState<string | null>(null);
     const inputImagemRef = useRef<HTMLInputElement>(null);
     const inputPdfRef = useRef<HTMLInputElement>(null);
+    const inputArquivoRef = useRef<HTMLInputElement>(null);
     const filaUploadRef = useRef<Promise<void>>(Promise.resolve());
     const { esgotado: galeriaEsgotada, podeEnviarArquivos, mensagemBloqueioUpload } =
       useArmazenamentoGaleria();
@@ -91,7 +93,9 @@ export const AnexosReciboCampo = forwardRef<AnexosReciboCampoRef, Props>(
 
         const candidatos = Array.from(listaArquivos).filter(arquivoEhAnexoFinanceiro);
         if (!candidatos.length) {
-          setErroUpload("Use imagens (JPEG, PNG, HEIC, etc.) ou arquivos PDF.");
+          setErroUpload(
+            "Use imagens, PDF, Excel, Word, CSV, TXT ou ZIP/RAR."
+          );
           return;
         }
 
@@ -174,25 +178,30 @@ export const AnexosReciboCampo = forwardRef<AnexosReciboCampoRef, Props>(
     }
 
     function previewSalvo(anexo: AnexoDespesa) {
-      const isPdf =
-        anexo.type === "application/pdf" || anexo.name.toLowerCase().endsWith(".pdf");
-      if (isPdf) {
+      const nome = anexo.name.toLowerCase();
+      const isPdf = anexo.type === "application/pdf" || nome.endsWith(".pdf");
+      const isImagem =
+        (anexo.type || "").startsWith("image/") ||
+        /\.(jpe?g|png|gif|webp|bmp|heic|heif)$/i.test(nome);
+      if (isImagem) {
         return (
-          <div className="flex h-20 flex-col items-center justify-center gap-1 bg-slate-50 text-[#4a90d9]">
-            <FileText className="h-8 w-8" />
-            <span className="text-[9px] font-medium uppercase">PDF</span>
-          </div>
+          <Image
+            src={anexo.url}
+            alt={anexo.name}
+            width={120}
+            height={96}
+            unoptimized
+            className="h-20 w-full object-cover"
+          />
         );
       }
+      const ext =
+        (nome.match(/\.([a-z0-9]+)$/i)?.[1] || (isPdf ? "pdf" : "arq")).toUpperCase();
       return (
-        <Image
-          src={anexo.url}
-          alt={anexo.name}
-          width={120}
-          height={96}
-          unoptimized
-          className="h-20 w-full object-cover"
-        />
+        <div className="flex h-20 flex-col items-center justify-center gap-1 bg-slate-50 text-[#4a90d9]">
+          <FileText className="h-8 w-8" />
+          <span className="text-[9px] font-medium uppercase">{ext}</span>
+        </div>
       );
     }
 
@@ -203,7 +212,8 @@ export const AnexosReciboCampo = forwardRef<AnexosReciboCampoRef, Props>(
     return (
       <div className={cn("rounded border border-slate-200 bg-slate-50/80 p-3", className)}>
         <label className={labelClass}>
-          Recibos e comprovantes — imagens e PDF juntos (até {LIMITE_ANEXOS_FINANCEIRO})
+          Comprovantes e anexos — imagens, PDF, Excel e outros (até{" "}
+          {LIMITE_ANEXOS_FINANCEIRO})
         </label>
         <div className="flex flex-wrap items-center gap-2">
           <button
@@ -222,7 +232,7 @@ export const AnexosReciboCampo = forwardRef<AnexosReciboCampoRef, Props>(
             ) : (
               <ImageUp className="h-3.5 w-3.5" />
             )}
-            Adicionar imagem
+            Imagem
           </button>
           <button
             type="button"
@@ -236,7 +246,21 @@ export const AnexosReciboCampo = forwardRef<AnexosReciboCampoRef, Props>(
             )}
           >
             <FileText className="h-3.5 w-3.5" />
-            Adicionar PDF
+            PDF
+          </button>
+          <button
+            type="button"
+            disabled={!podeAdicionar}
+            onClick={() => inputArquivoRef.current?.click()}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded border px-3 py-2 text-[11px] font-medium transition",
+              podeAdicionar
+                ? "border-slate-500 bg-white text-slate-700 hover:bg-slate-100"
+                : "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
+            )}
+          >
+            <FileUp className="h-3.5 w-3.5" />
+            Excel / arquivo
           </button>
           <span className="text-[10px] text-slate-500">
             {totalAnexos}/{LIMITE_ANEXOS_FINANCEIRO} · máx. 4 MB cada
@@ -258,6 +282,18 @@ export const AnexosReciboCampo = forwardRef<AnexosReciboCampoRef, Props>(
           ref={inputPdfRef}
           type="file"
           accept="application/pdf,.pdf"
+          multiple
+          className="sr-only"
+          disabled={!podeAdicionar}
+          onChange={(e) => {
+            adicionarArquivos(e.target.files);
+            e.target.value = "";
+          }}
+        />
+        <input
+          ref={inputArquivoRef}
+          type="file"
+          accept={ACCEPT_ANEXOS_FINANCEIRO}
           multiple
           className="sr-only"
           disabled={!podeAdicionar}
@@ -299,7 +335,7 @@ export const AnexosReciboCampo = forwardRef<AnexosReciboCampoRef, Props>(
           </div>
         ) : (
           <p className="mt-2 text-[10px] text-slate-500">
-            Você pode misturar fotos e PDF na mesma despesa. Use os dois botões acima.
+            Anexe imagens, PDF, Excel, Word, CSV, TXT ou ZIP na mesma despesa.
           </p>
         )}
       </div>

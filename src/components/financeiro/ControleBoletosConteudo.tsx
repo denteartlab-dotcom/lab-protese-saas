@@ -29,7 +29,6 @@ import {
 import { CampoDataBr, Button } from "@/components/ui";
 import { useI18n } from "@/components/i18n-provider";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
-import { AdicionarImagensComprovanteModal } from "@/components/financeiro/AdicionarImagensComprovanteModal";
 import { DespesaDetalheModal } from "@/components/financeiro/DespesaDetalheModal";
 import { PagarDespesaModal } from "@/components/financeiro/PagarDespesaModal";
 import { VisualizadorAnexoDespesa } from "@/components/financeiro/VisualizadorAnexoDespesa";
@@ -361,9 +360,6 @@ export function ControleBoletosConteudo() {
     null
   );
   const [anexoAberto, setAnexoAberto] = useState<AnexoDespesa | null>(null);
-  const [anexosAposPagamento, setAnexosAposPagamento] = useState<string[] | null>(
-    null
-  );
   const modoEscuro = useDarkModeAtivo();
 
   const load = useCallback(async (opts?: { silencioso?: boolean }) => {
@@ -877,23 +873,8 @@ export function ControleBoletosConteudo() {
         refOs={despesaPagar?.ref}
         todosLancamentos={lancamentos}
         onClose={() => setDespesaPagar(null)}
-        onConfirmado={(detail) => {
+        onConfirmado={() => {
           setDespesaPagar(null);
-          notificarFinanceiroAtualizado();
-          void load({ silencioso: true });
-          if (detail?.anexarComprovante && detail.lancamentoIds?.length) {
-            setAnexosAposPagamento(detail.lancamentoIds);
-          }
-        }}
-      />
-
-      <AdicionarImagensComprovanteModal
-        open={!!anexosAposPagamento?.length}
-        lancamentoIds={anexosAposPagamento ?? []}
-        lancamentos={lancamentos}
-        onClose={() => setAnexosAposPagamento(null)}
-        onSalvo={() => {
-          setAnexosAposPagamento(null);
           notificarFinanceiroAtualizado();
           void load({ silencioso: true });
         }}

@@ -1,14 +1,22 @@
 "use client";
 
 import { I18nPortal } from "@/components/I18nPortal";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Plus, X } from "lucide-react";
 import { CampoDataBr } from "@/components/ui";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
+import {
+  AnexosReciboCampo,
+  type AnexosReciboCampoRef,
+} from "@/components/financeiro/AnexosReciboCampo";
 import { brShortToIso, dateToBrShort } from "@/lib/datas-br";
 import {
+  desempacotarDespesa,
+  empacotarDespesa,
   extrairDadosPagarDespesa,
+  LIMITE_ANEXOS_FINANCEIRO,
+  type AnexoDespesa,
   type LancamentoDespesaDetalhe,
   type ParcelaPagarDespesa,
 } from "@/lib/lancamento-despesa";
@@ -136,6 +144,36 @@ function novaFormaPagamento(valor = "0,00"): FormaPagamentoLinha {
   };
 }
 
+async function vincularAnexosAosLancamentos(
+  ids: string[],
+  lancamentos: LancamentoDespesaDetalhe[],
+  novosAnexos: AnexoDespesa[]
+) {
+  if (!novosAnexos.length) return;
+  for (const id of ids) {
+    const lanc = lancamentos.find((item) => item.id === id);
+    if (!lanc) continue;
+    const pack = desempacotarDespesa(lanc.descricao);
+    const atuais = pack.meta.anexos || [];
+    const merged = [...atuais, ...novosAnexos].slice(0, LIMITE_ANEXOS_FINANCEIRO);
+    const novaDescricao = empacotarDespesa(pack.texto, {
+      ...pack.meta,
+      anexos: merged,
+    });
+    const res = await fetch(`/api/financeiro/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ descricao: novaDescricao }),
+    });
+    if (!res.ok) {
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(
+        json.error || "Não foi possível vincular o comprovante à despesa."
+      );
+    }
+  }
+}
+
 export function PagarDespesaModal({
   open,
   lancamento,
@@ -149,8 +187,10 @@ export function PagarDespesaModal({
   const [dataPagamento, setDataPagamento] = useState(dateToBrShort(new Date()));
   const [formas, setFormas] = useState<FormaPagamentoLinha[]>([novaFormaPagamento()]);
   const [anexarComprovante, setAnexarComprovante] = useState(false);
+  const [anexosSessao, setAnexosSessao] = useState(0);
   const [salvando, setSalvando] = useState(false);
   const [alerta, setAlerta] = useState("");
+  const anexosRef = useRef<AnexosReciboCampoRef>(null);
 
   const dados = useMemo(
     () =>
@@ -175,6 +215,7 @@ export function PagarDespesaModal({
         : dateToBrShort(new Date())
     );
     setAnexarComprovante(false);
+    setAnexosSessao((n) => n + 1);
     setAlerta("");
   }, [open, dados]);
 
@@ -223,6 +264,11 @@ export function PagarDespesaModal({
 
     setSalvando(true);
     try {
+      let novosAnexos: AnexoDespesa[] = [];
+      if (anexarComprovante) {
+        novosAnexos = (await anexosRef.current?.resolverAnexos()) || [];
+      }
+
       for (const id of ids) {
         const res = await fetch(`/api/financeiro/${id}`, {
           method: "PUT",
@@ -239,12 +285,24 @@ export function PagarDespesaModal({
           return;
         }
       }
-      onConfirmado(
-        anexarComprovante
-          ? { anexarComprovante: true, lancamentoIds: ids }
-          : undefined
-      );
+
+      if (novosAnexos.length) {
+        await vincularAnexosAosLancamentos(ids, todosLancamentos, novosAnexos);
+      }
+
+      onConfirmado();
       onClose();
+    } catch (err) {
+      const { tratarErroUploadArmazenamento } = await import(
+        "@/lib/uploads-erro-armazenamento"
+      );
+      if (!tratarErroUploadArmazenamento(err)) {
+        setAlerta(
+          err instanceof Error
+            ? err.message
+            : "Não foi possível confirmar o pagamento."
+        );
+      }
     } finally {
       setSalvando(false);
     }
@@ -481,10 +539,19 @@ export function PagarDespesaModal({
                   onChange={() => setAnexarComprovante((v) => !v)}
                 />
                 <span className="text-[12px] text-slate-600">
-                  Deseja anexar comprovante após pagar?
+                  Deseja anexar comprovante?
                 </span>
               </div>
             </div>
+            {anexarComprovante ? (
+              <div className="mt-3">
+                <AnexosReciboCampo
+                  key={`pagar-anexos-${lancamento.id}-${anexosSessao}`}
+                  ref={anexosRef}
+                  pasta="despesas"
+                />
+              </div>
+            ) : null}
           </div>
 
           <div className="mt-5 flex justify-end gap-3 pt-1">

@@ -78,20 +78,36 @@ export const LIMITE_ANEXOS_FINANCEIRO = LIMITE_ANEXOS_DESPESA;
 /** Referência estável para evitar reset dos anexos a cada re-render do modal. */
 export const ANEXOS_FINANCEIRO_VAZIOS: AnexoDespesa[] = [];
 export const ACCEPT_ANEXOS_FINANCEIRO =
-  "image/*,application/pdf,.pdf,.heic,.heif";
+  "image/*,application/pdf,.pdf,.heic,.heif,.xls,.xlsx,.csv,.doc,.docx,.txt,.zip,.rar";
+
+const EXTENSOES_ANEXO_FINANCEIRO =
+  /\.(jpe?g|png|gif|webp|bmp|heic|heif|pdf|xls|xlsx|csv|doc|docx|txt|zip|rar)$/i;
 
 export function arquivoEhAnexoFinanceiro(file: File) {
   const nome = file.name.toLowerCase();
-  if (/\.pdf$/i.test(nome)) return true;
+  if (EXTENSOES_ANEXO_FINANCEIRO.test(nome)) return true;
   if (file.type === "application/pdf") return true;
   if (file.type.startsWith("image/")) return true;
   if (
-    file.type === "application/octet-stream" &&
-    /\.(jpe?g|png|gif|webp|bmp|heic|heif|pdf)$/i.test(nome)
+    file.type === "application/vnd.ms-excel" ||
+    file.type ===
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+    file.type === "text/csv" ||
+    file.type === "application/msword" ||
+    file.type ===
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    file.type === "text/plain" ||
+    file.type === "application/zip" ||
+    file.type === "application/x-zip-compressed" ||
+    file.type === "application/vnd.rar" ||
+    file.type === "application/x-rar-compressed"
   ) {
     return true;
   }
-  return /\.(jpe?g|png|gif|webp|bmp|heic|heif|pdf)$/i.test(nome);
+  if (file.type === "application/octet-stream") {
+    return EXTENSOES_ANEXO_FINANCEIRO.test(nome);
+  }
+  return false;
 }
 
 export type PastaAnexoFinanceiro = "despesas" | "receitas";
