@@ -10,6 +10,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui";
+import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { useI18n } from "@/components/i18n-provider";
 import type { MessageKey } from "@/lib/i18n";
 import { formatMoedaContaBancaria } from "@/lib/i18n/conta-bancaria-i18n";
@@ -38,6 +39,40 @@ type Props = {
 const labelClass = "mb-1 block text-[11px] font-medium text-slate-600";
 const inputClass =
   "h-9 w-full rounded border border-slate-300 bg-white px-2.5 text-[12px] text-slate-800 outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]";
+
+/** Formata percentual BR com 2 casas (ex.: digitar 5 → 0,05). */
+function formatarPercentualInput(raw: string): string {
+  const digits = raw.replace(/\D/g, "").slice(0, 6);
+  if (!digits) return "";
+  const n = Number(digits) / 100;
+  return n.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function formatarPercentualExibicao(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return "—";
+  return `${value.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}%`;
+}
+
+function parsePercentualBr(value: string): number {
+  const cleaned = value.replace(/\./g, "").replace(",", ".").replace(/[^\d.-]/g, "");
+  if (!cleaned) return 0;
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function percentualParaInput(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) {
+    return formatarPercentualInput("0");
+  }
+  const centesimos = Math.round(value * 100);
+  return formatarPercentualInput(String(centesimos));
+}
 
 function rotuloStatus(
   status: string,
@@ -68,6 +103,7 @@ export function BoletosAsaasContaDigital({ onMensagem }: Props) {
   const [vencimentoDe, setVencimentoDe] = useState("");
   const [vencimentoAte, setVencimentoAte] = useState("");
   const [editando, setEditando] = useState<BoletoItem | null>(null);
+  const [boletoCancelar, setBoletoCancelar] = useState<BoletoItem | null>(null);
   const [formDueDate, setFormDueDate] = useState("");
   const [formInterest, setFormInterest] = useState("");
   const [formFine, setFormFine] = useState("");
@@ -102,21 +138,14 @@ export function BoletosAsaasContaDigital({ onMensagem }: Props) {
 
   useEffect(() => {
     void carregar();
-    // Carrega ao montar e quando status/período mudam; busca via botão Atualizar.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- busca intencional só no refresh
   }, [statusFiltro, vencimentoDe, vencimentoAte]);
 
   function abrirEdicao(boleto: BoletoItem) {
     setEditando(boleto);
     setFormDueDate(boleto.vencimento?.slice(0, 10) || "");
-    setFormInterest(
-      boleto.interest != null && Number.isFinite(boleto.interest)
-        ? String(boleto.interest)
-        : "0"
-    );
-    setFormFine(
-      boleto.fine != null && Number.isFinite(boleto.fine) ? String(boleto.fine) : "0"
-    );
+    setFormInterest(percentualParaInput(boleto.interest));
+    setFormFine(percentualParaInput(boleto.fine));
   }
 
   async function salvarEdicao() {
@@ -128,8 +157,8 @@ export function BoletosAsaasContaDigital({ onMensagem }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           dueDate: formDueDate || undefined,
-          interest: Number(formInterest.replace(",", ".")) || 0,
-          fine: Number(formFine.replace(",", ".")) || 0,
+          interest: parsePercentualBr(formInterest),
+          fine: parsePercentualBr(formFine),
         }),
       });
       const data = (await res.json()) as { error?: string };
@@ -178,10 +207,9 @@ export function BoletosAsaasContaDigital({ onMensagem }: Props) {
     }
   }
 
-  async function cancelarBoleto(boleto: BoletoItem) {
-    if (!boleto.editavel) return;
-    const ok = window.confirm(t("financeiro.conta.digital.boletos.confirmarCancelar"));
-    if (!ok) return;
+  async function confirmarCancelarBoleto() {
+    if (!boletoCancelar?.editavel) return;
+    const boleto = boletoCancelar;
     setProcessandoId(boleto.id);
     try {
       const res = await fetch(`/api/asaas/boletos/${encodeURIComponent(boleto.id)}`, {
@@ -336,10 +364,10 @@ export function BoletosAsaasContaDigital({ onMensagem }: Props) {
                       </span>
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums">
-                      {b.interest != null ? `${b.interest}%` : "—"}
+                      {formatarPercentualExibicao(b.interest)}
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums">
-                      {b.fine != null ? `${b.fine}%` : "—"}
+                      {formatarPercentualExibicao(b.fine)}
                     </td>
                     <td className="px-3 py-2">
                       <div className="flex items-center justify-end gap-1">
@@ -378,7 +406,7 @@ export function BoletosAsaasContaDigital({ onMensagem }: Props) {
                               type="button"
                               disabled={busy}
                               title={t("financeiro.conta.digital.boletos.cancelar")}
-                              onClick={() => void cancelarBoleto(b)}
+                              onClick={() => setBoletoCancelar(b)}
                               className="inline-flex h-7 w-7 items-center justify-center rounded text-red-500 hover:bg-red-50 hover:text-red-700 disabled:opacity-40"
                             >
                               {busy ? (
@@ -426,10 +454,11 @@ export function BoletosAsaasContaDigital({ onMensagem }: Props) {
                 </label>
                 <input
                   type="text"
-                  inputMode="decimal"
+                  inputMode="numeric"
                   value={formInterest}
-                  onChange={(e) => setFormInterest(e.target.value)}
+                  onChange={(e) => setFormInterest(formatarPercentualInput(e.target.value))}
                   className={inputClass}
+                  placeholder={t("financeiro.conta.digital.boletos.placeholderPercentual")}
                 />
               </div>
               <div>
@@ -438,10 +467,11 @@ export function BoletosAsaasContaDigital({ onMensagem }: Props) {
                 </label>
                 <input
                   type="text"
-                  inputMode="decimal"
+                  inputMode="numeric"
                   value={formFine}
-                  onChange={(e) => setFormFine(e.target.value)}
+                  onChange={(e) => setFormFine(formatarPercentualInput(e.target.value))}
                   className={inputClass}
+                  placeholder={t("financeiro.conta.digital.boletos.placeholderPercentual")}
                 />
               </div>
             </div>
@@ -470,6 +500,27 @@ export function BoletosAsaasContaDigital({ onMensagem }: Props) {
           </div>
         </div>
       ) : null}
+
+      <ConfirmacaoExclusaoModal
+        open={boletoCancelar !== null}
+        titulo={t("financeiro.conta.digital.boletos.cancelarTitulo")}
+        mensagem={t("financeiro.conta.digital.boletos.confirmarCancelar")}
+        aviso={
+          boletoCancelar
+            ? t("financeiro.conta.digital.boletos.cancelarDetalhe", {
+                cliente:
+                  boletoCancelar.clienteNome ||
+                  t("financeiro.conta.digital.boletos.semCliente"),
+                valor: money(boletoCancelar.valor),
+              })
+            : undefined
+        }
+        onClose={() => setBoletoCancelar(null)}
+        onConfirm={confirmarCancelarBoleto}
+        processando={Boolean(boletoCancelar && processandoId === boletoCancelar.id)}
+        labelConfirmar={t("financeiro.conta.digital.boletos.simCancelar")}
+        labelCancelar={t("financeiro.conta.digital.boletos.nao")}
+      />
     </div>
   );
 }
