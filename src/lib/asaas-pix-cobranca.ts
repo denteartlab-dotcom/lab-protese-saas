@@ -28,6 +28,31 @@ export async function subcontaPixAsaasDisponivel(empresaId: string) {
   return pixAsaasDisponivel(empresaId);
 }
 
+/** Valida cliente/config antes de criar lançamento que exige Pix Asaas. */
+export async function validarPreRequisitosPixAsaas(params: {
+  empresaId: string;
+  clienteId?: string | null;
+}) {
+  await configPixOperacional(params.empresaId);
+  if (!params.clienteId) {
+    throw new Error("Selecione um cliente para emitir Pix.");
+  }
+  const cliente = await prisma.cliente.findFirst({
+    where: { id: params.clienteId, empresaId: params.empresaId },
+    select: { id: true, nome: true, cnpjCpf: true },
+  });
+  if (!cliente) {
+    throw new Error("Cliente não encontrado.");
+  }
+  const doc = cliente.cnpjCpf?.trim() || "";
+  if (!cpfCnpjValido(doc)) {
+    throw new Error(
+      `Cadastre CPF ou CNPJ válido do cliente "${cliente.nome}" antes de emitir Pix.`
+    );
+  }
+  return { cliente, doc };
+}
+
 async function configPixOperacional(empresaId: string) {
   const { config } = await resolverContaDigitalOperacional(empresaId);
   if (!config) {

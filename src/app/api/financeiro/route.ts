@@ -3,8 +3,11 @@ import { prisma } from "@/lib/db";
 import { requireEmpresaContext } from "@/lib/empresa-context";
 import { negarSeSemPermissao } from "@/lib/require-permissao";
 import { invalidarCachePainelFinanceiro } from "@/lib/financeiro-painel-cache";
-import { tentarEmitirBoletoParaLancamento } from "@/lib/asaas-boleto";
-import { tentarEmitirPixParaLancamento } from "@/lib/asaas-pix-cobranca";
+import { tentarEmitirBoletoParaLancamento, validarPreRequisitosBoletoAsaas } from "@/lib/asaas-boleto";
+import {
+  tentarEmitirPixParaLancamento,
+  validarPreRequisitosPixAsaas,
+} from "@/lib/asaas-pix-cobranca";
 import { formaEhPixAsaas } from "@/lib/forma-pagamento-pix";
 import { parseParcelaNaDescricao } from "@/lib/fatura-financeiro";
 import { descricaoDespesaComParcela } from "@/lib/lancamento-despesa";
@@ -20,6 +23,15 @@ import {
 } from "@/lib/lancamentos-cobranca";
 import { sincronizarMovimentacaoRecebimentoServidor } from "@/lib/recebimento-conta-bancaria-servidor";
 import { z } from "zod";
+
+/** Remove lançamentos criados quando a cobrança Asaas (Pix/boleto) falhou. */
+async function reverterLancamentosSemCobrancaAsaas(ids: string[]) {
+  const unicos = [...new Set(ids.filter(Boolean))];
+  if (unicos.length === 0) return;
+  await prisma.lancamento.deleteMany({
+    where: { id: { in: unicos } },
+  });
+}
 
 const parcelaItemSchema = z.object({
   valor: z.number().nonnegative(),
@@ -247,13 +259,52 @@ export async function POST(request: Request) {
         });
         criados.push(lancamento);
       }
+      const idsCriados = criados.map((l) => l.id);
+
+      // Valida pré-requisitos Asaas antes de auditar / finalizar o lote.
+      try {
+        for (const lancamento of criados) {
+          const forma = (lancamento.formaPagamento || "").toLowerCase();
+          if (
+            emitirBoleto !== false &&
+            forma.includes("boleto") &&
+            lancamento.status !== "pago"
+          ) {
+            await validarPreRequisitosBoletoAsaas({
+              empresaId: ctx.empresaId,
+              clienteId: data.clienteId,
+            });
+          }
+          if (
+            emitirPix !== false &&
+            formaEhPixAsaas(lancamento.formaPagamento) &&
+            lancamento.status !== "pago"
+          ) {
+            await validarPreRequisitosPixAsaas({
+              empresaId: ctx.empresaId,
+              clienteId: data.clienteId,
+            });
+          }
+        }
+      } catch (err) {
+        await reverterLancamentosSemCobrancaAsaas(idsCriados);
+        invalidarCachePainelFinanceiro(empresaId);
+        return NextResponse.json(
+          {
+            error:
+              err instanceof Error
+                ? err.message
+                : "Não foi possível gerar a cobrança no Asaas.",
+          },
+          { status: 422 }
+        );
+      }
+
       const numeroFatura = await auditarCriacaoReceitasParceladas(session, criados);
       await sincronizarReceitasPagas(criados);
 
       const deveEmitirBoletos = emitirBoleto !== false;
-      const avisosBoletos: string[] = [];
       let boletosEmitidos = 0;
-      const avisosPix: string[] = [];
       let pixEmitidos = 0;
       let pixQrResposta: Awaited<ReturnType<typeof tentarEmitirPixParaLancamento>> = null;
 
@@ -266,9 +317,11 @@ export async function POST(request: Request) {
             if (cobranca) boletosEmitidos += 1;
           } catch (err) {
             console.error("[financeiro POST] boleto parcela asaas", err);
-            avisosBoletos.push(
-              err instanceof Error ? err.message : "Falha ao emitir boleto no Asaas."
-            );
+            const msg =
+              err instanceof Error ? err.message : "Falha ao emitir boleto no Asaas.";
+            await reverterLancamentosSemCobrancaAsaas(idsCriados);
+            invalidarCachePainelFinanceiro(empresaId);
+            return NextResponse.json({ error: msg }, { status: 422 });
           }
         }
       }
@@ -286,9 +339,11 @@ export async function POST(request: Request) {
             }
           } catch (err) {
             console.error("[financeiro POST] pix parcela asaas", err);
-            avisosPix.push(
-              err instanceof Error ? err.message : "Falha ao emitir Pix no Asaas."
-            );
+            const msg =
+              err instanceof Error ? err.message : "Falha ao emitir Pix no Asaas.";
+            await reverterLancamentosSemCobrancaAsaas(idsCriados);
+            invalidarCachePainelFinanceiro(empresaId);
+            return NextResponse.json({ error: msg }, { status: 422 });
           }
         }
       }
@@ -303,9 +358,7 @@ export async function POST(request: Request) {
           lancamentos: lancamentosComCobranca.filter(Boolean),
           numeroFatura,
           boletosEmitidos,
-          avisosBoletos: avisosBoletos.length ? avisosBoletos : undefined,
           pixEmitidos,
-          avisosPix: avisosPix.length ? avisosPix : undefined,
           pixQr: pixQrResposta ?? undefined,
         },
         { status: 201 }
@@ -327,6 +380,37 @@ export async function POST(request: Request) {
       );
     }
 
+    const deveEmitirBoleto =
+      emitirBoleto !== false &&
+      (data.formaPagamento || "").toLowerCase().includes("boleto");
+    const deveEmitirPix =
+      emitirPix !== false && formaEhPixAsaas(data.formaPagamento);
+
+    try {
+      if (deveEmitirBoleto) {
+        await validarPreRequisitosBoletoAsaas({
+          empresaId: ctx.empresaId,
+          clienteId: data.clienteId,
+        });
+      }
+      if (deveEmitirPix) {
+        await validarPreRequisitosPixAsaas({
+          empresaId: ctx.empresaId,
+          clienteId: data.clienteId,
+        });
+      }
+    } catch (err) {
+      return NextResponse.json(
+        {
+          error:
+            err instanceof Error
+              ? err.message
+              : "Não foi possível gerar a cobrança no Asaas.",
+        },
+        { status: 422 }
+      );
+    }
+
     const lancamento = await prisma.lancamento.create({
       data: dadosCreateLancamento(ctx.empresaId, data, descricao),
       include: {
@@ -335,9 +419,6 @@ export async function POST(request: Request) {
       },
     });
 
-    const deveEmitirBoleto =
-      emitirBoleto !== false &&
-      (data.formaPagamento || "").toLowerCase().includes("boleto");
     const valorAsaas =
       typeof valorCobrancaAsaas === "number" && valorCobrancaAsaas > 0
         ? valorCobrancaAsaas
@@ -372,6 +453,17 @@ export async function POST(request: Request) {
           lancamento.id,
           valorAsaas !== data.valor ? valorAsaas : undefined
         );
+        if (!cobranca) {
+          await reverterLancamentosSemCobrancaAsaas([lancamento.id]);
+          invalidarCachePainelFinanceiro(ctx.empresaId);
+          return NextResponse.json(
+            {
+              error:
+                "Não foi possível gerar o boleto no Asaas. O lançamento não foi criado.",
+            },
+            { status: 422 }
+          );
+        }
         const atualizado = await findLancamentoFinanceiroPorId(lancamento.id);
         const registro = atualizado || lancamento;
         const audit = await auditarCriacaoLancamento(session, registro, {
@@ -389,7 +481,7 @@ export async function POST(request: Request) {
         return NextResponse.json(
           {
             ...registro,
-            boletoEmitido: Boolean(cobranca),
+            boletoEmitido: true,
             numeroFatura: audit.numeroFatura,
           },
           { status: 201 }
@@ -398,31 +490,11 @@ export async function POST(request: Request) {
         console.error("[financeiro POST] boleto asaas", err);
         const msg =
           err instanceof Error ? err.message : "Falha ao emitir boleto no Asaas.";
-        let numeroFaturaRetornoBoleto = data.numeroFatura;
-        try {
-          const audit = await auditarCriacaoLancamento(session, lancamento, {
-            parcelaNumero,
-            parcelaTotal,
-            numeroFatura: data.numeroFatura,
-          });
-          numeroFaturaRetornoBoleto = audit.numeroFatura ?? numeroFaturaRetornoBoleto;
-        } catch (auditErr) {
-          console.error("[financeiro POST] auditoria pós-falha boleto", auditErr);
-        }
+        await reverterLancamentosSemCobrancaAsaas([lancamento.id]);
         invalidarCachePainelFinanceiro(ctx.empresaId);
-        return NextResponse.json(
-          {
-            ...lancamento,
-            boletoEmitido: false,
-            avisoBoleto: msg,
-            numeroFatura: numeroFaturaRetornoBoleto,
-          },
-          { status: 201 }
-        );
+        return NextResponse.json({ error: msg }, { status: 422 });
       }
     }
-
-    const deveEmitirPix = emitirPix !== false && formaEhPixAsaas(data.formaPagamento);
 
     if (deveEmitirPix) {
       try {
@@ -430,6 +502,17 @@ export async function POST(request: Request) {
           lancamento.id,
           valorAsaas !== data.valor ? valorAsaas : undefined
         );
+        if (!pix) {
+          await reverterLancamentosSemCobrancaAsaas([lancamento.id]);
+          invalidarCachePainelFinanceiro(ctx.empresaId);
+          return NextResponse.json(
+            {
+              error:
+                "Não foi possível gerar o Pix no Asaas. O lançamento não foi criado.",
+            },
+            { status: 422 }
+          );
+        }
         const atualizado = await findLancamentoFinanceiroPorId(lancamento.id);
         const registro = atualizado || lancamento;
         const audit = await auditarCriacaoLancamento(session, registro, {
@@ -441,8 +524,8 @@ export async function POST(request: Request) {
         return NextResponse.json(
           {
             ...registro,
-            pixEmitido: Boolean(pix),
-            pixQr: pix ?? undefined,
+            pixEmitido: true,
+            pixQr: pix,
             numeroFatura: audit.numeroFatura,
           },
           { status: 201 }
@@ -450,27 +533,9 @@ export async function POST(request: Request) {
       } catch (err) {
         console.error("[financeiro POST] pix asaas", err);
         const msg = err instanceof Error ? err.message : "Falha ao emitir Pix no Asaas.";
-        let numeroFaturaRetornoPix = data.numeroFatura;
-        try {
-          const audit = await auditarCriacaoLancamento(session, lancamento, {
-            parcelaNumero,
-            parcelaTotal,
-            numeroFatura: data.numeroFatura,
-          });
-          numeroFaturaRetornoPix = audit.numeroFatura ?? numeroFaturaRetornoPix;
-        } catch (auditErr) {
-          console.error("[financeiro POST] auditoria pós-falha pix", auditErr);
-        }
+        await reverterLancamentosSemCobrancaAsaas([lancamento.id]);
         invalidarCachePainelFinanceiro(ctx.empresaId);
-        return NextResponse.json(
-          {
-            ...lancamento,
-            pixEmitido: false,
-            avisoPix: msg,
-            numeroFatura: numeroFaturaRetornoPix,
-          },
-          { status: 201 }
-        );
+        return NextResponse.json({ error: msg }, { status: 422 });
       }
     }
 

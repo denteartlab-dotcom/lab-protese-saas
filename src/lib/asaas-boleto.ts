@@ -3,9 +3,9 @@ import {
   cpfCnpjValido,
   criarOuBuscarClienteAsaas,
   emitirBoletoAsaas,
-  obterConfigAsaas,
 } from "@/lib/asaas-client";
 import { asaasConfigurado } from "@/lib/asaas-config";
+import { resolverContaDigitalOperacional } from "@/lib/asaas-conta-digital";
 import { invalidarCachePainelFinanceiro } from "@/lib/financeiro-painel-cache";
 import { descricaoPublicaLancamento } from "@/lib/lancamento-despesa";
 import { cobrancaPorLancamentoId } from "@/lib/lancamentos-cobranca";
@@ -13,6 +13,36 @@ import { empacotarReceitaConta, RECEITA_CONTA_SEP } from "@/lib/receita-conta-ba
 
 function formaEhBoleto(forma?: string | null): boolean {
   return (forma || "").toLowerCase().includes("boleto");
+}
+
+/** Valida cliente/config antes de criar lançamento que exige boleto Asaas. */
+export async function validarPreRequisitosBoletoAsaas(params: {
+  empresaId: string;
+  clienteId?: string | null;
+}) {
+  const { config } = await resolverContaDigitalOperacional(params.empresaId);
+  if (!config || !asaasConfigurado(config)) {
+    throw new Error(
+      "Configure a chave da API Asaas em Configurações → Boletos ou conclua a subconta BaaS."
+    );
+  }
+  if (!params.clienteId) {
+    throw new Error("Selecione um cliente para emitir boleto.");
+  }
+  const cliente = await prisma.cliente.findFirst({
+    where: { id: params.clienteId, empresaId: params.empresaId },
+    select: { id: true, nome: true, cnpjCpf: true },
+  });
+  if (!cliente) {
+    throw new Error("Cliente não encontrado.");
+  }
+  const doc = cliente.cnpjCpf?.trim() || "";
+  if (!cpfCnpjValido(doc)) {
+    throw new Error(
+      `Cadastre CPF ou CNPJ válido do cliente "${cliente.nome}" antes de emitir boleto.`
+    );
+  }
+  return { config, cliente, doc };
 }
 
 export async function tentarEmitirBoletoParaLancamento(
@@ -37,30 +67,19 @@ export async function tentarEmitirBoletoParaLancamento(
     return cobrancaExistente;
   }
 
-  const config = await obterConfigAsaas(lancamento.empresaId);
-  if (!asaasConfigurado(config)) {
-    throw new Error("Configure a chave da API Asaas em Configurações → Boletos.");
-  }
-
-  if (!lancamento.clienteId || !lancamento.cliente) {
-    throw new Error("Selecione um cliente para emitir boleto.");
-  }
-
-  const doc = lancamento.cliente.cnpjCpf?.trim() || "";
-  if (!cpfCnpjValido(doc)) {
-    throw new Error(
-      `Cadastre CPF ou CNPJ válido do cliente "${lancamento.cliente.nome}" antes de emitir boleto.`
-    );
-  }
+  const { config, cliente, doc } = await validarPreRequisitosBoletoAsaas({
+    empresaId: lancamento.empresaId,
+    clienteId: lancamento.clienteId,
+  });
 
   const asaasCustomerId = await criarOuBuscarClienteAsaas({
     config,
-    clienteId: lancamento.cliente.id,
-    nome: lancamento.cliente.nome,
+    clienteId: cliente.id,
+    nome: cliente.nome,
     cpfCnpj: doc,
-    email: lancamento.cliente.email,
-    telefone: lancamento.cliente.telefone,
-    celular: lancamento.cliente.celular,
+    email: lancamento.cliente?.email,
+    telefone: lancamento.cliente?.telefone,
+    celular: lancamento.cliente?.celular,
   });
 
   const pagamento = await emitirBoletoAsaas({
