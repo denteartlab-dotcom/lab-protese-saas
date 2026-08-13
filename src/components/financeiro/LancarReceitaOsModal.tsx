@@ -20,6 +20,7 @@ import { AnexosReciboCampo,
 } from "@/components/financeiro/AnexosReciboCampo";
 import { SelectFormaRecebimentoAsaas } from "@/components/financeiro/SelectFormaRecebimentoAsaas";
 import { ConfigurarBoletoAsaasModal } from "@/components/financeiro/ConfigurarBoletoAsaasModal";
+import { formaExigeAsaasCobranca } from "@/lib/formas-recebimento-asaas";
 import type { AnexoDespesa } from "@/lib/lancamento-despesa";
 import { cn, STATUS_TRABALHO } from "@/lib/utils";
 import { useEntradaLeitorCodigo } from "@/hooks/use-entrada-leitor-codigo-barras";
@@ -1280,7 +1281,12 @@ export function LancarReceitaOsModal({
                           asaasDisponivel={pixAsaasDisponivel}
                           className="h-8 w-full rounded-sm border border-[#d1d5db] bg-white px-2 text-[12px] outline-none"
                           onChange={(formaPagamento) =>
-                            atualizarParcela(index, { formaPagamento })
+                            atualizarParcela(index, {
+                              formaPagamento,
+                              ...(formaExigeAsaasCobranca(formaPagamento)
+                                ? { conta: "Conta Bancária" }
+                                : {}),
+                            })
                           }
                         />
                       </td>

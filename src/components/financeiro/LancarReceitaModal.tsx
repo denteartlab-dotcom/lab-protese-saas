@@ -23,6 +23,7 @@ import { CampoDataBr } from "@/components/ui";
 import { SelectPesquisavel } from "@/components/SelectPesquisavel";
 import { EntidadeDespesaSelect } from "@/components/financeiro/EntidadeDespesaSelect";
 import { SelectFormaRecebimentoAsaas } from "@/components/financeiro/SelectFormaRecebimentoAsaas";
+import { formaExigeAsaasCobranca } from "@/lib/formas-recebimento-asaas";
 import { FORNECEDORES_ATUALIZADO_EVENT } from "@/lib/fornecedores-cadastro";
 import { dateToBrShort, somarDiasBr } from "@/lib/datas-br";
 import { parseNotaFiscalArquivo } from "@/lib/nfe-import";
@@ -605,7 +606,7 @@ export function LancarReceitaModal({
   }, [numParcelas, totalLiquido, dataLancamento, open, ehConciliacao]);
 
   const opcoesConta = useMemo(() => {
-    const nomes = new Set<string>(["Caixa Principal"]);
+    const nomes = new Set<string>(["Caixa Principal", "Conta Bancária"]);
     for (const conta of contasBancarias) {
       if (conta.nome.trim()) nomes.add(conta.nome.trim());
     }
@@ -1048,7 +1049,12 @@ export function LancarReceitaModal({
                       asaasDisponivel={pixAsaasDisponivel}
                       className={selectClass}
                       onChange={(formaPagamento) =>
-                        atualizarParcela(0, { formaPagamento })
+                        atualizarParcela(0, {
+                          formaPagamento,
+                          ...(formaExigeAsaasCobranca(formaPagamento)
+                            ? { conta: "Conta Bancária" }
+                            : {}),
+                        })
                       }
                     />
                   </div>
@@ -1603,7 +1609,12 @@ export function LancarReceitaModal({
                         asaasDisponivel={pixAsaasDisponivel}
                         className={selectClass}
                         onChange={(formaPagamento) =>
-                          atualizarParcela(index, { formaPagamento })
+                          atualizarParcela(index, {
+                            formaPagamento,
+                            ...(formaExigeAsaasCobranca(formaPagamento)
+                              ? { conta: "Conta Bancária" }
+                              : {}),
+                          })
                         }
                       />
                     </td>
