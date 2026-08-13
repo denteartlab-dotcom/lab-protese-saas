@@ -59,6 +59,8 @@ const schema = z.object({
   parcelaTotal: z.number().int().positive().optional(),
   numeroFatura: z.number().int().positive().optional(),
   parcelas: z.array(parcelaItemSchema).min(1).optional(),
+  asaasInterest: z.number().nonnegative().optional(),
+  asaasFine: z.number().nonnegative().optional(),
 });
 
 function parseDateOnly(value?: string) {
@@ -170,8 +172,12 @@ export async function POST(request: Request) {
         : "financeiro-tipo-receita";
     const negado = await negarSeSemPermissao(ctx, modulo, "criar");
     if (negado) return negado;
-    const { emitirBoleto, emitirBoletoAsync, emitirPix, parcelas: parcelasBody, valorCobrancaAsaas } =
+    const { emitirBoleto, emitirBoletoAsync, emitirPix, parcelas: parcelasBody, valorCobrancaAsaas, asaasInterest, asaasFine } =
       data;
+    const opcoesBoletoAsaas =
+      asaasInterest != null || asaasFine != null
+        ? { interest: asaasInterest ?? 0, fine: asaasFine ?? 0 }
+        : undefined;
     const { empresaId, user: session } = ctx;
 
     if (
@@ -313,7 +319,11 @@ export async function POST(request: Request) {
           const forma = (lancamento.formaPagamento || "").toLowerCase();
           if (!forma.includes("boleto") || lancamento.status === "pago") continue;
           try {
-            const cobranca = await tentarEmitirBoletoParaLancamento(lancamento.id);
+            const cobranca = await tentarEmitirBoletoParaLancamento(
+              lancamento.id,
+              undefined,
+              opcoesBoletoAsaas
+            );
             if (cobranca) boletosEmitidos += 1;
           } catch (err) {
             console.error("[financeiro POST] boleto parcela asaas", err);
@@ -451,7 +461,8 @@ export async function POST(request: Request) {
       try {
         const cobranca = await tentarEmitirBoletoParaLancamento(
           lancamento.id,
-          valorAsaas !== data.valor ? valorAsaas : undefined
+          valorAsaas !== data.valor ? valorAsaas : undefined,
+          opcoesBoletoAsaas
         );
         if (!cobranca) {
           await reverterLancamentosSemCobrancaAsaas([lancamento.id]);

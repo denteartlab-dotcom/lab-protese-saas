@@ -19,6 +19,7 @@ import { AnexosReciboCampo,
   type AnexosReciboCampoRef,
 } from "@/components/financeiro/AnexosReciboCampo";
 import { SelectFormaRecebimentoAsaas } from "@/components/financeiro/SelectFormaRecebimentoAsaas";
+import { ConfigurarBoletoAsaasModal } from "@/components/financeiro/ConfigurarBoletoAsaasModal";
 import type { AnexoDespesa } from "@/lib/lancamento-despesa";
 import { cn, STATUS_TRABALHO } from "@/lib/utils";
 import { useEntradaLeitorCodigo } from "@/hooks/use-entrada-leitor-codigo-barras";
@@ -165,6 +166,11 @@ export type LancarReceitaOsSubmit = {
   abaterCredito: boolean;
   enviarControleEntrega: boolean;
   anexos?: AnexoDespesa[];
+  boletoAsaas?: {
+    vencimento?: string;
+    interest: number;
+    fine: number;
+  };
 };
 
 const labelClass = "mb-1 block text-[11px] font-normal text-[#6b7280]";
@@ -388,6 +394,8 @@ export function LancarReceitaOsModal({
       recebido: false,
     },
   ]);
+  const [padraoBoletoCadastrado, setPadraoBoletoCadastrado] = useState(false);
+  const [modalBoletoAsaas, setModalBoletoAsaas] = useState(false);
 
   const algumaParcelaRecebida = parcelas.some((p) => p.recebido);
 
@@ -461,10 +469,17 @@ export function LancarReceitaOsModal({
     setNumParcelas(1);
     setImprimirRecibo(false);
     setOsExpandidaId(null);
+    setModalBoletoAsaas(false);
     const plano = carregarPlanoContas();
     const padrao =
       categoriaPadraoLancamento(plano, "receitas") || "Receitas de Serviços";
     setForm((f) => ({ ...f, categoria: padrao }));
+    void fetch("/api/asaas/boletos/padrao", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((json: { padrao?: { cadastrado?: boolean } }) => {
+        setPadraoBoletoCadastrado(Boolean(json.padrao?.cadastrado));
+      })
+      .catch(() => setPadraoBoletoCadastrado(false));
   }, [open, setForm]);
 
   useEffect(() => {
@@ -554,8 +569,18 @@ export function LancarReceitaOsModal({
     setParcelas((lista) => lista.map((p, i) => (i === index ? { ...p, ...patch } : p)));
   }
 
-  async function enviarFormulario(e: React.FormEvent) {
-    e.preventDefault();
+  function deveConfigurarBoletoAsaas() {
+    if (!pixAsaasDisponivel) return false;
+    if (!formaSelecionadaEhBoleto(parcelas)) return false;
+    if (parcelas.every((p) => p.recebido)) return false;
+    return !padraoBoletoCadastrado;
+  }
+
+  async function concluirCadastro(boletoAsaas?: {
+    vencimento?: string;
+    interest: number;
+    fine: number;
+  }) {
     if (submitLockRef.current || ocupado) return;
     submitLockRef.current = true;
     setCadastrando(true);
@@ -563,14 +588,27 @@ export function LancarReceitaOsModal({
       let anexos: AnexoDespesa[] | undefined;
       const lista = await anexosRef.current?.resolverAnexos();
       if (lista?.length) anexos = lista;
+      let parcelasEnvio = parcelas;
+      const vencimentoBoleto = boletoAsaas?.vencimento?.trim();
+      const qtdBoletos = parcelas.filter((p) =>
+        (p.formaPagamento || "").toLowerCase().includes("boleto")
+      ).length;
+      if (vencimentoBoleto && qtdBoletos === 1) {
+        parcelasEnvio = parcelas.map((p) =>
+          (p.formaPagamento || "").toLowerCase().includes("boleto")
+            ? { ...p, vencimento: vencimentoBoleto }
+            : p
+        );
+      }
       await onSubmit({
         form,
-        parcelas,
+        parcelas: parcelasEnvio,
         imprimirRecibo,
         alterarEntregue,
         abaterCredito,
         enviarControleEntrega,
         anexos,
+        boletoAsaas,
       });
     } catch (err) {
       const { tratarErroUploadArmazenamento } = await import(
@@ -583,6 +621,16 @@ export function LancarReceitaOsModal({
       submitLockRef.current = false;
       setCadastrando(false);
     }
+  }
+
+  async function enviarFormulario(e: React.FormEvent) {
+    e.preventDefault();
+    if (submitLockRef.current || ocupado) return;
+    if (deveConfigurarBoletoAsaas()) {
+      setModalBoletoAsaas(true);
+      return;
+    }
+    await concluirCadastro();
   }
 
   if (!open || !portalPronto) return null;
@@ -1348,6 +1396,20 @@ export function LancarReceitaOsModal({
           </form>
         </div>
       </div>
+      <ConfigurarBoletoAsaasModal
+        open={modalBoletoAsaas}
+        vencimentoInicial={
+          parcelas.find((p) =>
+            (p.formaPagamento || "").toLowerCase().includes("boleto")
+          )?.vencimento || form.vencimento
+        }
+        processando={ocupado}
+        onClose={() => setModalBoletoAsaas(false)}
+        onConfirm={(dados) => {
+          setModalBoletoAsaas(false);
+          void concluirCadastro(dados);
+        }}
+      />
     </I18nPortal>,
     document.body
   );

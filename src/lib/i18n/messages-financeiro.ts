@@ -257,6 +257,21 @@ export const messagesFinanceiroPt = {
   "financeiro.conta.digital.boletos.cancelarModal": "Fechar",
   "financeiro.conta.digital.boletos.salvar": "Salvar",
   "financeiro.conta.digital.boletos.paginacaoResumo": "{inicio}–{fim} de {total} boleto(s)",
+  "financeiro.conta.digital.boletos.padraoTitulo": "Configuração de emissão (Asaas)",
+  "financeiro.conta.digital.boletos.padraoAtivo":
+    "Juros e multa padrão cadastrados. Ao lançar receita em boleto, o modal não aparece e a cobrança usa estes valores.",
+  "financeiro.conta.digital.boletos.padraoInativo":
+    "Sem padrão cadastrado. Ao lançar receita em boleto, o sistema pede vencimento, juros e multa antes de emitir.",
+  "financeiro.conta.digital.boletos.salvarPadrao": "Salvar padrão",
+  "financeiro.conta.digital.boletos.limparPadrao": "Limpar padrão",
+  "financeiro.conta.digital.boletos.sucessoPadrao": "Padrão de juros e multa salvo. Novos boletos usarão estes valores.",
+  "financeiro.conta.digital.boletos.sucessoLimparPadrao":
+    "Padrão removido. O modal voltará a aparecer no lançamento de receita.",
+  "financeiro.conta.digital.boletos.erroPadrao": "Não foi possível salvar a configuração do boleto.",
+  "financeiro.conta.digital.boletos.emitirTitulo": "Configurar boleto Asaas",
+  "financeiro.conta.digital.boletos.emitirAjuda":
+    "Informe o vencimento, juros e multa desta cobrança. Estes dados serão enviados à conta Asaas (BaaS).",
+  "financeiro.conta.digital.boletos.emitirConfirmar": "Emitir boleto",
   "financeiro.conta.digital.col.data": "Data",
   "financeiro.conta.digital.col.descricao": "Descrição",
   "financeiro.conta.digital.col.tipo": "Tipo",
@@ -706,6 +721,21 @@ export const messagesFinanceiroEn = {
   "financeiro.conta.digital.boletos.cancelarModal": "Close",
   "financeiro.conta.digital.boletos.salvar": "Save",
   "financeiro.conta.digital.boletos.paginacaoResumo": "{inicio}–{fim} of {total} bill(s)",
+  "financeiro.conta.digital.boletos.padraoTitulo": "Issuance settings (Asaas)",
+  "financeiro.conta.digital.boletos.padraoAtivo":
+    "Default interest and fine are saved. When posting a receivable as a bill, the modal is skipped and these values are used.",
+  "financeiro.conta.digital.boletos.padraoInativo":
+    "No default saved. When posting a receivable as a bill, the system asks for due date, interest and fine before issuing.",
+  "financeiro.conta.digital.boletos.salvarPadrao": "Save default",
+  "financeiro.conta.digital.boletos.limparPadrao": "Clear default",
+  "financeiro.conta.digital.boletos.sucessoPadrao": "Interest and fine default saved. New bills will use these values.",
+  "financeiro.conta.digital.boletos.sucessoLimparPadrao":
+    "Default removed. The modal will appear again when posting a receivable.",
+  "financeiro.conta.digital.boletos.erroPadrao": "Could not save the bill settings.",
+  "financeiro.conta.digital.boletos.emitirTitulo": "Configure Asaas bill",
+  "financeiro.conta.digital.boletos.emitirAjuda":
+    "Enter due date, interest and fine for this charge. These values are sent to the Asaas account (BaaS).",
+  "financeiro.conta.digital.boletos.emitirConfirmar": "Issue bill",
   "financeiro.conta.digital.col.data": "Date",
   "financeiro.conta.digital.col.descricao": "Description",
   "financeiro.conta.digital.col.tipo": "Type",
@@ -1155,6 +1185,21 @@ export const messagesFinanceiroEs = {
   "financeiro.conta.digital.boletos.cancelarModal": "Cerrar",
   "financeiro.conta.digital.boletos.salvar": "Guardar",
   "financeiro.conta.digital.boletos.paginacaoResumo": "{inicio}–{fim} de {total} boleto(s)",
+  "financeiro.conta.digital.boletos.padraoTitulo": "Configuración de emisión (Asaas)",
+  "financeiro.conta.digital.boletos.padraoAtivo":
+    "Interés y multa predeterminados guardados. Al lanzar un ingreso en boleto, el modal no aparece y se usan estos valores.",
+  "financeiro.conta.digital.boletos.padraoInativo":
+    "Sin predeterminado. Al lanzar un ingreso en boleto, el sistema pide vencimiento, interés y multa antes de emitir.",
+  "financeiro.conta.digital.boletos.salvarPadrao": "Guardar predeterminado",
+  "financeiro.conta.digital.boletos.limparPadrao": "Borrar predeterminado",
+  "financeiro.conta.digital.boletos.sucessoPadrao": "Predeterminado de interés y multa guardado. Los nuevos boletos usarán estos valores.",
+  "financeiro.conta.digital.boletos.sucessoLimparPadrao":
+    "Predeterminado eliminado. El modal volverá a aparecer al lanzar un ingreso.",
+  "financeiro.conta.digital.boletos.erroPadrao": "No fue posible guardar la configuración del boleto.",
+  "financeiro.conta.digital.boletos.emitirTitulo": "Configurar boleto Asaas",
+  "financeiro.conta.digital.boletos.emitirAjuda":
+    "Informe el vencimiento, interés y multa de este cobro. Estos datos se envían a la cuenta Asaas (BaaS).",
+  "financeiro.conta.digital.boletos.emitirConfirmar": "Emitir boleto",
   "financeiro.conta.digital.col.data": "Fecha",
   "financeiro.conta.digital.col.descricao": "Descripción",
   "financeiro.conta.digital.col.tipo": "Tipo",

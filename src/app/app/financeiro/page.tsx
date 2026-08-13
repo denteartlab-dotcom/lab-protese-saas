@@ -1026,6 +1026,7 @@ function FinanceiroReceberConteudo() {
     abaterCredito,
     enviarControleEntrega,
     anexos,
+    boletoAsaas,
   }: LancarReceitaOsSubmit) {
     if (saveEmAndamentoRef.current) return;
     saveEmAndamentoRef.current = true;
@@ -1138,6 +1139,8 @@ function FinanceiroReceberConteudo() {
                 : trabalhosSelecionados[0].id,
             emitirBoleto: emitirAsaas && formaSelecionadaEhBoleto(parcelas),
             emitirPix: emitirAsaas && formaSelecionadaEhPix(parcelas),
+            asaasInterest: boletoAsaas?.interest,
+            asaasFine: boletoAsaas?.fine,
             parcelas: parcelas.map((p) => ({
               valor: valorParcelaFatura(p, parcelas.length),
               data:
@@ -1252,6 +1255,8 @@ function FinanceiroReceberConteudo() {
             emitirBoleto: emitirAsaas && formaSelecionadaEhBoleto(parcelas),
             emitirPix: emitirAsaas && formaSelecionadaEhPix(parcelas),
             valorCobrancaAsaas: valorPixBoleto,
+            asaasInterest: boletoAsaas?.interest,
+            asaasFine: boletoAsaas?.fine,
           }),
         });
         const payload = await res.json().catch(() => ({}));

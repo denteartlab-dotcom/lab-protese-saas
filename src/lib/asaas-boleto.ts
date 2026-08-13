@@ -10,6 +10,7 @@ import { invalidarCachePainelFinanceiro } from "@/lib/financeiro-painel-cache";
 import { descricaoPublicaLancamento } from "@/lib/lancamento-despesa";
 import { cobrancaPorLancamentoId } from "@/lib/lancamentos-cobranca";
 import { empacotarReceitaConta, RECEITA_CONTA_SEP } from "@/lib/receita-conta-bancaria";
+import { obterPadraoBoletoAsaas } from "@/lib/asaas-boleto-padrao";
 
 function formaEhBoleto(forma?: string | null): boolean {
   return (forma || "").toLowerCase().includes("boleto");
@@ -72,6 +73,16 @@ export async function tentarEmitirBoletoParaLancamento(
     clienteId: lancamento.clienteId,
   });
 
+  const padrao = await obterPadraoBoletoAsaas(lancamento.empresaId);
+  const interest =
+    opcoes?.interest != null
+      ? opcoes.interest
+      : padrao.cadastrado
+        ? padrao.interest
+        : 0;
+  const fine =
+    opcoes?.fine != null ? opcoes.fine : padrao.cadastrado ? padrao.fine : 0;
+
   const asaasCustomerId = await criarOuBuscarClienteAsaas({
     config,
     clienteId: cliente.id,
@@ -88,8 +99,8 @@ export async function tentarEmitirBoletoParaLancamento(
     valor: valorOverride ?? lancamento.valor,
     vencimento: lancamento.data,
     descricao: descricaoPublicaLancamento(lancamento.descricao),
-    interest: opcoes?.interest,
-    fine: opcoes?.fine,
+    interest,
+    fine,
   });
 
   return prisma.cobrancaAsaas.create({

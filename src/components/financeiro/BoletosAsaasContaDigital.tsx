@@ -15,6 +15,12 @@ import { PaginacaoLista } from "@/components/listagem/PaginacaoLista";
 import { useI18n } from "@/components/i18n-provider";
 import type { MessageKey } from "@/lib/i18n";
 import { cobrancaAsaasPermiteSegundaVia } from "@/lib/asaas-cobranca-status";
+import {
+  formatarPercentualExibicao,
+  formatarPercentualInput,
+  parsePercentualBr,
+  percentualParaInput,
+} from "@/lib/asaas-percentual-ui";
 import { formatMoedaContaBancaria } from "@/lib/i18n/conta-bancaria-i18n";
 import { cn } from "@/lib/utils";
 
@@ -43,40 +49,6 @@ type Props = {
 const labelClass = "mb-1 block text-[11px] font-medium text-slate-600";
 const inputClass =
   "h-9 w-full rounded border border-slate-300 bg-white px-2.5 text-[12px] text-slate-800 outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]";
-
-/** Formata percentual BR com 2 casas (ex.: digitar 5 → 0,05). */
-function formatarPercentualInput(raw: string): string {
-  const digits = raw.replace(/\D/g, "").slice(0, 6);
-  if (!digits) return "";
-  const n = Number(digits) / 100;
-  return n.toLocaleString("pt-BR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
-
-function formatarPercentualExibicao(value: number | null | undefined): string {
-  if (value == null || !Number.isFinite(value)) return "—";
-  return `${value.toLocaleString("pt-BR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}%`;
-}
-
-function parsePercentualBr(value: string): number {
-  const cleaned = value.replace(/\./g, "").replace(",", ".").replace(/[^\d.-]/g, "");
-  if (!cleaned) return 0;
-  const n = Number(cleaned);
-  return Number.isFinite(n) ? n : 0;
-}
-
-function percentualParaInput(value: number | null | undefined): string {
-  if (value == null || !Number.isFinite(value)) {
-    return formatarPercentualInput("0");
-  }
-  const centesimos = Math.round(value * 100);
-  return formatarPercentualInput(String(centesimos));
-}
 
 function rotuloStatus(
   status: string,
@@ -112,6 +84,25 @@ export function BoletosAsaasContaDigital({ onMensagem }: Props) {
   const [formInterest, setFormInterest] = useState("");
   const [formFine, setFormFine] = useState("");
   const [pagina, setPagina] = useState(1);
+  const [padraoCadastrado, setPadraoCadastrado] = useState(false);
+  const [padraoInterest, setPadraoInterest] = useState(percentualParaInput(0));
+  const [padraoFine, setPadraoFine] = useState(percentualParaInput(0));
+  const [salvandoPadrao, setSalvandoPadrao] = useState(false);
+
+  const carregarPadrao = useCallback(async () => {
+    try {
+      const res = await fetch("/api/asaas/boletos/padrao", { cache: "no-store" });
+      const data = (await res.json()) as {
+        padrao?: { cadastrado?: boolean; interest?: number; fine?: number };
+      };
+      const padrao = data.padrao;
+      setPadraoCadastrado(Boolean(padrao?.cadastrado));
+      setPadraoInterest(percentualParaInput(padrao?.cadastrado ? padrao.interest : 0));
+      setPadraoFine(percentualParaInput(padrao?.cadastrado ? padrao.fine : 0));
+    } catch {
+      setPadraoCadastrado(false);
+    }
+  }, []);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -147,6 +138,74 @@ export function BoletosAsaasContaDigital({ onMensagem }: Props) {
     void carregar();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- busca intencional só no refresh
   }, [statusFiltro, vencimentoDe, vencimentoAte]);
+
+  useEffect(() => {
+    void carregarPadrao();
+  }, [carregarPadrao]);
+
+  async function salvarPadraoEmissao() {
+    setSalvandoPadrao(true);
+    try {
+      const res = await fetch("/api/asaas/boletos/padrao", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          interest: parsePercentualBr(padraoInterest),
+          fine: parsePercentualBr(padraoFine),
+        }),
+      });
+      const data = (await res.json()) as {
+        padrao?: { cadastrado?: boolean };
+        error?: string;
+      };
+      if (!res.ok) {
+        throw new Error(
+          data.error || t("financeiro.conta.digital.boletos.erroPadrao")
+        );
+      }
+      setPadraoCadastrado(Boolean(data.padrao?.cadastrado));
+      onMensagem?.(t("financeiro.conta.digital.boletos.sucessoPadrao"), "sucesso");
+    } catch (err) {
+      onMensagem?.(
+        err instanceof Error
+          ? err.message
+          : t("financeiro.conta.digital.boletos.erroPadrao"),
+        "erro"
+      );
+    } finally {
+      setSalvandoPadrao(false);
+    }
+  }
+
+  async function limparPadraoEmissao() {
+    setSalvandoPadrao(true);
+    try {
+      const res = await fetch("/api/asaas/boletos/padrao", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ limpar: true }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        throw new Error(
+          data.error || t("financeiro.conta.digital.boletos.erroPadrao")
+        );
+      }
+      setPadraoCadastrado(false);
+      setPadraoInterest(percentualParaInput(0));
+      setPadraoFine(percentualParaInput(0));
+      onMensagem?.(t("financeiro.conta.digital.boletos.sucessoLimparPadrao"), "sucesso");
+    } catch (err) {
+      onMensagem?.(
+        err instanceof Error
+          ? err.message
+          : t("financeiro.conta.digital.boletos.erroPadrao"),
+        "erro"
+      );
+    } finally {
+      setSalvandoPadrao(false);
+    }
+  }
 
   const totalPaginas = Math.max(1, Math.ceil(boletos.length / LINHAS_POR_PAGINA));
   const paginaAtual = Math.min(pagina, totalPaginas);
@@ -254,6 +313,67 @@ export function BoletosAsaasContaDigital({ onMensagem }: Props) {
 
   return (
     <div className="space-y-3">
+      <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+        <p className="text-[13px] font-medium text-slate-800">
+          {t("financeiro.conta.digital.boletos.padraoTitulo")}
+        </p>
+        <p className="mt-1 text-[11px] text-slate-500">
+          {padraoCadastrado
+            ? t("financeiro.conta.digital.boletos.padraoAtivo")
+            : t("financeiro.conta.digital.boletos.padraoInativo")}
+        </p>
+        <div className="mt-3 flex flex-wrap items-end gap-2">
+          <div className="w-[140px]">
+            <label className={labelClass}>
+              {t("financeiro.conta.digital.boletos.campoJuros")}
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={padraoInterest}
+              onChange={(e) => setPadraoInterest(formatarPercentualInput(e.target.value))}
+              className={inputClass}
+              placeholder={t("financeiro.conta.digital.boletos.placeholderPercentual")}
+            />
+          </div>
+          <div className="w-[140px]">
+            <label className={labelClass}>
+              {t("financeiro.conta.digital.boletos.campoMulta")}
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={padraoFine}
+              onChange={(e) => setPadraoFine(formatarPercentualInput(e.target.value))}
+              className={inputClass}
+              placeholder={t("financeiro.conta.digital.boletos.placeholderPercentual")}
+            />
+          </div>
+          <Button
+            type="button"
+            className="h-9 bg-[#4a90d9] text-[12px] text-white hover:bg-[#3d7fc4]"
+            onClick={() => void salvarPadraoEmissao()}
+            disabled={salvandoPadrao}
+          >
+            {salvandoPadrao ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : null}
+            {t("financeiro.conta.digital.boletos.salvarPadrao")}
+          </Button>
+          {padraoCadastrado ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="h-9 text-[12px]"
+              onClick={() => void limparPadraoEmissao()}
+              disabled={salvandoPadrao}
+            >
+              {t("financeiro.conta.digital.boletos.limparPadrao")}
+            </Button>
+          ) : null}
+        </div>
+      </div>
+
       <div className="flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
         <div className="min-w-[140px] flex-1">
           <label className={labelClass}>{t("financeiro.conta.digital.boletos.filtroBusca")}</label>
