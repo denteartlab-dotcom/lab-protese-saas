@@ -139,7 +139,7 @@ import {
   type LancamentoFaturaOs,
 } from "@/lib/os-faturamento";
 import {
-  anexosFromInstrucoes,
+  anexosFromGrupoTrabalhos,
 } from "@/lib/os-anexos";
 import {
   anexosParaLinhasInstrucoes,
@@ -2260,7 +2260,7 @@ export default function ControlePage() {
       descontoTipo,
       desconto,
     });
-    setAnexosEdicao(anexosFromInstrucoes(instrucoesConsolidadas(alvo, lista)));
+    setAnexosEdicao(anexosFromGrupoTrabalhos(grupo));
     setArquivosEdicao([]);
     const primeiroServico = itens.find((item) => classificarItemOs(item) === "servico");
     carregarComplementosNaEdicao(alvo);

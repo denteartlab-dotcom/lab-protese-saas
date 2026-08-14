@@ -5,6 +5,7 @@ export type AnexoOs = {
 };
 
 export function anexosFromInstrucoes(instrucoes?: string | null): AnexoOs[] {
+  const vistos = new Set<string>();
   return (instrucoes || "")
     .split("\n")
     .map((line) => {
@@ -16,7 +17,11 @@ export function anexosFromInstrucoes(instrucoes?: string | null): AnexoOs[] {
       if (!url) return null;
       return { name: name || "Arquivo", type: type || "", url };
     })
-    .filter((item): item is AnexoOs => item !== null);
+    .filter((item): item is AnexoOs => {
+      if (!item || vistos.has(item.url)) return false;
+      vistos.add(item.url);
+      return true;
+    });
 }
 
 export function instrucoesSemAnexos(instrucoes?: string | null) {
