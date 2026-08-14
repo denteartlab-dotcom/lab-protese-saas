@@ -76,13 +76,17 @@ export function NotificationsBell() {
       setLidas(lerNotificacoesLidas());
       setDescartadas(lerNotificacoesDescartadas());
       setSistemaOn(notificacaoSistemaAtiva());
-      setJaCarregou(true);
     } catch {
       setLista([]);
     } finally {
       setCarregando(false);
+      setJaCarregou(true);
     }
   }, []);
+
+  useEffect(() => {
+    void carregar();
+  }, [carregar]);
 
   useEffect(() => {
     if (!jaCarregou) return;
