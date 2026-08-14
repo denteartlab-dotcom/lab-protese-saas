@@ -15,6 +15,7 @@ export async function montarSessionUserComAssinatura(
         email: true,
         role: true,
         empresaId: true,
+        sessionVersion: true,
         excluidoEm: true,
         empresa: {
           select: {
@@ -39,6 +40,7 @@ export async function montarSessionUserComAssinatura(
     empresaSlug: user.empresa.slug,
     empresaNome: user.empresa.nome,
     assinaturaVencida: empresaPrecisaPaginaRenovacao(user.empresa),
+    sessionVersion: user.sessionVersion ?? 0,
   };
 }
 

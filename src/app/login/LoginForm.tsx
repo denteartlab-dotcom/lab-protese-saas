@@ -24,6 +24,7 @@ import type { LabBrandingPublico } from "@/lib/lab-branding-types";
 import type { LabImpressaoConfig } from "@/lib/lab-impressao";
 import { dimensoesLogoPx } from "@/lib/lab-logo";
 import { analisarCaminhoApp } from "@/lib/rotas-app";
+import { MfaChallengePanel } from "@/components/auth/MfaChallengePanel";
 
 async function aguardarSessaoConfirmada(): Promise<boolean> {
   for (let tentativa = 0; tentativa < 6; tentativa += 1) {
@@ -111,6 +112,10 @@ export function LoginForm({
   );
   const [empresasDisponiveis, setEmpresasDisponiveis] = useState<EmpresaLogin[]>([]);
   const [empresaSlugSelecionado, setEmpresaSlugSelecionado] = useState("");
+  const [mfaModo, setMfaModo] = useState<"setup" | "verify" | null>(null);
+  const [mfaToken, setMfaToken] = useState("");
+  const [mfaCanSkip, setMfaCanSkip] = useState(false);
+  const [mfaUserSlug, setMfaUserSlug] = useState<{ slug?: string; nome?: string }>({});
   const redirectDestino = searchParams.get("redirect") || "/app";
   const cadastroOk = searchParams.get("cadastro") === "ok";
   const labSlugQuery =
@@ -324,6 +329,8 @@ export function LoginForm({
         redirect?: string;
         empresas?: EmpresaLogin[];
         user?: { empresaSlug?: string; empresaNome?: string };
+        mfaToken?: string;
+        canSkip?: boolean;
       };
 
       if (res.status === 409 && data.code === "MULTIPLAS_CONTAS" && data.empresas?.length) {
@@ -333,6 +340,22 @@ export function LoginForm({
           data.error ||
             "Este e-mail está em mais de um laboratório. Escolha qual deseja acessar."
         );
+        return;
+      }
+
+      if (
+        res.ok &&
+        (data.code === "MFA_REQUIRED" || data.code === "MFA_SETUP_REQUIRED") &&
+        data.mfaToken
+      ) {
+        setMfaModo(data.code === "MFA_SETUP_REQUIRED" ? "setup" : "verify");
+        setMfaToken(data.mfaToken);
+        setMfaCanSkip(data.canSkip === true);
+        setMfaUserSlug({
+          slug: data.user?.empresaSlug,
+          nome: data.user?.empresaNome,
+        });
+        setError("");
         return;
       }
 
@@ -434,6 +457,35 @@ export function LoginForm({
     await tentarEntrar(e);
   }
 
+  async function finalizarAposMfa(data: Record<string, unknown>) {
+    const user = data.user as
+      | { empresaSlug?: string; empresaNome?: string }
+      | undefined;
+    const slug = user?.empresaSlug?.trim() || mfaUserSlug.slug?.trim();
+    const nomeLab = user?.empresaNome?.trim() || mfaUserSlug.nome?.trim();
+    if (slug && nomeLab) {
+      salvarUltimoLaboratorioLogin({ slug, nome: nomeLab });
+    }
+    if (lembrarSenha) {
+      salvarLembrarLogin({ email: email.trim() });
+    } else {
+      limparLembrarLogin();
+    }
+    marcarUsuarioJaEntrou();
+    registrarAtividadeSessao();
+
+    if (data.code === "ASSINATURA_VENCIDA" || data.redirect === "/assinatura-vencida") {
+      await entrarNoApp(String(data.redirect || "/assinatura-vencida"));
+      return;
+    }
+
+    let destino = redirectDestino;
+    if (destino === "/app" && slug) {
+      destino = `/app/${slug}`;
+    }
+    await entrarNoApp(destino);
+  }
+
   const { lab, nomeLaboratorio, marcaSubtitulo, labIdentificado } = branding;
   const logoLogin = dimensoesLogoPx(lab, { largura: 120, altura: 72 });
   const logoLab = lab.logoDataUrl?.trim();
@@ -497,7 +549,7 @@ export function LoginForm({
         </h2>
         <p className="mt-1 text-[10px] text-slate-500">{t("login.subtitulo")}</p>
 
-        {cadastroOk && (
+        {cadastroOk && !mfaModo && (
           <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
             <p className="text-[11px] font-semibold text-emerald-800">
               Conta criada com sucesso!
@@ -508,6 +560,27 @@ export function LoginForm({
           </div>
         )}
 
+        {error && (
+          <p className="mt-3 rounded bg-red-50 px-2 py-1.5 text-[10px] text-red-700">{error}</p>
+        )}
+
+        {mfaModo && mfaToken ? (
+          <div className="mt-4">
+            <MfaChallengePanel
+              modo={mfaModo}
+              canSkip={mfaCanSkip}
+              mfaToken={mfaToken}
+              basePath="/api/auth/mfa"
+              onSuccess={finalizarAposMfa}
+              onCancel={() => {
+                setMfaModo(null);
+                setMfaToken("");
+                setError("");
+              }}
+              onError={setError}
+            />
+          </div>
+        ) : (
         <form onSubmit={handleLogin} className="mt-4 space-y-3">
           <div className="space-y-1">
             <label className="text-[10px] font-medium uppercase text-slate-700">
@@ -582,10 +655,6 @@ export function LoginForm({
             </p>
           ) : null}
 
-          {error && (
-            <p className="rounded bg-red-50 px-2 py-1.5 text-[10px] text-red-700">{error}</p>
-          )}
-
           {empresasDisponiveis.length > 1 ? (
             <div className="space-y-1 rounded border border-blue-100 bg-blue-50/80 p-3">
               <p className="text-[10px] font-medium text-slate-700">Laboratório</p>
@@ -623,6 +692,7 @@ export function LoginForm({
             </a>
           </p>
         </form>
+        )}
       </div>
     </div>
   );

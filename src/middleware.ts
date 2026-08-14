@@ -39,6 +39,16 @@ function secretJwt(): Uint8Array | null {
   return new TextEncoder().encode(secret);
 }
 
+function secretsMasterJwt(): Uint8Array[] {
+  const out: Uint8Array[] = [];
+  const master = process.env.MASTER_JWT_SECRET?.trim();
+  const jwt = process.env.JWT_SECRET?.trim();
+  if (master) out.push(new TextEncoder().encode(master));
+  if (jwt && jwt !== master) out.push(new TextEncoder().encode(jwt));
+  else if (jwt && !master) out.push(new TextEncoder().encode(jwt));
+  return out;
+}
+
 /** Verificação completa com jose (HMAC) no Edge. */
 async function verificarPayloadSessao(token: string): Promise<PayloadSessao | null> {
   const secret = secretJwt();
@@ -51,6 +61,18 @@ async function verificarPayloadSessao(token: string): Promise<PayloadSessao | nu
   }
 }
 
+async function verificarPayloadMaster(token: string): Promise<PayloadSessao | null> {
+  for (const secret of secretsMasterJwt()) {
+    try {
+      const { payload } = await jwtVerify(token, secret);
+      return payload as PayloadSessao;
+    } catch {
+      /* próximo segredo */
+    }
+  }
+  return null;
+}
+
 async function sessionTokenAceito(token: string): Promise<boolean> {
   const payload = await verificarPayloadSessao(token);
   if (!payload) return false;
@@ -58,7 +80,7 @@ async function sessionTokenAceito(token: string): Promise<boolean> {
 }
 
 async function masterTokenAceito(token: string): Promise<boolean> {
-  const payload = await verificarPayloadSessao(token);
+  const payload = await verificarPayloadMaster(token);
   if (!payload) return false;
   return (
     payload.master === true &&
@@ -66,6 +88,62 @@ async function masterTokenAceito(token: string): Promise<boolean> {
     typeof payload.id === "string" &&
     payload.id.length > 0
   );
+}
+
+function apiMutavel(method: string) {
+  const m = method.toUpperCase();
+  return m === "POST" || m === "PUT" || m === "PATCH" || m === "DELETE";
+}
+
+function hostnameDeUrl(valor: string | null): string | null {
+  if (!valor?.trim()) return null;
+  try {
+    return new URL(valor).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+/** CSRF defense-in-depth para APIs mutáveis (exceto webhooks e rotas sem cookie). */
+function origemApiPermitida(request: NextRequest): boolean {
+  if (!apiMutavel(request.method)) return true;
+  const { pathname } = request.nextUrl;
+  if (
+    pathname === "/api/mercadopago/webhook" ||
+    pathname === "/api/asaas/webhook" ||
+    pathname === "/api/whatsapp/webhook" ||
+    pathname === "/api/asaas/autorizacao-saque"
+  ) {
+    return true;
+  }
+
+  const origin = hostnameDeUrl(request.headers.get("origin"));
+  const referer = hostnameDeUrl(request.headers.get("referer"));
+  const hostHeader = request.headers.get("host")?.split(":")[0]?.toLowerCase();
+  if (!origin && !referer) return true;
+
+  const candidato = origin || referer!;
+  if (hostHeader && candidato === hostHeader) return true;
+  if (candidato === "localhost" || candidato === "127.0.0.1") return true;
+  if (
+    candidato === "denteartlab.com.br" ||
+    candidato === "www.denteartlab.com.br" ||
+    candidato.endsWith(".denteartlab.com.br")
+  ) {
+    return true;
+  }
+  for (const raw of [
+    process.env.NEXT_PUBLIC_APP_URL?.trim(),
+    process.env.URL_PUBLICA_DO_APP?.trim(),
+  ]) {
+    if (!raw) continue;
+    try {
+      if (new URL(raw).hostname.toLowerCase() === candidato) return true;
+    } catch {
+      /* ignore */
+    }
+  }
+  return false;
 }
 
 function limparCookieSessao(response: NextResponse) {
@@ -190,11 +268,23 @@ export async function middleware(request: NextRequest) {
   const nonce = gerarNonceCsp();
   const { pathname } = request.nextUrl;
 
+  if (pathname.startsWith("/api/") && !origemApiPermitida(request)) {
+    return aplicarCsp(
+      NextResponse.json(
+        { error: "Origem da requisição não permitida." },
+        { status: 403 }
+      ),
+      nonce
+    );
+  }
+
   if (
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/setup") ||
     pathname.startsWith("/api/empresas/cadastro") ||
     pathname === "/api/admin-master/auth/login" ||
+    pathname.startsWith("/api/admin-master/auth/mfa") ||
+    pathname === "/api/admin-master/auth/logout" ||
     pathname === "/api/version" ||
     pathname === "/api/health"
   ) {
@@ -270,7 +360,10 @@ export async function middleware(request: NextRequest) {
 
   if (pathname.startsWith("/admin-master") || pathname.startsWith("/api/admin-master")) {
     const masterPublico =
-      pathname === "/admin-master/login" || pathname === "/api/admin-master/auth/login";
+      pathname === "/admin-master/login" ||
+      pathname === "/api/admin-master/auth/login" ||
+      pathname.startsWith("/api/admin-master/auth/mfa") ||
+      pathname === "/api/admin-master/auth/logout";
     if (masterPublico) {
       const masterToken = request.cookies.get(MASTER_COOKIE_NAME)?.value;
       if (masterToken && (await masterTokenAceito(masterToken))) {

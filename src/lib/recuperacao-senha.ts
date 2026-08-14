@@ -141,7 +141,10 @@ export async function redefinirSenhaComToken(
   await executarSemRls(async (tx) => {
     await tx.user.update({
       where: { id: registro.userId },
-      data: { password: senhaHash },
+      data: {
+        password: senhaHash,
+        sessionVersion: { increment: 1 },
+      },
     });
     await tx.passwordResetToken.update({
       where: { id: registro.id },
@@ -151,6 +154,9 @@ export async function redefinirSenhaComToken(
       where: { userId: registro.userId, usedAt: null },
     });
   });
+
+  const { invalidarCacheSessionVersion } = await import("@/lib/session-version");
+  invalidarCacheSessionVersion(registro.userId);
 
   return { ok: true };
 }

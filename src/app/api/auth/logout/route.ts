@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 import { anexarLimpezaCookieSessao } from "@/lib/auth";
+import { rejeitarSeOrigemInvalida } from "@/lib/csrf-origin";
 
 export async function POST(request: Request) {
+  const csrf = rejeitarSeOrigemInvalida(request);
+  if (csrf) return csrf;
+
   const resposta = NextResponse.json({ ok: true });
   return anexarLimpezaCookieSessao(resposta, request);
 }
 
-/** Limpa cookie em Route Handler (páginas Server Component não podem setar cookie). */
+/** Compat: limpa cookie + redirect. Preferir POST para logout intencional. */
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const destino = url.searchParams.get("redirect")?.trim() || "/login";

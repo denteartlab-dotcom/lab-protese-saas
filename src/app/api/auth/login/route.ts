@@ -15,7 +15,15 @@ import {
   mensagemBloqueioLogin,
   registrarFalhaLogin,
   statusBloqueioLogin,
+  RateLimitIndisponivelError,
+  respostaRateLimitIndisponivel,
 } from "@/lib/login-rate-limit";
+import {
+  criarTokenMfaPending,
+  mfaPodePularSetup,
+  roleExigeMfa,
+} from "@/lib/mfa-totp";
+import { rejeitarSeOrigemInvalida } from "@/lib/csrf-origin";
 import { z } from "zod";
 
 const schema = z.object({
@@ -34,6 +42,8 @@ const selectUsuarioLogin = {
   permissoesJson: true,
   excluidoEm: true,
   empresaId: true,
+  sessionVersion: true,
+  mfaEnabled: true,
   empresa: {
     select: {
       id: true,
@@ -59,6 +69,9 @@ function respostaBloqueioLogin(minutosRestantes: number) {
 }
 
 export async function POST(request: Request) {
+  const csrf = rejeitarSeOrigemInvalida(request);
+  if (csrf) return csrf;
+
   if (!process.env.JWT_SECRET?.trim()) {
     return NextResponse.json(
       {
@@ -86,12 +99,12 @@ export async function POST(request: Request) {
   const slugInformado = empresaSlug?.trim().toLowerCase();
   const ip = extrairIpLogin(request);
 
-  const bloqueio = await statusBloqueioLogin(ip, emailNorm);
-  if (bloqueio.bloqueado) {
-    return respostaBloqueioLogin(bloqueio.minutosRestantes);
-  }
-
   try {
+    const bloqueio = await statusBloqueioLogin(ip, emailNorm);
+    if (bloqueio.bloqueado) {
+      return respostaBloqueioLogin(bloqueio.minutosRestantes);
+    }
+
     return await runWithRlsBypass(async () => {
     const candidatos = await prisma.user.findMany({
       where: {
@@ -175,6 +188,49 @@ export async function POST(request: Request) {
       );
     }
 
+    if (roleExigeMfa(user.role, "lab")) {
+      if (user.mfaEnabled) {
+        const mfaToken = await criarTokenMfaPending({
+          kind: "lab",
+          purpose: "verify",
+          userId: user.id,
+          email: user.email,
+          remember: remember === true,
+        });
+        return NextResponse.json({
+          code: "MFA_REQUIRED",
+          mfaToken,
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            empresaSlug: user.empresa.slug,
+            empresaNome: user.empresa.nome,
+          },
+        });
+      }
+
+      const mfaToken = await criarTokenMfaPending({
+        kind: "lab",
+        purpose: "setup",
+        userId: user.id,
+        email: user.email,
+        remember: remember === true,
+      });
+      return NextResponse.json({
+        code: "MFA_SETUP_REQUIRED",
+        mfaToken,
+        canSkip: mfaPodePularSetup(),
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          empresaSlug: user.empresa.slug,
+          empresaNome: user.empresa.nome,
+        },
+      });
+    }
+
     const sessionUser =
       (await montarSessionUserComAssinatura(user.id)) ?? {
         id: user.id,
@@ -185,6 +241,7 @@ export async function POST(request: Request) {
         empresaSlug: user.empresa.slug,
         empresaNome: user.empresa.nome,
         assinaturaVencida: precisaRenovacao,
+        sessionVersion: user.sessionVersion ?? 0,
       };
 
     await registrarUltimoAcessoEmpresaImediato(user.empresaId);
@@ -207,6 +264,9 @@ export async function POST(request: Request) {
     });
     });
   } catch (err) {
+    if (err instanceof RateLimitIndisponivelError) {
+      return respostaRateLimitIndisponivel();
+    }
     console.error("[auth/login]", err);
     const msg = err instanceof Error ? err.message : String(err);
     if (/Environment variable not found|DATABASE_URL|Can't reach database/i.test(msg)) {

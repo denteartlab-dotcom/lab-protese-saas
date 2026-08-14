@@ -25,6 +25,7 @@ const selectUsuarioEmpresa = {
   role: true,
   excluidoEm: true,
   empresaId: true,
+  sessionVersion: true,
   empresa: {
     select: {
       id: true,
@@ -94,6 +95,7 @@ async function sincronizarSessaoEmpresa(
     empresaSlug: registro.empresa.slug,
     empresaNome: registro.empresa.nome,
     assinaturaVencida: false,
+    sessionVersion: registro.sessionVersion ?? session.sessionVersion ?? 0,
   };
 
   const precisaAtualizar =
@@ -101,7 +103,8 @@ async function sincronizarSessaoEmpresa(
     session.empresaId !== atualizada.empresaId ||
     session.empresaSlug !== atualizada.empresaSlug ||
     session.empresaNome !== atualizada.empresaNome ||
-    session.assinaturaVencida !== atualizada.assinaturaVencida;
+    session.assinaturaVencida !== atualizada.assinaturaVencida ||
+    (session.sessionVersion ?? 0) !== (atualizada.sessionVersion ?? 0);
 
   // Server Components não podem cookies().set — só Route Handlers / Server Actions.
   if (precisaAtualizar && options?.persistirCookie !== false) {

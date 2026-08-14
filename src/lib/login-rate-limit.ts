@@ -1,8 +1,14 @@
 /**
  * Rate limit de login: 3 senhas erradas → bloqueio de 30 minutos (IP + e-mail).
- * Usa Redis quando REDIS_URL está definida; senão (ou se Redis falhar), memória do processo.
+ * Produção: Redis obrigatório (salvo RATE_LIMIT_ALLOW_MEMORY=1).
  */
-import { redisDel, redisGet, redisIncrComTtl, obterRedis } from "@/lib/redis-client";
+import {
+  redisDel,
+  redisGet,
+  redisIncrComTtl,
+  obterRedis,
+  rateLimitExigeRedis,
+} from "@/lib/redis-client";
 
 /** Bloqueia após esta quantidade de falhas. */
 export const MAX_FALHAS_LOGIN = 3;
@@ -20,6 +26,13 @@ type Entrada = {
 
 const tentativasLogin = new Map<string, Entrada>();
 const acoesEmail = new Map<string, Entrada>();
+
+export class RateLimitIndisponivelError extends Error {
+  constructor(message = "Serviço de proteção temporariamente indisponível. Tente em instantes.") {
+    super(message);
+    this.name = "RateLimitIndisponivelError";
+  }
+}
 
 function chaveLogin(ip: string, email: string) {
   return `${ip.trim()}|${email.trim().toLowerCase()}`;
@@ -75,6 +88,29 @@ async function redisTtlSegundos(chave: string): Promise<number | null> {
   }
 }
 
+async function garantirBackendRateLimit(): Promise<"redis" | "memory"> {
+  if (process.env.REDIS_URL?.trim()) {
+    const redis = obterRedis();
+    if (redis) {
+      try {
+        if (redis.status === "ready") return "redis";
+        if (redis.status === "wait" || redis.status === "end") {
+          await redis.connect();
+        }
+        if ((redis.status as string) === "ready") return "redis";
+      } catch {
+        /* cai no fallback */
+      }
+    }
+    if (rateLimitExigeRedis()) {
+      throw new RateLimitIndisponivelError();
+    }
+  } else if (rateLimitExigeRedis()) {
+    throw new RateLimitIndisponivelError();
+  }
+  return "memory";
+}
+
 async function contarOuMemoria(
   redisKey: string,
   mapa: Map<string, Entrada>,
@@ -83,6 +119,9 @@ async function contarOuMemoria(
 ): Promise<number> {
   const n = await redisIncrComTtl(redisKey, janelaS);
   if (n != null) return n;
+  if (rateLimitExigeRedis()) {
+    throw new RateLimitIndisponivelError();
+  }
   return incrementarMemoria(mapa, chaveMem, janelaS * 1000);
 }
 
@@ -93,7 +132,21 @@ async function bloqueadoOuMemoria(
   max: number
 ): Promise<boolean> {
   const raw = await redisGet(redisKey);
-  if (raw != null && Number(raw) >= max) return true;
+  if (raw != null) {
+    return Number(raw) >= max;
+  }
+  // Redis configurado mas leitura falhou em prod → fail closed
+  if (rateLimitExigeRedis() && process.env.REDIS_URL?.trim()) {
+    const backend = await garantirBackendRateLimit().catch(() => null);
+    if (backend !== "redis" && backend !== "memory") {
+      throw new RateLimitIndisponivelError();
+    }
+    if (backend === "redis") {
+      const again = await redisGet(redisKey);
+      if (again != null) return Number(again) >= max;
+      return false;
+    }
+  }
   return bloqueadoMemoria(mapa, chaveMem, max);
 }
 
@@ -126,6 +179,8 @@ export async function statusBloqueioLogin(
   ip: string,
   email: string
 ): Promise<StatusBloqueioLogin> {
+  await garantirBackendRateLimit();
+
   const k = chaveLogin(ip, email);
   const redisKey = redisKeyLogin(k);
 
@@ -141,6 +196,11 @@ export async function statusBloqueioLogin(
       };
     }
     return { bloqueado: false, minutosRestantes: 0, falhas };
+  }
+
+  if (rateLimitExigeRedis() && process.env.REDIS_URL?.trim()) {
+    // Redis up (probe ok) mas chave ausente = sem bloqueio
+    return { bloqueado: false, minutosRestantes: 0, falhas: 0 };
   }
 
   const atual = tentativasLogin.get(k);
@@ -191,10 +251,11 @@ export async function limparFalhasLogin(ip: string, email: string) {
  * Rate limit para ações públicas por e-mail (recuperar senha, cadastro).
  */
 export async function acaoEmailBloqueada(
-  bucket: "recuperar-senha" | "cadastro-codigo",
+  bucket: "recuperar-senha" | "cadastro-codigo" | "mfa-verify",
   ip: string,
   email: string
 ): Promise<boolean> {
+  await garantirBackendRateLimit();
   const emailNorm = email.trim().toLowerCase();
   const kEmail = `${bucket}|${ip.trim()}|${emailNorm}`;
   const kIp = `${bucket}|ip|${ip.trim()}`;
@@ -206,7 +267,7 @@ export async function acaoEmailBloqueada(
 }
 
 export async function registrarAcaoEmail(
-  bucket: "recuperar-senha" | "cadastro-codigo",
+  bucket: "recuperar-senha" | "cadastro-codigo" | "mfa-verify",
   ip: string,
   email: string
 ) {
@@ -217,4 +278,20 @@ export async function registrarAcaoEmail(
     contarOuMemoria(`rl:acao:${kEmail}`, acoesEmail, kEmail, JANELA_ACOES_S),
     contarOuMemoria(`rl:acao:${kIp}`, acoesEmail, kIp, JANELA_ACOES_S),
   ]);
+}
+
+export function respostaRateLimitIndisponivel() {
+  return new Response(
+    JSON.stringify({
+      error: "Proteção de login temporariamente indisponível. Tente novamente em instantes.",
+      code: "RATE_LIMIT_UNAVAILABLE",
+    }),
+    {
+      status: 503,
+      headers: {
+        "Content-Type": "application/json",
+        "Retry-After": "30",
+      },
+    }
+  );
 }

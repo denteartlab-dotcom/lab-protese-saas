@@ -2,6 +2,10 @@ import { SignJWT, jwtVerify } from "jose";
 
 export const COOKIE_NAME = "lab-protese-session";
 
+/** Sem "lembrar": 12h. Com "lembrar": 7 dias. */
+export const SESSAO_TTL_SEM_LEMBRAR_S = 12 * 60 * 60;
+export const SESSAO_TTL_LEMBRAR_S = 7 * 24 * 60 * 60;
+
 function getSecret() {
   const secret = process.env.JWT_SECRET;
   if (!secret) throw new Error("JWT_SECRET não configurado");
@@ -24,13 +28,20 @@ export type SessionUser = {
   empresaNome?: string;
   /** Empresa com assinatura vencida ou bloqueada — bloqueia /app no middleware. */
   assinaturaVencida?: boolean;
+  /** Versão de sessão (claim sv). Ausente em JWT legado = 0. */
+  sessionVersion?: number;
 };
+
+export function ttlSessaoSegundos(remember?: boolean) {
+  return remember ? SESSAO_TTL_LEMBRAR_S : SESSAO_TTL_SEM_LEMBRAR_S;
+}
 
 export async function criarTokenSessao(
   user: SessionUser,
   options?: { remember?: boolean }
 ) {
-  const dias = options?.remember ? 30 : 7;
+  const ttl = ttlSessaoSegundos(options?.remember);
+  const sv = user.sessionVersion ?? 0;
   return new SignJWT({
     id: user.id,
     name: user.name,
@@ -40,10 +51,11 @@ export async function criarTokenSessao(
     empresaSlug: user.empresaSlug,
     empresaNome: user.empresaNome,
     assinaturaVencida: user.assinaturaVencida === true,
+    sv,
   })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime(`${dias}d`)
+    .setExpirationTime(`${ttl}s`)
     .sign(getSecret());
 }
 
@@ -55,6 +67,11 @@ export async function verifySessionToken(
 
   try {
     const { payload } = await jwtVerify(token, secret);
+    const svRaw = payload.sv;
+    const sessionVersion =
+      typeof svRaw === "number" && Number.isFinite(svRaw)
+        ? Math.max(0, Math.floor(svRaw))
+        : 0;
     return {
       id: payload.id as string,
       name: payload.name as string,
@@ -64,6 +81,7 @@ export async function verifySessionToken(
       empresaSlug: payload.empresaSlug as string | undefined,
       empresaNome: payload.empresaNome as string | undefined,
       assinaturaVencida: payload.assinaturaVencida === true,
+      sessionVersion,
     };
   } catch {
     return null;

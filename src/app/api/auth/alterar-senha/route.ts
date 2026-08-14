@@ -1,15 +1,30 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getSession, hashPassword, verifyPassword } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import {
+  anexarCookieSessao,
+  getSession,
+  hashPassword,
+  verifyPassword,
+} from "@/lib/auth";
+import { executarSemRls } from "@/lib/prisma-tenant";
+import { montarSessionUserComAssinatura } from "@/lib/sessao-assinatura";
+import {
+  bumpSessionVersionUsuario,
+  invalidarCacheSessionVersion,
+} from "@/lib/session-version";
+import { validarForcaSenha } from "@/lib/validar-senha";
+import { rejeitarSeOrigemInvalida } from "@/lib/csrf-origin";
 
 const schema = z.object({
   senhaAtual: z.string().min(1, "Informe a senha atual."),
-  novaSenha: z.string().min(6, "A nova senha deve ter no mínimo 6 caracteres."),
+  novaSenha: z.string().min(1, "Informe a nova senha."),
   confirmarSenha: z.string().min(1, "Confirme a nova senha."),
 });
 
 export async function POST(request: Request) {
+  const csrf = rejeitarSeOrigemInvalida(request);
+  if (csrf) return csrf;
+
   const session = await getSession();
   if (!session) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
@@ -33,10 +48,20 @@ export async function POST(request: Request) {
       );
     }
 
-    const usuario = await prisma.user.findUnique({
-      where: { id: session.id },
-      select: { id: true, password: true },
-    });
+    const forca = validarForcaSenha(data.novaSenha);
+    if (!forca.valida) {
+      return NextResponse.json(
+        { error: forca.erros[0] || "Senha fraca.", erros: forca.erros },
+        { status: 400 }
+      );
+    }
+
+    const usuario = await executarSemRls((tx) =>
+      tx.user.findUnique({
+        where: { id: session.id },
+        select: { id: true, password: true },
+      })
+    );
 
     if (!usuario) {
       return NextResponse.json({ error: "Usuário não encontrado." }, { status: 404 });
@@ -47,12 +72,29 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Senha atual incorreta." }, { status: 400 });
     }
 
-    await prisma.user.update({
-      where: { id: usuario.id },
-      data: { password: await hashPassword(data.novaSenha) },
-    });
+    const novaVersao = await bumpSessionVersionUsuario(usuario.id);
+    const senhaHash = await hashPassword(data.novaSenha);
+    await executarSemRls((tx) =>
+      tx.user.update({
+        where: { id: usuario.id },
+        data: { password: senhaHash },
+      })
+    );
+    invalidarCacheSessionVersion(usuario.id);
 
-    return NextResponse.json({ ok: true, message: "Senha alterada com sucesso." });
+    const sessionUser = await montarSessionUserComAssinatura(usuario.id);
+    const resposta = NextResponse.json({
+      ok: true,
+      message: "Senha alterada com sucesso.",
+    });
+    if (sessionUser) {
+      return anexarCookieSessao(
+        resposta,
+        { ...sessionUser, sessionVersion: novaVersao },
+        { request }
+      );
+    }
+    return resposta;
   } catch (err) {
     if (err instanceof z.ZodError) {
       return NextResponse.json(

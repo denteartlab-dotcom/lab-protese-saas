@@ -9,7 +9,15 @@ import {
   mensagemBloqueioLogin,
   registrarFalhaLogin,
   statusBloqueioLogin,
+  RateLimitIndisponivelError,
+  respostaRateLimitIndisponivel,
 } from "@/lib/login-rate-limit";
+import {
+  criarTokenMfaPending,
+  mfaPodePularSetup,
+  roleExigeMfa,
+} from "@/lib/mfa-totp";
+import { rejeitarSeOrigemInvalida } from "@/lib/csrf-origin";
 import { z } from "zod";
 
 const schema = z.object({
@@ -32,6 +40,9 @@ function respostaBloqueioLogin(minutosRestantes: number) {
 }
 
 export async function POST(request: Request) {
+  const csrf = rejeitarSeOrigemInvalida(request);
+  if (csrf) return csrf;
+
   try {
     const body = schema.parse(await request.json());
     const email = body.email.trim().toLowerCase();
@@ -42,9 +53,6 @@ export async function POST(request: Request) {
       return respostaBloqueioLogin(bloqueio.minutosRestantes);
     }
 
-    // executarSemRls: set_config na MESMA transação — o runWithRlsBypass
-    // sozinho depende do AsyncLocalStorage atravessar o bundle, o que já
-    // falhou em produção (master_users tem policy bypass-only).
     const master = await executarSemRls((tx) =>
       tx.masterUser.findUnique({ where: { email } })
     );
@@ -67,6 +75,43 @@ export async function POST(request: Request) {
 
     await limparFalhasLogin(ip, email);
 
+    if (roleExigeMfa(master.role, "master")) {
+      if (master.mfaEnabled) {
+        const mfaToken = await criarTokenMfaPending({
+          kind: "master",
+          purpose: "verify",
+          userId: master.id,
+          email: master.email,
+          remember: body.remember === true,
+        });
+        return NextResponse.json({
+          code: "MFA_REQUIRED",
+          mfaToken,
+          id: master.id,
+          name: master.nome,
+          email: master.email,
+          role: master.role,
+        });
+      }
+
+      const mfaToken = await criarTokenMfaPending({
+        kind: "master",
+        purpose: "setup",
+        userId: master.id,
+        email: master.email,
+        remember: body.remember === true,
+      });
+      return NextResponse.json({
+        code: "MFA_SETUP_REQUIRED",
+        mfaToken,
+        canSkip: mfaPodePularSetup(),
+        id: master.id,
+        name: master.nome,
+        email: master.email,
+        role: master.role,
+      });
+    }
+
     await registrarLogMaster(master.id, "LOGIN_MASTER", {
       detalhes: `Login: ${master.email}`,
       ip: ipDaRequisicao(request),
@@ -78,13 +123,21 @@ export async function POST(request: Request) {
       email: master.email,
       role: master.role,
     });
-    return anexarCookieMasterSessao(resposta, {
-      id: master.id,
-      name: master.nome,
-      email: master.email,
-      role: master.role,
-    }, { remember: body.remember === true });
+    return anexarCookieMasterSessao(
+      resposta,
+      {
+        id: master.id,
+        name: master.nome,
+        email: master.email,
+        role: master.role,
+        sessionVersion: master.sessionVersion ?? 0,
+      },
+      { remember: body.remember === true }
+    );
   } catch (error) {
+    if (error instanceof RateLimitIndisponivelError) {
+      return respostaRateLimitIndisponivel();
+    }
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "Dados inválidos." }, { status: 400 });
     }

@@ -4,9 +4,11 @@ import { sessaoCookieSecure } from "@/lib/cookie-secure";
 import {
   MASTER_COOKIE_NAME,
   criarTokenMasterSessao,
+  ttlMasterSessaoSegundos,
   verifyMasterSessionToken,
   type MasterSessionUser,
 } from "@/lib/master-auth-token";
+import { sessaoMasterVersaoValida } from "@/lib/session-version";
 
 export type { MasterSessionUser } from "@/lib/master-auth-token";
 export {
@@ -29,8 +31,7 @@ export async function createMasterSession(
   user: MasterSessionUser,
   options?: { remember?: boolean }
 ) {
-  const dias = options?.remember ? 30 : 7;
-  const maxAge = 60 * 60 * 24 * dias;
+  const maxAge = ttlMasterSessaoSegundos(options?.remember);
   const token = await criarTokenMasterSessao(user, options);
 
   const cookieStore = await cookies();
@@ -43,8 +44,7 @@ export async function anexarCookieMasterSessao(
   user: MasterSessionUser,
   options?: { remember?: boolean }
 ) {
-  const dias = options?.remember ? 30 : 7;
-  const maxAge = 60 * 60 * 24 * dias;
+  const maxAge = ttlMasterSessaoSegundos(options?.remember);
   const token = await criarTokenMasterSessao(user, options);
   response.cookies.set(MASTER_COOKIE_NAME, token, opcoesCookieMaster(maxAge));
   return response;
@@ -64,7 +64,11 @@ export async function getMasterSession(): Promise<MasterSessionUser | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(MASTER_COOKIE_NAME)?.value;
   if (!token) return null;
-  return verifyMasterSessionToken(token);
+  const session = await verifyMasterSessionToken(token);
+  if (!session) return null;
+  const ok = await sessaoMasterVersaoValida(session.id, session.sessionVersion);
+  if (!ok) return null;
+  return session;
 }
 
 export async function requireMasterSession() {

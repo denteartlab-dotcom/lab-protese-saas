@@ -6,15 +6,18 @@ import {
   COOKIE_NAME,
   criarTokenSessao,
   getSessionFromCookieHeader,
+  ttlSessaoSegundos,
   verifySessionToken,
   type SessionUser,
 } from "@/lib/auth-token";
+import { sessaoUsuarioVersaoValida } from "@/lib/session-version";
 
 export type { SessionUser } from "@/lib/auth-token";
 export { COOKIE_NAME, getSessionFromCookieHeader, verifySessionToken } from "@/lib/auth-token";
 
+/** Cost 12 para hashes novos; hashes antigos (cost 10) continuam válidos no compare. */
 export async function hashPassword(password: string) {
-  return bcrypt.hash(password, 10);
+  return bcrypt.hash(password, 12);
 }
 
 export async function verifyPassword(password: string, hash: string) {
@@ -81,8 +84,7 @@ export async function createSession(
   user: SessionUser,
   options?: { remember?: boolean; request?: Request }
 ) {
-  const dias = options?.remember ? 30 : 7;
-  const maxAge = 60 * 60 * 24 * dias;
+  const maxAge = ttlSessaoSegundos(options?.remember);
   const token = await criarTokenSessao(user, options);
 
   const cookieStore = await cookies();
@@ -95,8 +97,7 @@ export async function anexarCookieSessao(
   user: SessionUser,
   options?: { remember?: boolean; request?: Request }
 ) {
-  const dias = options?.remember ? 30 : 7;
-  const maxAge = 60 * 60 * 24 * dias;
+  const maxAge = ttlSessaoSegundos(options?.remember);
   const token = await criarTokenSessao(user, options);
   response.cookies.set(COOKIE_NAME, token, opcoesCookieSessao(maxAge, options?.request));
   return response;
@@ -130,7 +131,11 @@ export async function getSession(): Promise<SessionUser | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(COOKIE_NAME)?.value;
   if (!token) return null;
-  return verifySessionToken(token);
+  const session = await verifySessionToken(token);
+  if (!session) return null;
+  const ok = await sessaoUsuarioVersaoValida(session.id, session.sessionVersion);
+  if (!ok) return null;
+  return session;
 }
 
 export async function requireSession() {
