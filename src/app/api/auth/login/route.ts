@@ -20,8 +20,6 @@ import {
 } from "@/lib/login-rate-limit";
 import {
   criarTokenMfaPending,
-  mfaPodePularSetup,
-  roleExigeMfa,
 } from "@/lib/mfa-totp";
 import { rejeitarSeOrigemInvalida } from "@/lib/csrf-origin";
 import { z } from "zod";
@@ -188,39 +186,18 @@ export async function POST(request: Request) {
       );
     }
 
-    if (roleExigeMfa(user.role, "lab")) {
-      if (user.mfaEnabled) {
-        const mfaToken = await criarTokenMfaPending({
-          kind: "lab",
-          purpose: "verify",
-          userId: user.id,
-          email: user.email,
-          remember: remember === true,
-        });
-        return NextResponse.json({
-          code: "MFA_REQUIRED",
-          mfaToken,
-          user: {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            empresaSlug: user.empresa.slug,
-            empresaNome: user.empresa.nome,
-          },
-        });
-      }
-
+    // MFA só se o usuário ativou nas configurações (opcional).
+    if (user.mfaEnabled) {
       const mfaToken = await criarTokenMfaPending({
         kind: "lab",
-        purpose: "setup",
+        purpose: "verify",
         userId: user.id,
         email: user.email,
         remember: remember === true,
       });
       return NextResponse.json({
-        code: "MFA_SETUP_REQUIRED",
+        code: "MFA_REQUIRED",
         mfaToken,
-        canSkip: mfaPodePularSetup(),
         user: {
           id: user.id,
           name: user.name,

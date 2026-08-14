@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Eye, Home, LockKeyhole } from "lucide-react";
 import { Button } from "@/components/ui";
 import { useI18n } from "@/components/i18n-provider";
+import { MfaConfiguracaoUsuario } from "@/components/auth/MfaConfiguracaoUsuario";
 
 const INPUT_CLS =
   "h-[38px] w-full rounded-sm border border-[#d1d5db] bg-white px-3 text-[13px] text-[#374151] outline-none transition focus:border-[#4a90d9] focus:ring-2 focus:ring-[#4a90d9]/15";
@@ -215,6 +216,8 @@ export default function AlterarSenhaPage() {
             </div>
           </form>
         </div>
+
+        <MfaConfiguracaoUsuario />
       </div>
     </div>
   );

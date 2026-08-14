@@ -14,8 +14,6 @@ import {
 } from "@/lib/login-rate-limit";
 import {
   criarTokenMfaPending,
-  mfaPodePularSetup,
-  roleExigeMfa,
 } from "@/lib/mfa-totp";
 import { rejeitarSeOrigemInvalida } from "@/lib/csrf-origin";
 import { z } from "zod";
@@ -75,36 +73,18 @@ export async function POST(request: Request) {
 
     await limparFalhasLogin(ip, email);
 
-    if (roleExigeMfa(master.role, "master")) {
-      if (master.mfaEnabled) {
-        const mfaToken = await criarTokenMfaPending({
-          kind: "master",
-          purpose: "verify",
-          userId: master.id,
-          email: master.email,
-          remember: body.remember === true,
-        });
-        return NextResponse.json({
-          code: "MFA_REQUIRED",
-          mfaToken,
-          id: master.id,
-          name: master.nome,
-          email: master.email,
-          role: master.role,
-        });
-      }
-
+    // MFA só se o master ativou (opcional).
+    if (master.mfaEnabled) {
       const mfaToken = await criarTokenMfaPending({
         kind: "master",
-        purpose: "setup",
+        purpose: "verify",
         userId: master.id,
         email: master.email,
         remember: body.remember === true,
       });
       return NextResponse.json({
-        code: "MFA_SETUP_REQUIRED",
+        code: "MFA_REQUIRED",
         mfaToken,
-        canSkip: mfaPodePularSetup(),
         id: master.id,
         name: master.nome,
         email: master.email,
