@@ -13,7 +13,11 @@ import {
   registrarUploadDriveBackupAutomatico,
   type BackupAutomaticoConfig,
 } from "@/lib/backup-automatico-config";
-import { prisma } from "@/lib/db";
+import {
+  executarSemRls,
+  prisma,
+  runWithTenantContext,
+} from "@/lib/db";
 
 const SCOPES = ["https://www.googleapis.com/auth/drive"];
 const MIME_JSON = "application/json";
@@ -412,18 +416,22 @@ export async function garantirPastaDriveEmpresa(params: {
 export async function sincronizarPastasDriveEmpresasAtivas() {
   if (!googleDriveBackupHabilitado()) return;
 
-  const empresas = await prisma.empresa.findMany({
-    where: { status: "ativo" },
-    select: { id: true, slug: true, nome: true },
-    orderBy: { nome: "asc" },
-  });
+  const empresas = await executarSemRls((tx) =>
+    tx.empresa.findMany({
+      where: { status: "ativo" },
+      select: { id: true, slug: true, nome: true },
+      orderBy: { nome: "asc" },
+    })
+  );
 
   for (const empresa of empresas) {
-    const resultado = await garantirPastaDriveEmpresa({
-      empresaId: empresa.id,
-      slug: empresa.slug,
-      nome: empresa.nome,
-    });
+    const resultado = await runWithTenantContext(empresa.id, () =>
+      garantirPastaDriveEmpresa({
+        empresaId: empresa.id,
+        slug: empresa.slug,
+        nome: empresa.nome,
+      })
+    );
     if (resultado.ok && resultado.criada) {
       console.log(
         `[backup-drive] ${empresa.slug}: pasta pronta em ${resultado.caminhoDrive}`

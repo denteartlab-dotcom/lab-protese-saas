@@ -1,4 +1,7 @@
-import { prisma } from "@/lib/db";
+import {
+  executarSemRls,
+  runWithTenantContext,
+} from "@/lib/db";
 import { caminhoRelativoPastaBackupEmpresa } from "@/lib/backup-empresa-pasta";
 import { executarBackupNoServidor } from "@/lib/backup-runner-servidor";
 import {
@@ -54,7 +57,9 @@ export async function executarBackupAutomatico(
   empresasEmExecucao().add(chave);
 
   try {
-    return await executarBackupNoServidor(empresaId, slug, nome);
+    return await runWithTenantContext(empresaId, () =>
+      executarBackupNoServidor(empresaId, slug, nome)
+    );
   } catch (erro) {
     console.error(`[backup-automatico] ${slug}: falha`, erro);
     return null;
@@ -64,11 +69,13 @@ export async function executarBackupAutomatico(
 }
 
 async function listarEmpresasAtivas(): Promise<EmpresaAtiva[]> {
-  return prisma.empresa.findMany({
-    where: { status: "ativo" },
-    select: { id: true, slug: true, nome: true },
-    orderBy: { nome: "asc" },
-  });
+  return executarSemRls((tx) =>
+    tx.empresa.findMany({
+      where: { status: "ativo" },
+      select: { id: true, slug: true, nome: true },
+      orderBy: { nome: "asc" },
+    })
+  );
 }
 
 function agendarProximoBackupEmpresa(

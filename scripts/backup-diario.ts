@@ -5,18 +5,20 @@
  * Exemplo cron (meia-noite, horário de Brasília):
  * 0 0 * * * cd /caminho/lab-protese-saas && npx tsx scripts/backup-diario.ts
  */
-import { prisma } from "../src/lib/db";
+import { executarSemRls, prisma } from "../src/lib/db";
 import { executarBackupAutomatico } from "../src/lib/backup-automatico";
 import { carregarConfigBackupAutomatico } from "../src/lib/backup-automatico-config";
 import { sincronizarPastasDriveEmpresasAtivas } from "../src/lib/backup-google-drive";
 
 async function main() {
   await sincronizarPastasDriveEmpresasAtivas();
-  const empresas = await prisma.empresa.findMany({
-    where: { status: "ativo" },
-    select: { id: true, slug: true, nome: true },
-    orderBy: { nome: "asc" },
-  });
+  const empresas = await executarSemRls((tx) =>
+    tx.empresa.findMany({
+      where: { status: "ativo" },
+      select: { id: true, slug: true, nome: true },
+      orderBy: { nome: "asc" },
+    })
+  );
 
   if (!empresas.length) {
     console.error("[backup-diario] nenhuma empresa ativa.");

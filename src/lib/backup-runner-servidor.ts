@@ -16,7 +16,10 @@ import {
   registrarExecucaoBackupAutomatico,
 } from "@/lib/backup-automatico-config";
 import { uploadBackupParaGoogleDrive } from "@/lib/backup-google-drive";
-import { sincronizarBackupComOneDrive } from "@/lib/backup-onedrive-sync";
+import {
+  onedriveBackupSyncHabilitado,
+  sincronizarBackupComOneDrive,
+} from "@/lib/backup-onedrive-sync";
 import { espelharUploadsNoBackupEmpresa } from "@/lib/backup-uploads-espelho";
 import {
   backupPertenceAEmpresa,
@@ -88,6 +91,13 @@ export async function executarBackupNoServidor(
   await reportar?.({ fase: "sincronizando", percentual: 75 });
 
   const onedrive = await sincronizarBackupComOneDrive({ slug, nome });
+  if (onedriveBackupSyncHabilitado() && !onedrive.ok) {
+    throw new Error(
+      `Backup local criado, mas o envio ao OneDrive falhou: ${
+        onedrive.erro || "erro desconhecido"
+      }`
+    );
+  }
   const drive = await uploadBackupParaGoogleDrive({
     empresaId,
     slug,
