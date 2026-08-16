@@ -1,4 +1,4 @@
-import { getSession, requireSession, createSession, type SessionUser } from "@/lib/auth";
+import { getSession, requireSession, createSession, sessaoEhSuporteMaster, type SessionUser } from "@/lib/auth";
 import {
   empresaPrecisaPaginaRenovacao,
   empresaTemAcessoAssinatura,
@@ -96,6 +96,14 @@ async function sincronizarSessaoEmpresa(
     empresaNome: registro.empresa.nome,
     assinaturaVencida: false,
     sessionVersion: registro.sessionVersion ?? session.sessionVersion ?? 0,
+    ...(sessaoEhSuporteMaster(session)
+      ? {
+          suporteMaster: true,
+          somenteLeitura: true,
+          masterId: session.masterId,
+          suporteExpiraEm: session.suporteExpiraEm,
+        }
+      : {}),
   };
 
   const precisaAtualizar =
@@ -107,7 +115,12 @@ async function sincronizarSessaoEmpresa(
     (session.sessionVersion ?? 0) !== (atualizada.sessionVersion ?? 0);
 
   // Server Components não podem cookies().set — só Route Handlers / Server Actions.
-  if (precisaAtualizar && options?.persistirCookie !== false) {
+  // Sessão de suporte master: não regrava cookie (preserva TTL curto e claims).
+  if (
+    precisaAtualizar &&
+    options?.persistirCookie !== false &&
+    !sessaoEhSuporteMaster(session)
+  ) {
     try {
       await createSession(atualizada);
     } catch {

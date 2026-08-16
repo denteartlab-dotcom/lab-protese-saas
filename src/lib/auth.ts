@@ -6,6 +6,8 @@ import {
   COOKIE_NAME,
   criarTokenSessao,
   getSessionFromCookieHeader,
+  sessaoEhSuporteMaster,
+  SESSAO_TTL_SUPORTE_MASTER_S,
   ttlSessaoSegundos,
   verifySessionToken,
   type SessionUser,
@@ -13,7 +15,13 @@ import {
 import { sessaoUsuarioVersaoValida } from "@/lib/session-version";
 
 export type { SessionUser } from "@/lib/auth-token";
-export { COOKIE_NAME, getSessionFromCookieHeader, verifySessionToken } from "@/lib/auth-token";
+export {
+  COOKIE_NAME,
+  getSessionFromCookieHeader,
+  sessaoEhSuporteMaster,
+  SESSAO_TTL_SUPORTE_MASTER_S,
+  verifySessionToken,
+} from "@/lib/auth-token";
 
 /** Cost 12 para hashes novos; hashes antigos (cost 10) continuam válidos no compare. */
 export async function hashPassword(password: string) {
@@ -80,12 +88,29 @@ export function opcoesCookieSessao(
   };
 }
 
+function maxAgeSessao(
+  user: SessionUser,
+  options?: { remember?: boolean; ttlSegundos?: number }
+) {
+  if (options?.ttlSegundos != null) return options.ttlSegundos;
+  if (sessaoEhSuporteMaster(user)) {
+    if (user.suporteExpiraEm && user.suporteExpiraEm > Date.now()) {
+      return Math.max(1, Math.floor((user.suporteExpiraEm - Date.now()) / 1000));
+    }
+    return SESSAO_TTL_SUPORTE_MASTER_S;
+  }
+  return ttlSessaoSegundos(options?.remember);
+}
+
 export async function createSession(
   user: SessionUser,
-  options?: { remember?: boolean; request?: Request }
+  options?: { remember?: boolean; request?: Request; ttlSegundos?: number }
 ) {
-  const maxAge = ttlSessaoSegundos(options?.remember);
-  const token = await criarTokenSessao(user, options);
+  const maxAge = maxAgeSessao(user, options);
+  const token = await criarTokenSessao(user, {
+    remember: options?.remember,
+    ttlSegundos: maxAge,
+  });
 
   const cookieStore = await cookies();
   cookieStore.set(COOKIE_NAME, token, opcoesCookieSessao(maxAge, options?.request));
@@ -95,10 +120,13 @@ export async function createSession(
 export async function anexarCookieSessao(
   response: NextResponse,
   user: SessionUser,
-  options?: { remember?: boolean; request?: Request }
+  options?: { remember?: boolean; request?: Request; ttlSegundos?: number }
 ) {
-  const maxAge = ttlSessaoSegundos(options?.remember);
-  const token = await criarTokenSessao(user, options);
+  const maxAge = maxAgeSessao(user, options);
+  const token = await criarTokenSessao(user, {
+    remember: options?.remember,
+    ttlSegundos: maxAge,
+  });
   response.cookies.set(COOKIE_NAME, token, opcoesCookieSessao(maxAge, options?.request));
   return response;
 }

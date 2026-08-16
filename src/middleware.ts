@@ -31,6 +31,10 @@ type PayloadSessao = {
   master?: boolean;
   role?: string;
   assinaturaVencida?: boolean;
+  suporteMaster?: boolean;
+  somenteLeitura?: boolean;
+  masterId?: string;
+  se?: number;
 };
 
 function secretJwt(): Uint8Array | null {
@@ -93,6 +97,17 @@ async function masterTokenAceito(token: string): Promise<boolean> {
 function apiMutavel(method: string) {
   const m = method.toUpperCase();
   return m === "POST" || m === "PUT" || m === "PATCH" || m === "DELETE";
+}
+
+function sessaoSomenteLeituraSuporte(payload: PayloadSessao | null): boolean {
+  if (!payload) return false;
+  if (payload.suporteMaster === true || payload.somenteLeitura === true) {
+    if (typeof payload.se === "number" && payload.se > 0 && payload.se <= Date.now()) {
+      return false;
+    }
+    return true;
+  }
+  return false;
 }
 
 function hostnameDeUrl(valor: string | null): string | null {
@@ -460,6 +475,24 @@ export async function middleware(request: NextRequest) {
         nonce
       );
     }
+  }
+
+  if (
+    sessaoSomenteLeituraSuporte(payloadSessao) &&
+    apiMutavel(request.method) &&
+    (pathname.startsWith("/api") || pathname.startsWith("/app"))
+  ) {
+    return aplicarCsp(
+      NextResponse.json(
+        {
+          error:
+            "Acesso de suporte em modo somente leitura. Alterações não são permitidas.",
+          codigo: "SUPORTE_SOMENTE_LEITURA",
+        },
+        { status: 403 }
+      ),
+      nonce
+    );
   }
 
   if (pathname.startsWith("/app")) {

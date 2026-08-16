@@ -9,14 +9,17 @@ import {
   Diamond,
   Eye,
   Lock,
+  LogIn,
   Pencil,
   RefreshCw,
   Save,
+  Search,
   Star,
   Trash2,
   Unlock,
   Users,
   Wallet,
+  X,
 } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
 import type { Locale, MessageKey } from "@/lib/i18n";
@@ -266,6 +269,9 @@ export function AdminMasterPainel() {
   const [diasAtivacao, setDiasAtivacao] = useState<Record<string, number>>({});
   const [cobrancasPendentes, setCobrancasPendentes] = useState<CobrancaAssinaturaItem[]>([]);
   const [cobrancasPagas, setCobrancasPagas] = useState<CobrancaAssinaturaItem[]>([]);
+  const [modalAcessoAberto, setModalAcessoAberto] = useState(false);
+  const [buscaAcesso, setBuscaAcesso] = useState("");
+  const [acessandoEmpresaId, setAcessandoEmpresaId] = useState<string | null>(null);
 
   const tag = localeTag(locale);
 
@@ -461,6 +467,48 @@ export function AdminMasterPainel() {
     await carregar();
   }
 
+  async function acessarEmpresaCliente(empresa: EmpresaItem) {
+    if (empresa.status !== "ativo") {
+      setErro(t("admin.master.acesso.somenteAtivas"));
+      return;
+    }
+    setErro("");
+    setAcessandoEmpresaId(empresa.id);
+    try {
+      const res = await fetch(`/api/admin-master/empresas/${empresa.id}/impersonar`, {
+        method: "POST",
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        redirectTo?: string;
+      };
+      if (!res.ok) {
+        setErro(data.error || t("admin.master.acesso.erroIniciar"));
+        setAcessandoEmpresaId(null);
+        return;
+      }
+      window.location.href = data.redirectTo || `/app/${empresa.slug}`;
+    } catch {
+      setErro(t("admin.master.acesso.erroIniciar"));
+      setAcessandoEmpresaId(null);
+    }
+  }
+
+  const empresasAcessoFiltradas = useMemo(() => {
+    const termo = buscaAcesso.trim().toLowerCase();
+    return empresas
+      .filter((empresa) => {
+        if (!termo) return true;
+        return (
+          empresa.nome.toLowerCase().includes(termo) ||
+          (empresa.responsavel ?? "").toLowerCase().includes(termo) ||
+          (empresa.codigo ?? "").toLowerCase().includes(termo) ||
+          empresa.slug.toLowerCase().includes(termo)
+        );
+      })
+      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  }, [buscaAcesso, empresas]);
+
   const proximoCodigo = `EMP-${String((empresas.length || 0) + 1).padStart(5, "0")}`;
 
   const camposEmpresa: Array<{ label: MessageKey; key: keyof ReturnType<typeof formularioVazio> }> = [
@@ -492,15 +540,118 @@ export function AdminMasterPainel() {
             {editandoId ? t("admin.master.subtitulo.editar") : t("admin.master.subtitulo.nova")}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => carregar()}
-          className="flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
-        >
-          <RefreshCw className="h-3.5 w-3.5" />
-          {t("admin.master.atualizar")}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setBuscaAcesso("");
+              setModalAcessoAberto(true);
+            }}
+            className="flex items-center gap-1.5 rounded-md bg-violet-600 px-3 py-2 text-xs font-medium text-white hover:bg-violet-700"
+          >
+            <LogIn className="h-3.5 w-3.5" />
+            {t("admin.master.acesso.botao")}
+          </button>
+          <button
+            type="button"
+            onClick={() => carregar()}
+            className="flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            {t("admin.master.atualizar")}
+          </button>
+        </div>
       </div>
+
+      {modalAcessoAberto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl"
+          >
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-800">
+                  {t("admin.master.acesso.titulo")}
+                </h2>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  {t("admin.master.acesso.subtitulo")}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalAcessoAberto(false)}
+                className="rounded p-1.5 text-slate-500 hover:bg-slate-100"
+                title={t("admin.master.cancelar")}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="border-b border-slate-100 px-5 py-3">
+              <label className="relative block">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                <input
+                  autoFocus
+                  value={buscaAcesso}
+                  onChange={(e) => setBuscaAcesso(e.target.value)}
+                  placeholder={t("admin.master.acesso.buscaPlaceholder")}
+                  className="w-full rounded-md border border-slate-200 py-2 pl-9 pr-3 text-sm outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]/40"
+                />
+              </label>
+            </div>
+            <div className="overflow-y-auto px-2 py-2">
+              {empresasAcessoFiltradas.length === 0 ? (
+                <p className="px-3 py-8 text-center text-xs text-slate-400">
+                  {t("admin.master.acesso.nenhuma")}
+                </p>
+              ) : (
+                <ul className="space-y-1">
+                  {empresasAcessoFiltradas.map((empresa) => {
+                    const ativa = empresa.status === "ativo";
+                    const carregando = acessandoEmpresaId === empresa.id;
+                    return (
+                      <li key={empresa.id}>
+                        <button
+                          type="button"
+                          disabled={!ativa || Boolean(acessandoEmpresaId)}
+                          onClick={() => void acessarEmpresaCliente(empresa)}
+                          className={cn(
+                            "flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left transition",
+                            ativa
+                              ? "hover:bg-violet-50"
+                              : "cursor-not-allowed opacity-55"
+                          )}
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-slate-800">
+                              {empresa.nome}
+                            </p>
+                            <p className="truncate text-[11px] text-slate-500">
+                              {empresa.responsavel || "—"} · {empresa.codigo || "—"} ·{" "}
+                              {empresa.slug}
+                            </p>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-2">
+                            {badgeStatus(empresa.status, t)}
+                            <span className="text-[11px] font-medium text-violet-700">
+                              {carregando
+                                ? t("admin.master.acesso.entrando")
+                                : ativa
+                                  ? t("admin.master.acesso.entrar")
+                                  : t("admin.master.acesso.indisponivel")}
+                            </span>
+                          </div>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[

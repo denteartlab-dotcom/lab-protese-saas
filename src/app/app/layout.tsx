@@ -37,6 +37,9 @@ export default async function AppLayout({
         userRole={ctx.user.role}
         userEmail={ctx.user.email}
         isMasterAdmin={ctx.isMasterAdmin}
+        visualizacaoMaster={ctx.visualizacaoMaster}
+        suporteExpiraEm={ctx.suporteExpiraEm}
+        empresaNomeVisualizacao={ctx.empresa.nome}
         dataVencimentoAssinatura={ctx.empresa.dataVencimento}
         suporteWhatsapp={ctx.suporteWhatsapp}
         initialLab={ctx.lab}

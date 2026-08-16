@@ -172,6 +172,15 @@ export function proprietarioTemTodasPermissoes(): Record<string, PermissaoCrud> 
   return modulos;
 }
 
+/** Acesso de suporte master: navega em todos os módulos sem mutar dados. */
+export function permissoesSomenteLeituraTodosModulos(): Record<string, PermissaoCrud> {
+  const modulos: Record<string, PermissaoCrud> = {};
+  for (const id of TODOS_IDS_MENU_PERMISSOES) {
+    modulos[id] = { ver: true, criar: false, editar: false, excluir: false };
+  }
+  return modulos;
+}
+
 export function normalizarPermissoesCompletas(
   parcial: Partial<PermissoesUsuario>,
   role?: string

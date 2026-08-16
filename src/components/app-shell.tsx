@@ -23,6 +23,7 @@ import {
 } from "@/lib/permissoes-acesso";
 import { AppFaixaTopo } from "@/components/AppFaixaTopo";
 import { AssinaturaFaixaRodape } from "@/components/AssinaturaFaixaRodape";
+import { FaixaVisualizacaoMaster } from "@/components/FaixaVisualizacaoMaster";
 import { SuporteChatWidget } from "@/components/SuporteChatWidget";
 import { ArmazenamentoCheioModalHost } from "@/components/ArmazenamentoCheioModal";
 import { NOME_LAB_PADRAO } from "@/lib/document-title";
@@ -144,6 +145,9 @@ export function AppShell({
   userRole,
   userEmail,
   isMasterAdmin = false,
+  visualizacaoMaster = false,
+  suporteExpiraEm = null,
+  empresaNomeVisualizacao = null,
   dataVencimentoAssinatura = null,
   suporteWhatsapp = null,
   initialLab,
@@ -154,6 +158,9 @@ export function AppShell({
   userRole: string;
   userEmail?: string;
   isMasterAdmin?: boolean;
+  visualizacaoMaster?: boolean;
+  suporteExpiraEm?: string | null;
+  empresaNomeVisualizacao?: string | null;
   dataVencimentoAssinatura?: string | null;
   suporteWhatsapp?: string | null;
   initialLab: LabImpressaoConfig;
@@ -167,14 +174,17 @@ export function AppShell({
           userRole={userRole}
           userEmail={userEmail}
           isMasterAdmin={isMasterAdmin}
+          visualizacaoMaster={visualizacaoMaster}
+          suporteExpiraEm={suporteExpiraEm}
+          empresaNomeVisualizacao={empresaNomeVisualizacao}
           dataVencimentoAssinatura={dataVencimentoAssinatura}
           suporteWhatsapp={suporteWhatsapp}
           initialLab={initialLab}
           initialNomeLaboratorio={initialNomeLaboratorio}
         >
-          {children}
-        </AppShellInner>
-      </ArmazenamentoLaboratorioProvider>
+        {children}
+      </AppShellInner>
+    </ArmazenamentoLaboratorioProvider>
   );
 }
 
@@ -183,6 +193,9 @@ function AppShellInner({
   userRole,
   userEmail,
   isMasterAdmin = false,
+  visualizacaoMaster = false,
+  suporteExpiraEm = null,
+  empresaNomeVisualizacao = null,
   dataVencimentoAssinatura = null,
   suporteWhatsapp = null,
   initialLab,
@@ -193,6 +206,9 @@ function AppShellInner({
   userRole: string;
   userEmail?: string;
   isMasterAdmin?: boolean;
+  visualizacaoMaster?: boolean;
+  suporteExpiraEm?: string | null;
+  empresaNomeVisualizacao?: string | null;
   dataVencimentoAssinatura?: string | null;
   suporteWhatsapp?: string | null;
   initialLab: LabImpressaoConfig;
@@ -659,6 +675,12 @@ function AppShellInner({
           logoAltura={logoPerfil.altura}
         />
         <div className="no-print sticky top-0 z-30 shrink-0">
+          {visualizacaoMaster && (
+            <FaixaVisualizacaoMaster
+              empresaNome={empresaNomeVisualizacao || nomeLaboratorio || "empresa"}
+              expiraEm={suporteExpiraEm}
+            />
+          )}
           <AppFaixaTopo
             antes={
               <SiteSearchBar

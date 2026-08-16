@@ -1,4 +1,4 @@
-import { getSession } from "@/lib/auth";
+import { getSession, sessaoEhSuporteMaster } from "@/lib/auth";
 import { emailEhMasterAdmin } from "@/lib/exigir-master-admin";
 import { empresaTemAcessoAssinatura } from "@/lib/assinatura-empresa";
 import { carregarConfigLaboratorioServidor } from "@/lib/lab-config-servidor";
@@ -13,7 +13,10 @@ import {
   runWithRlsBypass,
   runWithTenantContext,
 } from "@/lib/prisma-tenant";
-import { normalizarPermissoesCompletas } from "@/lib/usuarios-menu-permissoes";
+import {
+  normalizarPermissoesCompletas,
+  permissoesSomenteLeituraTodosModulos,
+} from "@/lib/usuarios-menu-permissoes";
 import type { PermissaoCrud } from "@/lib/usuarios-sistema";
 import { parsePermissoesUsuario, usuarioEhProprietario } from "@/lib/usuarios-sistema";
 
@@ -35,6 +38,8 @@ export type ContextoAppServidor = {
   acessoTotal: boolean;
   permissoesModulos: Record<string, PermissaoCrud>;
   isMasterAdmin: boolean;
+  visualizacaoMaster: boolean;
+  suporteExpiraEm: string | null;
   suporteWhatsapp: string | null;
 };
 
@@ -165,16 +170,29 @@ export async function obterContextoAppServidor(): Promise<ContextoAppServidor | 
     const lab = configParaLabImpressao(configLab);
     const nomeLaboratorio = nomeExibicaoLaboratorio(configLab) || "Lab Prótese";
 
-    const permissoes = normalizarPermissoesCompletas(
-      parsePermissoesUsuario(user.permissoesJson),
-      user.role
-    );
+    const visualizacaoMaster = sessaoEhSuporteMaster(session);
+    const permissoes = visualizacaoMaster
+      ? {
+          setores: [] as string[],
+          modulos: permissoesSomenteLeituraTodosModulos(),
+          situacao: "ativo" as const,
+          permitirRetiradasCarteira: false,
+          permitirAlterarChavePix: false,
+          permitirAlterarSenha: false,
+          acessoMobile: false,
+        }
+      : normalizarPermissoesCompletas(
+          parsePermissoesUsuario(user.permissoesJson),
+          user.role
+        );
 
-    let isMasterAdmin = false;
-    try {
-      isMasterAdmin = await emailEhMasterAdmin(session.email);
-    } catch {
-      isMasterAdmin = false;
+    let isMasterAdmin = visualizacaoMaster;
+    if (!isMasterAdmin) {
+      try {
+        isMasterAdmin = await emailEhMasterAdmin(session.email);
+      } catch {
+        isMasterAdmin = false;
+      }
     }
 
     // Deixa o tenant no ALS do request (RSC + APIs no mesmo ciclo).
@@ -195,9 +213,13 @@ export async function obterContextoAppServidor(): Promise<ContextoAppServidor | 
       },
       lab,
       nomeLaboratorio,
-      acessoTotal: usuarioEhProprietario(user.role),
+      acessoTotal: visualizacaoMaster ? false : usuarioEhProprietario(user.role),
       permissoesModulos: permissoes.modulos ?? {},
       isMasterAdmin,
+      visualizacaoMaster,
+      suporteExpiraEm: session.suporteExpiraEm
+        ? new Date(session.suporteExpiraEm).toISOString()
+        : null,
       suporteWhatsapp: process.env.SUPPORT_WHATSAPP?.trim() || null,
     };
   } catch (erro) {
