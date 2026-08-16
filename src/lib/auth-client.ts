@@ -94,6 +94,45 @@ export function lerLembrarLogin(): LembrarLoginSalvo | null {
   return lerLembreteLocalStorage() ?? migrarLembreteLegado();
 }
 
+/** E-mail lembrado no login do painel master (localStorage separado do lab). */
+const LEMBRAR_LOGIN_MASTER_LOCAL_KEY = "denteartMasterLoginLembrete";
+
+export function salvarLembrarLoginMaster(dados: LembrarLoginSalvo) {
+  if (typeof window === "undefined") return;
+  const email = dados.email.trim();
+  if (!email) return;
+  try {
+    window.localStorage.setItem(
+      LEMBRAR_LOGIN_MASTER_LOCAL_KEY,
+      JSON.stringify({ email, v: 1 })
+    );
+  } catch {
+    /* ignore */
+  }
+}
+
+export function limparLembrarLoginMaster() {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(LEMBRAR_LOGIN_MASTER_LOCAL_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function lerLembrarLoginMaster(): LembrarLoginSalvo | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(LEMBRAR_LOGIN_MASTER_LOCAL_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { email?: string };
+    const email = parsed.email?.trim();
+    return email ? { email } : null;
+  } catch {
+    return null;
+  }
+}
+
 export function marcarUsuarioJaEntrou() {
   if (typeof window === "undefined") return;
   writeStorage(AUTH_JA_ENTROU_KEY, true);

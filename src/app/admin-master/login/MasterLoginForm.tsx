@@ -5,20 +5,34 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Shield } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
 import { MfaChallengePanel } from "@/components/auth/MfaChallengePanel";
+import {
+  limparLembrarLoginMaster,
+  lerLembrarLoginMaster,
+  salvarLembrarLoginMaster,
+} from "@/lib/auth-client";
 
 export default function MasterLoginForm() {
   const { t } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [email, setEmail] = useState("admin@labprotese.com");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
+  const [lembrarEmail, setLembrarEmail] = useState(false);
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(false);
   const [mfaModo, setMfaModo] = useState<"setup" | "verify" | null>(null);
   const [mfaToken, setMfaToken] = useState("");
   const [mfaCanSkip, setMfaCanSkip] = useState(false);
+
+  useEffect(() => {
+    const salvo = lerLembrarLoginMaster();
+    if (salvo?.email) {
+      setEmail(salvo.email);
+      setLembrarEmail(true);
+    }
+  }, []);
 
   useEffect(() => {
     fetch("/api/admin-master/auth/me")
@@ -31,7 +45,16 @@ export default function MasterLoginForm() {
       .catch(() => undefined);
   }, [router, searchParams]);
 
+  function persistirLembreteEmail() {
+    if (lembrarEmail) {
+      salvarLembrarLoginMaster({ email: email.trim() });
+    } else {
+      limparLembrarLoginMaster();
+    }
+  }
+
   async function entrarDestino() {
+    persistirLembreteEmail();
     const destino = searchParams.get("redirect") || "/admin-master";
     router.replace(destino);
     router.refresh();
@@ -53,6 +76,7 @@ export default function MasterLoginForm() {
         (data.code === "MFA_REQUIRED" || data.code === "MFA_SETUP_REQUIRED") &&
         data.mfaToken
       ) {
+        persistirLembreteEmail();
         setMfaModo(data.code === "MFA_SETUP_REQUIRED" ? "setup" : "verify");
         setMfaToken(data.mfaToken);
         setMfaCanSkip(data.canSkip === true);
@@ -138,15 +162,26 @@ export default function MasterLoginForm() {
                 </button>
               </div>
             </div>
-            <label className="flex items-center gap-2 text-xs text-slate-600">
-              <input
-                type="checkbox"
-                checked={remember}
-                onChange={(e) => setRemember(e.target.checked)}
-                className="rounded border-slate-300"
-              />
-              {t("admin.master.login.manterConectado")}
-            </label>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-xs text-slate-600">
+                <input
+                  type="checkbox"
+                  checked={lembrarEmail}
+                  onChange={(e) => setLembrarEmail(e.target.checked)}
+                  className="rounded border-slate-300"
+                />
+                {t("admin.master.login.lembrarEmail")}
+              </label>
+              <label className="flex items-center gap-2 text-xs text-slate-600">
+                <input
+                  type="checkbox"
+                  checked={remember}
+                  onChange={(e) => setRemember(e.target.checked)}
+                  className="rounded border-slate-300"
+                />
+                {t("admin.master.login.manterConectado")}
+              </label>
+            </div>
             <button
               type="submit"
               disabled={carregando}
