@@ -684,13 +684,6 @@ export function LoginForm({
           >
             {loading ? t("login.entrando") : t("login.entrar")}
           </button>
-
-          <p className="text-center text-[10px] text-slate-500">
-            Novo laboratório?{" "}
-            <a href="/cadastro" className="font-medium text-blue-600 hover:underline">
-              Cadastre-se
-            </a>
-          </p>
         </form>
         )}
       </div>

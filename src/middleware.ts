@@ -283,6 +283,23 @@ export async function middleware(request: NextRequest) {
   const nonce = gerarNonceCsp();
   const { pathname } = request.nextUrl;
 
+  // Temporário: landing e cadastro público desativados — só login.
+  if (pathname === "/cadastro" || pathname === "/criar-conta") {
+    return aplicarCsp(
+      NextResponse.redirect(urlNoSite(request, "/login")),
+      nonce
+    );
+  }
+  if (pathname === "/") {
+    const token = request.cookies.get(COOKIE_NAME)?.value;
+    if (!token || !(await sessionTokenAceito(token))) {
+      return aplicarCsp(
+        NextResponse.redirect(urlNoSite(request, "/login")),
+        nonce
+      );
+    }
+  }
+
   if (pathname.startsWith("/api/") && !origemApiPermitida(request)) {
     return aplicarCsp(
       NextResponse.json(

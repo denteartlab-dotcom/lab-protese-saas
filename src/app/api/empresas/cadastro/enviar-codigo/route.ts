@@ -19,6 +19,14 @@ const RESPOSTA_OK = {
 };
 
 export async function POST(request: Request) {
+  // Temporário: cadastro público desativado.
+  if (process.env.CADASTRO_PUBLICO_HABILITADO !== "1") {
+    return NextResponse.json(
+      { error: "Cadastro público temporariamente indisponível. Use o login." },
+      { status: 403 }
+    );
+  }
+
   if (!emailResendConfigurado()) {
     return NextResponse.json(
       {
