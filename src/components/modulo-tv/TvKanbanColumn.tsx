@@ -28,6 +28,7 @@ export function TvKanbanColumn({
 
   return (
     <motion.section
+      ref={setNodeRef}
       layout
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -62,10 +63,7 @@ export function TvKanbanColumn({
         </motion.span>
       </header>
 
-      <div
-        ref={setNodeRef}
-        className="tv-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
-      >
+      <div className="tv-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
         <div className="flex flex-col gap-2 pb-1 tv:gap-2.5">
           {carregando
             ? Array.from({ length: Math.max(2, ordens.length) }).map((_, i) => (

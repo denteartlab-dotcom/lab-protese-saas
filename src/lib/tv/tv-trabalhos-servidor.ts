@@ -10,6 +10,7 @@ import type {
   TvOsResumo,
 } from "@/components/modulo-tv/types";
 import {
+  nomeEtapaSemSetor,
   parseComplementosInstrucoesGrupo,
   type EtapaOsLinha,
 } from "@/lib/etapas-os";
@@ -98,25 +99,43 @@ const ORDEM_COLUNAS_KANBAN: ColunaKanbanId[] = [
   "pronto_entrega",
 ];
 
+/**
+ * Mapeia o nome da etapa da OS para a coluna do kanban TV.
+ * Remove sufixo de setor (" — Cera") antes de classificar — senão qualquer
+ * etapa do setor Cera caía em `plano_cera` pelo token "cera" e o card
+ * não saía da coluna ao arrastar.
+ */
 export function mapearNomeEtapaParaColuna(
   nome: string,
   opts?: { indice?: number; totalEtapas?: number }
 ): ColunaKanbanId {
-  const n = normalizarTexto(nome);
+  const n = normalizarTexto(nomeEtapaSemSetor(nome));
 
+  // Frase completa da coluna (ex.: "plano de cera", "pronto entrega").
   for (const col of COLUNAS_KANBAN) {
     const label = normalizarTexto(col.label).replace(/\s*\/\s*/g, " ");
-    if (n.includes(label) || label.includes(n)) return col.id;
-    const tokens = label.split(/\s+/).filter((token) => token.length > 2);
-    if (tokens.some((token) => n.includes(token))) return col.id;
+    if (n === label || n.includes(label)) return col.id;
   }
 
+  // Regras específicas: montagem/acabamento/etc. ANTES de plano_cera,
+  // para não capturar "Montagem — Cera" ou "Prova em cera" pelo token "cera".
   if (/entrada|receb|triagem|pedido/.test(n)) return "entrada";
-  if (/plano|cera|modelo|wax|individual|planej/.test(n)) return "plano_cera";
   if (/montagem/.test(n)) return "montagem";
   if (/acriliz|acrilic|polimer|caracteriz/.test(n)) return "acrilizacao";
   if (/acabamento|polimento|pigment|revisao|prova/.test(n)) return "acabamento";
-  if (/pronto|entrega|final|retirada/.test(n)) return "pronto_entrega";
+  if (/pronto|entrega|final|retirada|finaliz/.test(n)) return "pronto_entrega";
+
+  // Plano de cera: exige indícios claros (não basta "cera" ou "plano" isolado).
+  if (
+    /plano\s*de\s*cera/.test(n) ||
+    (/\bplano\b/.test(n) && /\bcera\b/.test(n)) ||
+    /wax\s*up|waxup/.test(n) ||
+    /\bmodelo\b/.test(n) ||
+    /moldeira\s*individual|individual/.test(n) ||
+    /\bplanej/.test(n)
+  ) {
+    return "plano_cera";
+  }
 
   if (opts?.indice != null) {
     const total = opts.totalEtapas ?? 0;
@@ -169,6 +188,8 @@ function indiceEtapaParaColuna(
   if (colunaAlvo === "entrada") return 0;
   if (colunaAlvo === "pronto_entrega") return Math.max(0, etapas.length - 1);
 
+  const alvoIdx = ORDEM_COLUNAS_KANBAN.indexOf(colunaAlvo);
+
   // Preferir etapa cujo nome mapeia exatamente para a coluna (ex.: Acabamento/Finalização).
   for (let i = 0; i < etapas.length; i++) {
     const col = mapearNomeEtapaParaColuna(etapas[i].nome, {
@@ -178,13 +199,27 @@ function indiceEtapaParaColuna(
     if (col === colunaAlvo) return i;
   }
 
-  const alvoIdx = ORDEM_COLUNAS_KANBAN.indexOf(colunaAlvo);
+  // Primeira etapa cuja coluna no kanban é >= à alvo (avança além de plano_cera).
   for (let i = 0; i < etapas.length; i++) {
     const col = mapearNomeEtapaParaColuna(etapas[i].nome, {
       indice: i,
       totalEtapas: etapas.length,
     });
     if (ORDEM_COLUNAS_KANBAN.indexOf(col) >= alvoIdx) return i;
+  }
+
+  // Sem etapa mapeada à frente: avança pelo menos uma posição após a última
+  // etapa que ainda está em coluna anterior à alvo (evita ficar preso em plano_cera).
+  let ultimoAntes = -1;
+  for (let i = 0; i < etapas.length; i++) {
+    const col = mapearNomeEtapaParaColuna(etapas[i].nome, {
+      indice: i,
+      totalEtapas: etapas.length,
+    });
+    if (ORDEM_COLUNAS_KANBAN.indexOf(col) < alvoIdx) ultimoAntes = i;
+  }
+  if (ultimoAntes >= 0 && ultimoAntes < etapas.length - 1) {
+    return ultimoAntes + 1;
   }
 
   const maxCol = Math.max(1, ORDEM_COLUNAS_KANBAN.length - 1);

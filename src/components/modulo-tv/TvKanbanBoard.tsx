@@ -7,8 +7,10 @@ import {
   PointerSensor,
   TouchSensor,
   closestCorners,
+  pointerWithin,
   useSensor,
   useSensors,
+  type CollisionDetection,
   type DragEndEvent,
   type DragStartEvent,
   type Over,
@@ -25,6 +27,13 @@ type Props = {
   ordens: OrdemServicoTv[];
   carregando: boolean;
   onMoverOrdem: (id: string, coluna: ColunaKanbanId) => void;
+};
+
+/** Prefere o ponteiro dentro da coluna; senão o canto mais próximo. */
+const detectarColisaoKanban: CollisionDetection = (args) => {
+  const dentro = pointerWithin(args);
+  if (dentro.length > 0) return dentro;
+  return closestCorners(args);
 };
 
 /** Resolve a coluna alvo mesmo quando o drop cai sobre outro card. */
@@ -76,7 +85,7 @@ export function TvKanbanBoard({ ordens, carregando, onMoverOrdem }: Props) {
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCorners}
+      collisionDetection={detectarColisaoKanban}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
