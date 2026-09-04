@@ -65,11 +65,36 @@ async function walkUploadsDisco(
   }
 }
 
+async function baixarOneDriveComTimeout(
+  remotePath: string,
+  timeoutMs = 45_000
+): Promise<Buffer | null> {
+  try {
+    return await Promise.race([
+      baixarArquivoOneDrive(remotePath),
+      new Promise<null>((resolve) => {
+        setTimeout(() => resolve(null), timeoutMs);
+      }),
+    ]);
+  } catch (err) {
+    console.warn("[backup-zip] OneDrive skip", remotePath, err);
+    return null;
+  }
+}
+
 export async function coletarUploadsParaZipBackup(
   empresaId: string,
   empresaSlug: string
 ): Promise<EntradaUploadZip[]> {
   const entradas: EntradaUploadZip[] = [];
+  const caminhos = new Set<string>();
+
+  const adicionar = (zipPath: string, dados: Buffer) => {
+    const chave = zipPath.replace(/\\/g, "/");
+    if (!dados.length || caminhos.has(chave)) return;
+    caminhos.add(chave);
+    entradas.push({ zipPath: chave, dados });
+  };
 
   if (uploadUsaBancoDados() || uploadUsaOneDrive()) {
     const rows = await prisma.arquivoUpload.findMany({
@@ -79,7 +104,6 @@ export async function coletarUploadsParaZipBackup(
         pasta: true,
         nome: true,
         dados: true,
-        storage: true,
         remotePath: true,
       },
       orderBy: { criadoEm: "asc" },
@@ -88,28 +112,27 @@ export async function coletarUploadsParaZipBackup(
     for (const row of rows) {
       let bytes: Buffer | null =
         row.dados && row.dados.length > 0 ? Buffer.from(row.dados) : null;
-      if (!bytes && row.storage === "onedrive" && row.remotePath) {
-        try {
-          bytes = await baixarArquivoOneDrive(row.remotePath);
-        } catch (err) {
-          console.warn("[backup-zip] OneDrive skip", row.id, err);
-          continue;
-        }
+
+      if (!bytes && row.remotePath) {
+        bytes = await baixarOneDriveComTimeout(row.remotePath);
       }
+
       if (!bytes?.length) continue;
-      entradas.push({
-        zipPath: `${UPLOADS_ZIP_PREFIX}${row.pasta}/${row.id}-${nomeArquivoUploadBackupSeguro(row.nome)}`,
-        dados: bytes,
-      });
+      adicionar(
+        `${UPLOADS_ZIP_PREFIX}${row.pasta}/${row.id}-${nomeArquivoUploadBackupSeguro(row.nome)}`,
+        bytes
+      );
     }
-    return entradas;
   }
 
+  // Disco local (legado / UPLOAD_STORAGE=disk / espelho) — complementa o ZIP.
   const origem = caminhoPastaUploads(empresaSlug);
   try {
     const info = await stat(origem);
     if (info.isDirectory()) {
-      await walkUploadsDisco(origem, "", entradas);
+      const doDisco: EntradaUploadZip[] = [];
+      await walkUploadsDisco(origem, "", doDisco);
+      for (const item of doDisco) adicionar(item.zipPath, item.dados);
     }
   } catch {
     /* sem pasta */

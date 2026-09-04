@@ -9,7 +9,6 @@ import { RestaurarPadraoModal } from "@/components/configuracoes/RestaurarPadrao
 import { PalavraChaveRestaurarSection } from "@/components/configuracoes/PalavraChaveRestaurarSection";
 import type { ModuloLimpezaId } from "@/lib/limpar-modulos-laboratorio";
 import {
-  baixarBackupExportado,
   exportarBackupComJob,
   gerarBackupServidorComJob,
   importarBackupComJob,
@@ -218,11 +217,10 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
     setExportando(true);
     setProgressoOperacao("");
     try {
-      const resultado = await exportarBackupComJob({
+      await exportarBackupComJob({
         onFase: (fase, percentual) =>
           setProgressoOperacao(`${rotuloFaseBackup(fase)} (${percentual}%)`),
       });
-      await baixarBackupExportado(resultado);
       onMensagem?.(t("settings.backupExportado"), "sucesso");
     } catch (err) {
       const msg = err instanceof Error ? err.message : t("settings.backupErroExportar");

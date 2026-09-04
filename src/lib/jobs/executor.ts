@@ -1,4 +1,5 @@
 import { ZodError } from "zod";
+import { after } from "next/server";
 import { runWithTenantContext } from "@/lib/db";
 import { atualizarJob, obterJobTenant } from "@/lib/jobs/store";
 import { manipularJobBackupExport } from "@/lib/jobs/handlers/backup-export";
@@ -95,7 +96,13 @@ async function executarJobNoTenant(jobId: string, empresaId: string) {
 
 /** Dispara execução sem bloquear a resposta HTTP. */
 export function executarJobEmBackground(jobId: string, empresaId: string) {
-  setImmediate(() => {
+  const rodar = () => {
     void executarJob(jobId, empresaId);
-  });
+  };
+  try {
+    // Next 15+: mantém o trabalho vivo após a resposta da rota.
+    after(rodar);
+  } catch {
+    setImmediate(rodar);
+  }
 }
