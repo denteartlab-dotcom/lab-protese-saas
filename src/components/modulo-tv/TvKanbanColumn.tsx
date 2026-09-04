@@ -1,7 +1,7 @@
 "use client";
 
 import { useDroppable } from "@dnd-kit/core";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import { TvCardSkeleton } from "@/components/modulo-tv/ui/TvSkeleton";
 import { TvOsCard } from "@/components/modulo-tv/TvOsCard";
 import { TV_COLUMN } from "@/components/modulo-tv/tv-styles";
@@ -27,12 +27,7 @@ export function TvKanbanColumn({
   });
 
   return (
-    <motion.section
-      ref={setNodeRef}
-      layout
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.35 }}
+    <section
       className={cn(
         "flex h-full min-w-0 w-full flex-col overflow-hidden p-1.5 tv-hd:p-2 tv:p-2.5",
         TV_COLUMN,
@@ -50,21 +45,22 @@ export function TvKanbanColumn({
             {coluna.label}
           </h3>
         </div>
-        <motion.span
-          key={ordens.length}
-          initial={{ scale: 1.2 }}
-          animate={{ scale: 1 }}
+        <span
           className={cn(
             "inline-flex min-w-[1.75rem] items-center justify-center rounded-md px-2 py-0.5 font-tv-mono text-xs font-bold tabular-nums tv:text-sm",
             coluna.badge
           )}
         >
           {ordens.length}
-        </motion.span>
+        </span>
       </header>
 
-      <div className="tv-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
-        <div className="flex flex-col gap-2 pb-1 tv:gap-2.5">
+      {/* Droppable na área de cards (altura mínima = coluna inteira) */}
+      <div
+        ref={setNodeRef}
+        className="tv-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
+      >
+        <div className="flex min-h-full flex-col gap-2 pb-1 tv:gap-2.5">
           {carregando
             ? Array.from({ length: Math.max(2, ordens.length) }).map((_, i) => (
                 <TvCardSkeleton key={`sk-${coluna.id}-${i}`} />
@@ -89,6 +85,6 @@ export function TvKanbanColumn({
           ) : null}
         </div>
       </div>
-    </motion.section>
+    </section>
   );
 }

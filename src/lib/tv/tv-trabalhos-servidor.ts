@@ -233,13 +233,30 @@ function indiceEtapaParaColuna(
 /** Índices de etapas a marcar como concluídas ao mover para uma coluna. */
 function indicesEtapasAteColuna(
   etapas: EtapaOsLinha[],
-  colunaAlvo: ColunaKanbanId
+  colunaAlvo: ColunaKanbanId,
+  concluidasAtuais?: number[]
 ): number[] {
   if (colunaAlvo === "entrada") return [];
   if (colunaAlvo === "pronto_entrega") {
     return etapas.map((_, i) => i);
   }
-  const indiceAtual = indiceEtapaParaColuna(etapas, colunaAlvo);
+  let indiceAtual = indiceEtapaParaColuna(etapas, colunaAlvo);
+
+  // Se o usuário arrasta para frente, garante avanço além da etapa incompleta atual.
+  if (concluidasAtuais && etapas.length > 0) {
+    const incompleta = etapas.findIndex((_, i) => !concluidasAtuais.includes(i));
+    const idxIncompleta = incompleta >= 0 ? incompleta : etapas.length - 1;
+    const colAtual = mapearNomeEtapaParaColuna(etapas[idxIncompleta]?.nome ?? "", {
+      indice: idxIncompleta,
+      totalEtapas: etapas.length,
+    });
+    const ordemAtual = ORDEM_COLUNAS_KANBAN.indexOf(colAtual);
+    const ordemAlvo = ORDEM_COLUNAS_KANBAN.indexOf(colunaAlvo);
+    if (ordemAlvo > ordemAtual && indiceAtual <= idxIncompleta) {
+      indiceAtual = Math.min(etapas.length - 1, idxIncompleta + 1);
+    }
+  }
+
   return Array.from({ length: indiceAtual }, (_, i) => i);
 }
 
@@ -780,7 +797,7 @@ async function moverTrabalhoTvColunaInterno(
     : 0;
 
   if (etapas.length > 0) {
-    mapa[chave] = indicesEtapasAteColuna(etapas, coluna);
+    mapa[chave] = indicesEtapasAteColuna(etapas, coluna, concluidasAnteriores);
   }
 
   const indiceNovo = etapas.length
@@ -789,8 +806,13 @@ async function moverTrabalhoTvColunaInterno(
 
   if (coluna === "pronto_entrega") {
     delete mapaColunas[idPersistir];
+    if (trabalhoId !== idPersistir) delete mapaColunas[trabalhoId];
   } else {
     mapaColunas[idPersistir] = coluna;
+    // Garante override também pelo id da requisição (card da TV).
+    if (trabalhoId !== idPersistir) {
+      mapaColunas[trabalhoId] = coluna;
+    }
   }
 
   const novoStatus =
