@@ -14,7 +14,7 @@ import {
   uploadUsaOneDrive,
 } from "@/lib/upload-onedrive-storage";
 import { onedriveGraphConfigurado } from "@/lib/onedrive-graph";
-import { reagendarBackupAutomatico } from "@/lib/backup-automatico";
+import { reagendarBackupAutomaticoEmpresa } from "@/lib/backup-automatico";
 import {
   fusoBackupAutomatico,
   garantirPastaBackupEmpresa,
@@ -27,6 +27,7 @@ import {
   formatarDataBackup,
   formatarHorarioFixoBackupAutomatico,
   salvarConfigBackupAutomatico,
+  type BackupAutomaticoConfig,
 } from "@/lib/backup-automatico-config";
 import {
   caminhoDriveEmpresa,
@@ -80,14 +81,33 @@ function formatarProximoBackup(
   }
 }
 
-async function montarStatus(empresaId: string, slug: string, nome: string) {
-  const fuso = fusoBackupAutomatico();
-  const config = await carregarConfigBackupAutomatico(empresaId);
+type MontarStatusOpcoes = {
+  /** Config já salva/carregada — evita nova leitura no store. */
+  config?: BackupAutomaticoConfig;
+  /**
+   * Modo rápido para o PUT: não varre pasta de uploads nem lista todos os JSON.
+   * Suficiente para refletir ativo/dia/próximo backup na UI.
+   */
+  leve?: boolean;
+};
 
-  try {
-    await garantirPastaBackupEmpresa(slug, nome);
-  } catch (erro) {
-    console.warn("[backup/automatico] pasta local indisponível:", erro);
+async function montarStatus(
+  empresaId: string,
+  slug: string,
+  nome: string,
+  opcoes?: MontarStatusOpcoes
+) {
+  const fuso = fusoBackupAutomatico();
+  const config =
+    opcoes?.config ?? (await carregarConfigBackupAutomatico(empresaId));
+  const leve = opcoes?.leve === true;
+
+  if (!leve) {
+    try {
+      await garantirPastaBackupEmpresa(slug, nome);
+    } catch (erro) {
+      console.warn("[backup/automatico] pasta local indisponível:", erro);
+    }
   }
 
   const pastaRelativa = caminhoRelativoPastaBackupEmpresa(slug, nome);
@@ -107,9 +127,11 @@ async function montarStatus(empresaId: string, slug: string, nome: string) {
     } catch {
       arquivoExiste = false;
     }
+  } else if (config.ultimoArquivo) {
+    ultimoArquivoNome = path.basename(config.ultimoArquivo);
   }
 
-  if (!arquivoExiste) {
+  if (!arquivoExiste && !leve) {
     const arquivos = await listarArquivosPastaBackupEmpresa(slug, nome);
     if (arquivos.length > 0) {
       arquivoExiste = true;
@@ -118,10 +140,12 @@ async function montarStatus(empresaId: string, slug: string, nome: string) {
   }
 
   let uploadsArquivos = 0;
-  try {
-    uploadsArquivos = await contarUploadsBackupEmpresa(slug, nome);
-  } catch {
-    uploadsArquivos = 0;
+  if (!leve) {
+    try {
+      uploadsArquivos = await contarUploadsBackupEmpresa(slug, nome);
+    } catch {
+      uploadsArquivos = 0;
+    }
   }
 
   return {
@@ -197,14 +221,17 @@ export async function PUT(request: Request) {
   }
 
   try {
-    await salvarConfigBackupAutomatico(auth.session!.empresaId, parsed.data);
-    await reagendarBackupAutomatico();
+    const empresaId = auth.session!.empresaId;
+    const slug = auth.session!.empresaSlug;
+    const nome = auth.session!.empresaNome;
+    const config = await salvarConfigBackupAutomatico(empresaId, parsed.data);
+    // Só esta empresa — reagendar todas as ativas deixava o botão Salvar lento.
+    await reagendarBackupAutomaticoEmpresa(
+      { id: empresaId, slug, nome },
+      config
+    );
     return NextResponse.json(
-      await montarStatus(
-        auth.session!.empresaId,
-        auth.session!.empresaSlug,
-        auth.session!.empresaNome
-      )
+      await montarStatus(empresaId, slug, nome, { config, leve: true })
     );
   } catch (erro) {
     console.error("[backup/automatico PUT]", erro);

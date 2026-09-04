@@ -110,13 +110,26 @@ function agendarProximoBackupEmpresa(
   );
 }
 
-async function reagendarBackupEmpresa(empresa: EmpresaAtiva) {
+async function reagendarBackupEmpresa(
+  empresa: EmpresaAtiva,
+  configJaCarregada?: BackupAutomaticoConfig
+) {
   try {
-    const config = await carregarConfigBackupAutomatico(empresa.id);
+    const config =
+      configJaCarregada ?? (await carregarConfigBackupAutomatico(empresa.id));
     agendarProximoBackupEmpresa(empresa, config);
   } catch (erro) {
     console.error(`[backup-automatico] ${empresa.slug}: falha ao reagendar`, erro);
   }
+}
+
+/** Reagenda só uma empresa (usado ao salvar a config na UI). */
+export async function reagendarBackupAutomaticoEmpresa(
+  empresa: EmpresaAtiva,
+  config?: BackupAutomaticoConfig
+) {
+  if (!backupAutomaticoHabilitadoNoServidor()) return;
+  await reagendarBackupEmpresa(empresa, config);
 }
 
 export async function reagendarBackupAutomatico() {
