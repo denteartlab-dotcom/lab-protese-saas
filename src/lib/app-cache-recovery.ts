@@ -30,19 +30,11 @@ export async function recuperarNavegadorAplicacao(): Promise<void> {
   await limparCachesAplicacao();
 }
 
-/** Recarrega quando o deploy mudou e o navegador ainda usa JS antigo em cache. */
+/** Atualiza o build id no navegador sem forçar reload automático. */
 export async function garantirVersaoAplicacaoAtual(buildId: string): Promise<boolean> {
   if (!buildId || buildId === "dev") return false;
 
-  const anterior = window.localStorage.getItem(BUILD_ID_KEY);
   window.localStorage.setItem(BUILD_ID_KEY, buildId);
-
-  if (anterior && anterior !== buildId) {
-    await recuperarNavegadorAplicacao();
-    window.location.reload();
-    return true;
-  }
-
   return false;
 }
 
@@ -54,11 +46,13 @@ function marcarRecuperacaoAutomatica() {
   window.sessionStorage.setItem(AUTO_RECOVERY_SESSION_KEY, "1");
 }
 
-/** Uma tentativa por aba: limpa cache/localStorage legado e recarrega. */
+/**
+ * Uma tentativa por aba: limpa cache/localStorage legado.
+ * Não recarrega a página automaticamente (evita "piscar" ao abrir o site).
+ */
 export async function executarRecuperacaoAutomatica(): Promise<boolean> {
   if (!recuperacaoAutomaticaDisponivel()) return false;
   marcarRecuperacaoAutomatica();
   await recuperarNavegadorAplicacao();
-  window.location.reload();
-  return true;
+  return false;
 }

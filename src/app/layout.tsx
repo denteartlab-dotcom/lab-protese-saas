@@ -36,7 +36,6 @@ export default async function RootLayout({
   );
   const lab = configParaLabImpressao(configLaboratorio);
   const buildId = process.env.NEXT_PUBLIC_APP_BUILD_ID ?? "dev";
-  const devBoot = process.env.NEXT_PUBLIC_DEV_BOOT ?? "";
   const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   return (
@@ -107,36 +106,11 @@ export default async function RootLayout({
             __html: `
               (function () {
                 var buildId = ${JSON.stringify(buildId)};
-                var devBoot = ${JSON.stringify(devBoot)};
                 var key = "labProteseBuildId";
-                var devKey = "labProteseDevBoot";
                 try {
-                  if (devBoot) {
-                    var bootAnterior = sessionStorage.getItem(devKey);
-                    sessionStorage.setItem(devKey, devBoot);
-                    if (bootAnterior && bootAnterior !== devBoot) {
-                      if (window.caches && window.caches.keys) {
-                        window.caches.keys().then(function (keys) {
-                          return Promise.all(keys.map(function (k) { return caches.delete(k); }));
-                        }).finally(function () { location.reload(); });
-                      } else {
-                        location.reload();
-                      }
-                      return;
-                    }
-                  }
+                  // Só registra a versão atual — sem location.reload automático.
                   if (!buildId || buildId === "dev") return;
-                  var anterior = localStorage.getItem(key);
                   localStorage.setItem(key, buildId);
-                  if (anterior && anterior !== buildId) {
-                    if (window.caches && window.caches.keys) {
-                      window.caches.keys().then(function (keys) {
-                        return Promise.all(keys.map(function (k) { return caches.delete(k); }));
-                      }).finally(function () { location.reload(); });
-                    } else {
-                      location.reload();
-                    }
-                  }
                 } catch (e) { /* ignore */ }
               })();
             `,
