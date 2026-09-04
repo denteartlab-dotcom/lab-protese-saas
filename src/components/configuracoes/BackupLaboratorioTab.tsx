@@ -191,7 +191,20 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
       });
       await Promise.all([carregarStatusAutomatico(), carregarArquivosPastaAutomatica()]);
       const uploads = resultado.uploadsArquivos ?? 0;
-      onMensagem?.(t("settings.backupServidorOk").replace("{n}", String(uploads)), "sucesso");
+      const onedrive = resultado.onedrive;
+      if (onedrive && onedrive.ok === false && onedrive.erro && onedrive.erro !== "desativado") {
+        onMensagem?.(
+          `${t("settings.backupServidorOk").replace("{n}", String(uploads))} ${t(
+            "settings.backupServidorOneDriveErro"
+          )}`,
+          "erro"
+        );
+      } else {
+        onMensagem?.(
+          t("settings.backupServidorOk").replace("{n}", String(uploads)),
+          "sucesso"
+        );
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : t("settings.backupServidorErro");
       onMensagem?.(msg, "erro");

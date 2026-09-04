@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { executarSemRls } from "@/lib/db";
 import { executarBackupAutomatico } from "@/lib/backup-automatico";
 import { carregarConfigBackupAutomatico } from "@/lib/backup-automatico-config";
 import { cronAutorizado } from "@/lib/cron-auth";
@@ -14,16 +14,20 @@ export async function GET(request: Request) {
   }
 
   try {
-    const empresas = await prisma.empresa.findMany({
-      where: { status: "ativo" },
-      select: { id: true, slug: true, nome: true },
-    });
+    // Empresa tem FORCE RLS — listagem do cron precisa de bypass.
+    const empresas = await executarSemRls((tx) =>
+      tx.empresa.findMany({
+        where: { status: "ativo" },
+        select: { id: true, slug: true, nome: true },
+      })
+    );
 
     const resultados: Array<{
       slug: string;
       ok: boolean;
       destino?: string;
       motivo?: string;
+      onedriveOk?: boolean;
     }> = [];
 
     for (const empresa of empresas) {
@@ -55,6 +59,7 @@ export async function GET(request: Request) {
         slug: empresa.slug,
         ok: true,
         destino: resultado.destino,
+        onedriveOk: resultado.onedrive?.ok,
       });
     }
 

@@ -9,3 +9,6 @@ backups/
 data/whatsapp-auth/
 var/uploads/
 .build-id
+
+# Token Graph rotacionado em runtime
+.onedrive-refresh-token

@@ -91,12 +91,19 @@ export async function executarBackupNoServidor(
   await reportar?.({ fase: "sincronizando", percentual: 75 });
 
   const onedrive = await sincronizarBackupComOneDrive({ slug, nome });
+  // Sync OneDrive é best-effort: o JSON local já foi gravado.
+  // Só falha o job se ONEDRIVE_BACKUP_FAIL_LOUD=1 (diagnóstico).
   if (onedriveBackupSyncHabilitado() && !onedrive.ok) {
-    throw new Error(
-      `Backup local criado, mas o envio ao OneDrive falhou: ${
-        onedrive.erro || "erro desconhecido"
-      }`
+    const msg = onedrive.erro || "erro desconhecido";
+    console.error(
+      `[backup-runner] OneDrive sync falhou (backup local OK): ${msg}`
     );
+    const failLoud = process.env.ONEDRIVE_BACKUP_FAIL_LOUD?.trim();
+    if (failLoud === "1" || failLoud === "true") {
+      throw new Error(
+        `Backup local criado, mas o envio ao OneDrive falhou: ${msg}`
+      );
+    }
   }
   const drive = await uploadBackupParaGoogleDrive({
     empresaId,

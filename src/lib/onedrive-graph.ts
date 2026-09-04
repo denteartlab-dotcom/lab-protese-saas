@@ -12,7 +12,13 @@
  *   ONEDRIVE_GRAPH_ROOT_FOLDER=Documents/Lab_Protese_Backups
  *   ONEDRIVE_GRAPH_DRIVE_ID=
  */
-import { envRuntime } from "@/lib/env-runtime";
+import { existsSync, readFileSync, writeFileSync } from "fs";
+import path from "path";
+import {
+  carregarEnvArquivoRuntime,
+  envRuntime,
+  limparCacheEnvRuntime,
+} from "@/lib/env-runtime";
 
 type TokenCache = {
   accessToken: string;
@@ -63,11 +69,49 @@ function env(nome: string) {
   return envRuntime(nome);
 }
 
+function caminhoRefreshTokenArquivo() {
+  return path.join(process.cwd(), ".onedrive-refresh-token");
+}
+
+/** Prefere token rotacionado em arquivo (Microsoft pode invalidar o do .env). */
+function obterRefreshToken(): string {
+  try {
+    const arquivo = caminhoRefreshTokenArquivo();
+    if (existsSync(arquivo)) {
+      const valor = readFileSync(arquivo, "utf8").trim();
+      if (valor.length > 20) return valor;
+    }
+  } catch {
+    /* usa .env */
+  }
+  return env("ONEDRIVE_GRAPH_REFRESH_TOKEN");
+}
+
+function persistirRefreshTokenRotacionado(novoToken: string) {
+  const token = novoToken.trim();
+  if (token.length < 20) return;
+  try {
+    writeFileSync(caminhoRefreshTokenArquivo(), `${token}\n`, {
+      encoding: "utf8",
+      mode: 0o600,
+    });
+    process.env.ONEDRIVE_GRAPH_REFRESH_TOKEN = token;
+    limparCacheEnvRuntime();
+    carregarEnvArquivoRuntime(true);
+    process.env.ONEDRIVE_GRAPH_REFRESH_TOKEN = token;
+    console.info(
+      "[onedrive-graph] refresh_token rotacionado salvo em .onedrive-refresh-token"
+    );
+  } catch (err) {
+    console.warn("[onedrive-graph] não foi possível salvar refresh_token:", err);
+  }
+}
+
 export function onedriveGraphConfigurado() {
   return Boolean(
     env("ONEDRIVE_GRAPH_CLIENT_ID") &&
       env("ONEDRIVE_GRAPH_CLIENT_SECRET") &&
-      env("ONEDRIVE_GRAPH_REFRESH_TOKEN")
+      obterRefreshToken()
   );
 }
 
@@ -135,7 +179,7 @@ async function obterAccessToken(): Promise<string> {
   const body = new URLSearchParams({
     client_id: env("ONEDRIVE_GRAPH_CLIENT_ID"),
     client_secret: env("ONEDRIVE_GRAPH_CLIENT_SECRET"),
-    refresh_token: env("ONEDRIVE_GRAPH_REFRESH_TOKEN"),
+    refresh_token: obterRefreshToken(),
     grant_type: "refresh_token",
     scope: "offline_access Files.ReadWrite Files.ReadWrite.All User.Read",
   });
@@ -151,6 +195,7 @@ async function obterAccessToken(): Promise<string> {
 
   const json = (await res.json()) as {
     access_token?: string;
+    refresh_token?: string;
     expires_in?: number;
     error?: string;
     error_description?: string;
@@ -160,6 +205,10 @@ async function obterAccessToken(): Promise<string> {
     throw new Error(
       `Falha ao renovar token OneDrive Graph: ${json.error_description || json.error || res.status}`
     );
+  }
+
+  if (json.refresh_token) {
+    persistirRefreshTokenRotacionado(json.refresh_token);
   }
 
   globalGraph.__onedriveGraphToken = {
