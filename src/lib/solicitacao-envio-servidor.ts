@@ -3,9 +3,10 @@ import { clienteTabelaPrecoDeObservacoes } from "@/lib/cabecalho-os-form";
 import { lerJsonStoreTenant } from "@/lib/json-store-tenant";
 import {
   encontrarChaveTabelaPreco,
+  itemVisivelNaOs,
   parseDadosTabelaPrecoOsRemoto,
-  servicosSelecionaveisNaOs,
   TABELA_PRECOS_STORAGE_KEY,
+  tipoDominanteCategoriaOs,
 } from "@/lib/tabela-precos-os";
 import {
   parseJsonArraySeguro,
@@ -187,7 +188,18 @@ export async function listarNomesServicosTabelaCliente(params: {
 
     const categorias = dados.categoriasPorTabela[chave] || [];
     const nomes = categorias
-      .flatMap((categoria) => servicosSelecionaveisNaOs(categoria.servicos || []))
+      .filter((categoria) => {
+        const tipoCat = categoria.tipo || tipoDominanteCategoriaOs(categoria);
+        return tipoCat !== "produto" && tipoCat !== "transporte";
+      })
+      .flatMap((categoria) =>
+        (categoria.servicos || []).filter((item) => {
+          if (!itemVisivelNaOs(item)) return false;
+          const tipoItem =
+            item.tipo || (item.produtoId ? "produto" : "servico");
+          return tipoItem === "servico";
+        })
+      )
       .map((item) => (item.nome || "").trim())
       .filter(Boolean);
 
