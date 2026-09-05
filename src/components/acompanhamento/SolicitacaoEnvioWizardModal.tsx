@@ -144,6 +144,41 @@ export function SolicitacaoEnvioWizardModal({ open, token, onClose, onEnviado }:
     return true;
   }
 
+  function validarEtapa1Silencioso() {
+    return Boolean(form.pacienteNome.trim() && form.tipoProtese.trim());
+  }
+
+  function irParaEtapa(destino: number) {
+    if (destino === etapa) return;
+    if (destino < 1 || destino > 3) return;
+
+    // Voltar sempre liberado para corrigir dados.
+    if (destino < etapa) {
+      setErro(null);
+      setEtapa(destino);
+      return;
+    }
+
+    // Avançar exige etapa 1 válida.
+    if (etapa === 1 && !validarEtapa1()) return;
+    if (destino > etapa + 1 && !validarEtapa1Silencioso()) {
+      setErro(t("acompanhamento.pedido.erroObrigatorios"));
+      setEtapa(1);
+      return;
+    }
+    setErro(null);
+    setEtapa(destino);
+  }
+
+  function voltarEtapa() {
+    if (etapa === 1) {
+      fechar();
+      return;
+    }
+    setErro(null);
+    setEtapa((atual) => atual - 1);
+  }
+
   async function enviarArquivos(
     lista: FileList | null,
     categoria: CategoriaAnexoSolicitacao
@@ -305,22 +340,44 @@ export function SolicitacaoEnvioWizardModal({ open, token, onClose, onEnviado }:
           <ol className="flex flex-wrap gap-2">
             {titulos.map((titulo, index) => {
               const n = index + 1;
+              const concluida = etapa > n;
+              const atual = etapa === n;
+              const podeIr =
+                n <= etapa ||
+                (n === etapa + 1 && validarEtapa1Silencioso());
+
               return (
-                <li
-                  key={titulo}
-                  className={cn(
-                    "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-medium",
-                    etapa === n
-                      ? "border-[#4a90d9] bg-[#4a90d9]/10 text-[#4a90d9]"
-                      : etapa > n
-                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                        : "border-slate-200 bg-slate-50 text-slate-500"
-                  )}
-                >
-                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] font-bold">
-                    {n}
-                  </span>
-                  {titulo}
+                <li key={titulo}>
+                  <button
+                    type="button"
+                    disabled={!podeIr}
+                    onClick={() => irParaEtapa(n)}
+                    className={cn(
+                      "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-medium transition",
+                      atual
+                        ? "border-[#4a90d9] bg-[#4a90d9]/10 text-[#4a90d9]"
+                        : concluida
+                          ? "cursor-pointer border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-400"
+                          : podeIr
+                            ? "cursor-pointer border-slate-200 bg-slate-50 text-slate-600 hover:border-[#4a90d9]/40"
+                            : "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400"
+                    )}
+                    title={
+                      concluida || atual
+                        ? t("acompanhamento.pedido.cliqueParaEditar")
+                        : undefined
+                    }
+                  >
+                    <span
+                      className={cn(
+                        "inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold",
+                        concluida ? "bg-emerald-600 text-white" : "bg-white"
+                      )}
+                    >
+                      {concluida ? <Check className="h-3 w-3" /> : n}
+                    </span>
+                    {titulo}
+                  </button>
                 </li>
               );
             })}
@@ -727,8 +784,8 @@ export function SolicitacaoEnvioWizardModal({ open, token, onClose, onEnviado }:
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
             <button
               type="button"
-              onClick={() => (etapa === 1 ? fechar() : setEtapa((e) => e - 1))}
-              className="inline-flex h-9 items-center gap-1 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700"
+              onClick={voltarEtapa}
+              className="inline-flex h-9 items-center gap-1 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 hover:bg-slate-50"
             >
               <ChevronLeft className="h-4 w-4" />
               {etapa === 1 ? t("cadastros.comum.fechar") : t("acompanhamento.pedido.voltar")}
@@ -736,10 +793,7 @@ export function SolicitacaoEnvioWizardModal({ open, token, onClose, onEnviado }:
             {etapa < 3 ? (
               <button
                 type="button"
-                onClick={() => {
-                  if (etapa === 1 && !validarEtapa1()) return;
-                  setEtapa((e) => e + 1);
-                }}
+                onClick={() => irParaEtapa(etapa + 1)}
                 className="inline-flex h-9 items-center gap-1 rounded-md bg-[#4a90d9] px-4 text-sm font-semibold text-white"
               >
                 {t("acompanhamento.pedido.proxima")}
