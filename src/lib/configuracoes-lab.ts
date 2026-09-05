@@ -24,6 +24,7 @@ import {
   writeStorage,
 } from "@/lib/persisted-storage";
 import { formatarTelefone } from "@/lib/validar-documento";
+import { aplicarFusoDoPaisLaboratorio } from "@/lib/timezone";
 
 export const CONFIG_LAB_STORAGE_KEY = "labProteseConfigLaboratorio";
 export const LAB_CONFIG_ATUALIZADA_EVENT = "lab-config-atualizada";
@@ -230,9 +231,13 @@ export function temConfigLaboratorioSalva(): boolean {
 export function carregarConfigLaboratorio(): ConfigLaboratorio {
   const salvo = lerConfigSalva();
   if (!salvo) {
-    return { ...CONFIG_LAB_PADRAO, tipoPessoa: "Jurídica" };
+    const padrao = { ...CONFIG_LAB_PADRAO, tipoPessoa: "Jurídica" as const };
+    aplicarFusoDoPaisLaboratorio(padrao.pais);
+    return padrao;
   }
-  return normalizarConfigLaboratorio(salvo);
+  const config = normalizarConfigLaboratorio(salvo);
+  aplicarFusoDoPaisLaboratorio(config.pais);
+  return config;
 }
 
 /** Formulário em branco ao trocar Física ↔ Jurídica. */
@@ -327,6 +332,7 @@ export function salvarConfigLaboratorio(
 ) {
   if (typeof window === "undefined") return;
   const preparado = prepararConfigParaSalvar(config);
+  aplicarFusoDoPaisLaboratorio(preparado.pais);
   const chave = chaveStorageLaboratorio();
 
   if (opcoes?.logoExplicito) {

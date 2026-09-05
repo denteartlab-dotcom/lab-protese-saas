@@ -1,4 +1,5 @@
 import { dateToBrShort, parseBrDate } from "@/lib/datas-br";
+import { formatarDataHoraNoFuso, obterFusoSistema } from "@/lib/timezone";
 import {
   analisarRepeticoesPorOs,
   duracaoMsHistorico,
@@ -118,6 +119,7 @@ export function calcularRelatorioClientesPrejuizo(
     periodo?: PeriodoClientesPrejuizo;
     dataInicio?: string;
     dataFim?: string;
+    fusoHorario?: string;
   }
 ): RelatorioClientesPrejuizoPayload {
   const periodo = opts?.periodo ?? "30dias";
@@ -344,6 +346,7 @@ export function calcularRelatorioClientesPrejuizo(
   }
 
   const agora = new Date();
+  const fuso = opts?.fusoHorario || obterFusoSistema();
   return {
     resumo,
     repeticoesResumo,
@@ -357,13 +360,7 @@ export function calcularRelatorioClientesPrejuizo(
     graficoTop10Clientes,
     graficoEtapasRepetidas,
     periodoLabel: label,
-    geradoEm: agora.toLocaleString("pt-BR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }),
+    geradoEm: formatarDataHoraNoFuso(agora, { fuso, locale: "pt-BR" }),
   };
 }
 

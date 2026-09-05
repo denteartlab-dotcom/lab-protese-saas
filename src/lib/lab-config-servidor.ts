@@ -9,6 +9,7 @@ import { garantirNomeLaboratorioParaImpressao } from "@/lib/lab-nome-exibicao";
 import { lerJsonStoreTenant } from "@/lib/json-store-tenant";
 import { prisma, runWithTenantContext } from "@/lib/db";
 import { cache } from "react";
+import { aplicarFusoDoPaisLaboratorio } from "@/lib/timezone";
 
 function configLaboratorioPadrao(): ConfigLaboratorio {
   return { ...CONFIG_LAB_PADRAO, tipoPessoa: "Jurídica" };
@@ -28,11 +29,15 @@ export const carregarConfigLaboratorioServidor = cache(
     empresaId?: string
   ): Promise<ConfigLaboratorio> {
   if (emBuildProducaoNext()) {
-    return configLaboratorioPadrao();
+    const padrao = configLaboratorioPadrao();
+    aplicarFusoDoPaisLaboratorio(padrao.pais);
+    return padrao;
   }
 
   if (!empresaId?.trim()) {
-    return configLaboratorioPadrao();
+    const padrao = configLaboratorioPadrao();
+    aplicarFusoDoPaisLaboratorio(padrao.pais);
+    return padrao;
   }
 
   try {
@@ -48,21 +53,27 @@ export const carregarConfigLaboratorioServidor = cache(
     );
     if (parsed) {
       const config = normalizarConfigLaboratorio(parsed);
-      return prepararConfigParaSalvar(
+      const pronto = prepararConfigParaSalvar(
         garantirNomeLaboratorioParaImpressao({
           ...config,
           logoDataUrl: config.logoDataUrl?.trim() || "",
         })
       );
+      aplicarFusoDoPaisLaboratorio(pronto.pais);
+      return pronto;
     }
     if (empresa?.nome?.trim()) {
-      return garantirNomeLaboratorioParaImpressao({
+      const pronto = garantirNomeLaboratorioParaImpressao({
         ...configLaboratorioPadrao(),
         nomeLaboratorio: empresa.nome.trim(),
         logoDataUrl: "",
       });
+      aplicarFusoDoPaisLaboratorio(pronto.pais);
+      return pronto;
     }
-    return configLaboratorioPadrao();
+    const padrao = configLaboratorioPadrao();
+    aplicarFusoDoPaisLaboratorio(padrao.pais);
+    return padrao;
   } catch (err) {
     console.warn(
       "[lab-config] usando padrão (banco indisponível):",

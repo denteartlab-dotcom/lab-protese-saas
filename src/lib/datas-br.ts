@@ -1,3 +1,5 @@
+import { formatarDataNoFuso } from "@/lib/timezone";
+
 /** Formata digitação para dd/mm/aaaa */
 export function formatDateBr(value: string) {
   const digits = value.replace(/\D/g, "").slice(0, 8);
@@ -18,11 +20,7 @@ export function formatDateBr(value: string) {
 }
 
 export function dateToBrShort(date: Date) {
-  return date.toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
+  return formatarDataNoFuso(date);
 }
 
 export function parseBrDate(value: string) {

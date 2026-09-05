@@ -1,7 +1,10 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import {
+  formatarDataHoraNoFuso,
+  formatarDataNoFuso,
+  obterFusoSistema,
+} from "@/lib/timezone";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -32,9 +35,22 @@ export function temColaborador(value?: string | null) {
 
 function parseDateInput(date: Date | string): Date {
   if (date instanceof Date) return date;
-  const match = date.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const match = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (match) {
-    return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    // Data civil (sem horário): formata pelos componentes, sem fuso.
+    return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12, 0, 0, 0);
+  }
+  const matchIsoDia = date.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (matchIsoDia && !date.includes("T") && !date.includes("Z")) {
+    return new Date(
+      Number(matchIsoDia[1]),
+      Number(matchIsoDia[2]) - 1,
+      Number(matchIsoDia[3]),
+      12,
+      0,
+      0,
+      0
+    );
   }
   return new Date(date);
 }
@@ -43,18 +59,36 @@ function isValidDate(d: Date) {
   return d instanceof Date && !Number.isNaN(d.getTime());
 }
 
-export function formatDate(date: Date | string | null | undefined) {
-  if (!date) return "";
-  const d = typeof date === "string" ? parseDateInput(date) : date;
-  if (!isValidDate(d)) return "";
-  return format(d, "dd/MM/yyyy", { locale: ptBR });
+function formatDateCivilYmd(date: string) {
+  const match = date.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return null;
+  return `${match[3]}/${match[2]}/${match[1]}`;
 }
 
-export function formatDateTime(date: Date | string | null | undefined) {
+export function formatDate(
+  date: Date | string | null | undefined,
+  opts?: { fuso?: string }
+) {
+  if (!date) return "";
+  if (typeof date === "string") {
+    const civil = formatDateCivilYmd(date);
+    if (civil && !date.includes("T") && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(date)) {
+      return civil;
+    }
+  }
+  const d = typeof date === "string" ? parseDateInput(date) : date;
+  if (!isValidDate(d)) return "";
+  return formatarDataNoFuso(d, { fuso: opts?.fuso || obterFusoSistema() });
+}
+
+export function formatDateTime(
+  date: Date | string | null | undefined,
+  opts?: { fuso?: string }
+) {
   if (!date) return "";
   const d = typeof date === "string" ? parseDateInput(date) : date;
   if (!isValidDate(d)) return "";
-  return format(d, "dd/MM/yyyy HH:mm", { locale: ptBR });
+  return formatarDataHoraNoFuso(d, { fuso: opts?.fuso || obterFusoSistema() });
 }
 
 export const STATUS_TRABALHO: Record<string, { label: string; color: string }> = {

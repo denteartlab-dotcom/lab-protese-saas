@@ -3,8 +3,10 @@ import { requireEmpresaContext } from "@/lib/empresa-context";
 import { acaoHttpParaPermissao, negarSeSemPermissao } from "@/lib/require-permissao";
 import { prisma } from "@/lib/db";
 import { listarHistoricoEtapas } from "@/lib/historico-etapas";
+import { carregarConfigLaboratorioServidor } from "@/lib/lab-config-servidor";
 import { calcularRelatorioClientesPrejuizo } from "@/lib/relatorio-clientes-prejuizo-servidor";
 import type { PeriodoClientesPrejuizo } from "@/lib/relatorio-clientes-prejuizo";
+import { fusoHorarioPorPais } from "@/lib/timezone";
 
 export async function GET(request: Request) {
   const ctx = await requireEmpresaContext().catch(() => null);
@@ -12,7 +14,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
 
-  const negado = await negarSeSemPermissao(ctx, "relatorios-clientes-prejuizo", acaoHttpParaPermissao("GET"));
+  const negado = await negarSeSemPermissao(
+    ctx,
+    "relatorios-clientes-prejuizo",
+    acaoHttpParaPermissao("GET")
+  );
   if (negado) return negado;
 
   const { searchParams } = new URL(request.url);
@@ -21,7 +27,7 @@ export async function GET(request: Request) {
   const dataFim = searchParams.get("dataFim") || "";
 
   try {
-    const [historico, trabalhosRaw] = await Promise.all([
+    const [historico, trabalhosRaw, labConfig] = await Promise.all([
       listarHistoricoEtapas(ctx.empresaId),
       prisma.trabalho.findMany({
         where: { empresaId: ctx.empresaId, status: { not: "cancelado" } },
@@ -38,6 +44,7 @@ export async function GET(request: Request) {
           cliente: { select: { nome: true } },
         },
       }),
+      carregarConfigLaboratorioServidor(ctx.empresaId),
     ]);
 
     const trabalhos = trabalhosRaw.map((t) => ({
@@ -57,6 +64,7 @@ export async function GET(request: Request) {
       periodo,
       dataInicio: dataInicio || undefined,
       dataFim: dataFim || undefined,
+      fusoHorario: fusoHorarioPorPais(labConfig.pais),
     });
 
     return NextResponse.json(payload);
