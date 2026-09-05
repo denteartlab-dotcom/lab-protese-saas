@@ -25,6 +25,7 @@ import type { LabImpressaoConfig } from "@/lib/lab-impressao";
 import { dimensoesLogoPx } from "@/lib/lab-logo";
 import { analisarCaminhoApp } from "@/lib/rotas-app";
 import { MfaChallengePanel } from "@/components/auth/MfaChallengePanel";
+import { lerTemaLocal } from "@/lib/theme-ui";
 
 async function aguardarSessaoConfirmada(): Promise<boolean> {
   for (let tentativa = 0; tentativa < 6; tentativa += 1) {
@@ -118,6 +119,17 @@ export function LoginForm({
   const [mfaUserSlug, setMfaUserSlug] = useState<{ slug?: string; nome?: string }>({});
   const redirectDestino = searchParams.get("redirect") || "/app";
   const cadastroOk = searchParams.get("cadastro") === "ok";
+
+  // Login principal nunca usa modo noturno (preferência continua salva para o app).
+  useEffect(() => {
+    const html = document.documentElement;
+    html.classList.remove("dark");
+    return () => {
+      if (lerTemaLocal() === true) {
+        html.classList.add("dark");
+      }
+    };
+  }, []);
   const labSlugQuery =
     searchParams.get("lab")?.trim() || searchParams.get("slug")?.trim() || "";
 

@@ -169,6 +169,54 @@ html.modo-tv-producao {
     object-position: center center;
     image-rendering: auto;
   }
+
+  /*
+   * Login principal: sempre cores claras, mesmo se html ainda tiver .dark
+   * (flash / preferência salva do app).
+   */
+  .dark .login-hero .bg-white {
+    background-color: #ffffff !important;
+  }
+
+  .dark .login-hero .bg-blue-50 {
+    background-color: #eff6ff !important;
+  }
+
+  .dark .login-hero .text-slate-900,
+  .dark .login-hero .text-slate-800,
+  .dark .login-hero .text-slate-700 {
+    color: #0f172a !important;
+  }
+
+  .dark .login-hero .text-slate-600,
+  .dark .login-hero .text-slate-500 {
+    color: #64748b !important;
+  }
+
+  .dark .login-hero .text-blue-600 {
+    color: #2563eb !important;
+  }
+
+  .dark .login-hero .border-slate-200 {
+    border-color: #e2e8f0 !important;
+  }
+
+  .dark .login-hero input,
+  .dark .login-hero select,
+  .dark .login-hero textarea {
+    background-color: #ffffff !important;
+    color: #334155 !important;
+    border-color: #e2e8f0 !important;
+  }
+
+  .dark .login-hero input::placeholder,
+  .dark .login-hero textarea::placeholder {
+    color: #94a3b8 !important;
+  }
+
+  .dark .login-hero .shadow-2xl {
+    box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25) !important;
+  }
 }
 
 @layer components {

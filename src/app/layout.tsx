@@ -49,6 +49,12 @@ export default async function RootLayout({
             __html: `
               (function () {
                 try {
+                  var path = location.pathname || "";
+                  // Login principal fica sempre no tema claro.
+                  if (path === "/login") {
+                    document.documentElement.classList.remove("dark");
+                    return;
+                  }
                   var tema = localStorage.getItem("labProteseDarkMode");
                   if (tema === "dark") {
                     document.documentElement.classList.add("dark");
