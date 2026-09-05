@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Check, ChevronLeft, ChevronRight, Plus, Trash2, Upload } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
 import { Modal } from "@/components/ui";
+import { OdontogramaSeletorOs } from "@/components/producao/OdontogramaSeletorOs";
 import {
   LIMITE_ANEXOS_SOLICITACAO_ENVIO,
   TIPOS_TRANSPORTE_SOLICITACAO,
@@ -267,14 +268,6 @@ export function SolicitacaoEnvioWizardModal({ open, token, onClose, onEnviado }:
                 />
               </label>
               <label className="block text-xs font-medium text-slate-600">
-                {t("acompanhamento.pedido.dentes")}
-                <input
-                  className={cn(inputCls, "mt-1")}
-                  value={form.dentes}
-                  onChange={(e) => atualizar("dentes", e.target.value)}
-                />
-              </label>
-              <label className="block text-xs font-medium text-slate-600">
                 {t("acompanhamento.pedido.cor")}
                 <input
                   className={cn(inputCls, "mt-1")}
@@ -345,6 +338,18 @@ export function SolicitacaoEnvioWizardModal({ open, token, onClose, onEnviado }:
                   />
                   {t("acompanhamento.pedido.repeticao")}
                 </label>
+              </div>
+              <div className="sm:col-span-2">
+                <OdontogramaSeletorOs
+                  key={open ? "odontograma-aberto" : "odontograma-fechado"}
+                  value={form.dentes}
+                  onChange={(resumo) => atualizar("dentes", resumo)}
+                  titulo={t("acompanhamento.pedido.odontogramaTitulo")}
+                  labelSelecionados={t("acompanhamento.pedido.dentesSelecionados")}
+                  labelNenhum={t("acompanhamento.pedido.nenhumDente")}
+                  labelPermanente={t("acompanhamento.pedido.permanente")}
+                  labelDeciduos={t("acompanhamento.pedido.deciduos")}
+                />
               </div>
               <label className="block text-xs font-medium text-slate-600 sm:col-span-2">
                 {t("acompanhamento.pedido.obsServico")}
