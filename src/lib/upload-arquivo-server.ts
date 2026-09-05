@@ -35,6 +35,59 @@ const MIME_BASE = new Set([
   "application/pdf",
 ]);
 
+/** Extensões aceitas na seção Arquivos do pedido de envio (inclui 3D). */
+const EXTENSOES_ARQUIVO_SOLICITACAO = [
+  ".pdf",
+  ".stl",
+  ".obj",
+  ".ply",
+  ".3mf",
+  ".glb",
+  ".gltf",
+  ".zip",
+  ".rar",
+  ".7z",
+  ".doc",
+  ".docx",
+  ".xls",
+  ".xlsx",
+  ".txt",
+  ".csv",
+  ".dcm",
+  ".dxf",
+  ".step",
+  ".stp",
+  ".iges",
+  ".igs",
+];
+
+const MIME_ARQUIVO_SOLICITACAO = new Set([
+  "application/pdf",
+  "application/octet-stream",
+  "application/zip",
+  "application/x-zip-compressed",
+  "application/x-rar-compressed",
+  "application/vnd.rar",
+  "application/x-7z-compressed",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "text/plain",
+  "text/csv",
+  "model/stl",
+  "model/obj",
+  "model/3mf",
+  "model/mesh",
+  "model/gltf+json",
+  "model/gltf-binary",
+  "application/sla",
+  "application/vnd.ms-pki.stl",
+  "application/wavefront-obj",
+]);
+
+const MAX_BYTES_ARQUIVO_SOLICITACAO = 50 * 1024 * 1024;
+
 const MIME_WHATSAPP = new Set([
   ...MIME_BASE,
   "image/gif",
@@ -176,17 +229,96 @@ function mimePorExtensao(nome: string): string | null {
   if (lower.endsWith(".ogg") || lower.endsWith(".oga")) return "audio/ogg";
   if (lower.endsWith(".mp4") || lower.endsWith(".m4a")) return "video/mp4";
   if (lower.endsWith(".webm")) return "video/webm";
+  if (lower.endsWith(".stl")) return "model/stl";
+  if (lower.endsWith(".obj")) return "model/obj";
+  if (lower.endsWith(".ply")) return "model/mesh";
+  if (lower.endsWith(".3mf")) return "model/3mf";
+  if (lower.endsWith(".glb")) return "model/gltf-binary";
+  if (lower.endsWith(".gltf")) return "model/gltf+json";
+  if (lower.endsWith(".zip")) return "application/zip";
+  if (lower.endsWith(".rar")) return "application/vnd.rar";
+  if (lower.endsWith(".7z")) return "application/x-7z-compressed";
+  if (lower.endsWith(".doc")) return "application/msword";
+  if (lower.endsWith(".docx")) {
+    return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  }
+  if (lower.endsWith(".xls")) return "application/vnd.ms-excel";
+  if (lower.endsWith(".xlsx")) {
+    return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  }
+  if (lower.endsWith(".txt")) return "text/plain";
+  if (lower.endsWith(".csv")) return "text/csv";
+  if (lower.endsWith(".dcm")) return "application/dicom";
+  if (lower.endsWith(".dxf")) return "image/vnd.dxf";
+  if (lower.endsWith(".step") || lower.endsWith(".stp")) return "application/step";
+  if (lower.endsWith(".iges") || lower.endsWith(".igs")) return "model/iges";
   return null;
+}
+
+function extensaoArquivoPermitidaSolicitacao(nome: string) {
+  const lower = nome.toLowerCase();
+  return EXTENSOES_ARQUIVO_SOLICITACAO.some((ext) => lower.endsWith(ext));
 }
 
 export function validarMimeUpload(
   pasta: PastaUpload,
   bytes: Buffer,
-  file: File
+  file: File,
+  opcoes?: { modoMime?: "padrao" | "arquivos-solicitacao" | "imagens-solicitacao" }
 ): string {
   const magic = detectarMimePorMagic(bytes);
   const declarado = file.type?.trim().toLowerCase() || "";
   const porExt = mimePorExtensao(file.name);
+  const modo = opcoes?.modoMime || "padrao";
+
+  if (modo === "imagens-solicitacao") {
+    const mimeImg =
+      magic ||
+      (declarado.startsWith("image/") ? declarado : null) ||
+      (porExt?.startsWith("image/") ? porExt : null);
+    if (!mimeImg || !["image/jpeg", "image/png", "image/webp"].includes(mimeImg)) {
+      throw new Error(
+        `O arquivo "${file.name}" não é uma imagem permitida. Use JPEG, PNG ou WebP.`
+      );
+    }
+    return mimeImg;
+  }
+
+  if (modo === "arquivos-solicitacao") {
+    if (magic?.startsWith("image/")) {
+      throw new Error(
+        `O arquivo "${file.name}" é uma imagem. Envie imagens na seção de imagens.`
+      );
+    }
+    const mime =
+      magic ||
+      (declarado && !MIME_BLOQUEADOS.has(declarado) && !declarado.startsWith("image/")
+        ? declarado
+        : null) ||
+      porExt ||
+      (extensaoArquivoPermitidaSolicitacao(file.name) ? "application/octet-stream" : null);
+
+    if (!mime || MIME_BLOQUEADOS.has(mime) || mime.startsWith("image/")) {
+      throw new Error(
+        `O arquivo "${file.name}" tem tipo não permitido (SVG/HTML/scripts ou imagem).`
+      );
+    }
+
+    const permitido =
+      !mime.startsWith("image/") &&
+      !MIME_BLOQUEADOS.has(mime) &&
+      (MIME_ARQUIVO_SOLICITACAO.has(mime) ||
+        extensaoArquivoPermitidaSolicitacao(file.name) ||
+        mime === "application/octet-stream" ||
+        Boolean(porExt) ||
+        Boolean(declarado));
+    if (!permitido) {
+      throw new Error(
+        `O arquivo "${file.name}" não é permitido. Use PDF, STL, OBJ, ZIP, DOC ou outros formatos de arquivo/3D.`
+      );
+    }
+    return mime;
+  }
 
   const mime = magic || (declarado && !MIME_BLOQUEADOS.has(declarado) ? declarado : null) || porExt;
   if (!mime || MIME_BLOQUEADOS.has(mime)) {
@@ -255,14 +387,24 @@ export async function salvarArquivosUpload(
   files: File[],
   empresaId?: string,
   empresaSlug?: string,
-  opcoes?: { forcarBanco?: boolean; subpasta?: string }
+  opcoes?: {
+    forcarBanco?: boolean;
+    subpasta?: string;
+    modoMime?: "padrao" | "arquivos-solicitacao" | "imagens-solicitacao";
+  }
 ): Promise<ArquivoEnviado[]> {
   if (!files.length) return [];
 
+  const maxBytes =
+    opcoes?.modoMime === "arquivos-solicitacao"
+      ? MAX_BYTES_ARQUIVO_SOLICITACAO
+      : MAX_BYTES_ARQUIVO;
+
   for (const file of files) {
-    if (file.size > MAX_BYTES_ARQUIVO) {
+    if (file.size > maxBytes) {
+      const limiteMb = Math.round(maxBytes / (1024 * 1024));
       throw new Error(
-        `O arquivo "${file.name}" excede o limite de 4 MB. Reduza o tamanho ou envie outro arquivo.`
+        `O arquivo "${file.name}" excede o limite de ${limiteMb} MB. Reduza o tamanho ou envie outro arquivo.`
       );
     }
   }
@@ -298,7 +440,9 @@ export async function salvarArquivosUpload(
     const preparados = await Promise.all(
       files.map(async (file, index) => {
         const bytes = Buffer.from(await file.arrayBuffer());
-        const mimeType = validarMimeUpload(pasta, bytes, file);
+        const mimeType = validarMimeUpload(pasta, bytes, file, {
+          modoMime: opcoes?.modoMime,
+        });
         const filename = `${Date.now()}-${index}-${Math.random()
           .toString(36)
           .slice(2)}-${safeName(file.name)}`;
@@ -370,7 +514,9 @@ export async function salvarArquivosUpload(
     const uploaded: ArquivoEnviado[] = [];
     for (const file of files) {
       const bytes = Buffer.from(await file.arrayBuffer());
-      const mimeType = validarMimeUpload(pasta, bytes, file);
+      const mimeType = validarMimeUpload(pasta, bytes, file, {
+        modoMime: opcoes?.modoMime,
+      });
       const registro = await prisma.arquivoUpload.create({
         data: {
           empresaId,
@@ -406,7 +552,9 @@ export async function salvarArquivosUpload(
   const uploaded: ArquivoEnviado[] = [];
   for (const file of files) {
     const bytes = Buffer.from(await file.arrayBuffer());
-    const mimeType = validarMimeUpload(pasta, bytes, file);
+    const mimeType = validarMimeUpload(pasta, bytes, file, {
+      modoMime: opcoes?.modoMime,
+    });
     const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName(file.name)}`;
     await writeFile(path.join(uploadDir, filename), bytes);
     uploaded.push({

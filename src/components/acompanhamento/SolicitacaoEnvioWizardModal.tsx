@@ -573,7 +573,7 @@ export function SolicitacaoEnvioWizardModal({ open, token, onClose, onEnviado }:
                     <input
                       type="file"
                       multiple
-                      accept="application/pdf"
+                      accept=".pdf,.stl,.obj,.ply,.3mf,.glb,.gltf,.zip,.rar,.7z,.doc,.docx,.xls,.xlsx,.txt,.csv,.dcm,.dxf,.step,.stp,.iges,.igs,application/pdf,model/stl,model/obj,application/octet-stream"
                       className="hidden"
                       disabled={enviandoArquivos}
                       onChange={(e) => {

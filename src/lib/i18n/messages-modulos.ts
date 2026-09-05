@@ -1176,7 +1176,7 @@ export const messagesModulosPt = {
   "acompanhamento.pedido.obsServico": "Observação do serviço",
   "acompanhamento.pedido.obsInterna": "Observação interna",
   "acompanhamento.pedido.anexosDesc":
-    "Envie até {imagens} imagens e {arquivos} arquivos (PDF). Os uploads vão para o OneDrive na pasta do paciente.",
+    "Envie até {imagens} imagens e {arquivos} arquivos (PDF, STL, OBJ e outros 3D). Os uploads vão para o OneDrive na pasta do paciente.",
   "acompanhamento.pedido.pastaPaciente":
     "Pasta no OneDrive: uploads/os/{paciente}",
   "acompanhamento.pedido.secaoArquivos": "Arquivos",
@@ -1195,7 +1195,8 @@ export const messagesModulosPt = {
   "acompanhamento.pedido.erroPacienteAnexos":
     "Informe o paciente na etapa anterior antes de enviar anexos.",
   "acompanhamento.pedido.erroTipoImagem": "Selecione apenas imagens JPEG, PNG ou WebP.",
-  "acompanhamento.pedido.erroTipoArquivo": "Selecione apenas arquivos PDF nesta seção.",
+  "acompanhamento.pedido.erroTipoArquivo":
+    "Selecione arquivos (PDF, STL, OBJ, ZIP, DOC…). Imagens ficam na seção de imagens.",
   "acompanhamento.pedido.tipoTransporte": "Tipo de transporte",
   "acompanhamento.pedido.transporte.motoboy": "Motoboy",
   "acompanhamento.pedido.transporte.correios": "Correios",
@@ -3125,7 +3126,7 @@ export const messagesModulosEn: Record<keyof typeof messagesModulosPt, string> =
   "acompanhamento.pedido.obsServico": "Service notes",
   "acompanhamento.pedido.obsInterna": "Internal notes",
   "acompanhamento.pedido.anexosDesc":
-    "Upload up to {imagens} images and {arquivos} files (PDF). Uploads go to OneDrive in the patient folder.",
+    "Upload up to {imagens} images and {arquivos} files (PDF, STL, OBJ and other 3D). Uploads go to OneDrive in the patient folder.",
   "acompanhamento.pedido.pastaPaciente": "OneDrive folder: uploads/os/{paciente}",
   "acompanhamento.pedido.secaoArquivos": "Files",
   "acompanhamento.pedido.secaoImagens": "Images",
@@ -3143,7 +3144,8 @@ export const messagesModulosEn: Record<keyof typeof messagesModulosPt, string> =
   "acompanhamento.pedido.erroPacienteAnexos":
     "Enter the patient on the previous step before uploading attachments.",
   "acompanhamento.pedido.erroTipoImagem": "Select only JPEG, PNG, or WebP images.",
-  "acompanhamento.pedido.erroTipoArquivo": "Select only PDF files in this section.",
+  "acompanhamento.pedido.erroTipoArquivo":
+    "Select files (PDF, STL, OBJ, ZIP, DOC…). Images belong in the images section.",
   "acompanhamento.pedido.tipoTransporte": "Shipping type",
   "acompanhamento.pedido.transporte.motoboy": "Courier",
   "acompanhamento.pedido.transporte.correios": "Mail",
@@ -5072,7 +5074,7 @@ export const messagesModulosEs: Record<keyof typeof messagesModulosPt, string> =
   "acompanhamento.pedido.obsServico": "Observación del servicio",
   "acompanhamento.pedido.obsInterna": "Observación interna",
   "acompanhamento.pedido.anexosDesc":
-    "Envíe hasta {imagens} imágenes y {arquivos} archivos (PDF). Las subidas van a OneDrive en la carpeta del paciente.",
+    "Envíe hasta {imagens} imágenes y {arquivos} archivos (PDF, STL, OBJ y otros 3D). Las subidas van a OneDrive en la carpeta del paciente.",
   "acompanhamento.pedido.pastaPaciente":
     "Carpeta en OneDrive: uploads/os/{paciente}",
   "acompanhamento.pedido.secaoArquivos": "Archivos",
@@ -5091,7 +5093,8 @@ export const messagesModulosEs: Record<keyof typeof messagesModulosPt, string> =
   "acompanhamento.pedido.erroPacienteAnexos":
     "Informe el paciente en el paso anterior antes de enviar adjuntos.",
   "acompanhamento.pedido.erroTipoImagem": "Seleccione solo imágenes JPEG, PNG o WebP.",
-  "acompanhamento.pedido.erroTipoArquivo": "Seleccione solo archivos PDF en esta sección.",
+  "acompanhamento.pedido.erroTipoArquivo":
+    "Seleccione archivos (PDF, STL, OBJ, ZIP, DOC…). Las imágenes van en la sección de imágenes.",
   "acompanhamento.pedido.tipoTransporte": "Tipo de transporte",
   "acompanhamento.pedido.transporte.motoboy": "Motoboy",
   "acompanhamento.pedido.transporte.correios": "Correo",

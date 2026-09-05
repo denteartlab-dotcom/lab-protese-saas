@@ -90,7 +90,11 @@ export async function POST(request: Request, { params }: Params) {
 
   for (const file of files) {
     const mime = (file.type || "").toLowerCase();
-    if (tipo === "imagem" && !mime.startsWith("image/")) {
+    const nome = file.name.toLowerCase();
+    const ehImagem =
+      mime.startsWith("image/") ||
+      /\.(jpe?g|png|webp|gif|bmp|heic)$/i.test(nome);
+    if (tipo === "imagem" && !ehImagem) {
       return NextResponse.json(
         {
           error: "tipo_invalido",
@@ -99,11 +103,12 @@ export async function POST(request: Request, { params }: Params) {
         { status: 400 }
       );
     }
-    if (tipo === "arquivo" && mime.startsWith("image/")) {
+    if (tipo === "arquivo" && ehImagem) {
       return NextResponse.json(
         {
           error: "tipo_invalido",
-          message: "Na seção de arquivos envie PDF (imagens ficam na seção de imagens).",
+          message:
+            "Na seção de arquivos envie PDF, STL, OBJ e outros formatos (imagens ficam na seção de imagens).",
         },
         { status: 400 }
       );
@@ -114,6 +119,8 @@ export async function POST(request: Request, { params }: Params) {
     const uploaded = await runWithTenantContext(empresa.id, () =>
       salvarArquivosUpload("os", files, empresa.id, empresa.slug, {
         subpasta: pacienteNome,
+        modoMime:
+          tipo === "imagem" ? "imagens-solicitacao" : "arquivos-solicitacao",
       })
     );
 

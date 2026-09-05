@@ -50,7 +50,7 @@ export const schemaAnexoSolicitacao = z.object({
   nome: z.string().trim().min(1).max(240),
   mimeType: z.string().trim().min(1).max(120),
   url: z.string().trim().min(1).max(500),
-  tamanho: z.number().int().min(0).max(20 * 1024 * 1024),
+  tamanho: z.number().int().min(0).max(50 * 1024 * 1024),
   categoria: z.enum(["imagem", "arquivo"]).optional(),
 });
 
