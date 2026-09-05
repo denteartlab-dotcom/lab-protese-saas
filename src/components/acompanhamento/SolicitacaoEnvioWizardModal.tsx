@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Check, ChevronLeft, ChevronRight, Plus, Trash2, Upload } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
 import { Modal } from "@/components/ui";
+import { SelectPesquisavel } from "@/components/SelectPesquisavel";
 import { OdontogramaSeletorOs } from "@/components/producao/OdontogramaSeletorOs";
 import {
   LIMITE_ANEXOS_SOLICITACAO_ENVIO,
@@ -74,6 +75,41 @@ export function SolicitacaoEnvioWizardModal({ open, token, onClose, onEnviado }:
   const [enviandoArquivos, setEnviandoArquivos] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [sucesso, setSucesso] = useState(false);
+  const [servicosOpcoes, setServicosOpcoes] = useState<string[]>([]);
+  const [carregandoServicos, setCarregandoServicos] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelado = false;
+    setCarregandoServicos(true);
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/clientes/public/${token}/solicitacao-envio/servicos`,
+          { cache: "no-store" }
+        );
+        const json = await res.json();
+        if (cancelado) return;
+        if (res.ok && Array.isArray(json.servicos)) {
+          setServicosOpcoes(json.servicos.filter((s: unknown) => typeof s === "string"));
+        } else {
+          setServicosOpcoes([]);
+        }
+      } catch {
+        if (!cancelado) setServicosOpcoes([]);
+      } finally {
+        if (!cancelado) setCarregandoServicos(false);
+      }
+    })();
+    return () => {
+      cancelado = true;
+    };
+  }, [open, token]);
+
+  const opcoesServico = useMemo(
+    () => servicosOpcoes.map((nome) => ({ value: nome, label: nome })),
+    [servicosOpcoes]
+  );
 
   const titulos = useMemo(
     () => [
@@ -242,14 +278,34 @@ export function SolicitacaoEnvioWizardModal({ open, token, onClose, onEnviado }:
                   onChange={(e) => atualizar("pacienteNome", e.target.value)}
                 />
               </label>
-              <label className="block text-xs font-medium text-slate-600 sm:col-span-2">
-                {t("acompanhamento.pedido.servico")} *
-                <input
-                  className={cn(inputCls, "mt-1")}
+              <div className="sm:col-span-2">
+                <SelectPesquisavel
+                  label={
+                    <>
+                      {t("acompanhamento.pedido.servico")} *
+                    </>
+                  }
                   value={form.tipoProtese}
-                  onChange={(e) => atualizar("tipoProtese", e.target.value)}
+                  onChange={(valor) => atualizar("tipoProtese", valor)}
+                  options={opcoesServico}
+                  placeholder={
+                    carregandoServicos
+                      ? t("acompanhamento.pedido.servicosCarregando")
+                      : t("acompanhamento.pedido.servicosBusca")
+                  }
+                  emptyMessage={
+                    carregandoServicos
+                      ? t("acompanhamento.pedido.servicosCarregando")
+                      : t("acompanhamento.pedido.servicosVazio")
+                  }
+                  required
+                  disabled={carregandoServicos}
+                  permitirLimpar
+                  menuEmPortal
+                  className="text-xs font-medium text-slate-600"
+                  inputClassName="h-9 rounded-md border border-slate-200 bg-white text-sm text-slate-800"
                 />
-              </label>
+              </div>
               <label className="block text-xs font-medium text-slate-600">
                 {t("acompanhamento.pedido.dentista")}
                 <input

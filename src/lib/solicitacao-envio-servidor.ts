@@ -1,4 +1,12 @@
 import { prisma } from "@/lib/db";
+import { clienteTabelaPrecoDeObservacoes } from "@/lib/cabecalho-os-form";
+import { lerJsonStoreTenant } from "@/lib/json-store-tenant";
+import {
+  encontrarChaveTabelaPreco,
+  parseDadosTabelaPrecoOsRemoto,
+  servicosSelecionaveisNaOs,
+  TABELA_PRECOS_STORAGE_KEY,
+} from "@/lib/tabela-precos-os";
 import {
   parseJsonArraySeguro,
   rotuloTipoTransporte,
@@ -151,4 +159,45 @@ export async function obterSolicitacaoEnvioPorId(
       cliente: { select: { id: true, nome: true } },
     },
   });
+}
+
+/** Nomes de serviço da tabela de preço do cliente (fallback: tabela padrão do sistema). */
+export async function listarNomesServicosTabelaCliente(params: {
+  empresaId: string;
+  observacoesCliente?: string | null;
+}) {
+  try {
+    const raw = await lerJsonStoreTenant<unknown>(
+      params.empresaId,
+      TABELA_PRECOS_STORAGE_KEY
+    );
+    const dados = parseDadosTabelaPrecoOsRemoto(
+      (raw as Parameters<typeof parseDadosTabelaPrecoOsRemoto>[0]) || null
+    );
+    const nomeCliente = clienteTabelaPrecoDeObservacoes(params.observacoesCliente);
+    const chave =
+      encontrarChaveTabelaPreco(dados.categoriasPorTabela, nomeCliente) ||
+      encontrarChaveTabelaPreco(dados.categoriasPorTabela, dados.tabela) ||
+      dados.tabelas[0] ||
+      Object.keys(dados.categoriasPorTabela)[0];
+
+    if (!chave) {
+      return { tabela: nomeCliente, servicos: [] as string[] };
+    }
+
+    const categorias = dados.categoriasPorTabela[chave] || [];
+    const nomes = categorias
+      .flatMap((categoria) => servicosSelecionaveisNaOs(categoria.servicos || []))
+      .map((item) => (item.nome || "").trim())
+      .filter(Boolean);
+
+    const unicos = Array.from(new Set(nomes)).sort((a, b) =>
+      a.localeCompare(b, "pt-BR", { sensitivity: "base" })
+    );
+
+    return { tabela: chave, servicos: unicos };
+  } catch (erro) {
+    console.error("[solicitacao-envio] listarNomesServicosTabelaCliente", erro);
+    return { tabela: null as string | null, servicos: [] as string[] };
+  }
 }
