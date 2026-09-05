@@ -121,18 +121,24 @@ export async function listarSolicitacoesEnvioCliente(params: {
   status?: string;
   limite?: number;
 }) {
-  return prisma.solicitacaoEnvioCliente.findMany({
-    where: {
-      empresaId: params.empresaId,
-      ...(params.clienteId ? { clienteId: params.clienteId } : {}),
-      ...(params.status ? { status: params.status } : {}),
-    },
-    include: {
-      cliente: { select: { id: true, nome: true } },
-    },
-    orderBy: { criadoEm: "desc" },
-    take: params.limite ?? 50,
-  });
+  try {
+    return await prisma.solicitacaoEnvioCliente.findMany({
+      where: {
+        empresaId: params.empresaId,
+        ...(params.clienteId ? { clienteId: params.clienteId } : {}),
+        ...(params.status ? { status: params.status } : {}),
+      },
+      include: {
+        cliente: { select: { id: true, nome: true } },
+      },
+      orderBy: { criadoEm: "desc" },
+      take: params.limite ?? 50,
+    });
+  } catch (erro) {
+    // Evita derrubar dashboard/notificações se a tabela ainda não existir no ambiente.
+    console.error("[solicitacao-envio] listarSolicitacoesEnvioCliente", erro);
+    return [];
+  }
 }
 
 export async function obterSolicitacaoEnvioPorId(

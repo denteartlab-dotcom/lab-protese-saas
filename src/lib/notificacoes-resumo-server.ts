@@ -400,24 +400,28 @@ export async function montarNotificacoesEmpresa(
   // Observações enviadas pelo cliente precisam aparecer primeiro no sino.
   lista.unshift(...notificacoesObservacoes);
 
-  const solicitacoesPendentes = await listarSolicitacoesEnvioCliente({
-    empresaId,
-    status: "pendente",
-    limite: 40,
-  });
-  const notificacoesSolicitacao: NotificacaoApi[] = solicitacoesPendentes.map((s) => ({
-    id: `solicitacao-envio-${s.id}`,
-    kind: "solicitacao_envio_cliente" as const,
-    href: `/app?solicitacaoEnvio=${s.id}`,
-    params: {
-      cliente: s.cliente?.nome || "—",
-      paciente: s.pacienteNome,
-      servico: s.tipoProtese,
-      transporte: s.tipoTransporte,
-    },
-    criadoEm: s.criadoEm.toISOString(),
-  }));
-  lista.unshift(...notificacoesSolicitacao);
+  try {
+    const solicitacoesPendentes = await listarSolicitacoesEnvioCliente({
+      empresaId,
+      status: "pendente",
+      limite: 40,
+    });
+    const notificacoesSolicitacao: NotificacaoApi[] = solicitacoesPendentes.map((s) => ({
+      id: `solicitacao-envio-${s.id}`,
+      kind: "solicitacao_envio_cliente" as const,
+      href: `/app?solicitacaoEnvio=${s.id}`,
+      params: {
+        cliente: s.cliente?.nome || "—",
+        paciente: s.pacienteNome,
+        servico: s.tipoProtese,
+        transporte: s.tipoTransporte,
+      },
+      criadoEm: s.criadoEm.toISOString(),
+    }));
+    lista.unshift(...notificacoesSolicitacao);
+  } catch (erro) {
+    console.error("[notificacoes] solicitacao_envio_cliente", erro);
+  }
 
   if (opts?.empresaSlug) {
     const armazenamento = await calcularArmazenamentoGaleria(

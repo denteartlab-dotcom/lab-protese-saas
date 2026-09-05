@@ -284,14 +284,19 @@ export async function montarDashboard(params: ParametrosDashboard) {
     montarUrgentesClienteDashboard(storeUrgencias.eventos, mapaTrabalhosUrgencia)
   );
 
-  const solicitacoesEnvioRaw = await listarSolicitacoesEnvioCliente({
-    empresaId,
-    status: "pendente",
-    limite: 40,
-  });
-  const solicitacoesEnvio = solicitacoesEnvioRaw.map((s) =>
-    serializarSolicitacaoEnvio(s)
-  );
+  let solicitacoesEnvio: ReturnType<typeof serializarSolicitacaoEnvio>[] = [];
+  try {
+    const solicitacoesEnvioRaw = await listarSolicitacoesEnvioCliente({
+      empresaId,
+      status: "pendente",
+      limite: 40,
+    });
+    solicitacoesEnvio = solicitacoesEnvioRaw.map((s) =>
+      serializarSolicitacaoEnvio(s)
+    );
+  } catch (erro) {
+    console.error("[dashboard] solicitacoesEnvio", erro);
+  }
 
   const financeiroResumo = calcularResumoFinanceiroDashboard(
     lancamentos.map((l) => ({
