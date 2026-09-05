@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 import { executarSemRls, runWithTenantContext } from "@/lib/db";
 import { MENSAGEM_LINK_ACOMPANHAMENTO_INVALIDO } from "@/lib/cliente-acompanhamento";
 import { buscarClientePublicoPorToken } from "@/lib/tenant-db";
-import { LIMITE_ANEXOS_SOLICITACAO_ENVIO } from "@/lib/solicitacao-envio-types";
+import {
+  categoriaAnexoPorMime,
+  LIMITE_ARQUIVOS_SOLICITACAO_ENVIO,
+  LIMITE_IMAGENS_SOLICITACAO_ENVIO,
+  type CategoriaAnexoSolicitacao,
+} from "@/lib/solicitacao-envio-types";
 import { salvarArquivosUpload } from "@/lib/upload-arquivo-server";
 
 type Params = { params: Promise<{ token: string }> };
@@ -45,25 +50,71 @@ export async function POST(request: Request, { params }: Params) {
     );
   }
 
+  const pacienteNome = String(formData.get("pacienteNome") || "").trim();
+  if (!pacienteNome) {
+    return NextResponse.json(
+      {
+        error: "paciente_obrigatorio",
+        message: "Informe o nome do paciente antes de enviar anexos.",
+      },
+      { status: 400 }
+    );
+  }
+
+  const tipoRaw = String(formData.get("tipo") || "").trim().toLowerCase();
+  const tipo: CategoriaAnexoSolicitacao =
+    tipoRaw === "arquivo" ? "arquivo" : "imagem";
+  const limite =
+    tipo === "imagem"
+      ? LIMITE_IMAGENS_SOLICITACAO_ENVIO
+      : LIMITE_ARQUIVOS_SOLICITACAO_ENVIO;
+
   const files = formData
     .getAll("files")
     .filter((item): item is File => item instanceof File);
   if (files.length === 0) {
     return NextResponse.json({ error: "Nenhum arquivo enviado" }, { status: 400 });
   }
-  if (files.length > LIMITE_ANEXOS_SOLICITACAO_ENVIO) {
+  if (files.length > limite) {
     return NextResponse.json(
       {
         error: "limite_anexos",
-        message: `Envie no máximo ${LIMITE_ANEXOS_SOLICITACAO_ENVIO} arquivos.`,
+        message:
+          tipo === "imagem"
+            ? `Envie no máximo ${LIMITE_IMAGENS_SOLICITACAO_ENVIO} imagens.`
+            : `Envie no máximo ${LIMITE_ARQUIVOS_SOLICITACAO_ENVIO} arquivos.`,
       },
       { status: 400 }
     );
   }
 
+  for (const file of files) {
+    const mime = (file.type || "").toLowerCase();
+    if (tipo === "imagem" && !mime.startsWith("image/")) {
+      return NextResponse.json(
+        {
+          error: "tipo_invalido",
+          message: "Na seção de imagens envie apenas JPEG, PNG ou WebP.",
+        },
+        { status: 400 }
+      );
+    }
+    if (tipo === "arquivo" && mime.startsWith("image/")) {
+      return NextResponse.json(
+        {
+          error: "tipo_invalido",
+          message: "Na seção de arquivos envie PDF (imagens ficam na seção de imagens).",
+        },
+        { status: 400 }
+      );
+    }
+  }
+
   try {
     const uploaded = await runWithTenantContext(empresa.id, () =>
-      salvarArquivosUpload("os", files, empresa.id, empresa.slug)
+      salvarArquivosUpload("os", files, empresa.id, empresa.slug, {
+        subpasta: pacienteNome,
+      })
     );
 
     return NextResponse.json(
@@ -73,6 +124,7 @@ export async function POST(request: Request, { params }: Params) {
         mimeType: item.type,
         url: item.url,
         tamanho: 0,
+        categoria: tipo || categoriaAnexoPorMime(item.type),
       }))
     );
   } catch (err) {

@@ -1,15 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, ChevronLeft, ChevronRight, Plus, Trash2, Upload } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, FileText, Plus, Trash2, Upload } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
 import { Modal } from "@/components/ui";
 import { SelectPesquisavel } from "@/components/SelectPesquisavel";
 import { OdontogramaSeletorOs } from "@/components/producao/OdontogramaSeletorOs";
 import {
-  LIMITE_ANEXOS_SOLICITACAO_ENVIO,
+  categoriaAnexoPorMime,
+  LIMITE_ARQUIVOS_SOLICITACAO_ENVIO,
+  LIMITE_IMAGENS_SOLICITACAO_ENVIO,
   TIPOS_TRANSPORTE_SOLICITACAO,
   type AnexoSolicitacaoEnvio,
+  type CategoriaAnexoSolicitacao,
   type ObservacaoEnvioLinha,
   type TipoTransporteSolicitacao,
 } from "@/lib/solicitacao-envio-types";
@@ -141,18 +144,54 @@ export function SolicitacaoEnvioWizardModal({ open, token, onClose, onEnviado }:
     return true;
   }
 
-  async function enviarArquivos(lista: FileList | null) {
+  async function enviarArquivos(
+    lista: FileList | null,
+    categoria: CategoriaAnexoSolicitacao
+  ) {
     if (!lista?.length) return;
-    const restantes = LIMITE_ANEXOS_SOLICITACAO_ENVIO - form.anexos.length;
-    if (restantes <= 0) {
-      setErro(t("acompanhamento.pedido.erroLimiteAnexos"));
+    if (!form.pacienteNome.trim()) {
+      setErro(t("acompanhamento.pedido.erroPacienteAnexos"));
+      setEtapa(1);
       return;
     }
-    const files = Array.from(lista).slice(0, restantes);
+    const atuais = form.anexos.filter(
+      (a) =>
+        (a.categoria || categoriaAnexoPorMime(a.mimeType)) === categoria
+    );
+    const limite =
+      categoria === "imagem"
+        ? LIMITE_IMAGENS_SOLICITACAO_ENVIO
+        : LIMITE_ARQUIVOS_SOLICITACAO_ENVIO;
+    const restantes = limite - atuais.length;
+    if (restantes <= 0) {
+      setErro(
+        categoria === "imagem"
+          ? t("acompanhamento.pedido.erroLimiteImagens")
+          : t("acompanhamento.pedido.erroLimiteArquivos")
+      );
+      return;
+    }
+    const files = Array.from(lista)
+      .filter((file) =>
+        categoria === "imagem"
+          ? file.type.startsWith("image/")
+          : !file.type.startsWith("image/")
+      )
+      .slice(0, restantes);
+    if (!files.length) {
+      setErro(
+        categoria === "imagem"
+          ? t("acompanhamento.pedido.erroTipoImagem")
+          : t("acompanhamento.pedido.erroTipoArquivo")
+      );
+      return;
+    }
     setEnviandoArquivos(true);
     setErro(null);
     try {
       const body = new FormData();
+      body.append("pacienteNome", form.pacienteNome.trim());
+      body.append("tipo", categoria);
       for (const file of files) body.append("files", file);
       const res = await fetch(
         `/api/clientes/public/${token}/solicitacao-envio/upload`,
@@ -163,14 +202,33 @@ export function SolicitacaoEnvioWizardModal({ open, token, onClose, onEnviado }:
         setErro(json.error || json.message || t("acompanhamento.pedido.erroUpload"));
         return;
       }
-      const novos = (Array.isArray(json) ? json : []) as AnexoSolicitacaoEnvio[];
-      atualizar("anexos", [...form.anexos, ...novos].slice(0, LIMITE_ANEXOS_SOLICITACAO_ENVIO));
+      const novos = (Array.isArray(json) ? json : []).map(
+        (item: AnexoSolicitacaoEnvio) => ({
+          ...item,
+          categoria: item.categoria || categoria,
+        })
+      ) as AnexoSolicitacaoEnvio[];
+      atualizar("anexos", [...form.anexos, ...novos]);
     } catch {
       setErro(t("acompanhamento.pedido.erroUpload"));
     } finally {
       setEnviandoArquivos(false);
     }
   }
+
+  function removerAnexo(id: string) {
+    atualizar(
+      "anexos",
+      form.anexos.filter((a) => a.id !== id)
+    );
+  }
+
+  const imagens = form.anexos.filter(
+    (a) => (a.categoria || categoriaAnexoPorMime(a.mimeType)) === "imagem"
+  );
+  const arquivos = form.anexos.filter(
+    (a) => (a.categoria || categoriaAnexoPorMime(a.mimeType)) === "arquivo"
+  );
 
   async function confirmarEnvio() {
     if (!validarEtapa1()) {
@@ -427,55 +485,143 @@ export function SolicitacaoEnvioWizardModal({ open, token, onClose, onEnviado }:
           )}
 
           {etapa === 2 && (
-            <div className="space-y-3">
-              <p className="text-xs text-slate-500">{t("acompanhamento.pedido.anexosDesc")}</p>
-              <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center hover:bg-slate-100">
-                <Upload className="h-6 w-6 text-[#4a90d9]" />
-                <span className="text-sm font-medium text-slate-700">
-                  {enviandoArquivos
-                    ? t("acompanhamento.pedido.enviandoArquivos")
-                    : t("acompanhamento.pedido.selecionarArquivos")}
-                </span>
-                <input
-                  type="file"
-                  multiple
-                  accept="image/jpeg,image/png,image/webp,application/pdf"
-                  className="hidden"
-                  disabled={enviandoArquivos}
-                  onChange={(e) => {
-                    void enviarArquivos(e.target.files);
-                    e.target.value = "";
-                  }}
-                />
-              </label>
-              {form.anexos.length > 0 ? (
-                <ul className="divide-y divide-slate-100 rounded-md border border-slate-200">
-                  {form.anexos.map((anexo) => (
-                    <li
-                      key={anexo.id}
-                      className="flex items-center justify-between gap-2 px-3 py-2 text-xs text-slate-700"
-                    >
-                      <span className="truncate">{anexo.nome}</span>
-                      <button
-                        type="button"
-                        className="text-red-600 hover:underline"
-                        onClick={() =>
-                          atualizar(
-                            "anexos",
-                            form.anexos.filter((a) => a.id !== anexo.id)
-                          )
-                        }
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-center text-xs text-slate-400">
-                  {t("acompanhamento.pedido.semAnexos")}
+            <div className="space-y-5">
+              <p className="text-xs text-slate-500">
+                {t("acompanhamento.pedido.anexosDesc", {
+                  imagens: LIMITE_IMAGENS_SOLICITACAO_ENVIO,
+                  arquivos: LIMITE_ARQUIVOS_SOLICITACAO_ENVIO,
+                })}
+              </p>
+              {form.pacienteNome.trim() ? (
+                <p className="rounded-md bg-emerald-50 px-3 py-2 text-[11px] text-emerald-800">
+                  {t("acompanhamento.pedido.pastaPaciente", {
+                    paciente: form.pacienteNome.trim(),
+                  })}
                 </p>
-              )}
+              ) : null}
+
+              <section className="space-y-3 rounded-lg border border-slate-200 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-sm font-semibold text-slate-800">
+                    {t("acompanhamento.pedido.secaoArquivos")}{" "}
+                    <span className="font-normal text-slate-500">
+                      ({arquivos.length}/{LIMITE_ARQUIVOS_SOLICITACAO_ENVIO})
+                    </span>
+                  </h3>
+                  <label className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-[#4a90d9] bg-white px-3 text-xs font-semibold text-[#4a90d9] hover:bg-[#4a90d9]/5">
+                    <Upload className="h-3.5 w-3.5" />
+                    {enviandoArquivos
+                      ? t("acompanhamento.pedido.enviandoArquivos")
+                      : t("acompanhamento.pedido.selecionarArquivos")}
+                    <input
+                      type="file"
+                      multiple
+                      accept="application/pdf"
+                      className="hidden"
+                      disabled={enviandoArquivos}
+                      onChange={(e) => {
+                        void enviarArquivos(e.target.files, "arquivo");
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                </div>
+                {arquivos.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+                    {arquivos.map((anexo) => (
+                      <div
+                        key={anexo.id}
+                        className="relative flex min-h-[120px] flex-col items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-center"
+                      >
+                        <FileText className="h-10 w-10 text-slate-500" />
+                        <p className="line-clamp-2 w-full text-[11px] font-medium text-slate-700">
+                          {anexo.nome}
+                        </p>
+                        <a
+                          href={anexo.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[10px] font-semibold text-[#4a90d9] hover:underline"
+                        >
+                          {t("acompanhamento.pedido.abrirArquivo")}
+                        </a>
+                        <button
+                          type="button"
+                          className="absolute right-1.5 top-1.5 rounded bg-white/90 p-1 text-red-600 shadow-sm hover:bg-red-50"
+                          onClick={() => removerAnexo(anexo.id)}
+                          aria-label={t("acompanhamento.pedido.removerAnexo")}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="py-4 text-center text-xs text-slate-400">
+                    {t("acompanhamento.pedido.semArquivos")}
+                  </p>
+                )}
+              </section>
+
+              <section className="space-y-3 rounded-lg border border-slate-200 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-sm font-semibold text-slate-800">
+                    {t("acompanhamento.pedido.secaoImagens")}{" "}
+                    <span className="font-normal text-slate-500">
+                      ({imagens.length}/{LIMITE_IMAGENS_SOLICITACAO_ENVIO})
+                    </span>
+                  </h3>
+                  <label className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-[#4a90d9] bg-white px-3 text-xs font-semibold text-[#4a90d9] hover:bg-[#4a90d9]/5">
+                    <Upload className="h-3.5 w-3.5" />
+                    {enviandoArquivos
+                      ? t("acompanhamento.pedido.enviandoArquivos")
+                      : t("acompanhamento.pedido.selecionarImagens")}
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      disabled={enviandoArquivos}
+                      onChange={(e) => {
+                        void enviarArquivos(e.target.files, "imagem");
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                </div>
+                {imagens.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+                    {imagens.map((anexo) => (
+                      <div
+                        key={anexo.id}
+                        className="relative overflow-hidden rounded-lg border border-slate-200 bg-slate-50"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={anexo.url}
+                          alt={anexo.nome}
+                          className="h-36 w-full object-cover"
+                        />
+                        <p className="truncate px-2 py-1.5 text-[10px] text-slate-600">
+                          {anexo.nome}
+                        </p>
+                        <button
+                          type="button"
+                          className="absolute right-1.5 top-1.5 rounded bg-white/90 p-1 text-red-600 shadow-sm hover:bg-red-50"
+                          onClick={() => removerAnexo(anexo.id)}
+                          aria-label={t("acompanhamento.pedido.removerAnexo")}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="py-4 text-center text-xs text-slate-400">
+                    {t("acompanhamento.pedido.semImagens")}
+                  </p>
+                )}
+              </section>
             </div>
           )}
 

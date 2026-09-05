@@ -19,7 +19,12 @@ export const STATUS_SOLICITACAO_ENVIO = [
 export type StatusSolicitacaoEnvio =
   (typeof STATUS_SOLICITACAO_ENVIO)[number];
 
-export const LIMITE_ANEXOS_SOLICITACAO_ENVIO = 5;
+export const LIMITE_IMAGENS_SOLICITACAO_ENVIO = 10;
+export const LIMITE_ARQUIVOS_SOLICITACAO_ENVIO = 10;
+export const LIMITE_ANEXOS_SOLICITACAO_ENVIO =
+  LIMITE_IMAGENS_SOLICITACAO_ENVIO + LIMITE_ARQUIVOS_SOLICITACAO_ENVIO;
+
+export type CategoriaAnexoSolicitacao = "imagem" | "arquivo";
 
 export type AnexoSolicitacaoEnvio = {
   id: string;
@@ -27,6 +32,7 @@ export type AnexoSolicitacaoEnvio = {
   mimeType: string;
   url: string;
   tamanho: number;
+  categoria?: CategoriaAnexoSolicitacao;
 };
 
 export type ObservacaoEnvioLinha = {
@@ -45,6 +51,7 @@ export const schemaAnexoSolicitacao = z.object({
   mimeType: z.string().trim().min(1).max(120),
   url: z.string().trim().min(1).max(500),
   tamanho: z.number().int().min(0).max(20 * 1024 * 1024),
+  categoria: z.enum(["imagem", "arquivo"]).optional(),
 });
 
 export const schemaCriarSolicitacaoEnvio = z.object({
@@ -92,6 +99,10 @@ export function rotuloTipoTransporte(tipo: string): string {
     default:
       return tipo || "—";
   }
+}
+
+export function categoriaAnexoPorMime(mimeType: string): CategoriaAnexoSolicitacao {
+  return mimeType.startsWith("image/") ? "imagem" : "arquivo";
 }
 
 export function parseJsonArraySeguro<T>(raw: string | null | undefined): T[] {

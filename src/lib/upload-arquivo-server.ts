@@ -1,4 +1,4 @@
-import { writeFile, readFile, access } from "fs/promises";
+import { writeFile, readFile, access, mkdir } from "fs/promises";
 import path from "path";
 import { prisma } from "@/lib/db";
 import {
@@ -255,7 +255,7 @@ export async function salvarArquivosUpload(
   files: File[],
   empresaId?: string,
   empresaSlug?: string,
-  opcoes?: { forcarBanco?: boolean }
+  opcoes?: { forcarBanco?: boolean; subpasta?: string }
 ): Promise<ArquivoEnviado[]> {
   if (!files.length) return [];
 
@@ -266,6 +266,17 @@ export async function salvarArquivosUpload(
       );
     }
   }
+
+  const subpasta = (opcoes?.subpasta || "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9_.\s-]/g, "-")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+  const pastaRemota = subpasta ? `${pasta}/${subpasta}` : pasta;
 
   carregarEnvArquivoRuntime();
   exigirOneDriveSeConfiguradoNoEnv();
@@ -296,7 +307,7 @@ export async function salvarArquivosUpload(
           bytes,
           mimeType,
           filename,
-          remotePath: caminhoRemotoUpload(slug, pasta, filename),
+          remotePath: caminhoRemotoUpload(slug, pastaRemota, filename),
         };
       })
     );
@@ -315,7 +326,8 @@ export async function salvarArquivosUpload(
           item.bytes,
           item.filename,
           item.mimeType,
-          { garantirPastas: false, atualizarCota: false }
+          // Com subpasta (ex.: paciente), cria a cadeia completa no OneDrive.
+          { garantirPastas: Boolean(subpasta), atualizarCota: false }
         );
         console.info(`[uploads] OneDrive gravou: ${item.remotePath}`);
       }
@@ -386,7 +398,10 @@ export async function salvarArquivosUpload(
 
   const slug = normalizarSlugPastaUploads(empresaSlug);
   await garantirPastasUploadEmpresa(slug);
-  const uploadDir = path.join(caminhoPastaUploads(slug), pasta);
+  const uploadDir = subpasta
+    ? path.join(caminhoPastaUploads(slug), pasta, subpasta)
+    : path.join(caminhoPastaUploads(slug), pasta);
+  await mkdir(uploadDir, { recursive: true });
 
   const uploaded: ArquivoEnviado[] = [];
   for (const file of files) {
@@ -397,7 +412,9 @@ export async function salvarArquivosUpload(
     uploaded.push({
       name: file.name,
       type: mimeType,
-      url: urlUploadDisco(slug, pasta, filename),
+      url: subpasta
+        ? `/api/uploads/disco/${slug}/${pasta}/${subpasta}/${filename}`
+        : urlUploadDisco(slug, pasta, filename),
     });
   }
   return uploaded;
