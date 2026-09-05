@@ -11,6 +11,18 @@ import { schemaCriarSolicitacaoEnvio } from "@/lib/solicitacao-envio-types";
 
 type Params = { params: Promise<{ token: string }> };
 
+function mensagemErroPrisma(err: unknown): string {
+  const code =
+    err && typeof err === "object" && "code" in err
+      ? String((err as { code?: string }).code)
+      : "";
+  if (code === "P2021" || code === "P2022") {
+    return "A tabela de pedidos de envio ainda não existe no banco. Rode prisma db push no servidor.";
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return "Não foi possível salvar a solicitação.";
+}
+
 export async function GET(_request: Request, { params }: Params) {
   const { token } = await params;
   const resultado = await buscarClientePublicoPorToken(token);
@@ -56,30 +68,41 @@ export async function POST(request: Request, { params }: Params) {
 
   const parsed = schemaCriarSolicitacaoEnvio.safeParse(body);
   if (!parsed.success) {
+    const campos = Object.keys(parsed.error.flatten().fieldErrors);
     return NextResponse.json(
       {
         error: "validacao",
-        message: "Preencha os dados obrigatórios do pedido.",
+        message: campos.length
+          ? `Revise os campos: ${campos.join(", ")}.`
+          : "Preencha os dados obrigatórios do pedido.",
         detalhes: parsed.error.flatten(),
       },
       { status: 400 }
     );
   }
 
-  const criada = await runWithTenantContext(resultado.cliente.empresaId, () =>
-    criarSolicitacaoEnvioCliente({
-      empresaId: resultado.cliente.empresaId,
-      clienteId: resultado.cliente.id,
-      dados: parsed.data,
-    })
-  );
+  try {
+    const criada = await runWithTenantContext(resultado.cliente.empresaId, () =>
+      criarSolicitacaoEnvioCliente({
+        empresaId: resultado.cliente.empresaId,
+        clienteId: resultado.cliente.id,
+        dados: parsed.data,
+      })
+    );
 
-  return NextResponse.json(
-    {
-      ok: true,
-      message: "Solicitação enviada ao laboratório.",
-      solicitacao: serializarSolicitacaoEnvio(criada),
-    },
-    { status: 201 }
-  );
+    return NextResponse.json(
+      {
+        ok: true,
+        message: "Solicitação enviada ao laboratório.",
+        solicitacao: serializarSolicitacaoEnvio(criada),
+      },
+      { status: 201 }
+    );
+  } catch (err) {
+    console.error("[solicitacao-envio] POST", err);
+    return NextResponse.json(
+      { error: "salvar_falhou", message: mensagemErroPrisma(err) },
+      { status: 500 }
+    );
+  }
 }

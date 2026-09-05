@@ -273,6 +273,15 @@ export function SolicitacaoEnvioWizardModal({ open, token, onClose, onEnviado }:
     setEnviando(true);
     setErro(null);
     try {
+      const anexosNormalizados = form.anexos.map((a) => ({
+        id: String(a.id || "").slice(0, 240),
+        nome: a.nome,
+        mimeType: (a.mimeType || "application/octet-stream").slice(0, 120),
+        url: a.url,
+        tamanho: Number(a.tamanho) || 0,
+        categoria: a.categoria || categoriaAnexoPorMime(a.mimeType || ""),
+      }));
+
       const res = await fetch(`/api/clientes/public/${token}/solicitacao-envio`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -291,13 +300,18 @@ export function SolicitacaoEnvioWizardModal({ open, token, onClose, onEnviado }:
           observacaoServico: form.observacaoServico.trim(),
           escala: form.escala.trim(),
           cor: form.cor.trim(),
-          dentes: form.dentes.trim(),
+          dentes: form.dentes.trim().slice(0, 500),
           tipoTransporte: form.tipoTransporte,
           observacoesEnvio: form.observacoesEnvio.filter((l) => l.texto.trim()),
-          anexos: form.anexos,
+          anexos: anexosNormalizados,
         }),
       });
-      const json = await res.json();
+      let json: { message?: string; error?: string; detalhes?: unknown } = {};
+      try {
+        json = await res.json();
+      } catch {
+        /* ignore */
+      }
       if (!res.ok) {
         setErro(json.message || json.error || t("acompanhamento.pedido.erroEnviar"));
         return;

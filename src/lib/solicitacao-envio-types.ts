@@ -46,11 +46,15 @@ export const schemaObservacaoEnvioLinha = z.object({
 });
 
 export const schemaAnexoSolicitacao = z.object({
-  id: z.string().min(1).max(64),
+  id: z.string().min(1).max(240),
   nome: z.string().trim().min(1).max(240),
-  mimeType: z.string().trim().min(1).max(120),
-  url: z.string().trim().min(1).max(500),
-  tamanho: z.number().int().min(0).max(50 * 1024 * 1024),
+  mimeType: z
+    .string()
+    .trim()
+    .max(120)
+    .transform((v) => v || "application/octet-stream"),
+  url: z.string().trim().min(1).max(800),
+  tamanho: z.number().int().min(0).max(50 * 1024 * 1024).optional().default(0),
   categoria: z.enum(["imagem", "arquivo"]).optional(),
 });
 
@@ -64,16 +68,19 @@ export const schemaCriarSolicitacaoEnvio = z.object({
   repeticao: z.boolean().optional().default(false),
   materialEnviado: z.string().trim().max(500).optional().default(""),
   dataDesejada: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .nullable()
-    .optional(),
+    .union([
+      z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      z.literal(""),
+      z.null(),
+    ])
+    .optional()
+    .transform((v) => (v && v !== "" ? v : null)),
   tipoProtese: z.string().trim().min(1).max(240),
   observacaoInterna: z.string().trim().max(2000).optional().default(""),
   observacaoServico: z.string().trim().max(2000).optional().default(""),
   escala: z.string().trim().max(80).optional().default(""),
   cor: z.string().trim().max(80).optional().default(""),
-  dentes: z.string().trim().max(120).optional().default(""),
+  dentes: z.string().trim().max(500).optional().default(""),
   valorEstimado: z.number().min(0).max(1_000_000).optional().default(0),
   tipoTransporte: z.enum(TIPOS_TRANSPORTE_SOLICITACAO),
   observacoesEnvio: z.array(schemaObservacaoEnvioLinha).max(30).optional().default([]),
