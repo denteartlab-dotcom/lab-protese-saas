@@ -5106,7 +5106,6 @@ export const messagesModulosEs: Record<keyof typeof messagesModulosPt, string> =
   "acompanhamento.pedido.confirmar": "Confirmar y enviar",
   "acompanhamento.pedido.enviando": "Enviando…",
   "acompanhamento.pedido.erroObrigatorios": "Informe el paciente y el servicio.",
-  "acompanhamento.pedido.erroLimiteAnexos": "Límite de adjuntos alcanzado.",
   "acompanhamento.pedido.erroUpload": "No fue posible enviar los archivos.",
   "acompanhamento.pedido.erroEnviar": "No fue posible enviar la solicitud.",
   "acompanhamento.pedido.sucessoTitulo": "Solicitud enviada",
