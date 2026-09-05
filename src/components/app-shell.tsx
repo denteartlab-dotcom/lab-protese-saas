@@ -1194,7 +1194,7 @@ function AppShellInner({
                         <td className="px-3 py-2">{trabalho.tipoProtese}</td>
                         <td className="px-3 py-2">{formatDate(trabalho.dataPrevista)}</td>
                         <td className="px-3 py-2 text-center">1</td>
-                        <td className="px-3 py-2 text-right">0,00</td>
+                        <td className="px-3 py-2 text-right"></td>
                         <td className="px-3 py-2 text-right">{money(trabalho.valor || 0)}</td>
                         <td className="px-3 py-2 text-center">
                           <span className={cn("rounded px-2 py-1 text-[9px] font-semibold", statusOs(trabalho.status).color)}>
