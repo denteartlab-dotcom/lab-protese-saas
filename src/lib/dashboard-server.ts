@@ -24,6 +24,10 @@ import {
   montarUrgentesClienteDashboard,
   podarEventosUrgenciaInativos,
 } from "@/lib/urgencia-cliente";
+import {
+  listarSolicitacoesEnvioCliente,
+  serializarSolicitacaoEnvio,
+} from "@/lib/solicitacao-envio-servidor";
 
 function montarAniversariantesMes(
   clientes: Array<{
@@ -280,6 +284,15 @@ export async function montarDashboard(params: ParametrosDashboard) {
     montarUrgentesClienteDashboard(storeUrgencias.eventos, mapaTrabalhosUrgencia)
   );
 
+  const solicitacoesEnvioRaw = await listarSolicitacoesEnvioCliente({
+    empresaId,
+    status: "pendente",
+    limite: 40,
+  });
+  const solicitacoesEnvio = solicitacoesEnvioRaw.map((s) =>
+    serializarSolicitacaoEnvio(s)
+  );
+
   const financeiroResumo = calcularResumoFinanceiroDashboard(
     lancamentos.map((l) => ({
       id: l.id,
@@ -336,6 +349,7 @@ export async function montarDashboard(params: ParametrosDashboard) {
     uploadsResumo: uploadsResumo ?? undefined,
     estoqueResumo,
     urgentesCliente,
+    solicitacoesEnvio,
     mes,
     ano,
   };

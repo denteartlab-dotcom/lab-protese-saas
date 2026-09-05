@@ -1,0 +1,558 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { Check, ChevronLeft, ChevronRight, Plus, Trash2, Upload } from "lucide-react";
+import { useI18n } from "@/components/i18n-provider";
+import { Modal } from "@/components/ui";
+import {
+  LIMITE_ANEXOS_SOLICITACAO_ENVIO,
+  TIPOS_TRANSPORTE_SOLICITACAO,
+  type AnexoSolicitacaoEnvio,
+  type ObservacaoEnvioLinha,
+  type TipoTransporteSolicitacao,
+} from "@/lib/solicitacao-envio-types";
+import { cn } from "@/lib/utils";
+
+type Props = {
+  open: boolean;
+  token: string;
+  onClose: () => void;
+  onEnviado?: () => void;
+};
+
+type FormEstado = {
+  pacienteNome: string;
+  dentista: string;
+  caixa: string;
+  casoClinico: string;
+  prioridade: "alta" | "media" | "baixa";
+  urgente: boolean;
+  repeticao: boolean;
+  materialEnviado: string;
+  dataDesejada: string;
+  tipoProtese: string;
+  observacaoInterna: string;
+  observacaoServico: string;
+  escala: string;
+  cor: string;
+  dentes: string;
+  tipoTransporte: TipoTransporteSolicitacao;
+  observacoesEnvio: ObservacaoEnvioLinha[];
+  anexos: AnexoSolicitacaoEnvio[];
+};
+
+const FORM_INICIAL: FormEstado = {
+  pacienteNome: "",
+  dentista: "",
+  caixa: "",
+  casoClinico: "",
+  prioridade: "media",
+  urgente: false,
+  repeticao: false,
+  materialEnviado: "",
+  dataDesejada: "",
+  tipoProtese: "",
+  observacaoInterna: "",
+  observacaoServico: "",
+  escala: "",
+  cor: "",
+  dentes: "",
+  tipoTransporte: "motoboy",
+  observacoesEnvio: [{ id: "1", texto: "" }],
+  anexos: [],
+};
+
+const inputCls =
+  "h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]/30";
+
+export function SolicitacaoEnvioWizardModal({ open, token, onClose, onEnviado }: Props) {
+  const { t } = useI18n();
+  const [etapa, setEtapa] = useState(1);
+  const [form, setForm] = useState<FormEstado>(FORM_INICIAL);
+  const [enviando, setEnviando] = useState(false);
+  const [enviandoArquivos, setEnviandoArquivos] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const [sucesso, setSucesso] = useState(false);
+
+  const titulos = useMemo(
+    () => [
+      t("acompanhamento.pedido.etapaDados"),
+      t("acompanhamento.pedido.etapaAnexos"),
+      t("acompanhamento.pedido.etapaTransporte"),
+    ],
+    [t]
+  );
+
+  function fechar() {
+    setEtapa(1);
+    setForm(FORM_INICIAL);
+    setErro(null);
+    setSucesso(false);
+    onClose();
+  }
+
+  function atualizar<K extends keyof FormEstado>(chave: K, valor: FormEstado[K]) {
+    setForm((atual) => ({ ...atual, [chave]: valor }));
+  }
+
+  function validarEtapa1() {
+    if (!form.pacienteNome.trim() || !form.tipoProtese.trim()) {
+      setErro(t("acompanhamento.pedido.erroObrigatorios"));
+      return false;
+    }
+    setErro(null);
+    return true;
+  }
+
+  async function enviarArquivos(lista: FileList | null) {
+    if (!lista?.length) return;
+    const restantes = LIMITE_ANEXOS_SOLICITACAO_ENVIO - form.anexos.length;
+    if (restantes <= 0) {
+      setErro(t("acompanhamento.pedido.erroLimiteAnexos"));
+      return;
+    }
+    const files = Array.from(lista).slice(0, restantes);
+    setEnviandoArquivos(true);
+    setErro(null);
+    try {
+      const body = new FormData();
+      for (const file of files) body.append("files", file);
+      const res = await fetch(
+        `/api/clientes/public/${token}/solicitacao-envio/upload`,
+        { method: "POST", body }
+      );
+      const json = await res.json();
+      if (!res.ok) {
+        setErro(json.error || json.message || t("acompanhamento.pedido.erroUpload"));
+        return;
+      }
+      const novos = (Array.isArray(json) ? json : []) as AnexoSolicitacaoEnvio[];
+      atualizar("anexos", [...form.anexos, ...novos].slice(0, LIMITE_ANEXOS_SOLICITACAO_ENVIO));
+    } catch {
+      setErro(t("acompanhamento.pedido.erroUpload"));
+    } finally {
+      setEnviandoArquivos(false);
+    }
+  }
+
+  async function confirmarEnvio() {
+    if (!validarEtapa1()) {
+      setEtapa(1);
+      return;
+    }
+    setEnviando(true);
+    setErro(null);
+    try {
+      const res = await fetch(`/api/clientes/public/${token}/solicitacao-envio`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pacienteNome: form.pacienteNome.trim(),
+          dentista: form.dentista.trim(),
+          caixa: form.caixa.trim(),
+          casoClinico: form.casoClinico.trim(),
+          prioridade: form.prioridade,
+          urgente: form.urgente,
+          repeticao: form.repeticao,
+          materialEnviado: form.materialEnviado.trim(),
+          dataDesejada: form.dataDesejada || null,
+          tipoProtese: form.tipoProtese.trim(),
+          observacaoInterna: form.observacaoInterna.trim(),
+          observacaoServico: form.observacaoServico.trim(),
+          escala: form.escala.trim(),
+          cor: form.cor.trim(),
+          dentes: form.dentes.trim(),
+          tipoTransporte: form.tipoTransporte,
+          observacoesEnvio: form.observacoesEnvio.filter((l) => l.texto.trim()),
+          anexos: form.anexos,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setErro(json.message || json.error || t("acompanhamento.pedido.erroEnviar"));
+        return;
+      }
+      setSucesso(true);
+      onEnviado?.();
+    } catch {
+      setErro(t("acompanhamento.pedido.erroEnviar"));
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <Modal
+      open={open}
+      onClose={fechar}
+      title={t("acompanhamento.pedido.titulo")}
+      size="lg"
+    >
+      {sucesso ? (
+        <div className="space-y-4 p-1 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+            <Check className="h-6 w-6" />
+          </div>
+          <p className="text-sm font-medium text-slate-800">
+            {t("acompanhamento.pedido.sucessoTitulo")}
+          </p>
+          <p className="text-xs text-slate-500">{t("acompanhamento.pedido.sucessoDesc")}</p>
+          <button
+            type="button"
+            onClick={fechar}
+            className="inline-flex h-9 items-center rounded-md bg-[#4a90d9] px-4 text-sm font-semibold text-white"
+          >
+            {t("cadastros.comum.fechar")}
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <ol className="flex flex-wrap gap-2">
+            {titulos.map((titulo, index) => {
+              const n = index + 1;
+              return (
+                <li
+                  key={titulo}
+                  className={cn(
+                    "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-medium",
+                    etapa === n
+                      ? "border-[#4a90d9] bg-[#4a90d9]/10 text-[#4a90d9]"
+                      : etapa > n
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        : "border-slate-200 bg-slate-50 text-slate-500"
+                  )}
+                >
+                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] font-bold">
+                    {n}
+                  </span>
+                  {titulo}
+                </li>
+              );
+            })}
+          </ol>
+
+          {etapa === 1 && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block text-xs font-medium text-slate-600 sm:col-span-2">
+                {t("acompanhamento.pedido.paciente")} *
+                <input
+                  className={cn(inputCls, "mt-1")}
+                  value={form.pacienteNome}
+                  onChange={(e) => atualizar("pacienteNome", e.target.value)}
+                />
+              </label>
+              <label className="block text-xs font-medium text-slate-600 sm:col-span-2">
+                {t("acompanhamento.pedido.servico")} *
+                <input
+                  className={cn(inputCls, "mt-1")}
+                  value={form.tipoProtese}
+                  onChange={(e) => atualizar("tipoProtese", e.target.value)}
+                />
+              </label>
+              <label className="block text-xs font-medium text-slate-600">
+                {t("acompanhamento.pedido.dentista")}
+                <input
+                  className={cn(inputCls, "mt-1")}
+                  value={form.dentista}
+                  onChange={(e) => atualizar("dentista", e.target.value)}
+                />
+              </label>
+              <label className="block text-xs font-medium text-slate-600">
+                {t("acompanhamento.pedido.dataDesejada")}
+                <input
+                  type="date"
+                  className={cn(inputCls, "mt-1")}
+                  value={form.dataDesejada}
+                  onChange={(e) => atualizar("dataDesejada", e.target.value)}
+                />
+              </label>
+              <label className="block text-xs font-medium text-slate-600">
+                {t("acompanhamento.pedido.dentes")}
+                <input
+                  className={cn(inputCls, "mt-1")}
+                  value={form.dentes}
+                  onChange={(e) => atualizar("dentes", e.target.value)}
+                />
+              </label>
+              <label className="block text-xs font-medium text-slate-600">
+                {t("acompanhamento.pedido.cor")}
+                <input
+                  className={cn(inputCls, "mt-1")}
+                  value={form.cor}
+                  onChange={(e) => atualizar("cor", e.target.value)}
+                />
+              </label>
+              <label className="block text-xs font-medium text-slate-600">
+                {t("acompanhamento.pedido.escala")}
+                <input
+                  className={cn(inputCls, "mt-1")}
+                  value={form.escala}
+                  onChange={(e) => atualizar("escala", e.target.value)}
+                />
+              </label>
+              <label className="block text-xs font-medium text-slate-600">
+                {t("acompanhamento.pedido.prioridade")}
+                <select
+                  className={cn(inputCls, "mt-1")}
+                  value={form.prioridade}
+                  onChange={(e) =>
+                    atualizar("prioridade", e.target.value as FormEstado["prioridade"])
+                  }
+                >
+                  <option value="alta">{t("acompanhamento.pedido.prioridadeAlta")}</option>
+                  <option value="media">{t("acompanhamento.pedido.prioridadeMedia")}</option>
+                  <option value="baixa">{t("acompanhamento.pedido.prioridadeBaixa")}</option>
+                </select>
+              </label>
+              <label className="block text-xs font-medium text-slate-600">
+                {t("acompanhamento.pedido.caixa")}
+                <input
+                  className={cn(inputCls, "mt-1")}
+                  value={form.caixa}
+                  onChange={(e) => atualizar("caixa", e.target.value)}
+                />
+              </label>
+              <label className="block text-xs font-medium text-slate-600">
+                {t("acompanhamento.pedido.casoClinico")}
+                <input
+                  className={cn(inputCls, "mt-1")}
+                  value={form.casoClinico}
+                  onChange={(e) => atualizar("casoClinico", e.target.value)}
+                />
+              </label>
+              <label className="block text-xs font-medium text-slate-600 sm:col-span-2">
+                {t("acompanhamento.pedido.material")}
+                <input
+                  className={cn(inputCls, "mt-1")}
+                  value={form.materialEnviado}
+                  onChange={(e) => atualizar("materialEnviado", e.target.value)}
+                />
+              </label>
+              <div className="flex flex-wrap gap-4 sm:col-span-2">
+                <label className="inline-flex items-center gap-2 text-xs text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={form.urgente}
+                    onChange={(e) => atualizar("urgente", e.target.checked)}
+                  />
+                  {t("acompanhamento.urgente")}
+                </label>
+                <label className="inline-flex items-center gap-2 text-xs text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={form.repeticao}
+                    onChange={(e) => atualizar("repeticao", e.target.checked)}
+                  />
+                  {t("acompanhamento.pedido.repeticao")}
+                </label>
+              </div>
+              <label className="block text-xs font-medium text-slate-600 sm:col-span-2">
+                {t("acompanhamento.pedido.obsServico")}
+                <textarea
+                  className="mt-1 min-h-[72px] w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#4a90d9]"
+                  value={form.observacaoServico}
+                  onChange={(e) => atualizar("observacaoServico", e.target.value)}
+                />
+              </label>
+              <label className="block text-xs font-medium text-slate-600 sm:col-span-2">
+                {t("acompanhamento.pedido.obsInterna")}
+                <textarea
+                  className="mt-1 min-h-[72px] w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#4a90d9]"
+                  value={form.observacaoInterna}
+                  onChange={(e) => atualizar("observacaoInterna", e.target.value)}
+                />
+              </label>
+            </div>
+          )}
+
+          {etapa === 2 && (
+            <div className="space-y-3">
+              <p className="text-xs text-slate-500">{t("acompanhamento.pedido.anexosDesc")}</p>
+              <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center hover:bg-slate-100">
+                <Upload className="h-6 w-6 text-[#4a90d9]" />
+                <span className="text-sm font-medium text-slate-700">
+                  {enviandoArquivos
+                    ? t("acompanhamento.pedido.enviandoArquivos")
+                    : t("acompanhamento.pedido.selecionarArquivos")}
+                </span>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/jpeg,image/png,image/webp,application/pdf"
+                  className="hidden"
+                  disabled={enviandoArquivos}
+                  onChange={(e) => {
+                    void enviarArquivos(e.target.files);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+              {form.anexos.length > 0 ? (
+                <ul className="divide-y divide-slate-100 rounded-md border border-slate-200">
+                  {form.anexos.map((anexo) => (
+                    <li
+                      key={anexo.id}
+                      className="flex items-center justify-between gap-2 px-3 py-2 text-xs text-slate-700"
+                    >
+                      <span className="truncate">{anexo.nome}</span>
+                      <button
+                        type="button"
+                        className="text-red-600 hover:underline"
+                        onClick={() =>
+                          atualizar(
+                            "anexos",
+                            form.anexos.filter((a) => a.id !== anexo.id)
+                          )
+                        }
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-center text-xs text-slate-400">
+                  {t("acompanhamento.pedido.semAnexos")}
+                </p>
+              )}
+            </div>
+          )}
+
+          {etapa === 3 && (
+            <div className="space-y-3">
+              <label className="block text-xs font-medium text-slate-600">
+                {t("acompanhamento.pedido.tipoTransporte")}
+                <select
+                  className={cn(inputCls, "mt-1")}
+                  value={form.tipoTransporte}
+                  onChange={(e) =>
+                    atualizar(
+                      "tipoTransporte",
+                      e.target.value as TipoTransporteSolicitacao
+                    )
+                  }
+                >
+                  {TIPOS_TRANSPORTE_SOLICITACAO.map((tipo) => (
+                    <option key={tipo} value={tipo}>
+                      {t(`acompanhamento.pedido.transporte.${tipo}`)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <div className="overflow-hidden rounded-md border border-slate-200">
+                <div className="flex items-center justify-between bg-slate-50 px-3 py-2">
+                  <p className="text-xs font-semibold text-slate-700">
+                    {t("acompanhamento.pedido.obsEnvio")}
+                  </p>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1 text-[11px] font-medium text-[#4a90d9]"
+                    onClick={() =>
+                      atualizar("observacoesEnvio", [
+                        ...form.observacoesEnvio,
+                        { id: String(Date.now()), texto: "" },
+                      ])
+                    }
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    {t("acompanhamento.pedido.adicionarLinha")}
+                  </button>
+                </div>
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-slate-500">
+                      <th className="px-3 py-2 font-medium">#</th>
+                      <th className="px-3 py-2 font-medium">
+                        {t("acompanhamento.pedido.observacao")}
+                      </th>
+                      <th className="px-3 py-2" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {form.observacoesEnvio.map((linha, index) => (
+                      <tr key={linha.id} className="border-b border-slate-50">
+                        <td className="px-3 py-2 text-slate-400">{index + 1}</td>
+                        <td className="px-3 py-2">
+                          <input
+                            className={inputCls}
+                            value={linha.texto}
+                            onChange={(e) =>
+                              atualizar(
+                                "observacoesEnvio",
+                                form.observacoesEnvio.map((l) =>
+                                  l.id === linha.id
+                                    ? { ...l, texto: e.target.value }
+                                    : l
+                                )
+                              )
+                            }
+                          />
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          <button
+                            type="button"
+                            className="text-red-500"
+                            onClick={() =>
+                              atualizar(
+                                "observacoesEnvio",
+                                form.observacoesEnvio.filter((l) => l.id !== linha.id)
+                              )
+                            }
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {erro ? (
+            <p className="rounded-md bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+              {erro}
+            </p>
+          ) : null}
+
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+            <button
+              type="button"
+              onClick={() => (etapa === 1 ? fechar() : setEtapa((e) => e - 1))}
+              className="inline-flex h-9 items-center gap-1 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              {etapa === 1 ? t("cadastros.comum.fechar") : t("acompanhamento.pedido.voltar")}
+            </button>
+            {etapa < 3 ? (
+              <button
+                type="button"
+                onClick={() => {
+                  if (etapa === 1 && !validarEtapa1()) return;
+                  setEtapa((e) => e + 1);
+                }}
+                className="inline-flex h-9 items-center gap-1 rounded-md bg-[#4a90d9] px-4 text-sm font-semibold text-white"
+              >
+                {t("acompanhamento.pedido.proxima")}
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={enviando}
+                onClick={() => void confirmarEnvio()}
+                className="inline-flex h-9 items-center rounded-md bg-emerald-600 px-4 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                {enviando
+                  ? t("acompanhamento.pedido.enviando")
+                  : t("acompanhamento.pedido.confirmar")}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
+}

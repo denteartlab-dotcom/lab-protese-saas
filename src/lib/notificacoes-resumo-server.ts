@@ -42,6 +42,7 @@ import {
   podarEventosUrgenciaInativos,
 } from "@/lib/urgencia-cliente";
 import { carregarStoreObservacoesCliente } from "@/lib/observacao-cliente-trabalho";
+import { listarSolicitacoesEnvioCliente } from "@/lib/solicitacao-envio-servidor";
 import { calcularResumoEstoqueDashboardServer } from "@/lib/dashboard-estoque-server";
 import {
   ALERTA_ARMAZENAMENTO_GB,
@@ -73,6 +74,7 @@ export type NotificacaoApi = {
     | "servico_atrasado"
     | "urgente_cliente"
     | "observacao_cliente"
+    | "solicitacao_envio_cliente"
     | "boleto_vencido"
     | "boleto_vencendo"
     | "armazenamento_quase_cheio"
@@ -397,6 +399,25 @@ export async function montarNotificacoesEmpresa(
     }));
   // Observações enviadas pelo cliente precisam aparecer primeiro no sino.
   lista.unshift(...notificacoesObservacoes);
+
+  const solicitacoesPendentes = await listarSolicitacoesEnvioCliente({
+    empresaId,
+    status: "pendente",
+    limite: 40,
+  });
+  const notificacoesSolicitacao: NotificacaoApi[] = solicitacoesPendentes.map((s) => ({
+    id: `solicitacao-envio-${s.id}`,
+    kind: "solicitacao_envio_cliente" as const,
+    href: `/app?solicitacaoEnvio=${s.id}`,
+    params: {
+      cliente: s.cliente?.nome || "—",
+      paciente: s.pacienteNome,
+      servico: s.tipoProtese,
+      transporte: s.tipoTransporte,
+    },
+    criadoEm: s.criadoEm.toISOString(),
+  }));
+  lista.unshift(...notificacoesSolicitacao);
 
   if (opts?.empresaSlug) {
     const armazenamento = await calcularArmazenamentoGaleria(

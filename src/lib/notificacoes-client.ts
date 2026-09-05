@@ -32,6 +32,7 @@ const TITULO_POR_KIND: Partial<Record<MessageKey, MessageKey>> = {
   "notif.servico_atrasado": "notif.titulo.servico_atrasado",
   "notif.urgente_cliente": "notif.titulo.urgente_cliente",
   "notif.observacao_cliente": "notif.titulo.observacao_cliente",
+  "notif.solicitacao_envio_cliente": "notif.titulo.solicitacao_envio_cliente",
   "notif.anotacao_lembrete": "notif.titulo.anotacao_lembrete",
   "notif.armazenamento_quase_cheio": "notif.titulo.armazenamento_quase_cheio",
   "notif.nuvem_pool_esgotada": "notif.titulo.nuvem_pool_esgotada",
@@ -125,6 +126,7 @@ export function mapApiNotificacao(n: NotificacaoApi): NotificacaoUi {
     servico_atrasado: "notif.servico_atrasado",
     urgente_cliente: "notif.urgente_cliente",
     observacao_cliente: "notif.observacao_cliente",
+    solicitacao_envio_cliente: "notif.solicitacao_envio_cliente",
     armazenamento_quase_cheio: "notif.armazenamento_quase_cheio",
     nuvem_pool_esgotada: "notif.nuvem_pool_esgotada",
   };

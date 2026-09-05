@@ -26,12 +26,15 @@ import { PRODUTOS_ESTOQUE_EVENT } from "@/lib/estoque";
 import { UPLOADS_ATUALIZADO_EVENT } from "@/lib/uploads-armazenamento";
 import { apiFetch } from "@/lib/fetch-client";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { PainelAnotacoesDashboard } from "@/components/dashboard/PainelAnotacoesDashboard";
 import { DashboardInicioSkeleton, DashboardWidgetSkeleton } from "@/components/dashboard/DashboardInicioSkeleton";
 import { PainelServicosDashboard } from "@/components/dashboard/PainelServicosDashboard";
 import { PdfViewerModal } from "@/components/dashboard/PdfViewerModal";
 import { PainelUrgenciasClienteDashboard } from "@/components/dashboard/PainelUrgenciasClienteDashboard";
+import { PainelSolicitacoesEnvioDashboard } from "@/components/dashboard/PainelSolicitacoesEnvioDashboard";
 import type { UrgenteClienteDashboardItem } from "@/lib/urgencia-cliente-util";
+import type { SolicitacaoEnvioDashboardItem } from "@/components/dashboard/PainelSolicitacoesEnvioDashboard";
 import {
   agruparTrabalhosPainelServicos,
   rotuloFimPeriodoVencendo,
@@ -70,6 +73,7 @@ type Dashboard = {
   uploadsResumo?: UploadsResumoUi;
   estoqueResumo?: { baixo: number; zerado: number };
   urgentesCliente?: UrgenteClienteDashboardItem[];
+  solicitacoesEnvio?: SolicitacaoEnvioDashboardItem[];
 };
 
 const resumoProducaoVazio: ResumoProducaoDashboard = {
@@ -123,10 +127,12 @@ type TrabalhoPainel = {
 export default function DashboardPage() {
   const { t, locale } = useI18n();
   const { lab } = useLabConfigClient();
-type DashboardSecundario = Pick<
-  Dashboard,
-  "aniversariantesMes" | "clientesSemServico" | "uploadsResumo"
->;
+  const searchParams = useSearchParams();
+  const solicitacaoInicialId = searchParams.get("solicitacaoEnvio");
+  type DashboardSecundario = Pick<
+    Dashboard,
+    "aniversariantesMes" | "clientesSemServico" | "uploadsResumo"
+  >;
 
   const [data, setData] = useState<Dashboard | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -365,6 +371,15 @@ type DashboardSecundario = Pick<
         titulo={t("dashboard.urgentesCliente")}
         lista={dashboard.urgentesCliente ?? []}
         labelVisualizar={t("dashboard.visualizar")}
+      />
+
+      <PainelSolicitacoesEnvioDashboard
+        titulo={t("dashboard.solicitacoesEnvio")}
+        lista={dashboard.solicitacoesEnvio ?? []}
+        solicitacaoInicialId={solicitacaoInicialId}
+        onAtualizado={() => {
+          void carregarDashboard();
+        }}
       />
 
       <div className="grid gap-4 lg:grid-cols-3 lg:items-start">

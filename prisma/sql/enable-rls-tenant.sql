@@ -32,7 +32,8 @@ DECLARE
   tables text[] := ARRAY[
     'User', 'Cliente', 'Trabalho', 'Produto', 'Lancamento', 'Orcamento',
     'ArquivoUpload', 'ContaBancaria', 'SequenciaNumerica', 'AsaasSubconta',
-    'job_execucoes', 'suporte_conversas', 'cobrancas_assinatura'
+    'job_execucoes', 'suporte_conversas', 'cobrancas_assinatura',
+    'solicitacoes_envio_cliente'
   ];
 BEGIN
   FOREACH t IN ARRAY tables LOOP

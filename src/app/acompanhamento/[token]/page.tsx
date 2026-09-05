@@ -15,6 +15,7 @@ import type { PortalPublicoPaginaAcompanhamento } from "@/lib/portal-publico-typ
 import { normalizarChaveStatusOs } from "@/lib/status-os";
 import { Modal } from "@/components/ui";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
+import { SolicitacaoEnvioWizardModal } from "@/components/acompanhamento/SolicitacaoEnvioWizardModal";
 import { cn, formatDate } from "@/lib/utils";
 
 const POLL_MS = 12_000;
@@ -63,6 +64,7 @@ export default function AcompanhamentoClientePage() {
   const [observacaoExcluirId, setObservacaoExcluirId] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
   const [filtroSituacao, setFiltroSituacao] = useState("todos");
+  const [pedidoEnvioAberto, setPedidoEnvioAberto] = useState(false);
 
   const carregar = useCallback(async (silencioso = false) => {
     if (!silencioso) setCarregando(true);
@@ -357,6 +359,15 @@ export default function AcompanhamentoClientePage() {
             })}
           </p>
         ) : null}
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={() => setPedidoEnvioAberto(true)}
+            className="inline-flex h-9 items-center rounded-md bg-emerald-600 px-4 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700"
+          >
+            {t("acompanhamento.pedido.botao")}
+          </button>
+        </div>
       </header>
 
       <main className="mx-auto max-w-5xl p-4 pb-10">
@@ -904,6 +915,12 @@ export default function AcompanhamentoClientePage() {
           setUrgenteMsg(null);
           setUrgenteErro(false);
         }}
+      />
+
+      <SolicitacaoEnvioWizardModal
+        open={pedidoEnvioAberto}
+        token={token}
+        onClose={() => setPedidoEnvioAberto(false)}
       />
     </div>
   );

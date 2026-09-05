@@ -54,6 +54,7 @@ model Empresa {
   whatsappLogs        WhatsappLog[]
   whatsappChatConversas WhatsappChatConversa[]
   whatsappChatbotConfig WhatsappChatbotConfig?
+  solicitacoesEnvioCliente SolicitacaoEnvioCliente[]
 }
 
 model SuporteConversa {
@@ -188,6 +189,7 @@ model Cliente {
   trabalhos           Trabalho[]
   lancamentos         Lancamento[]
   nfseEmissoes        NfseEmissao[]
+  solicitacoesEnvio   SolicitacaoEnvioCliente[]
 
   @@index([empresaId])
   @@index([removidoEm])
@@ -239,6 +241,46 @@ model Trabalho {
   @@index([numeroOs])
   @@index([grupoOsId])
   @@index([empresaId])
+}
+
+/** Pedido de envio de trabalho pelo portal de acompanhamento do cliente. */
+model SolicitacaoEnvioCliente {
+  id                   String   @id @default(cuid())
+  empresaId            String
+  empresa              Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  clienteId            String
+  cliente              Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  status               String   @default("pendente")
+  pacienteNome         String
+  dentista             String   @default("")
+  caixa                String   @default("")
+  casoClinico          String   @default("")
+  prioridade           String   @default("media")
+  urgente              Boolean  @default(false)
+  repeticao            Boolean  @default(false)
+  materialEnviado      String   @default("")
+  dataDesejada         DateTime?
+  tipoProtese          String
+  observacaoInterna    String   @default("")
+  observacaoServico    String   @default("")
+  escala               String   @default("")
+  cor                  String   @default("")
+  dentes               String   @default("")
+  valorEstimado        Float    @default(0)
+  tipoTransporte       String
+  observacoesEnvioJson String   @default("[]")
+  anexosJson           String   @default("[]")
+  trabalhoId           String?
+  respondidoEm         DateTime?
+  respondidoPorUserId  String?
+  motivoRecusa         String?
+  criadoEm             DateTime @default(now())
+  atualizadoEm         DateTime @updatedAt
+
+  @@index([empresaId, status])
+  @@index([clienteId, status])
+  @@index([criadoEm])
+  @@map("solicitacoes_envio_cliente")
 }
 
 model Produto {
