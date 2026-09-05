@@ -579,6 +579,19 @@ function AppShellInner({
     return "trabalho";
   }
 
+  /** Só o valor de desconto (ex.: 5,00). Sem tipo/metadado; vazio se for 0 ou inexistente. */
+  function descontoDaLinhaItem(line: string): string {
+    const m = line.match(
+      /\s-\sdesc\s(?!:)\s*(.+?)(?=\s-\s(?:desc:|situa[cç][aã]o|produtoId|urgente|repeti[cç][aã]o|repeticao|obs|categoria)\b|$)/i
+    );
+    const bruto = (m?.[1] || "").split(/\s+-\s+/)[0].trim();
+    if (!bruto || /^tipo\b/i.test(bruto)) return "";
+    const numerico = bruto.replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".");
+    const valor = Number(numerico);
+    if (!numerico || Number.isNaN(valor) || valor === 0) return "";
+    return bruto;
+  }
+
   function itensDaOs(trabalho: TrabalhoBuscaOs): ItemBuscaOs[] {
     const linhas = (trabalho.instrucoes || "")
       .split("\n")
@@ -589,8 +602,6 @@ function AppShellInner({
         /^Item adicionado:\s*(.*?)\s*-\s*dentes\s*(.*?)\s*-\s*cor\s*(.*?)\s*-\s*qtd\s*(.*?)\s*-\s*valor\s*(.*?)(?:\s*-\s*categoria|\s*-\s*desc|\s*-\s*situação|\s*-\s*produtoId|\s*-\s*urgente|\s*-\s*repetição|\s*-\s*repeticao|\s*-\s*obs|$)/i
       );
       const descricao = match?.[1]?.trim() || trabalho.tipoProtese;
-      const desconto = line.match(/ - desc (.*?)(?: - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i)?.[1]?.trim() || "0,00";
-      const situacao = line.match(/ - situação (.*?)(?: - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i)?.[1]?.trim() || trabalho.status;
       const valor = Number((match?.[5] || "").replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".")) || 0;
 
       return {
@@ -599,9 +610,10 @@ function AppShellInner({
         prazo: trabalho.dataPrevista,
         qtd: match?.[4]?.trim() || "1",
         dente: match?.[2]?.trim() || trabalho.dentes || "-",
-        desconto,
+        desconto: descontoDaLinhaItem(line),
         valor,
-        situacao,
+        // Situação real do serviço (controle de produção), não o texto da linha de item.
+        situacao: trabalho.status,
         tipo: tipoItemOs(descricao),
       };
     });
@@ -615,7 +627,7 @@ function AppShellInner({
             prazo: trabalho.dataPrevista,
             qtd: "1",
             dente: trabalho.dentes || "-",
-            desconto: "0,00",
+            desconto: "",
             valor: trabalho.valor || 0,
             situacao: trabalho.status,
             tipo: tipoItemOs(trabalho.tipoProtese),
