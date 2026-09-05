@@ -9,7 +9,6 @@ import { ConfiguracoesGearMenu } from "@/components/ConfiguracoesGearMenu";
 import { LanguageMenu } from "@/components/header/LanguageMenu";
 import { NotificationsBell } from "@/components/header/NotificationsBell";
 import { LeitorCodigoBarrasModal } from "@/components/LeitorCodigoBarrasModal";
-import { InputLeitorCodigoOs } from "@/components/InputLeitorCodigoOs";
 import { extrairNumeroOsCodigo } from "@/lib/codigo-barras-os";
 import { SiteSearchBar, SiteSearchButton } from "@/components/header/SiteSearchBar";
 import { useI18n } from "@/components/i18n-provider";
@@ -441,7 +440,12 @@ function AppShellInner({
     const bruto = (termoInformado ?? buscaOs).trim();
     if (!bruto) return;
     const numero = extrairNumeroOsCodigo(bruto);
-    if (!numero) return;
+    if (!numero) {
+      setCodigoBarrasMensagem(
+        t("shell.buscaOs.codigoNaoReconhecido", { codigo: bruto })
+      );
+      return;
+    }
     setBuscaOs(numero);
 
     setBuscandoOs(true);
@@ -1065,20 +1069,22 @@ function AppShellInner({
               <div className="space-y-1">
                 <label className="block text-[10px] text-slate-500">{t("shell.buscaOs.numeroOs")}</label>
                 <div className="flex items-center gap-2">
-                  <InputLeitorCodigoOs
+                  <input
                     value={buscaOs}
-                    onChange={setBuscaOs}
-                    onCodigoLido={(numero, bruto) => aoCodigoBarrasLido(numero, bruto)}
-                    onCodigoInvalido={(bruto) =>
-                      setCodigoBarrasMensagem(t("shell.buscaOs.codigoNaoReconhecido", { codigo: bruto }))
-                    }
-                    capturaGlobal
-                    capturaGlobalAtivo={buscaOsAberta && !leitorCodigoAberto}
+                    onChange={(e) => {
+                      setBuscaOs(e.target.value);
+                      setCodigoBarrasMensagem("");
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        void buscarOrdemServico();
+                      }
+                    }}
                     autoFocus
-                    readOnly={leitorCodigoAberto}
-                    mostrarStatusLeitor
+                    autoComplete="off"
                     placeholder={t("shell.buscaOs.placeholder")}
-                    className="h-7 min-w-0 flex-1 rounded border border-slate-300 px-3 text-[11px] outline-none focus:border-blue-500"
+                    className="h-7 min-w-0 flex-1 rounded border border-slate-300 bg-white px-3 text-[11px] text-slate-700 outline-none focus:border-blue-500"
                   />
                   <button
                     type="button"
