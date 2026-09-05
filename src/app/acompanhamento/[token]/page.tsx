@@ -16,6 +16,7 @@ import { normalizarChaveStatusOs } from "@/lib/status-os";
 import { Modal } from "@/components/ui";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { SolicitacaoEnvioWizardModal } from "@/components/acompanhamento/SolicitacaoEnvioWizardModal";
+import { AcompanharSolicitacoesEnvioModal } from "@/components/acompanhamento/AcompanharSolicitacoesEnvioModal";
 import { cn, formatDate } from "@/lib/utils";
 
 const POLL_MS = 12_000;
@@ -65,6 +66,7 @@ export default function AcompanhamentoClientePage() {
   const [busca, setBusca] = useState("");
   const [filtroSituacao, setFiltroSituacao] = useState("todos");
   const [pedidoEnvioAberto, setPedidoEnvioAberto] = useState(false);
+  const [acompanharPedidoAberto, setAcompanharPedidoAberto] = useState(false);
 
   const carregar = useCallback(async (silencioso = false) => {
     if (!silencioso) setCarregando(true);
@@ -359,13 +361,20 @@ export default function AcompanhamentoClientePage() {
             })}
           </p>
         ) : null}
-        <div className="mt-4">
+        <div className="mt-4 flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => setPedidoEnvioAberto(true)}
             className="inline-flex h-9 items-center rounded-md bg-emerald-600 px-4 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700"
           >
             {t("acompanhamento.pedido.botao")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setAcompanharPedidoAberto(true)}
+            className="inline-flex h-9 items-center rounded-md border border-emerald-600 bg-white px-4 text-sm font-semibold text-emerald-700 shadow-sm hover:bg-emerald-50"
+          >
+            {t("acompanhamento.pedido.acompanharBotao")}
           </button>
         </div>
       </header>
@@ -921,6 +930,13 @@ export default function AcompanhamentoClientePage() {
         open={pedidoEnvioAberto}
         token={token}
         onClose={() => setPedidoEnvioAberto(false)}
+      />
+
+      <AcompanharSolicitacoesEnvioModal
+        open={acompanharPedidoAberto}
+        token={token}
+        onClose={() => setAcompanharPedidoAberto(false)}
+        onNovaSolicitacao={() => setPedidoEnvioAberto(true)}
       />
     </div>
   );
