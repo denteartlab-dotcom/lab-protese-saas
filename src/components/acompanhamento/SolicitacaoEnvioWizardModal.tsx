@@ -21,6 +21,8 @@ import { cn } from "@/lib/utils";
 type Props = {
   open: boolean;
   token: string;
+  /** Nome do cliente já resolvido pelo token do link de acompanhamento. */
+  clienteNome?: string;
   onClose: () => void;
   onEnviado?: () => void;
 };
@@ -70,7 +72,13 @@ const FORM_INICIAL: FormEstado = {
 const inputCls =
   "h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]/30";
 
-export function SolicitacaoEnvioWizardModal({ open, token, onClose, onEnviado }: Props) {
+export function SolicitacaoEnvioWizardModal({
+  open,
+  token,
+  clienteNome = "",
+  onClose,
+  onEnviado,
+}: Props) {
   const { t } = useI18n();
   const [etapa, setEtapa] = useState(1);
   const [form, setForm] = useState<FormEstado>(FORM_INICIAL);
@@ -80,6 +88,19 @@ export function SolicitacaoEnvioWizardModal({ open, token, onClose, onEnviado }:
   const [sucesso, setSucesso] = useState(false);
   const [servicosOpcoes, setServicosOpcoes] = useState<string[]>([]);
   const [carregandoServicos, setCarregandoServicos] = useState(false);
+
+  const nomeClienteLink = clienteNome.trim();
+
+  useEffect(() => {
+    if (!open) return;
+    setEtapa(1);
+    setErro(null);
+    setSucesso(false);
+    setForm({
+      ...FORM_INICIAL,
+      dentista: nomeClienteLink,
+    });
+  }, [open, nomeClienteLink]);
 
   useEffect(() => {
     if (!open) return;
@@ -125,7 +146,10 @@ export function SolicitacaoEnvioWizardModal({ open, token, onClose, onEnviado }:
 
   function fechar() {
     setEtapa(1);
-    setForm(FORM_INICIAL);
+    setForm({
+      ...FORM_INICIAL,
+      dentista: nomeClienteLink,
+    });
     setErro(null);
     setSucesso(false);
     onClose();
@@ -287,7 +311,7 @@ export function SolicitacaoEnvioWizardModal({ open, token, onClose, onEnviado }:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           pacienteNome: form.pacienteNome.trim(),
-          dentista: form.dentista.trim(),
+          dentista: form.dentista.trim() || nomeClienteLink,
           caixa: form.caixa.trim(),
           casoClinico: form.casoClinico.trim(),
           prioridade: form.prioridade,
@@ -399,6 +423,17 @@ export function SolicitacaoEnvioWizardModal({ open, token, onClose, onEnviado }:
 
           {etapa === 1 && (
             <div className="grid gap-3 sm:grid-cols-2">
+              {nomeClienteLink ? (
+                <label className="block text-xs font-medium text-slate-600 sm:col-span-2">
+                  {t("acompanhamento.pedido.clienteDoLink")}
+                  <input
+                    className={cn(inputCls, "mt-1 bg-slate-50 text-slate-700")}
+                    value={nomeClienteLink}
+                    readOnly
+                    tabIndex={-1}
+                  />
+                </label>
+              ) : null}
               <label className="block text-xs font-medium text-slate-600 sm:col-span-2">
                 {t("acompanhamento.pedido.paciente")} *
                 <input

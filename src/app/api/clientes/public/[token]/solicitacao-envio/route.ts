@@ -16,10 +16,14 @@ function mensagemErroPrisma(err: unknown): string {
     err && typeof err === "object" && "code" in err
       ? String((err as { code?: string }).code)
       : "";
+  const msg = err instanceof Error ? err.message : String(err ?? "");
   if (code === "P2021" || code === "P2022") {
     return "A tabela de pedidos de envio ainda não existe no banco. Rode prisma db push no servidor.";
   }
-  if (err instanceof Error && err.message) return err.message;
+  if (msg.includes("permission denied") || msg.includes("42501")) {
+    return "O banco ainda não liberou a tabela de pedidos de envio para o app. No servidor rode: npm run db:grant-app && npm run db:rls";
+  }
+  if (msg) return msg;
   return "Não foi possível salvar a solicitação.";
 }
 
@@ -82,11 +86,20 @@ export async function POST(request: Request, { params }: Params) {
   }
 
   try {
+    const nomeCliente =
+      resultado.cliente.nome?.trim() ||
+      resultado.cliente.razaoSocial?.trim() ||
+      "";
+    const dadosComCliente = {
+      ...parsed.data,
+      // Cliente vem do token do link; dentista herda o nome se vier vazio.
+      dentista: parsed.data.dentista?.trim() || nomeCliente,
+    };
     const criada = await runWithTenantContext(resultado.cliente.empresaId, () =>
       criarSolicitacaoEnvioCliente({
         empresaId: resultado.cliente.empresaId,
         clienteId: resultado.cliente.id,
-        dados: parsed.data,
+        dados: dadosComCliente,
       })
     );
 

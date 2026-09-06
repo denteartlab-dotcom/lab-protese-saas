@@ -929,6 +929,7 @@ export default function AcompanhamentoClientePage() {
       <SolicitacaoEnvioWizardModal
         open={pedidoEnvioAberto}
         token={token}
+        clienteNome={dados.cliente.nomeExibicao || dados.cliente.nome}
         onClose={() => setPedidoEnvioAberto(false)}
       />
 

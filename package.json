@@ -38,6 +38,7 @@
     "db:rls-force": "prisma db execute --file prisma/sql/force-rls-app.sql --schema prisma/schema.prisma",
     "db:rls-noforce": "prisma db execute --file prisma/sql/disable-force-rls.sql --schema prisma/schema.prisma",
     "db:role-app": "node scripts/create-app-role.mjs",
+    "db:grant-app": "prisma db execute --file prisma/sql/grant-lab-app-tables.sql --schema prisma/schema.prisma",
     "db:testar-rls": "node node_modules/tsx/dist/cli.mjs scripts/testar-rls-tenant.ts",
     "db:reparar-usuarios-empresa": "node node_modules/tsx/dist/cli.mjs scripts/reparar-usuarios-empresa.ts",
     "vps:validar": "node node_modules/tsx/dist/cli.mjs scripts/migrar-empresa-fase6.ts",
