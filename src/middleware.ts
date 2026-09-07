@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { jwtVerify } from "jose";
+import { jwtVerify } from "jose/jwt/verify";
 import { sessaoCookieSecure } from "@/lib/cookie-secure";
 import { gerarNonceCsp, montarContentSecurityPolicy } from "@/lib/csp";
 import { requisicaoTvSocket } from "@/lib/tv/tv-socket-path";
@@ -532,5 +532,8 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/image|favicon.ico).*)"],
+  // Evita rodar Edge middleware em JS/CSS/fontes/imagens — deixa a abertura da app mais rápida.
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2?|css|js|map)$).*)",
+  ],
 };
