@@ -83,8 +83,11 @@ export const messagesProducaoPt = {
   "producao.os.campo.observacaoInterna": "Observação Interna",
   "producao.os.campo.observacaoPlaceholder":
     "Somente para o laboratório (não aparece na OS impressa)",
-  "producao.os.campo.imagensVideos": "Selecione Imagens ou Vídeos ({atual}/{limite})",
-  "producao.os.campo.arquivos": "Arquivos ({atual}/{limite}):",
+  "producao.os.campo.imagensVideos":
+    "Selecione Imagens ou Arquivos ({atual} · {mb}/{limiteMb} MB)",
+  "producao.os.campo.arquivos": "Arquivos ({atual} · {mb}/{limiteMb} MB):",
+  "producao.os.campo.erroLimiteMb":
+    "O total de anexos não pode passar de {limiteMb} MB.",
   "producao.os.secao.servico": "Serviço",
   "producao.os.itens.titulo": "Itens Adicionados",
   "producao.os.itens.totalServicos": "Total Serviços:",
@@ -253,8 +256,11 @@ export const messagesProducaoEn = {
   "producao.os.campo.observacaoInterna": "Internal Note",
   "producao.os.campo.observacaoPlaceholder":
     "Lab only (not shown on printed work order)",
-  "producao.os.campo.imagensVideos": "Select Images or Videos ({atual}/{limite})",
-  "producao.os.campo.arquivos": "Files ({atual}/{limite}):",
+  "producao.os.campo.imagensVideos":
+    "Select Images or Files ({atual} · {mb}/{limiteMb} MB)",
+  "producao.os.campo.arquivos": "Files ({atual} · {mb}/{limiteMb} MB):",
+  "producao.os.campo.erroLimiteMb":
+    "Total attachments cannot exceed {limiteMb} MB.",
   "producao.os.secao.servico": "Service",
   "producao.os.itens.titulo": "Added Items",
   "producao.os.itens.totalServicos": "Total Services:",
@@ -423,8 +429,11 @@ export const messagesProducaoEs = {
   "producao.os.campo.observacaoInterna": "Observación Interna",
   "producao.os.campo.observacaoPlaceholder":
     "Solo para el laboratorio (no aparece en la OS impresa)",
-  "producao.os.campo.imagensVideos": "Seleccione Imágenes o Videos ({atual}/{limite})",
-  "producao.os.campo.arquivos": "Archivos ({atual}/{limite}):",
+  "producao.os.campo.imagensVideos":
+    "Seleccione Imágenes o Archivos ({atual} · {mb}/{limiteMb} MB)",
+  "producao.os.campo.arquivos": "Archivos ({atual} · {mb}/{limiteMb} MB):",
+  "producao.os.campo.erroLimiteMb":
+    "El total de adjuntos no puede superar {limiteMb} MB.",
   "producao.os.secao.servico": "Servicio",
   "producao.os.itens.titulo": "Ítems Agregados",
   "producao.os.itens.totalServicos": "Total Servicios:",

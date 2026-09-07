@@ -11,6 +11,13 @@ import {
   carregarMateriaisDentistaCadastro,
   MATERIAIS_DENTISTA_ATUALIZADA_EVENT,
 } from "@/lib/materiais-dentista-cadastro";
+import {
+  bytesAnexosOsExistentes,
+  bytesArquivosOs,
+  formatarMbUsados,
+  LIMITE_BYTES_TOTAL_ANEXOS_OS,
+  LIMITE_MB_TOTAL_ANEXOS_OS,
+} from "@/lib/os-anexos";
 import { useArmazenamentoGaleria } from "@/hooks/use-armazenamento-galeria";
 import {
   clienteTabelaPrecoDeObservacoes,
@@ -29,6 +36,7 @@ type AnexoExistente = {
   name: string;
   type: string;
   url: string;
+  tamanho?: number;
 };
 
 type Props = {
@@ -39,12 +47,12 @@ type Props = {
   onRemoverAnexoExistente?: (anexo: AnexoExistente) => void;
   arquivosNovos?: File[];
   onArquivosNovosChange?: (arquivos: File[]) => void;
-  limiteArquivos?: number;
   desabilitado?: boolean;
   observacaoEditavel?: boolean;
 };
 
-const LIMITE_ARQUIVOS_PADRAO = 5;
+const ACCEPT_ANEXOS_OS =
+  "image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf,.stl,.obj,.ply,.zip,application/octet-stream,model/stl";
 
 export function CabecalhoFormularioOs({
   value,
@@ -54,7 +62,6 @@ export function CabecalhoFormularioOs({
   onRemoverAnexoExistente,
   arquivosNovos = [],
   onArquivosNovosChange,
-  limiteArquivos = LIMITE_ARQUIVOS_PADRAO,
   desabilitado = false,
   observacaoEditavel = true,
 }: Props) {
@@ -67,6 +74,7 @@ export function CabecalhoFormularioOs({
   const [novoMaterial, setNovoMaterial] = useState("");
   const [materiaisSelecionados, setMateriaisSelecionados] = useState<string[]>([]);
   const [materialQuantidades, setMaterialQuantidades] = useState<Record<string, number>>({});
+  const [erroLimiteMb, setErroLimiteMb] = useState<string | null>(null);
   const { esgotado: galeriaEsgotada, mensagemBloqueioUpload, podeEnviarArquivos } =
     useArmazenamentoGaleria();
 
@@ -101,6 +109,10 @@ export function CabecalhoFormularioOs({
   );
 
   const totalAnexos = anexosExistentes.length + arquivosNovos.length;
+  const bytesUsados =
+    bytesAnexosOsExistentes(anexosExistentes) + bytesArquivosOs(arquivosNovos);
+  const mbUsadosLabel = formatarMbUsados(bytesUsados);
+  const limiteMbAtingido = bytesUsados >= LIMITE_BYTES_TOTAL_ANEXOS_OS;
 
   function atualizarMaterial(material: string) {
     onChange({ material });
@@ -147,6 +159,7 @@ export function CabecalhoFormularioOs({
     if (!onArquivosNovosChange) return;
     const selecionados = Array.from(event.target.files || []);
     if (!selecionados.length) return;
+    setErroLimiteMb(null);
     const bloqueio = mensagemBloqueioUpload();
     if (bloqueio) {
       void import("@/lib/uploads-erro-armazenamento").then(({ notificarArmazenamentoCheio }) =>
@@ -161,8 +174,26 @@ export function CabecalhoFormularioOs({
     const novos = selecionados.filter(
       (arquivo) => !existentes.has(`${arquivo.name}-${arquivo.size}-${arquivo.lastModified}`)
     );
-    const limiteRestante = Math.max(limiteArquivos - anexosExistentes.length, 0);
-    const paraAdicionar = novos.slice(0, Math.max(limiteRestante - arquivosNovos.length, 0));
+    if (!novos.length) {
+      event.target.value = "";
+      return;
+    }
+
+    const bytesBase =
+      bytesAnexosOsExistentes(anexosExistentes) + bytesArquivosOs(arquivosNovos);
+    const paraAdicionar: File[] = [];
+    let bytesAcumulados = bytesBase;
+    for (const arquivo of novos) {
+      if (bytesAcumulados + arquivo.size > LIMITE_BYTES_TOTAL_ANEXOS_OS) {
+        setErroLimiteMb(
+          t("producao.os.campo.erroLimiteMb", { limiteMb: LIMITE_MB_TOTAL_ANEXOS_OS })
+        );
+        break;
+      }
+      paraAdicionar.push(arquivo);
+      bytesAcumulados += arquivo.size;
+    }
+
     if (!paraAdicionar.length) {
       event.target.value = "";
       return;
@@ -174,7 +205,7 @@ export function CabecalhoFormularioOs({
       event.target.value = "";
       return;
     }
-    onArquivosNovosChange([...arquivosNovos, ...paraAdicionar].slice(0, limiteRestante));
+    onArquivosNovosChange([...arquivosNovos, ...paraAdicionar]);
     event.target.value = "";
   }
 
@@ -374,26 +405,30 @@ export function CabecalhoFormularioOs({
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf"
+          accept={ACCEPT_ANEXOS_OS}
           multiple
           className="hidden"
-          disabled={desabilitado || galeriaEsgotada || totalAnexos >= limiteArquivos}
+          disabled={desabilitado || galeriaEsgotada || limiteMbAtingido}
           onChange={adicionarArquivos}
         />
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          disabled={desabilitado || galeriaEsgotada || totalAnexos >= limiteArquivos}
+          disabled={desabilitado || galeriaEsgotada || limiteMbAtingido}
           className="shrink-0 rounded border border-slate-300 px-3 py-2 text-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <ImageUp className="mr-2 inline h-4 w-4" />{" "}
           {t("producao.os.campo.imagensVideos", {
             atual: totalAnexos,
-            limite: limiteArquivos,
+            mb: mbUsadosLabel,
+            limiteMb: LIMITE_MB_TOTAL_ANEXOS_OS,
           })}
         </button>
         {galeriaEsgotada ? (
           <p className="text-[11px] text-red-600">{mensagemBloqueioUpload()}</p>
+        ) : null}
+        {erroLimiteMb ? (
+          <p className="text-[11px] text-red-600">{erroLimiteMb}</p>
         ) : null}
         <div className="min-w-0 flex-1">
           <label className="mb-1 block text-sm font-medium text-slate-700">
@@ -413,7 +448,11 @@ export function CabecalhoFormularioOs({
       {(anexosExistentes.length > 0 || previews.length > 0) && (
         <div className="md:col-span-5 rounded border border-emerald-200 bg-emerald-50 p-3 text-emerald-800">
           <p className="mb-2 font-medium">
-            {t("producao.os.campo.arquivos", { atual: totalAnexos, limite: limiteArquivos })}
+            {t("producao.os.campo.arquivos", {
+              atual: totalAnexos,
+              mb: mbUsadosLabel,
+              limiteMb: LIMITE_MB_TOTAL_ANEXOS_OS,
+            })}
           </p>
           <div className="grid gap-2 sm:grid-cols-3 md:grid-cols-5">
             {anexosExistentes.map((anexo) => (

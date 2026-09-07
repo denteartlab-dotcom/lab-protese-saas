@@ -24,7 +24,7 @@ export const LIMITE_ARQUIVOS_SOLICITACAO_ENVIO = 10;
 export const LIMITE_ANEXOS_SOLICITACAO_ENVIO =
   LIMITE_IMAGENS_SOLICITACAO_ENVIO + LIMITE_ARQUIVOS_SOLICITACAO_ENVIO;
 /** Alinhado a MAX_BYTES_ARQUIVO_SOLICITACAO no upload-arquivo-server. */
-export const LIMITE_MB_ARQUIVO_SOLICITACAO_ENVIO = 300;
+export const LIMITE_MB_ARQUIVO_SOLICITACAO_ENVIO = 310;
 
 export type CategoriaAnexoSolicitacao = "imagem" | "arquivo";
 

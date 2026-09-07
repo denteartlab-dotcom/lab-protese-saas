@@ -27,6 +27,8 @@ export type ArquivoEnviado = {
 };
 
 const MAX_BYTES_ARQUIVO = 4 * 1024 * 1024;
+/** Anexos de OS / pedido de envio: alinhado ao nginx (310M). */
+const MAX_BYTES_ARQUIVO_GRANDE = 310 * 1024 * 1024;
 
 const MIME_BASE = new Set([
   "image/jpeg",
@@ -85,8 +87,6 @@ const MIME_ARQUIVO_SOLICITACAO = new Set([
   "application/vnd.ms-pki.stl",
   "application/wavefront-obj",
 ]);
-
-const MAX_BYTES_ARQUIVO_SOLICITACAO = 300 * 1024 * 1024;
 
 const MIME_WHATSAPP = new Set([
   ...MIME_BASE,
@@ -167,7 +167,12 @@ function safeName(name: string) {
 }
 
 function allowlistParaPasta(pasta: PastaUpload): Set<string> {
-  return pasta === "disparos-whatsapp" ? MIME_WHATSAPP : MIME_BASE;
+  if (pasta === "disparos-whatsapp") return MIME_WHATSAPP;
+  // OS: imagens/PDF + STL/OBJ e demais arquivos do laboratório
+  if (pasta === "os") {
+    return new Set([...MIME_BASE, ...MIME_ARQUIVO_SOLICITACAO]);
+  }
+  return MIME_BASE;
 }
 
 /** Detecta MIME pelos magic bytes (ignora declaração do cliente). */
@@ -397,8 +402,9 @@ export async function salvarArquivosUpload(
 
   const maxBytes =
     opcoes?.modoMime === "arquivos-solicitacao" ||
-    opcoes?.modoMime === "imagens-solicitacao"
-      ? MAX_BYTES_ARQUIVO_SOLICITACAO
+    opcoes?.modoMime === "imagens-solicitacao" ||
+    pasta === "os"
+      ? MAX_BYTES_ARQUIVO_GRANDE
       : MAX_BYTES_ARQUIVO;
 
   for (const file of files) {
@@ -406,6 +412,20 @@ export async function salvarArquivosUpload(
       const limiteMb = Math.round(maxBytes / (1024 * 1024));
       throw new Error(
         `O arquivo "${file.name}" excede o limite de ${limiteMb} MB. Reduza o tamanho ou envie outro arquivo.`
+      );
+    }
+  }
+
+  if (
+    pasta === "os" ||
+    opcoes?.modoMime === "arquivos-solicitacao" ||
+    opcoes?.modoMime === "imagens-solicitacao"
+  ) {
+    const totalBytes = files.reduce((acc, f) => acc + (Number(f.size) || 0), 0);
+    if (totalBytes > MAX_BYTES_ARQUIVO_GRANDE) {
+      const limiteMb = Math.round(MAX_BYTES_ARQUIVO_GRANDE / (1024 * 1024));
+      throw new Error(
+        `O total dos arquivos excede o limite de ${limiteMb} MB nesta remessa.`
       );
     }
   }

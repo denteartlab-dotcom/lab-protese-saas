@@ -66,7 +66,13 @@ import {
   descontoItemResolvidoParaValor,
   descontoZeradoPorTipo,
 } from "@/lib/cabecalho-os-form";
-import { anexosFromGrupoTrabalhos } from "@/lib/os-anexos";
+import {
+  anexosFromGrupoTrabalhos,
+  bytesArquivosOs,
+  formatarMbUsados,
+  LIMITE_BYTES_TOTAL_ANEXOS_OS,
+  LIMITE_MB_TOTAL_ANEXOS_OS,
+} from "@/lib/os-anexos";
 import {
   aplicarRepresentanteEmColaboradoresOs,
   aplicarRepresentanteEmEtapasOs,
@@ -263,7 +269,9 @@ const PRESTADORES_STORAGE_KEY = "labProtesePrestadores";
 const ETAPAS_STORAGE_KEY = "labProteseEtapas";
 const SETORES_STORAGE_KEY = "labProteseSetores";
 const COLABORADORES_STORAGE_KEY = "labProteseColaboradores";
-const LIMITE_ARQUIVOS_OS = 5;
+
+const ACCEPT_ANEXOS_OS =
+  "image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf,.stl,.obj,.ply,.zip,application/octet-stream,model/stl";
 
 const dentesSuperiores = ["18", "17", "16", "15", "14", "13", "12", "11", "21", "22", "23", "24", "25", "26", "27", "28"];
 const dentesInferiores = ["48", "47", "46", "45", "44", "43", "42", "41", "31", "32", "33", "34", "35", "36", "37", "38"];
@@ -473,6 +481,7 @@ export default function OrdemServicoPage() {
   const [tipoDenticao, setTipoDenticao] = useState<TipoDenticao>("permanente");
   const [dentes, setDentes] = useState<string[]>([]);
   const [arquivos, setArquivos] = useState<File[]>([]);
+  const [erroLimiteMbAnexos, setErroLimiteMbAnexos] = useState<string | null>(null);
   const [anexosExistentes, setAnexosExistentes] = useState<ArquivoOs[]>([]);
   const { esgotado: galeriaEsgotada, mensagemBloqueioUpload, podeEnviarArquivos } =
     useArmazenamentoGaleria();
@@ -2839,6 +2848,7 @@ export default function OrdemServicoPage() {
   function adicionarArquivosSelecionados(event: React.ChangeEvent<HTMLInputElement>) {
     const selecionados = Array.from(event.target.files || []);
     if (!selecionados.length) return;
+    setErroLimiteMbAnexos(null);
 
     const bloqueio = mensagemBloqueioUpload();
     if (bloqueio) {
@@ -2850,19 +2860,32 @@ export default function OrdemServicoPage() {
     }
 
     setArquivos((atuais) => {
-      const existentes = new Set(atuais.map((arquivo) => `${arquivo.name}-${arquivo.size}-${arquivo.lastModified}`));
+      const existentes = new Set(
+        atuais.map((arquivo) => `${arquivo.name}-${arquivo.size}-${arquivo.lastModified}`)
+      );
       const novos = selecionados.filter(
         (arquivo) => !existentes.has(`${arquivo.name}-${arquivo.size}-${arquivo.lastModified}`)
       );
-      const limiteRestante = Math.max(LIMITE_ARQUIVOS_OS - atuais.length, 0);
-      const paraAdicionar = novos.slice(0, limiteRestante);
-      if (paraAdicionar.length && !podeEnviarArquivos(paraAdicionar)) {
+      const paraAdicionar: File[] = [];
+      let bytesAcumulados = bytesArquivosOs(atuais);
+      for (const arquivo of novos) {
+        if (bytesAcumulados + arquivo.size > LIMITE_BYTES_TOTAL_ANEXOS_OS) {
+          setErroLimiteMbAnexos(
+            t("producao.os.campo.erroLimiteMb", { limiteMb: LIMITE_MB_TOTAL_ANEXOS_OS })
+          );
+          break;
+        }
+        paraAdicionar.push(arquivo);
+        bytesAcumulados += arquivo.size;
+      }
+      if (!paraAdicionar.length) return atuais;
+      if (!podeEnviarArquivos(paraAdicionar)) {
         void import("@/lib/uploads-erro-armazenamento").then(({ notificarArmazenamentoCheio }) =>
           notificarArmazenamentoCheio()
         );
         return atuais;
       }
-      return [...atuais, ...paraAdicionar].slice(0, LIMITE_ARQUIVOS_OS);
+      return [...atuais, ...paraAdicionar];
     });
     event.target.value = "";
   }
@@ -3940,26 +3963,36 @@ export default function OrdemServicoPage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf"
+              accept={ACCEPT_ANEXOS_OS}
               multiple
               className="hidden"
-              disabled={galeriaEsgotada || arquivos.length >= LIMITE_ARQUIVOS_OS}
+              disabled={
+                galeriaEsgotada ||
+                bytesArquivosOs(arquivos) >= LIMITE_BYTES_TOTAL_ANEXOS_OS
+              }
               onChange={adicionarArquivosSelecionados}
             />
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              disabled={galeriaEsgotada || arquivos.length >= LIMITE_ARQUIVOS_OS}
+              disabled={
+                galeriaEsgotada ||
+                bytesArquivosOs(arquivos) >= LIMITE_BYTES_TOTAL_ANEXOS_OS
+              }
               className="shrink-0 rounded border border-slate-300 px-3 py-2 text-slate-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
             >
               <ImageUp className="mr-2 inline h-4 w-4" />{" "}
               {t("producao.os.campo.imagensVideos", {
                 atual: arquivos.length,
-                limite: LIMITE_ARQUIVOS_OS,
+                mb: formatarMbUsados(bytesArquivosOs(arquivos)),
+                limiteMb: LIMITE_MB_TOTAL_ANEXOS_OS,
               })}
             </button>
             {galeriaEsgotada ? (
               <p className="text-[11px] text-red-600">{mensagemBloqueioUpload()}</p>
+            ) : null}
+            {erroLimiteMbAnexos ? (
+              <p className="text-[11px] text-red-600">{erroLimiteMbAnexos}</p>
             ) : null}
             <div className="min-w-0 flex-1">
               <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -3976,7 +4009,13 @@ export default function OrdemServicoPage() {
           </div>
           {arquivos.length > 0 && (
             <div className="md:col-span-5 rounded border border-emerald-200 bg-emerald-50 p-3 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200">
-              <p className="mb-2 font-medium">Arquivos selecionados ({arquivos.length}/{LIMITE_ARQUIVOS_OS}):</p>
+              <p className="mb-2 font-medium">
+                {t("producao.os.campo.arquivos", {
+                  atual: arquivos.length,
+                  mb: formatarMbUsados(bytesArquivosOs(arquivos)),
+                  limiteMb: LIMITE_MB_TOTAL_ANEXOS_OS,
+                })}
+              </p>
               <div className="grid gap-2 sm:grid-cols-3 md:grid-cols-5">
                 {previews.map((preview, index) => (
                   <div
