@@ -73,7 +73,7 @@ import {
   linhaOrigemEntradaOs,
   LIMITE_BYTES_TOTAL_ANEXOS_OS,
   LIMITE_MB_TOTAL_ANEXOS_OS,
-  origemEntradaOsDeTexto,
+  origemEntradaEhCliente,
 } from "@/lib/os-anexos";
 import {
   aplicarRepresentanteEmColaboradoresOs,
@@ -485,6 +485,7 @@ export default function OrdemServicoPage() {
   const [arquivos, setArquivos] = useState<File[]>([]);
   const [erroLimiteMbAnexos, setErroLimiteMbAnexos] = useState<string | null>(null);
   const [anexosExistentes, setAnexosExistentes] = useState<ArquivoOs[]>([]);
+  const [nomeUsuarioSessao, setNomeUsuarioSessao] = useState("");
   const { esgotado: galeriaEsgotada, mensagemBloqueioUpload, podeEnviarArquivos } =
     useArmazenamentoGaleria();
   const [abaServico, setAbaServico] = useState<
@@ -696,6 +697,21 @@ export default function OrdemServicoPage() {
       }
     }
   });
+
+  useEffect(() => {
+    let ativo = true;
+    void fetch("/api/auth/me", { credentials: "same-origin", cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { name?: string } | null) => {
+        if (!ativo) return;
+        const nome = typeof data?.name === "string" ? data.name.trim() : "";
+        if (nome) setNomeUsuarioSessao(nome);
+      })
+      .catch(() => undefined);
+    return () => {
+      ativo = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!paginaPronta || typeof window === "undefined") return;
@@ -3123,8 +3139,15 @@ export default function OrdemServicoPage() {
       .filter(Boolean)
       .join("\n");
     if (/origem entrada:/i.test(corpo)) return corpo;
-    const origem = origemEntradaOsDeTexto(corpo, form.observacoes);
-    return [linhaOrigemEntradaOs(origem), corpo].filter(Boolean).join("\n");
+    if (origemEntradaEhCliente(corpo, form.observacoes)) {
+      return [linhaOrigemEntradaOs("Cliente"), corpo].filter(Boolean).join("\n");
+    }
+    return [
+      linhaOrigemEntradaOs(nomeUsuarioSessao || "Usuario"),
+      corpo,
+    ]
+      .filter(Boolean)
+      .join("\n");
   }
 
   function linhasEtapasParaItemServico(item: ItemAdicionado) {

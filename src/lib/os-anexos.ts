@@ -28,42 +28,96 @@ export function formatarMbUsados(bytes: number): string {
   return String(Math.round(mb));
 }
 
-/** Origem da OS no controle: pedido do cliente vs criação no laboratório. */
-export type OrigemEntradaOs = "cliente" | "laboratorio";
+/** Texto após "Origem entrada:" — "Cliente" ou nome de quem criou a OS. */
+export const PREFIXO_ORIGEM_ENTRADA = "Origem entrada:";
 
-export const MARCA_ORIGEM_ENTRADA_CLIENTE = "Origem entrada: Cliente";
-export const MARCA_ORIGEM_ENTRADA_LABORATORIO = "Origem entrada: Laboratorio";
-
-export function linhaOrigemEntradaOs(origem: OrigemEntradaOs): string {
-  return origem === "cliente"
-    ? MARCA_ORIGEM_ENTRADA_CLIENTE
-    : MARCA_ORIGEM_ENTRADA_LABORATORIO;
+export function linhaOrigemEntradaOs(rotulo: string): string {
+  const limpo = rotulo.trim() || "Usuario";
+  return `${PREFIXO_ORIGEM_ENTRADA} ${limpo}`;
 }
 
-export function origemEntradaOsDeTexto(
+export function extrairRotuloOrigemEntradaLinha(
   ...textos: Array<string | null | undefined>
-): OrigemEntradaOs {
-  const blob = textos
-    .map((t) => (t || "").trim())
-    .filter(Boolean)
-    .join("\n")
-    .toLowerCase();
-  if (!blob) return "laboratorio";
-  if (
-    blob.includes("origem entrada: cliente") ||
-    blob.includes("solicitação de envio") ||
-    blob.includes("solicitacao de envio")
-  ) {
-    return "cliente";
+): string | null {
+  for (const texto of textos) {
+    for (const line of (texto || "").split("\n")) {
+      const match = line.trim().match(/^origem entrada:\s*(.+)$/i);
+      const valor = match?.[1]?.trim();
+      if (valor) return valor;
+    }
   }
-  if (blob.includes("origem entrada: laboratorio") || blob.includes("origem entrada: laboratório")) {
-    return "laboratorio";
-  }
-  return "laboratorio";
+  return null;
 }
 
-export function rotuloOrigemEntradaOs(origem: OrigemEntradaOs): string {
-  return origem === "cliente" ? "Cliente" : "Laboratorio";
+export function origemEntradaEhCliente(
+  ...textos: Array<string | null | undefined>
+): boolean {
+  const rotulo = extrairRotuloOrigemEntradaLinha(...textos);
+  if (rotulo && /^cliente$/i.test(rotulo)) return true;
+  const blob = textos
+    .map((t) => (t || "").toLowerCase())
+    .join("\n");
+  return (
+    blob.includes("solicitação de envio") || blob.includes("solicitacao de envio")
+  );
+}
+
+function rotuloEhLaboratorioGenerico(rotulo: string) {
+  return /^laborat[oó]rio$/i.test(rotulo.trim());
+}
+
+/** Precisa buscar o nome do criador (auditoria) para exibir na coluna Entrada. */
+export function precisaNomeCriadorEntrada(
+  ...textos: Array<string | null | undefined>
+): boolean {
+  if (origemEntradaEhCliente(...textos)) return false;
+  const rotulo = extrairRotuloOrigemEntradaLinha(...textos);
+  if (!rotulo) return true;
+  return rotuloEhLaboratorioGenerico(rotulo);
+}
+
+/** Rótulo da coluna Entrada a partir das instruções/observações. */
+export function rotuloOrigemEntradaDeTexto(
+  ...textos: Array<string | null | undefined>
+): string {
+  const rotulo = extrairRotuloOrigemEntradaLinha(...textos);
+  if (rotulo) return rotulo;
+  if (origemEntradaEhCliente(...textos)) return "Cliente";
+  return "—";
+}
+
+/**
+ * Garante a marca de origem nas instruções.
+ * Pedido do cliente → "Cliente"; OS do lab → nome do usuário criador.
+ */
+export function garantirOrigemEntradaNasInstrucoes(
+  instrucoes: string | null | undefined,
+  observacoes: string | null | undefined,
+  nomeCriadorLab: string
+): string {
+  const corpo = (instrucoes || "").trim();
+  const existente = extrairRotuloOrigemEntradaLinha(corpo);
+
+  if (origemEntradaEhCliente(corpo, observacoes)) {
+    if (existente && /^cliente$/i.test(existente)) return corpo;
+    const limpo = corpo
+      .split("\n")
+      .filter((line) => !/^origem entrada:/i.test(line.trim()))
+      .join("\n")
+      .trim();
+    return [linhaOrigemEntradaOs("Cliente"), limpo].filter(Boolean).join("\n");
+  }
+
+  if (existente && !rotuloEhLaboratorioGenerico(existente)) {
+    return corpo;
+  }
+
+  const limpo = corpo
+    .split("\n")
+    .filter((line) => !/^origem entrada:/i.test(line.trim()))
+    .join("\n")
+    .trim();
+  return [linhaOrigemEntradaOs(nomeCriadorLab), limpo].filter(Boolean).join("\n");
 }
 
 export function anexosFromInstrucoes(instrucoes?: string | null): AnexoOs[] {

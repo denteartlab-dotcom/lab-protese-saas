@@ -140,9 +140,10 @@ import {
 } from "@/lib/os-faturamento";
 import {
   anexosFromGrupoTrabalhos,
+  extrairRotuloOrigemEntradaLinha,
   linhaOrigemEntradaOs,
-  origemEntradaOsDeTexto,
-  rotuloOrigemEntradaOs,
+  origemEntradaEhCliente,
+  rotuloOrigemEntradaDeTexto,
 } from "@/lib/os-anexos";
 import {
   anexosParaLinhasInstrucoes,
@@ -219,6 +220,7 @@ type Trabalho = {
   dataEntrega?: string | null;
   observacoes?: string | null;
   instrucoes?: string | null;
+  origemEntradaLabel?: string | null;
   cliente?: {
     id?: string;
     nome?: string | null;
@@ -2879,13 +2881,26 @@ export default function ControlePage() {
       anexosParaLinhasInstrucoes(todosAnexos)
     );
     if (/origem entrada:/i.test(corpo)) return corpo;
-    const origem = origemEntradaOsDeTexto(
-      corpo,
-      form.observacoes,
+    const rotuloExistente = extrairRotuloOrigemEntradaLinha(
       editando?.instrucoes,
-      editando?.observacoes
+      editando?.observacoes,
+      form.instrucoesCorpo,
+      form.observacoes
     );
-    return [linhaOrigemEntradaOs(origem), corpo].filter(Boolean).join("\n");
+    if (rotuloExistente) {
+      return [linhaOrigemEntradaOs(rotuloExistente), corpo].filter(Boolean).join("\n");
+    }
+    if (
+      origemEntradaEhCliente(
+        corpo,
+        form.observacoes,
+        editando?.instrucoes,
+        editando?.observacoes
+      )
+    ) {
+      return [linhaOrigemEntradaOs("Cliente"), corpo].filter(Boolean).join("\n");
+    }
+    return corpo;
   }
 
   async function salvarEdicao() {
@@ -3610,12 +3625,11 @@ export default function ControlePage() {
                     <td className="px-2 py-2">{exibirTexto(trabalho.cliente?.cro)}</td>
                     <td className="px-2 py-2">{pacienteNome(trabalho)}</td>
                     <td className="px-2 py-2">
-                      {rotuloOrigemEntradaOs(
-                        origemEntradaOsDeTexto(
+                      {trabalho.origemEntradaLabel ||
+                        rotuloOrigemEntradaDeTexto(
                           trabalho.instrucoes,
                           trabalho.observacoes
-                        )
-                      )}
+                        )}
                     </td>
                     <td
                       className="max-w-[160px] truncate px-2 py-2"

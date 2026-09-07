@@ -19,6 +19,11 @@ import {
   sincronizarTempoProducaoPorMudancaStatus,
 } from "@/lib/tempo-producao-status-servidor";
 import { garantirDatasEntradaEmpresaAlinhadas } from "@/lib/os-data-criacao";
+import {
+  garantirOrigemEntradaNasInstrucoes,
+  precisaNomeCriadorEntrada,
+  rotuloOrigemEntradaDeTexto,
+} from "@/lib/os-anexos";
 import { z } from "zod";
 
 const schema = z.object({
@@ -126,7 +131,53 @@ export async function GET(request: Request) {
     })
   );
 
-  return NextResponse.json(trabalhos);
+  const precisaCriador = trabalhos.filter((t) =>
+    precisaNomeCriadorEntrada(t.instrucoes, t.observacoes)
+  );
+  const numerosOs = [...new Set(precisaCriador.map((t) => t.numeroOs))];
+  const criadorPorNumero = new Map<number, string>();
+  const criadorPorTrabalho = new Map<string, string>();
+
+  if (numerosOs.length > 0) {
+    const logs = await prisma.logAuditoria.findMany({
+      where: {
+        empresaId: ctx.empresaId,
+        categoria: "os",
+        tipoAlteracao: "inclusao",
+        OR: [
+          { numeroOs: { in: numerosOs } },
+          { trabalhoId: { in: precisaCriador.map((t) => t.id) } },
+        ],
+      },
+      orderBy: { dataAlteracao: "asc" },
+      select: { numeroOs: true, trabalhoId: true, usuarioNome: true },
+    });
+    for (const log of logs) {
+      const nome = (log.usuarioNome || "").trim();
+      if (!nome) continue;
+      if (log.numeroOs != null && !criadorPorNumero.has(log.numeroOs)) {
+        criadorPorNumero.set(log.numeroOs, nome);
+      }
+      if (log.trabalhoId && !criadorPorTrabalho.has(log.trabalhoId)) {
+        criadorPorTrabalho.set(log.trabalhoId, nome);
+      }
+    }
+  }
+
+  return NextResponse.json(
+    trabalhos.map((t) => {
+      const base = rotuloOrigemEntradaDeTexto(t.instrucoes, t.observacoes);
+      if (!precisaNomeCriadorEntrada(t.instrucoes, t.observacoes)) {
+        return { ...t, origemEntradaLabel: base };
+      }
+      const criador =
+        criadorPorTrabalho.get(t.id) || criadorPorNumero.get(t.numeroOs) || "";
+      return {
+        ...t,
+        origemEntradaLabel: criador || "—",
+      };
+    })
+  );
 }
 
 export async function POST(request: Request) {
@@ -162,6 +213,12 @@ export async function POST(request: Request) {
     }
 
     const tipoProtese = data.tipoProtese.trim();
+    const usuarioNome = await nomeUsuarioParaLogAuditoria(ctx.user);
+    const instrucoes = garantirOrigemEntradaNasInstrucoes(
+      data.instrucoes,
+      data.observacoes,
+      usuarioNome
+    );
 
     const trabalho = await prisma.trabalho.create({
       data: {
@@ -181,7 +238,7 @@ export async function POST(request: Request) {
         valor: data.valor ?? 0,
         status: data.status ?? "pedido",
         observacoes: data.observacoes,
-        instrucoes: data.instrucoes,
+        instrucoes,
       },
       include: {
         cliente: true,
@@ -235,7 +292,7 @@ export async function POST(request: Request) {
       servico: formatServicoLogAuditoria(trabalho.tipoProtese, trabalho.id),
       clienteNome: formatClienteLogAuditoria(cliente.nome, trabalho.clienteId),
       usuarioId: ctx.user.id,
-      usuarioNome: await nomeUsuarioParaLogAuditoria(ctx.user),
+      usuarioNome,
     });
 
     if (trabalhoVisivelModuloTv(trabalho.status)) {

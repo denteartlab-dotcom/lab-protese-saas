@@ -51,7 +51,7 @@ function montarInstrucoesSolicitacao(params: {
   );
 
   return [
-    linhaOrigemEntradaOs("cliente"),
+    linhaOrigemEntradaOs("Cliente"),
     linhasItem,
     params.observacaoServico ? `Obs. serviço: ${params.observacaoServico}` : "",
     params.materialEnviado ? `Material enviado: ${params.materialEnviado}` : "",
