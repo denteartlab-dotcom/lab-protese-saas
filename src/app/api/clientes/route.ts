@@ -6,6 +6,10 @@ import {
   gerarTokenAcompanhamentoCliente,
   preencherTokensAcompanhamentoAusentes,
 } from "@/lib/cliente-acompanhamento";
+import {
+  hashSenhaPortalCliente,
+  sanitizarClienteSemSenhaPortal,
+} from "@/lib/cliente-portal-auth";
 import { schemaNomeCliente } from "@/lib/cliente-validacao";
 import { z } from "zod";
 
@@ -23,6 +27,7 @@ const schema = z.object({
   cep: z.string().optional(),
   observacoes: z.string().optional(),
   representanteColaboradorId: z.string().optional().nullable(),
+  senhaPortal: z.string().optional(),
 });
 
 export async function GET(request: Request) {
@@ -61,7 +66,9 @@ export async function GET(request: Request) {
 
   void preencherTokensAcompanhamentoAusentes().catch(() => {});
 
-  return NextResponse.json(clientes);
+  return NextResponse.json(
+    clientes.map((c) => sanitizarClienteSemSenhaPortal(c as Record<string, unknown>))
+  );
 }
 
 export async function POST(request: Request) {
@@ -78,15 +85,29 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const data = schema.parse(body);
+    const senhaPortal = data.senhaPortal?.trim() || "";
+    if (senhaPortal && senhaPortal.length < 4) {
+      return NextResponse.json(
+        { error: "A senha do acompanhamento deve ter no mínimo 4 caracteres." },
+        { status: 400 }
+      );
+    }
+    const { senhaPortal: _omit, ...rest } = data;
     const cliente = await prisma.cliente.create({
       data: {
-        ...data,
+        ...rest,
         empresaId: ctx.empresaId,
         nome: data.nome,
         tokenAcompanhamento: gerarTokenAcompanhamentoCliente(),
+        ...(senhaPortal
+          ? { senhaPortalHash: await hashSenhaPortalCliente(senhaPortal) }
+          : {}),
       },
     });
-    return NextResponse.json(cliente, { status: 201 });
+    return NextResponse.json(
+      sanitizarClienteSemSenhaPortal(cliente as Record<string, unknown>),
+      { status: 201 }
+    );
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "Dados inválidos" }, { status: 400 });

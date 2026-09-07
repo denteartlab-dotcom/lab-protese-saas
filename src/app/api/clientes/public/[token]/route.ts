@@ -4,6 +4,7 @@ import {
   MENSAGEM_LINK_ACOMPANHAMENTO_INVALIDO,
   montarAcompanhamentoPublico,
 } from "@/lib/cliente-acompanhamento";
+import { exigirSessaoPortalAcompanhamento } from "@/lib/cliente-portal-auth";
 import { runWithTenantContext } from "@/lib/db";
 import { carregarStoreUrgenciasCliente } from "@/lib/urgencia-cliente";
 import { carregarStoreRecebimentosCliente } from "@/lib/recebimento-cliente";
@@ -11,8 +12,10 @@ import { carregarStoreObservacoesCliente } from "@/lib/observacao-cliente-trabal
 
 type Params = { params: Promise<{ token: string }> };
 
-export async function GET(_request: Request, { params }: Params) {
+export async function GET(request: Request, { params }: Params) {
   const { token } = await params;
+  const auth = await exigirSessaoPortalAcompanhamento(request, token);
+  if (!auth.ok) return auth.response;
 
   const resultado = await buscarClientePublicoPorToken(token);
 

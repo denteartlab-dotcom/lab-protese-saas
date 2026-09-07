@@ -3,6 +3,13 @@ import {
   montarAcompanhamentoPublico,
 } from "@/lib/cliente-acompanhamento";
 import {
+  CODIGO_LOGIN_PORTAL_NECESSARIO,
+  CODIGO_SENHA_PORTAL_NAO_CONFIGURADA,
+  buscarMetaClientePortalPorToken,
+  clientePortalAcessoDisponivel,
+  sessaoPortalValidaParaToken,
+} from "@/lib/cliente-portal-auth";
+import {
   buscarRegistroExtratoPublicaPorToken,
   PREFIXO_JSON_STORE_EXTRATO_PUBLICA,
   registroExtratoPublicaValido,
@@ -39,7 +46,8 @@ export class PortalPublicoErro extends Error {
   constructor(
     message: string,
     readonly status: number,
-    readonly code?: string
+    readonly code?: string,
+    readonly extra?: Record<string, unknown>
   ) {
     super(message);
     this.name = "PortalPublicoErro";
@@ -51,7 +59,34 @@ async function brandingParaEmpresa(empresaId: string | null) {
   return carregarBrandingLaboratorioPorEmpresaId(empresaId);
 }
 
-async function montarAcompanhamento(token: string): Promise<PortalPublicoPagina> {
+async function montarAcompanhamento(
+  token: string,
+  request?: Request
+): Promise<PortalPublicoPagina> {
+  const meta = await buscarMetaClientePortalPorToken(token);
+  if (!meta || !clientePortalAcessoDisponivel(meta)) {
+    throw new PortalPublicoErro(MENSAGEM_LINK_ACOMPANHAMENTO_INVALIDO, 404, "nao_encontrado");
+  }
+
+  if (!meta.senhaPortalHash) {
+    throw new PortalPublicoErro(
+      "Acesso ainda não configurado. Solicite a senha de acesso ao laboratório.",
+      403,
+      CODIGO_SENHA_PORTAL_NAO_CONFIGURADA,
+      { clienteNome: meta.nome }
+    );
+  }
+
+  const sessao = await sessaoPortalValidaParaToken(request, token, meta.id);
+  if (!sessao) {
+    throw new PortalPublicoErro(
+      "Informe a senha para acessar o acompanhamento.",
+      401,
+      CODIGO_LOGIN_PORTAL_NECESSARIO,
+      { clienteNome: meta.nome }
+    );
+  }
+
   const resultado = await buscarClientePublicoPorToken(token);
   if (!resultado) {
     throw new PortalPublicoErro(MENSAGEM_LINK_ACOMPANHAMENTO_INVALIDO, 404, "nao_encontrado");
@@ -205,7 +240,8 @@ async function montarExtrato(token: string): Promise<PortalPublicoPagina> {
 
 export async function montarPortalPublico(
   tipo: TipoPortalPublico,
-  token: string
+  token: string,
+  request?: Request
 ): Promise<PortalPublicoPagina> {
   const limpo = token.trim();
   if (!limpo) {
@@ -214,7 +250,7 @@ export async function montarPortalPublico(
 
   switch (tipo) {
     case "acompanhamento":
-      return montarAcompanhamento(limpo);
+      return montarAcompanhamento(limpo, request);
     case "orcamento":
       return montarOrcamento(limpo);
     case "fatura":

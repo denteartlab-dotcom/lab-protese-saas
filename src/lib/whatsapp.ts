@@ -51,7 +51,7 @@ export function mensagemAcompanhamentoCliente(
   const saudacao = nomeCliente.trim()
     ? `Olá, ${nomeCliente.trim()}!`
     : "Olá!";
-  return `${saudacao}\n\nAcompanhe em tempo real a produção dos seus trabalhos no laboratório pelo link abaixo:\n\n${publicUrl}`;
+  return `${saudacao}\n\nAcompanhe em tempo real a produção dos seus trabalhos no laboratório pelo link abaixo.\nUse a senha de acesso enviada pelo laboratório para entrar.\n\n${publicUrl}`;
 }
 
 /** Texto com URL isolada em linha própria para o WhatsApp reconhecer como link clicável. */

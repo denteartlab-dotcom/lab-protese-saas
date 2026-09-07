@@ -44,6 +44,12 @@ export default function AcompanhamentoClientePage() {
   const [dados, setDados] = useState<ClienteAcompanhamentoPublico | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(true);
+  const [precisaLogin, setPrecisaLogin] = useState(false);
+  const [senhaNaoConfigurada, setSenhaNaoConfigurada] = useState(false);
+  const [clienteNomeLogin, setClienteNomeLogin] = useState("");
+  const [senhaLogin, setSenhaLogin] = useState("");
+  const [loginErro, setLoginErro] = useState<string | null>(null);
+  const [loginEnviando, setLoginEnviando] = useState(false);
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState<Date | null>(null);
   const [urgenteEnviando, setUrgenteEnviando] = useState<string | null>(null);
   const [urgenteRemovendo, setUrgenteRemovendo] = useState<string | null>(null);
@@ -76,10 +82,33 @@ export default function AcompanhamentoClientePage() {
         token
       );
       if (!res.ok) {
+        if (
+          res.code === "login_necessario" ||
+          res.status === 401
+        ) {
+          setPrecisaLogin(true);
+          setSenhaNaoConfigurada(false);
+          setClienteNomeLogin(res.clienteNome || "");
+          setDados(null);
+          setErro(null);
+          return;
+        }
+        if (res.code === "senha_nao_configurada" || res.status === 403) {
+          setPrecisaLogin(false);
+          setSenhaNaoConfigurada(true);
+          setClienteNomeLogin(res.clienteNome || "");
+          setDados(null);
+          setErro(res.message || t("acompanhamento.senhaNaoConfigurada"));
+          return;
+        }
+        setPrecisaLogin(false);
+        setSenhaNaoConfigurada(false);
         setErro(res.message || res.error || t("acompanhamento.linkIndisponivel"));
         setDados(null);
         return;
       }
+      setPrecisaLogin(false);
+      setSenhaNaoConfigurada(false);
       setErro(null);
       setDados(res.dados.entidade);
       setUltimaAtualizacao(new Date());
@@ -89,13 +118,62 @@ export default function AcompanhamentoClientePage() {
     } finally {
       if (!silencioso) setCarregando(false);
     }
-  }, [token]);
+  }, [token, t]);
+
+  async function entrarPortal(e: React.FormEvent) {
+    e.preventDefault();
+    if (!senhaLogin.trim() || loginEnviando) return;
+    setLoginEnviando(true);
+    setLoginErro(null);
+    try {
+      const res = await fetch(`/api/clientes/public/${token}/login`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ senha: senhaLogin }),
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        message?: string;
+        clienteNome?: string;
+      };
+      if (!res.ok) {
+        setLoginErro(json.message || t("acompanhamento.senhaIncorreta"));
+        return;
+      }
+      if (json.clienteNome) setClienteNomeLogin(json.clienteNome);
+      setSenhaLogin("");
+      setPrecisaLogin(false);
+      await carregar();
+    } catch {
+      setLoginErro(t("acompanhamento.erroLogin"));
+    } finally {
+      setLoginEnviando(false);
+    }
+  }
+
+  async function sairPortal() {
+    try {
+      await fetch(`/api/clientes/public/${token}/login`, {
+        method: "DELETE",
+        credentials: "same-origin",
+      });
+    } catch {
+      /* ignore */
+    }
+    setDados(null);
+    setPrecisaLogin(true);
+    setSenhaLogin("");
+  }
 
   useEffect(() => {
     void carregar();
+  }, [carregar]);
+
+  useEffect(() => {
+    if (precisaLogin || senhaNaoConfigurada || !dados) return;
     const id = window.setInterval(() => void carregar(true), POLL_MS);
     return () => window.clearInterval(id);
-  }, [carregar]);
+  }, [carregar, precisaLogin, senhaNaoConfigurada, dados]);
 
   useEffect(() => {
     const os = searchParams.get("os")?.trim();
@@ -320,10 +398,73 @@ export default function AcompanhamentoClientePage() {
     return lista.sort(compararTrabalhosAcompanhamento);
   }, [dados, busca, filtroSituacao]);
 
-  if (carregando && !dados) {
+  if (carregando && !dados && !precisaLogin && !senhaNaoConfigurada) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 text-sm text-slate-500">
         {t("acompanhamento.carregando")}
+      </div>
+    );
+  }
+
+  if (senhaNaoConfigurada) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
+        <div className="max-w-md rounded-lg border border-amber-200 bg-white p-6 text-center shadow-sm">
+          <h1 className="text-lg font-semibold text-slate-800">
+            {t("acompanhamento.loginTitulo")}
+          </h1>
+          {clienteNomeLogin ? (
+            <p className="mt-1 text-sm text-slate-600">{clienteNomeLogin}</p>
+          ) : null}
+          <p className="mt-3 text-sm text-amber-800">
+            {erro || t("acompanhamento.senhaNaoConfigurada")}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (precisaLogin) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
+        <form
+          onSubmit={(e) => void entrarPortal(e)}
+          className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-6 shadow-sm"
+        >
+          <h1 className="text-lg font-semibold text-slate-800">
+            {t("acompanhamento.loginTitulo")}
+          </h1>
+          {clienteNomeLogin ? (
+            <p className="mt-1 text-sm text-slate-600">{clienteNomeLogin}</p>
+          ) : null}
+          <p className="mt-2 text-[12px] text-slate-500">
+            {t("acompanhamento.loginAjuda")}
+          </p>
+          <label className="mt-4 block text-[11px] font-medium text-slate-600">
+            {t("acompanhamento.senha")}
+            <input
+              type="password"
+              autoComplete="current-password"
+              value={senhaLogin}
+              onChange={(e) => setSenhaLogin(e.target.value)}
+              className="mt-1 h-10 w-full rounded border border-slate-300 px-3 text-sm outline-none focus:border-[#4a90d9]"
+              placeholder={t("acompanhamento.senhaPlaceholder")}
+              disabled={loginEnviando}
+            />
+          </label>
+          {loginErro ? (
+            <p className="mt-2 text-xs text-red-600">{loginErro}</p>
+          ) : null}
+          <button
+            type="submit"
+            disabled={loginEnviando || !senhaLogin.trim()}
+            className="mt-4 h-10 w-full rounded bg-[#4a90d9] text-sm font-semibold text-white disabled:opacity-60"
+          >
+            {loginEnviando
+              ? t("acompanhamento.entrando")
+              : t("acompanhamento.entrar")}
+          </button>
+        </form>
       </div>
     );
   }
@@ -375,6 +516,13 @@ export default function AcompanhamentoClientePage() {
             className="inline-flex h-9 items-center rounded-md border border-emerald-600 bg-white px-4 text-sm font-semibold text-emerald-700 shadow-sm hover:bg-emerald-50"
           >
             {t("acompanhamento.pedido.acompanharBotao")}
+          </button>
+          <button
+            type="button"
+            onClick={() => void sairPortal()}
+            className="inline-flex h-9 items-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-600 shadow-sm hover:bg-slate-50"
+          >
+            {t("acompanhamento.sair")}
           </button>
         </div>
       </header>

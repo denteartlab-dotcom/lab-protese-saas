@@ -180,6 +180,8 @@ model Cliente {
   observacoes         String?
   representanteColaboradorId String?
   tokenAcompanhamento String?    @unique
+  /** Hash bcrypt da senha do portal de acompanhamento (definida pelo lab). */
+  senhaPortalHash     String?
   ativo               Boolean    @default(true)
   /** Quando preenchido, some da lista/lixeira mas pacientes, OS e lançamentos permanecem. */
   removidoEm          DateTime?

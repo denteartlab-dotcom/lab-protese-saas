@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { runWithTenantContext } from "@/lib/db";
 import { MENSAGEM_LINK_ACOMPANHAMENTO_INVALIDO } from "@/lib/cliente-acompanhamento";
+import { exigirSessaoPortalAcompanhamento } from "@/lib/cliente-portal-auth";
 import { buscarClientePublicoPorToken } from "@/lib/tenant-db";
 import {
   criarSolicitacaoEnvioCliente,
@@ -27,8 +28,10 @@ function mensagemErroPrisma(err: unknown): string {
   return "Não foi possível salvar a solicitação.";
 }
 
-export async function GET(_request: Request, { params }: Params) {
+export async function GET(request: Request, { params }: Params) {
   const { token } = await params;
+  const auth = await exigirSessaoPortalAcompanhamento(request, token);
+  if (!auth.ok) return auth.response;
   const resultado = await buscarClientePublicoPorToken(token);
   if (!resultado) {
     return NextResponse.json(
@@ -52,6 +55,8 @@ export async function GET(_request: Request, { params }: Params) {
 
 export async function POST(request: Request, { params }: Params) {
   const { token } = await params;
+  const auth = await exigirSessaoPortalAcompanhamento(request, token);
+  if (!auth.ok) return auth.response;
   const resultado = await buscarClientePublicoPorToken(token);
   if (!resultado) {
     return NextResponse.json(

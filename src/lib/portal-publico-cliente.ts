@@ -2,7 +2,14 @@ import type { PortalPublicoPagina, TipoPortalPublico } from "@/lib/portal-public
 
 export type ResultadoFetchPortalPublico<T extends PortalPublicoPagina = PortalPublicoPagina> =
   | { ok: true; dados: T }
-  | { ok: false; status: number; error: string; message?: string; code?: string };
+  | {
+      ok: false;
+      status: number;
+      error: string;
+      message?: string;
+      code?: string;
+      clienteNome?: string;
+    };
 
 export async function fetchPortalPublico<T extends PortalPublicoPagina>(
   tipo: TipoPortalPublico,
@@ -19,11 +26,13 @@ export async function fetchPortalPublico<T extends PortalPublicoPagina>(
   try {
     const res = await fetch(`/api/public/pagina?${params}`, {
       cache: opts?.cache ?? "no-store",
+      credentials: "same-origin",
     });
     const json = (await res.json().catch(() => ({}))) as T & {
       error?: string;
       message?: string;
       code?: string;
+      clienteNome?: string;
     };
 
     if (!res.ok) {
@@ -32,7 +41,8 @@ export async function fetchPortalPublico<T extends PortalPublicoPagina>(
         status: res.status,
         error: json.error || json.message || "Não foi possível carregar a página.",
         message: json.message,
-        code: json.code,
+        code: json.code || json.error,
+        clienteNome: json.clienteNome,
       };
     }
 

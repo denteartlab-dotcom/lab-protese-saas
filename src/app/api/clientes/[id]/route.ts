@@ -4,6 +4,10 @@ import { requireEmpresaContext } from "@/lib/empresa-context";
 import { acaoHttpParaPermissao, negarSeSemPermissao } from "@/lib/require-permissao";
 import { schemaNomeCliente } from "@/lib/cliente-validacao";
 import { garantirTokenAcompanhamentoCliente } from "@/lib/cliente-acompanhamento";
+import {
+  hashSenhaPortalCliente,
+  sanitizarClienteSemSenhaPortal,
+} from "@/lib/cliente-portal-auth";
 import { sincronizarFaturasPendentesDescontoCliente, descontoGeralClienteMudou } from "@/lib/desconto-cliente-fatura";
 import { z } from "zod";
 
@@ -22,6 +26,8 @@ const schema = z.object({
   observacoes: z.string().optional().nullable(),
   representanteColaboradorId: z.string().optional().nullable(),
   ativo: z.boolean().optional(),
+  senhaPortal: z.string().optional().nullable(),
+  limparSenhaPortal: z.boolean().optional(),
 });
 
 export async function GET(
@@ -48,7 +54,7 @@ export async function GET(
   });
 
   if (!cliente) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
-  return NextResponse.json(cliente);
+  return NextResponse.json(sanitizarClienteSemSenhaPortal(cliente as Record<string, unknown>));
 }
 
 export async function PUT(
@@ -76,14 +82,31 @@ export async function PUT(
     }
 
     const descontoAntesObs = existente.observacoes;
+    const senhaPortal =
+      typeof data.senhaPortal === "string" ? data.senhaPortal.trim() : "";
+    if (senhaPortal && senhaPortal.length < 4) {
+      return NextResponse.json(
+        { error: "A senha do acompanhamento deve ter no mínimo 4 caracteres." },
+        { status: 400 }
+      );
+    }
+
+    const { senhaPortal: _s, limparSenhaPortal: _l, ...rest } = data;
+    const senhaUpdate =
+      data.limparSenhaPortal === true
+        ? { senhaPortalHash: null }
+        : senhaPortal
+          ? { senhaPortalHash: await hashSenhaPortalCliente(senhaPortal) }
+          : {};
 
     const cliente = await prisma.cliente.update({
       where: { id },
       data: {
-        ...data,
+        ...rest,
         ...(data.nome !== undefined ? { nome: data.nome } : {}),
         // Restaurar da lixeira/arquivo: volta a aparecer nas listas.
         ...(data.ativo === true ? { removidoEm: null } : {}),
+        ...senhaUpdate,
       },
     });
 
@@ -117,7 +140,7 @@ export async function PUT(
     }
 
     return NextResponse.json({
-      ...cliente,
+      ...sanitizarClienteSemSenhaPortal(cliente as Record<string, unknown>),
       ...(syncDesconto
         ? {
             syncDesconto: {

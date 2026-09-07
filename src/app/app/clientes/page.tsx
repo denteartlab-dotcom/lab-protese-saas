@@ -76,6 +76,7 @@ type Cliente = {
   cep?: string | null;
   observacoes?: string | null;
   representanteColaboradorId?: string | null;
+  temSenhaPortal?: boolean;
   _count?: { pacientes: number; trabalhos: number };
 };
 
@@ -172,6 +173,8 @@ const empty = {
   uf: "",
   cep: "",
   observacoes: "",
+  senhaPortal: "",
+  limparSenhaPortal: false,
 };
 
 export default function ClientesPage() {
@@ -464,6 +467,8 @@ export default function ClientesPage() {
       uf: c.uf || "",
       cep: c.cep || "",
       observacoes: observacoesTextoLivreCliente(c.observacoes),
+      senhaPortal: "",
+      limparSenhaPortal: false,
     });
     setAbaModal("dados");
     setOpen(true);
@@ -474,6 +479,10 @@ export default function ClientesPage() {
     const nomeValidado = validarNomeCliente(form.nome);
     if (!nomeValidado.ok) {
       alert(nomeValidado.message);
+      return;
+    }
+    if (form.senhaPortal.trim() && form.senhaPortal.trim().length < 4) {
+      alert(t("cadastros.clientes.senhaPortalMinima"));
       return;
     }
     const url = editing ? `/api/clientes/${editing.id}` : "/api/clientes";
@@ -516,6 +525,10 @@ export default function ClientesPage() {
         ),
         form.dataNascimento
       ),
+      ...(form.senhaPortal.trim()
+        ? { senhaPortal: form.senhaPortal.trim() }
+        : {}),
+      ...(form.limparSenhaPortal ? { limparSenhaPortal: true } : {}),
     };
     const res = await fetch(url, {
       method: editing ? "PUT" : "POST",
@@ -524,6 +537,7 @@ export default function ClientesPage() {
     });
     const data = (await res.json().catch(() => ({}))) as {
       error?: string;
+      temSenhaPortal?: boolean;
     };
     if (!res.ok) {
       alert(data.error || t("cadastros.clientes.erroSalvar"));
@@ -531,6 +545,21 @@ export default function ClientesPage() {
     }
     void load();
     if (editing) {
+      setEditing({
+        ...editing,
+        temSenhaPortal:
+          data.temSenhaPortal ??
+          (form.limparSenhaPortal
+            ? false
+            : form.senhaPortal.trim()
+              ? true
+              : editing.temSenhaPortal),
+      });
+      setForm((atual) => ({
+        ...atual,
+        senhaPortal: "",
+        limparSenhaPortal: false,
+      }));
       setGravacaoOk(true);
       setMsgGravacao(
         abaModal === "configuracao" ? "Desconto aplicado" : "Alterações gravadas"
@@ -1159,6 +1188,60 @@ export default function ClientesPage() {
 
           {abaModal === "configuracao" && (
             <div className="space-y-5">
+              <div className="rounded border border-slate-200 bg-slate-50/80 p-4">
+                <p className="text-sm font-semibold text-slate-700">
+                  {t("cadastros.clientes.senhaPortalTitulo")}
+                </p>
+                <p className="mt-1 text-[11px] text-slate-500">
+                  {t("cadastros.clientes.senhaPortalAjuda")}
+                </p>
+                {editing?.temSenhaPortal ? (
+                  <p className="mt-2 text-[11px] font-medium text-emerald-700">
+                    {t("cadastros.clientes.senhaPortalDefinida")}
+                  </p>
+                ) : (
+                  <p className="mt-2 text-[11px] font-medium text-amber-700">
+                    {t("cadastros.clientes.senhaPortalPendente")}
+                  </p>
+                )}
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  <CampoCliente
+                    label={t("cadastros.clientes.senhaPortal")}
+                    type="password"
+                    autoComplete="new-password"
+                    value={form.senhaPortal}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        senhaPortal: e.target.value,
+                        limparSenhaPortal: false,
+                      })
+                    }
+                    placeholder={
+                      editing?.temSenhaPortal
+                        ? t("cadastros.clientes.senhaPortalPlaceholderTroca")
+                        : t("cadastros.clientes.senhaPortalPlaceholderNova")
+                    }
+                  />
+                </div>
+                {editing?.temSenhaPortal ? (
+                  <label className="mt-3 flex items-center gap-2 text-[11px] text-slate-600">
+                    <input
+                      type="checkbox"
+                      checked={form.limparSenhaPortal}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          limparSenhaPortal: e.target.checked,
+                          senhaPortal: e.target.checked ? "" : form.senhaPortal,
+                        })
+                      }
+                    />
+                    {t("cadastros.clientes.limparSenhaPortal")}
+                  </label>
+                ) : null}
+              </div>
+
               <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
                 <span className="text-base">$</span>
                 <span>{t("cadastros.clientes.abaCobrancas")}</span>

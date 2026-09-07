@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { executarSemRls, runWithTenantContext } from "@/lib/db";
 import { MENSAGEM_LINK_ACOMPANHAMENTO_INVALIDO } from "@/lib/cliente-acompanhamento";
+import { exigirSessaoPortalAcompanhamento } from "@/lib/cliente-portal-auth";
 import { buscarClientePublicoPorToken } from "@/lib/tenant-db";
 import {
   categoriaAnexoPorMime,
@@ -20,6 +21,8 @@ function idDeUrlUpload(url: string): string {
 
 export async function POST(request: Request, { params }: Params) {
   const { token } = await params;
+  const auth = await exigirSessaoPortalAcompanhamento(request, token);
+  if (!auth.ok) return auth.response;
   const resultado = await buscarClientePublicoPorToken(token);
   if (!resultado) {
     return NextResponse.json(

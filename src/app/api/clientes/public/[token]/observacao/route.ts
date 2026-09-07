@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { runWithTenantContext } from "@/lib/db";
 import { MENSAGEM_LINK_ACOMPANHAMENTO_INVALIDO } from "@/lib/cliente-acompanhamento";
+import { exigirSessaoPortalAcompanhamento } from "@/lib/cliente-portal-auth";
 import {
   LIMITE_TEXTO_OBSERVACAO_CLIENTE,
   excluirObservacaoClienteTrabalho,
@@ -12,6 +13,8 @@ type Params = { params: Promise<{ token: string }> };
 
 export async function DELETE(request: Request, { params }: Params) {
   const { token } = await params;
+  const auth = await exigirSessaoPortalAcompanhamento(request, token);
+  if (!auth.ok) return auth.response;
   const resultado = await buscarClientePublicoPorToken(token);
   if (!resultado) {
     return NextResponse.json(
@@ -62,6 +65,8 @@ export async function DELETE(request: Request, { params }: Params) {
 
 export async function POST(request: Request, { params }: Params) {
   const { token } = await params;
+  const auth = await exigirSessaoPortalAcompanhamento(request, token);
+  if (!auth.ok) return auth.response;
   const resultado = await buscarClientePublicoPorToken(token);
   if (!resultado) {
     return NextResponse.json(

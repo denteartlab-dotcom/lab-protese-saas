@@ -27,7 +27,7 @@ export const GET = medirHandlerApi("/api/public/pagina", async function GET(requ
   }
 
   try {
-    const payload = await montarPortalPublico(tipo, token);
+    const payload = await montarPortalPublico(tipo, token, request);
     return NextResponse.json(payload, {
       headers: { "Cache-Control": "no-store" },
     });
@@ -37,6 +37,7 @@ export const GET = medirHandlerApi("/api/public/pagina", async function GET(requ
         {
           error: err.code || "indisponivel",
           message: err.message,
+          ...(err.extra || {}),
         },
         { status: err.status }
       );
