@@ -120,6 +120,27 @@ export function categoriaAnexoPorMime(mimeType: string): CategoriaAnexoSolicitac
   return mimeType.startsWith("image/") ? "imagem" : "arquivo";
 }
 
+export function anexoSolicitacaoEhImagem(anexo: {
+  nome?: string;
+  mimeType?: string;
+  categoria?: CategoriaAnexoSolicitacao | string;
+}): boolean {
+  if (anexo.categoria === "imagem") return true;
+  if (anexo.categoria === "arquivo") return false;
+  const mime = (anexo.mimeType || "").toLowerCase();
+  if (mime.startsWith("image/")) return true;
+  return /\.(jpe?g|png|webp|gif|bmp|heic)$/i.test(anexo.nome || "");
+}
+
+export function anexoSolicitacaoEhPdf(anexo: {
+  nome?: string;
+  mimeType?: string;
+}): boolean {
+  const mime = (anexo.mimeType || "").toLowerCase();
+  if (mime === "application/pdf") return true;
+  return /\.pdf$/i.test(anexo.nome || "");
+}
+
 export function parseJsonArraySeguro<T>(raw: string | null | undefined): T[] {
   if (!raw?.trim()) return [];
   try {

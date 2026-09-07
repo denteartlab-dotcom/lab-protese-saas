@@ -1,12 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronDown, Download, Eye, FileText, X } from "lucide-react";
+import { createPortal } from "react-dom";
 import { useI18n } from "@/components/i18n-provider";
+import { PdfViewerIframe } from "@/components/pdf/PdfViewerIframe";
 import { Modal } from "@/components/ui";
 import { apiFetch } from "@/lib/fetch-client";
-import { rotuloTipoTransporte } from "@/lib/solicitacao-envio-types";
+import { PDF_VIEWER_SOBRE_MODAL_CLASSES } from "@/lib/pdf-viewer-iframe";
+import {
+  anexoSolicitacaoEhImagem,
+  anexoSolicitacaoEhPdf,
+  rotuloTipoTransporte,
+} from "@/lib/solicitacao-envio-types";
 import { cn } from "@/lib/utils";
+
+export type AnexoSolicitacaoDashboard = {
+  id: string;
+  nome: string;
+  url: string;
+  mimeType?: string;
+  categoria?: string;
+};
 
 export type SolicitacaoEnvioDashboardItem = {
   id: string;
@@ -28,7 +43,7 @@ export type SolicitacaoEnvioDashboardItem = {
   repeticao?: boolean;
   prioridade?: string;
   observacoesEnvio?: Array<{ id: string; texto: string }>;
-  anexos?: Array<{ id: string; nome: string; url: string }>;
+  anexos?: AnexoSolicitacaoDashboard[];
   cliente?: { id: string; nome: string };
 };
 
@@ -38,6 +53,96 @@ type Props = {
   onAtualizado?: () => void;
   solicitacaoInicialId?: string | null;
 };
+
+function PreviewAnexoSolicitacao({
+  anexo,
+  onClose,
+}: {
+  anexo: AnexoSolicitacaoDashboard;
+  onClose: () => void;
+}) {
+  const { t } = useI18n();
+  const [portalPronto, setPortalPronto] = useState(false);
+  const ehImagem = anexoSolicitacaoEhImagem(anexo);
+  const ehPdf = anexoSolicitacaoEhPdf(anexo);
+
+  useEffect(() => {
+    setPortalPronto(true);
+  }, []);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  if (!portalPronto) return null;
+
+  const conteudo = (
+    <div className={PDF_VIEWER_SOBRE_MODAL_CLASSES} role="dialog" aria-modal="true">
+      <div className="flex shrink-0 items-center justify-between border-b border-slate-700 bg-[#3c3c3c] px-4 py-3 text-white">
+        <div className="min-w-0">
+          <h2 className="truncate text-sm font-semibold">{anexo.nome}</h2>
+          <p className="text-xs text-slate-300">
+            {anexo.mimeType || t("acompanhamento.pedido.etapaAnexos")}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <a
+            href={anexo.url}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 rounded border border-slate-500 px-3 py-1.5 text-xs text-white hover:bg-slate-700"
+          >
+            <Download className="h-3.5 w-3.5" />
+            {t("acompanhamento.pedido.abrirArquivo")}
+          </a>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-8 w-8 items-center justify-center rounded text-slate-300 hover:bg-slate-700 hover:text-white"
+            aria-label={t("cadastros.comum.fechar")}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+      {ehPdf ? (
+        <PdfViewerIframe title={anexo.nome} pdfUrl={anexo.url} />
+      ) : ehImagem ? (
+        <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-[#525659] p-4">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={anexo.url}
+            alt={anexo.nome}
+            className="max-h-full max-w-full object-contain"
+          />
+        </div>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 overflow-auto bg-[#525659] p-6 text-center text-white">
+          <FileText className="h-16 w-16 text-slate-300" />
+          <p className="max-w-md text-sm text-slate-200">{anexo.nome}</p>
+          <p className="text-xs text-slate-400">
+            {t("dashboard.solicitacaoPreviewArquivo")}
+          </p>
+          <a
+            href={anexo.url}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 rounded bg-[#4a90d9] px-4 py-2 text-xs font-semibold text-white hover:bg-[#3a7bc0]"
+          >
+            <Download className="h-3.5 w-3.5" />
+            {t("acompanhamento.pedido.abrirArquivo")}
+          </a>
+        </div>
+      )}
+    </div>
+  );
+
+  return createPortal(conteudo, document.body);
+}
 
 export function PainelSolicitacoesEnvioDashboard({
   titulo,
@@ -52,6 +157,9 @@ export function PainelSolicitacoesEnvioDashboard({
   const [processando, setProcessando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [motivoRecusa, setMotivoRecusa] = useState("");
+  const [previewAnexo, setPreviewAnexo] = useState<AnexoSolicitacaoDashboard | null>(
+    null
+  );
 
   useEffect(() => {
     setLista(listaInicial);
@@ -79,6 +187,8 @@ export function PainelSolicitacoesEnvioDashboard({
       })();
     }
   }, [solicitacaoInicialId, listaInicial]);
+
+  const anexosDetalhe = useMemo(() => detalhe?.anexos || [], [detalhe]);
 
   async function aprovar() {
     if (!detalhe) return;
@@ -256,25 +366,46 @@ export function PainelSolicitacoesEnvioDashboard({
               </div>
             ) : null}
 
-            {(detalhe.anexos || []).length > 0 ? (
+            {anexosDetalhe.length > 0 ? (
               <div>
-                <p className="mb-1 text-xs font-semibold text-slate-600">
+                <p className="mb-2 text-xs font-semibold text-slate-600">
                   {t("acompanhamento.pedido.etapaAnexos")}
                 </p>
-                <ul className="space-y-1 text-xs">
-                  {detalhe.anexos!.map((a) => (
-                    <li key={a.id}>
-                      <a
-                        href={a.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-[#4a90d9] hover:underline"
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+                  {anexosDetalhe.map((anexo) => {
+                    const ehImagem = anexoSolicitacaoEhImagem(anexo);
+                    return (
+                      <button
+                        key={anexo.id}
+                        type="button"
+                        onClick={() => setPreviewAnexo(anexo)}
+                        className="group relative overflow-hidden rounded-lg border border-slate-200 bg-slate-50 text-left transition hover:border-[#4a90d9] hover:shadow-sm"
                       >
-                        {a.nome}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
+                        {ehImagem ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={anexo.url}
+                            alt={anexo.nome}
+                            className="h-28 w-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-28 w-full flex-col items-center justify-center gap-1 bg-slate-100 px-2">
+                            <FileText className="h-9 w-9 text-slate-500" />
+                            <span className="rounded bg-white px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-600">
+                              {(anexo.nome.split(".").pop() || "file").slice(0, 6)}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex items-start justify-between gap-1 px-2 py-1.5">
+                          <p className="line-clamp-2 min-w-0 flex-1 text-[10px] font-medium text-slate-700">
+                            {anexo.nome}
+                          </p>
+                          <Eye className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#4a90d9] opacity-80 group-hover:opacity-100" />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             ) : null}
 
@@ -315,6 +446,13 @@ export function PainelSolicitacoesEnvioDashboard({
           </div>
         ) : null}
       </Modal>
+
+      {previewAnexo ? (
+        <PreviewAnexoSolicitacao
+          anexo={previewAnexo}
+          onClose={() => setPreviewAnexo(null)}
+        />
+      ) : null}
     </>
   );
 }

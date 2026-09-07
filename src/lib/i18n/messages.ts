@@ -617,6 +617,8 @@ export const messages = {
     "dashboard.semSolicitacoes": "Nenhum pedido de envio pendente no momento.",
     "dashboard.revisar": "Revisar",
     "dashboard.solicitacaoDetalheTitulo": "Pedido de envio — revisar",
+    "dashboard.solicitacaoPreviewArquivo":
+      "Pré-visualização indisponível para este tipo. Abra o arquivo para visualizar.",
     "dashboard.motivoRecusa": "Motivo da recusa (opcional)",
     "dashboard.recusar": "Recusar",
     "dashboard.aprovarCriarOs": "Aprovar e criar OS",
@@ -1420,6 +1422,8 @@ export const messages = {
     "dashboard.semSolicitacoes": "No pending shipment requests right now.",
     "dashboard.revisar": "Review",
     "dashboard.solicitacaoDetalheTitulo": "Shipment request — review",
+    "dashboard.solicitacaoPreviewArquivo":
+      "Preview unavailable for this file type. Open the file to view it.",
     "dashboard.motivoRecusa": "Rejection reason (optional)",
     "dashboard.recusar": "Reject",
     "dashboard.aprovarCriarOs": "Approve and create WO",
@@ -2224,6 +2228,8 @@ export const messages = {
     "dashboard.semSolicitacoes": "No hay pedidos de envío pendientes por ahora.",
     "dashboard.revisar": "Revisar",
     "dashboard.solicitacaoDetalheTitulo": "Pedido de envío — revisar",
+    "dashboard.solicitacaoPreviewArquivo":
+      "Vista previa no disponible para este tipo. Abra el archivo para verlo.",
     "dashboard.motivoRecusa": "Motivo del rechazo (opcional)",
     "dashboard.recusar": "Rechazar",
     "dashboard.aprovarCriarOs": "Aprobar y crear OS",
