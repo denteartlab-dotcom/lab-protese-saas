@@ -1198,6 +1198,8 @@ export const messagesModulosPt = {
   "acompanhamento.pedido.erroTipoImagem": "Selecione apenas imagens JPEG, PNG ou WebP.",
   "acompanhamento.pedido.erroTipoArquivo":
     "Selecione arquivos (PDF, STL, OBJ, ZIP, DOC…). Imagens ficam na seção de imagens.",
+  "acompanhamento.pedido.erroArquivoGrande":
+    "O arquivo \"{nome}\" passa de {mb} MB. Reduza o tamanho ou compacte em ZIP.",
   "acompanhamento.pedido.tipoTransporte": "Tipo de transporte",
   "acompanhamento.pedido.transporte.motoboy": "Motoboy",
   "acompanhamento.pedido.transporte.correios": "Correios",
@@ -3148,6 +3150,8 @@ export const messagesModulosEn: Record<keyof typeof messagesModulosPt, string> =
   "acompanhamento.pedido.erroTipoImagem": "Select only JPEG, PNG, or WebP images.",
   "acompanhamento.pedido.erroTipoArquivo":
     "Select files (PDF, STL, OBJ, ZIP, DOC…). Images belong in the images section.",
+  "acompanhamento.pedido.erroArquivoGrande":
+    "The file \"{nome}\" exceeds {mb} MB. Reduce the size or zip it.",
   "acompanhamento.pedido.tipoTransporte": "Shipping type",
   "acompanhamento.pedido.transporte.motoboy": "Courier",
   "acompanhamento.pedido.transporte.correios": "Mail",
@@ -5098,6 +5102,8 @@ export const messagesModulosEs: Record<keyof typeof messagesModulosPt, string> =
   "acompanhamento.pedido.erroTipoImagem": "Seleccione solo imágenes JPEG, PNG o WebP.",
   "acompanhamento.pedido.erroTipoArquivo":
     "Seleccione archivos (PDF, STL, OBJ, ZIP, DOC…). Las imágenes van en la sección de imágenes.",
+  "acompanhamento.pedido.erroArquivoGrande":
+    "El archivo \"{nome}\" supera {mb} MB. Reduzca el tamaño o comprímalo en ZIP.",
   "acompanhamento.pedido.tipoTransporte": "Tipo de transporte",
   "acompanhamento.pedido.transporte.motoboy": "Motoboy",
   "acompanhamento.pedido.transporte.correios": "Correo",

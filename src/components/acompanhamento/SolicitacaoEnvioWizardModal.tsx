@@ -10,6 +10,7 @@ import {
   categoriaAnexoPorMime,
   LIMITE_ARQUIVOS_SOLICITACAO_ENVIO,
   LIMITE_IMAGENS_SOLICITACAO_ENVIO,
+  LIMITE_MB_ARQUIVO_SOLICITACAO_ENVIO,
   TIPOS_TRANSPORTE_SOLICITACAO,
   type AnexoSolicitacaoEnvio,
   type CategoriaAnexoSolicitacao,
@@ -231,17 +232,37 @@ export function SolicitacaoEnvioWizardModal({
       return;
     }
     const files = Array.from(lista)
-      .filter((file) =>
-        categoria === "imagem"
-          ? file.type.startsWith("image/")
-          : !file.type.startsWith("image/")
-      )
+      .filter((file) => {
+        const nome = file.name.toLowerCase();
+        if (categoria === "imagem") {
+          return (
+            file.type.startsWith("image/") ||
+            /\.(jpe?g|png|webp|gif|bmp|heic)$/i.test(nome)
+          );
+        }
+        // STL/OBJ no Windows costuma vir com type vazio — aceitar por extensão.
+        if (/\.(stl|obj|ply|3mf|glb|gltf|pdf|zip|rar|7z)$/i.test(nome)) {
+          return true;
+        }
+        return !file.type.startsWith("image/");
+      })
       .slice(0, restantes);
     if (!files.length) {
       setErro(
         categoria === "imagem"
           ? t("acompanhamento.pedido.erroTipoImagem")
           : t("acompanhamento.pedido.erroTipoArquivo")
+      );
+      return;
+    }
+    const limiteBytes = LIMITE_MB_ARQUIVO_SOLICITACAO_ENVIO * 1024 * 1024;
+    const grande = files.find((f) => f.size > limiteBytes);
+    if (grande) {
+      setErro(
+        t("acompanhamento.pedido.erroArquivoGrande", {
+          nome: grande.name,
+          mb: LIMITE_MB_ARQUIVO_SOLICITACAO_ENVIO,
+        })
       );
       return;
     }
@@ -256,9 +277,24 @@ export function SolicitacaoEnvioWizardModal({
         `/api/clientes/public/${token}/solicitacao-envio/upload`,
         { method: "POST", body }
       );
-      const json = await res.json();
+      let json: { error?: string; message?: string } | AnexoSolicitacaoEnvio[] =
+        [];
+      try {
+        json = await res.json();
+      } catch {
+        setErro(t("acompanhamento.pedido.erroUpload"));
+        return;
+      }
       if (!res.ok) {
-        setErro(json.error || json.message || t("acompanhamento.pedido.erroUpload"));
+        const falha = json as { error?: string; message?: string };
+        const msg =
+          (typeof falha.message === "string" && falha.message) ||
+          (typeof falha.error === "string" &&
+          falha.error !== "payload_invalido"
+            ? falha.error
+            : "") ||
+          t("acompanhamento.pedido.erroUpload");
+        setErro(msg);
         return;
       }
       const novos = (Array.isArray(json) ? json : []).map(

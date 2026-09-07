@@ -43,9 +43,18 @@ export async function POST(request: Request, { params }: Params) {
   let formData: FormData;
   try {
     formData = await request.formData();
-  } catch {
+  } catch (err) {
+    console.error("[solicitacao-envio/upload] formData", err);
+    const detail = err instanceof Error ? err.message : String(err ?? "");
+    const pareceLimite =
+      /exceed|limit|size|too large|payload|entity too large|413/i.test(detail);
     return NextResponse.json(
-      { error: "payload_invalido", message: "Formulário inválido." },
+      {
+        error: "payload_invalido",
+        message: pareceLimite
+          ? "Arquivo grande demais para o servidor (limite 50 MB por arquivo). Reduza o STL ou envie compactado."
+          : "Não foi possível ler o arquivo enviado. Tente de novo com um arquivo menor (STL até 50 MB).",
+      },
       { status: 400 }
     );
   }
@@ -69,11 +78,27 @@ export async function POST(request: Request, { params }: Params) {
       ? LIMITE_IMAGENS_SOLICITACAO_ENVIO
       : LIMITE_ARQUIVOS_SOLICITACAO_ENVIO;
 
-  const files = formData
-    .getAll("files")
-    .filter((item): item is File => item instanceof File);
+  const files = formData.getAll("files").flatMap((item) => {
+    if (typeof File !== "undefined" && item instanceof File) return [item];
+    // Node/undici às vezes entrega Blob com name em uploads grandes.
+    if (
+      typeof Blob !== "undefined" &&
+      item instanceof Blob &&
+      "name" in item &&
+      typeof (item as Blob & { name?: unknown }).name === "string"
+    ) {
+      return [item as File];
+    }
+    return [];
+  });
   if (files.length === 0) {
-    return NextResponse.json({ error: "Nenhum arquivo enviado" }, { status: 400 });
+    return NextResponse.json(
+      {
+        error: "nenhum_arquivo",
+        message: "Nenhum arquivo chegou ao servidor. Tente novamente.",
+      },
+      { status: 400 }
+    );
   }
   if (files.length > limite) {
     return NextResponse.json(

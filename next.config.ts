@@ -68,6 +68,16 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: process.env.SKIP_TYPECHECK === "1",
   },
+  /**
+   * Uploads públicos (STL/OBJ etc.) passam pelo middleware.
+   * Sem isso o Next corta o body em ~10MB e formData() falha com payload_invalido.
+   */
+  experimental: {
+    middlewareClientMaxBodySize: "55mb",
+    serverActions: {
+      bodySizeLimit: "55mb",
+    },
+  },
   ...(assetPrefix ? { assetPrefix } : {}),
   env: {
     NEXT_PUBLIC_APP_BUILD_ID: appBuildId,
