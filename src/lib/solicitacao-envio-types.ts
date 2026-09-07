@@ -24,7 +24,7 @@ export const LIMITE_ARQUIVOS_SOLICITACAO_ENVIO = 10;
 export const LIMITE_ANEXOS_SOLICITACAO_ENVIO =
   LIMITE_IMAGENS_SOLICITACAO_ENVIO + LIMITE_ARQUIVOS_SOLICITACAO_ENVIO;
 /** Alinhado a MAX_BYTES_ARQUIVO_SOLICITACAO no upload-arquivo-server. */
-export const LIMITE_MB_ARQUIVO_SOLICITACAO_ENVIO = 50;
+export const LIMITE_MB_ARQUIVO_SOLICITACAO_ENVIO = 300;
 
 export type CategoriaAnexoSolicitacao = "imagem" | "arquivo";
 
@@ -56,7 +56,13 @@ export const schemaAnexoSolicitacao = z.object({
     .max(120)
     .transform((v) => v || "application/octet-stream"),
   url: z.string().trim().min(1).max(800),
-  tamanho: z.number().int().min(0).max(50 * 1024 * 1024).optional().default(0),
+  tamanho: z
+    .number()
+    .int()
+    .min(0)
+    .max(LIMITE_MB_ARQUIVO_SOLICITACAO_ENVIO * 1024 * 1024)
+    .optional()
+    .default(0),
   categoria: z.enum(["imagem", "arquivo"]).optional(),
 });
 

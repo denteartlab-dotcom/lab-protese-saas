@@ -86,7 +86,7 @@ const MIME_ARQUIVO_SOLICITACAO = new Set([
   "application/wavefront-obj",
 ]);
 
-const MAX_BYTES_ARQUIVO_SOLICITACAO = 50 * 1024 * 1024;
+const MAX_BYTES_ARQUIVO_SOLICITACAO = 300 * 1024 * 1024;
 
 const MIME_WHATSAPP = new Set([
   ...MIME_BASE,
@@ -396,7 +396,8 @@ export async function salvarArquivosUpload(
   if (!files.length) return [];
 
   const maxBytes =
-    opcoes?.modoMime === "arquivos-solicitacao"
+    opcoes?.modoMime === "arquivos-solicitacao" ||
+    opcoes?.modoMime === "imagens-solicitacao"
       ? MAX_BYTES_ARQUIVO_SOLICITACAO
       : MAX_BYTES_ARQUIVO;
 

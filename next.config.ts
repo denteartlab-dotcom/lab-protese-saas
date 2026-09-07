@@ -73,9 +73,9 @@ const nextConfig: NextConfig = {
    * Sem isso o Next corta o body em ~10MB e formData() falha com payload_invalido.
    */
   experimental: {
-    middlewareClientMaxBodySize: "55mb",
+    middlewareClientMaxBodySize: "310mb",
     serverActions: {
-      bodySizeLimit: "55mb",
+      bodySizeLimit: "310mb",
     },
   },
   ...(assetPrefix ? { assetPrefix } : {}),

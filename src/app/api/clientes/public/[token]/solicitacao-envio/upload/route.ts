@@ -6,6 +6,7 @@ import {
   categoriaAnexoPorMime,
   LIMITE_ARQUIVOS_SOLICITACAO_ENVIO,
   LIMITE_IMAGENS_SOLICITACAO_ENVIO,
+  LIMITE_MB_ARQUIVO_SOLICITACAO_ENVIO,
   type CategoriaAnexoSolicitacao,
 } from "@/lib/solicitacao-envio-types";
 import { salvarArquivosUpload } from "@/lib/upload-arquivo-server";
@@ -52,8 +53,8 @@ export async function POST(request: Request, { params }: Params) {
       {
         error: "payload_invalido",
         message: pareceLimite
-          ? "Arquivo grande demais para o servidor (limite 50 MB por arquivo). Reduza o STL ou envie compactado."
-          : "Não foi possível ler o arquivo enviado. Tente de novo com um arquivo menor (STL até 50 MB).",
+          ? `Arquivo grande demais para o servidor (limite ${LIMITE_MB_ARQUIVO_SOLICITACAO_ENVIO} MB por arquivo).`
+          : `Não foi possível ler o arquivo enviado. Tente de novo (máx. ${LIMITE_MB_ARQUIVO_SOLICITACAO_ENVIO} MB).`,
       },
       { status: 400 }
     );
