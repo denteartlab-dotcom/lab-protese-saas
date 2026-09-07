@@ -140,6 +140,9 @@ import {
 } from "@/lib/os-faturamento";
 import {
   anexosFromGrupoTrabalhos,
+  linhaOrigemEntradaOs,
+  origemEntradaOsDeTexto,
+  rotuloOrigemEntradaOs,
 } from "@/lib/os-anexos";
 import {
   anexosParaLinhasInstrucoes,
@@ -2864,7 +2867,7 @@ export default function ControlePage() {
   function corpoCabecalhoEdicaoAtual(anexosExtras: AnexoOs[] = []) {
     if (!form) return "";
     const todosAnexos = [...anexosEdicao, ...anexosExtras];
-    return montarCorpoCabecalhoInstrucoes(
+    const corpo = montarCorpoCabecalhoInstrucoes(
       form.instrucoesCorpo,
       {
         caixa: form.caixa,
@@ -2875,6 +2878,14 @@ export default function ControlePage() {
       },
       anexosParaLinhasInstrucoes(todosAnexos)
     );
+    if (/origem entrada:/i.test(corpo)) return corpo;
+    const origem = origemEntradaOsDeTexto(
+      corpo,
+      form.observacoes,
+      editando?.instrucoes,
+      editando?.observacoes
+    );
+    return [linhaOrigemEntradaOs(origem), corpo].filter(Boolean).join("\n");
   }
 
   async function salvarEdicao() {
@@ -3536,6 +3547,7 @@ export default function ControlePage() {
                 <th className="px-2 py-2 text-left font-semibold uppercase">{t("producao.controle.tabela.cliente")}</th>
                 <th className="px-2 py-2 text-left font-semibold uppercase">{t("producao.controle.tabela.dentista")}</th>
                 <th className="px-2 py-2 text-left font-semibold uppercase">{t("producao.controle.tabela.paciente")}</th>
+                <th className="px-2 py-2 text-left font-semibold uppercase">{t("producao.controle.tabela.origemEntrada")}</th>
                 <th className="px-2 py-2 text-left font-semibold uppercase">{t("producao.controle.tabela.colaborador")}</th>
                 <th className="px-2 py-2 text-left font-semibold uppercase">{t("producao.controle.tabela.etapas")}</th>
                 <th className="px-2 py-2 text-left font-semibold uppercase">{t("producao.controle.tabela.situacao")}</th>
@@ -3597,6 +3609,14 @@ export default function ControlePage() {
                     <td className="px-2 py-2">{clienteNome(trabalho)}</td>
                     <td className="px-2 py-2">{exibirTexto(trabalho.cliente?.cro)}</td>
                     <td className="px-2 py-2">{pacienteNome(trabalho)}</td>
+                    <td className="px-2 py-2">
+                      {rotuloOrigemEntradaOs(
+                        origemEntradaOsDeTexto(
+                          trabalho.instrucoes,
+                          trabalho.observacoes
+                        )
+                      )}
+                    </td>
                     <td
                       className="max-w-[160px] truncate px-2 py-2"
                       title={
@@ -3676,7 +3696,7 @@ export default function ControlePage() {
                   </tr>
                   {osAberta === trabalho.id && (
                     <tr>
-                      <td colSpan={12} className="bg-slate-50 p-0">
+                      <td colSpan={13} className="bg-slate-50 p-0">
                         <AgendaOsDetalheExpandido
                           linha={linhaAgendaGrupoDeTrabalhos(trabalho, trabalhos)}
                           anexoAberto={anexoAberto}
@@ -3691,7 +3711,7 @@ export default function ControlePage() {
               })}
               {listagem.totalItens === 0 && (
                 <tr>
-                  <td colSpan={12} className="px-4 py-8 text-center text-slate-400">
+                  <td colSpan={13} className="px-4 py-8 text-center text-slate-400">
                     {t("producao.controle.vazioNenhumaOs")}
                   </td>
                 </tr>

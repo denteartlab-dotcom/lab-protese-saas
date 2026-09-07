@@ -28,6 +28,44 @@ export function formatarMbUsados(bytes: number): string {
   return String(Math.round(mb));
 }
 
+/** Origem da OS no controle: pedido do cliente vs criação no laboratório. */
+export type OrigemEntradaOs = "cliente" | "laboratorio";
+
+export const MARCA_ORIGEM_ENTRADA_CLIENTE = "Origem entrada: Cliente";
+export const MARCA_ORIGEM_ENTRADA_LABORATORIO = "Origem entrada: Laboratorio";
+
+export function linhaOrigemEntradaOs(origem: OrigemEntradaOs): string {
+  return origem === "cliente"
+    ? MARCA_ORIGEM_ENTRADA_CLIENTE
+    : MARCA_ORIGEM_ENTRADA_LABORATORIO;
+}
+
+export function origemEntradaOsDeTexto(
+  ...textos: Array<string | null | undefined>
+): OrigemEntradaOs {
+  const blob = textos
+    .map((t) => (t || "").trim())
+    .filter(Boolean)
+    .join("\n")
+    .toLowerCase();
+  if (!blob) return "laboratorio";
+  if (
+    blob.includes("origem entrada: cliente") ||
+    blob.includes("solicitação de envio") ||
+    blob.includes("solicitacao de envio")
+  ) {
+    return "cliente";
+  }
+  if (blob.includes("origem entrada: laboratorio") || blob.includes("origem entrada: laboratório")) {
+    return "laboratorio";
+  }
+  return "laboratorio";
+}
+
+export function rotuloOrigemEntradaOs(origem: OrigemEntradaOs): string {
+  return origem === "cliente" ? "Cliente" : "Laboratorio";
+}
+
 export function anexosFromInstrucoes(instrucoes?: string | null): AnexoOs[] {
   const vistos = new Set<string>();
   return (instrucoes || "")

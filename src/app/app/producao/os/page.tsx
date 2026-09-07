@@ -70,8 +70,10 @@ import {
   anexosFromGrupoTrabalhos,
   bytesArquivosOs,
   formatarMbUsados,
+  linhaOrigemEntradaOs,
   LIMITE_BYTES_TOTAL_ANEXOS_OS,
   LIMITE_MB_TOTAL_ANEXOS_OS,
+  origemEntradaOsDeTexto,
 } from "@/lib/os-anexos";
 import {
   aplicarRepresentanteEmColaboradoresOs,
@@ -3092,7 +3094,7 @@ export default function OrdemServicoPage() {
       ...anexosExistentes,
       ...arquivosEnviados.filter((anexo) => !urlsExistentes.has(anexo.url)),
     ];
-    return [
+    const corpo = [
       instrucoesTextoLivre(form.instrucoes),
       form.materialEnviado ? `Material enviado: ${form.materialEnviado}` : "",
       form.caixa ? `Caixa: ${form.caixa}` : "",
@@ -3120,6 +3122,9 @@ export default function OrdemServicoPage() {
     ]
       .filter(Boolean)
       .join("\n");
+    if (/origem entrada:/i.test(corpo)) return corpo;
+    const origem = origemEntradaOsDeTexto(corpo, form.observacoes);
+    return [linhaOrigemEntradaOs(origem), corpo].filter(Boolean).join("\n");
   }
 
   function linhasEtapasParaItemServico(item: ItemAdicionado) {

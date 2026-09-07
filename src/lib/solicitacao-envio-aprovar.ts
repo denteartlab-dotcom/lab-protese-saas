@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { anexosParaLinhasInstrucoes } from "@/lib/cabecalho-os-form";
+import { linhaOrigemEntradaOs } from "@/lib/os-anexos";
 import { linhaPrioridadeOs, type PrioridadeOsForm } from "@/lib/prioridade-os";
 import { proximoNumeroOsDisponivel, registrarNumeroOsUtilizado } from "@/lib/os-sequencia";
 import {
@@ -37,7 +38,7 @@ function montarInstrucoesSolicitacao(params: {
     `cor ${params.cor || "-"}`,
     `qtd 1`,
     `valor 0,00`,
-    `situação pedido`,
+    `situação produção`,
   ].join(" - ");
 
   const linhasObsEnvio = params.observacoesEnvio
@@ -50,6 +51,7 @@ function montarInstrucoesSolicitacao(params: {
   );
 
   return [
+    linhaOrigemEntradaOs("cliente"),
     linhasItem,
     params.observacaoServico ? `Obs. serviço: ${params.observacaoServico}` : "",
     params.materialEnviado ? `Material enviado: ${params.materialEnviado}` : "",
@@ -162,7 +164,7 @@ export async function aprovarSolicitacaoEnvioCliente(params: {
       dataEntrada: hoje,
       dataPrevista: solicitacao.dataDesejada,
       valor: solicitacao.valorEstimado || 0,
-      status: "pedido",
+      status: "producao",
       observacoes: observacoes || null,
       instrucoes: instrucoes || null,
     },
