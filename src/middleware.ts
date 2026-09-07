@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { jwtVerify } from "jose/jwt/verify";
 import { sessaoCookieSecure } from "@/lib/cookie-secure";
 import { gerarNonceCsp, montarContentSecurityPolicy } from "@/lib/csp";
+import { verificarJwtHs256 } from "@/lib/jwt-edge";
 import { requisicaoTvSocket } from "@/lib/tv/tv-socket-path";
 import {
   analisarCaminhoApp,
@@ -53,26 +53,18 @@ function secretsMasterJwt(): Uint8Array[] {
   return out;
 }
 
-/** Verificação completa com jose (HMAC) no Edge. */
+/** Verificação completa com Web Crypto (HMAC) no Edge — sem pacote jose. */
 async function verificarPayloadSessao(token: string): Promise<PayloadSessao | null> {
   const secret = secretJwt();
   if (!secret) return null;
-  try {
-    const { payload } = await jwtVerify(token, secret);
-    return payload as PayloadSessao;
-  } catch {
-    return null;
-  }
+  const payload = await verificarJwtHs256(token, secret);
+  return payload as PayloadSessao | null;
 }
 
 async function verificarPayloadMaster(token: string): Promise<PayloadSessao | null> {
   for (const secret of secretsMasterJwt()) {
-    try {
-      const { payload } = await jwtVerify(token, secret);
-      return payload as PayloadSessao;
-    } catch {
-      /* próximo segredo */
-    }
+    const payload = await verificarJwtHs256(token, secret);
+    if (payload) return payload as PayloadSessao;
   }
   return null;
 }

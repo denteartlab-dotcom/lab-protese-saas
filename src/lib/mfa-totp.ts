@@ -4,8 +4,7 @@
  */
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "crypto";
 import * as OTPAuth from "otpauth";
-import { SignJWT } from "jose/jwt/sign";
-import { jwtVerify } from "jose/jwt/verify";
+import { SignJWT, jwtVerify } from "jose";
 import { usuarioEhProprietario } from "@/lib/usuarios-sistema";
 
 const MFA_PENDING_TTL = "10m";
