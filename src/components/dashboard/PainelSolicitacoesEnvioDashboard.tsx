@@ -30,6 +30,8 @@ export type SolicitacaoEnvioDashboardItem = {
   tipoProtese: string;
   tipoTransporte: string;
   tipoTransporteLabel?: string;
+  tipoFrete?: string;
+  numeroRastreio?: string;
   criadoEm: string;
   dentista?: string;
   materialEnviado?: string;
@@ -331,6 +333,14 @@ export function PainelSolicitacoesEnvioDashboard({
                 <span className="font-semibold">{t("acompanhamento.pedido.tipoTransporte")}:</span>{" "}
                 {detalhe.tipoTransporteLabel ||
                   rotuloTipoTransporte(detalhe.tipoTransporte)}
+              </p>
+              <p>
+                <span className="font-semibold">{t("acompanhamento.pedido.tipoFrete")}:</span>{" "}
+                {detalhe.tipoFrete || "—"}
+              </p>
+              <p>
+                <span className="font-semibold">{t("acompanhamento.pedido.numeroRastreio")}:</span>{" "}
+                {detalhe.numeroRastreio || "—"}
               </p>
               <p>
                 <span className="font-semibold">{t("acompanhamento.pedido.dataDesejada")}:</span>{" "}

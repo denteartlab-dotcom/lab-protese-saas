@@ -1225,6 +1225,10 @@ export const messagesModulosPt = {
   "acompanhamento.pedido.erroArquivoGrande":
     "O arquivo \"{nome}\" passa de {mb} MB. Reduza o tamanho ou compacte em ZIP.",
   "acompanhamento.pedido.tipoTransporte": "Tipo de transporte",
+  "acompanhamento.pedido.tipoFrete": "Tipo de frete",
+  "acompanhamento.pedido.tipoFretePlaceholder": "Ex.: SEDEX, PAC, motoboy…",
+  "acompanhamento.pedido.numeroRastreio": "Número de rastreio",
+  "acompanhamento.pedido.numeroRastreioPlaceholder": "Código de rastreio",
   "acompanhamento.pedido.transporte.motoboy": "Motoboy",
   "acompanhamento.pedido.transporte.correios": "Correios",
   "acompanhamento.pedido.transporte.retirada_laboratorio": "Retirada no laboratório",
@@ -3201,6 +3205,10 @@ export const messagesModulosEn: Record<keyof typeof messagesModulosPt, string> =
   "acompanhamento.pedido.erroArquivoGrande":
     "The file \"{nome}\" exceeds {mb} MB. Reduce the size or zip it.",
   "acompanhamento.pedido.tipoTransporte": "Shipping type",
+  "acompanhamento.pedido.tipoFrete": "Freight type",
+  "acompanhamento.pedido.tipoFretePlaceholder": "E.g. express, economy…",
+  "acompanhamento.pedido.numeroRastreio": "Tracking number",
+  "acompanhamento.pedido.numeroRastreioPlaceholder": "Tracking code",
   "acompanhamento.pedido.transporte.motoboy": "Courier",
   "acompanhamento.pedido.transporte.correios": "Mail",
   "acompanhamento.pedido.transporte.retirada_laboratorio": "Pickup at the lab",
@@ -5177,6 +5185,10 @@ export const messagesModulosEs: Record<keyof typeof messagesModulosPt, string> =
   "acompanhamento.pedido.erroArquivoGrande":
     "El archivo \"{nome}\" supera {mb} MB. Reduzca el tamaño o comprímalo en ZIP.",
   "acompanhamento.pedido.tipoTransporte": "Tipo de transporte",
+  "acompanhamento.pedido.tipoFrete": "Tipo de flete",
+  "acompanhamento.pedido.tipoFretePlaceholder": "Ej.: expresso, económico…",
+  "acompanhamento.pedido.numeroRastreio": "Número de seguimiento",
+  "acompanhamento.pedido.numeroRastreioPlaceholder": "Código de seguimiento",
   "acompanhamento.pedido.transporte.motoboy": "Motoboy",
   "acompanhamento.pedido.transporte.correios": "Correo",
   "acompanhamento.pedido.transporte.retirada_laboratorio": "Retiro en el laboratorio",

@@ -29,6 +29,8 @@ function montarInstrucoesSolicitacao(params: {
   repeticao: boolean;
   observacaoServico: string;
   tipoTransporte: string;
+  tipoFrete?: string;
+  numeroRastreio?: string;
   observacoesEnvio: ObservacaoEnvioLinha[];
   anexos: AnexoSolicitacaoEnvio[];
 }) {
@@ -62,6 +64,10 @@ function montarInstrucoesSolicitacao(params: {
     params.urgente ? "Urgente: sim" : "",
     params.repeticao ? "Repetição: sim" : "",
     `Transporte: ${rotuloTipoTransporte(params.tipoTransporte)}`,
+    params.tipoFrete?.trim() ? `Tipo de frete: ${params.tipoFrete.trim()}` : "",
+    params.numeroRastreio?.trim()
+      ? `Número de rastreio: ${params.numeroRastreio.trim()}`
+      : "",
     ...linhasObsEnvio,
     anexos,
   ]
@@ -136,6 +142,8 @@ export async function aprovarSolicitacaoEnvioCliente(params: {
     repeticao: solicitacao.repeticao,
     observacaoServico: solicitacao.observacaoServico,
     tipoTransporte: solicitacao.tipoTransporte,
+    tipoFrete: solicitacao.tipoFrete,
+    numeroRastreio: solicitacao.numeroRastreio,
     observacoesEnvio,
     anexos,
   });

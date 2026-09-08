@@ -270,6 +270,8 @@ model SolicitacaoEnvioCliente {
   dentes               String   @default("")
   valorEstimado        Float    @default(0)
   tipoTransporte       String
+  tipoFrete            String   @default("")
+  numeroRastreio       String   @default("")
   observacoesEnvioJson String   @default("[]")
   anexosJson           String   @default("[]")
   trabalhoId           String?

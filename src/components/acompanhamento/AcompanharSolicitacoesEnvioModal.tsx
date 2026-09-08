@@ -12,6 +12,8 @@ export type SolicitacaoEnvioPublicaItem = {
   tipoProtese: string;
   tipoTransporte: string;
   tipoTransporteLabel?: string;
+  tipoFrete?: string;
+  numeroRastreio?: string;
   motivoRecusa?: string | null;
   criadoEm: string;
   respondidoEm?: string | null;
@@ -171,6 +173,22 @@ export function AcompanharSolicitacoesEnvioModal({
                         <dd className="inline">
                           {item.tipoTransporteLabel || item.tipoTransporte}
                         </dd>
+                      </div>
+                    ) : null}
+                    {item.tipoFrete ? (
+                      <div>
+                        <dt className="inline font-medium text-slate-600">
+                          {t("acompanhamento.pedido.tipoFrete")}:{" "}
+                        </dt>
+                        <dd className="inline">{item.tipoFrete}</dd>
+                      </div>
+                    ) : null}
+                    {item.numeroRastreio ? (
+                      <div>
+                        <dt className="inline font-medium text-slate-600">
+                          {t("acompanhamento.pedido.numeroRastreio")}:{" "}
+                        </dt>
+                        <dd className="inline">{item.numeroRastreio}</dd>
                       </div>
                     ) : null}
                   </dl>

@@ -45,6 +45,8 @@ type FormEstado = {
   cor: string;
   dentes: string;
   tipoTransporte: TipoTransporteSolicitacao;
+  tipoFrete: string;
+  numeroRastreio: string;
   observacoesEnvio: ObservacaoEnvioLinha[];
   anexos: AnexoSolicitacaoEnvio[];
 };
@@ -66,6 +68,8 @@ const FORM_INICIAL: FormEstado = {
   cor: "",
   dentes: "",
   tipoTransporte: "motoboy",
+  tipoFrete: "",
+  numeroRastreio: "",
   observacoesEnvio: [{ id: "1", texto: "" }],
   anexos: [],
 };
@@ -362,6 +366,8 @@ export function SolicitacaoEnvioWizardModal({
           cor: form.cor.trim(),
           dentes: form.dentes.trim().slice(0, 500),
           tipoTransporte: form.tipoTransporte,
+          tipoFrete: form.tipoFrete.trim(),
+          numeroRastreio: form.numeroRastreio.trim(),
           observacoesEnvio: form.observacoesEnvio.filter((l) => l.texto.trim()),
           anexos: anexosNormalizados,
         }),
@@ -788,6 +794,27 @@ export function SolicitacaoEnvioWizardModal({
                   ))}
                 </select>
               </label>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block text-xs font-medium text-slate-600">
+                  {t("acompanhamento.pedido.tipoFrete")}
+                  <input
+                    className={cn(inputCls, "mt-1")}
+                    value={form.tipoFrete}
+                    onChange={(e) => atualizar("tipoFrete", e.target.value)}
+                    placeholder={t("acompanhamento.pedido.tipoFretePlaceholder")}
+                  />
+                </label>
+                <label className="block text-xs font-medium text-slate-600">
+                  {t("acompanhamento.pedido.numeroRastreio")}
+                  <input
+                    className={cn(inputCls, "mt-1")}
+                    value={form.numeroRastreio}
+                    onChange={(e) => atualizar("numeroRastreio", e.target.value)}
+                    placeholder={t("acompanhamento.pedido.numeroRastreioPlaceholder")}
+                  />
+                </label>
+              </div>
 
               <div className="overflow-hidden rounded-md border border-slate-200">
                 <div className="flex items-center justify-between bg-slate-50 px-3 py-2">

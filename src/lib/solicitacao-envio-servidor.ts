@@ -43,6 +43,8 @@ export function serializarSolicitacaoEnvio(row: {
   dentes: string;
   valorEstimado: number;
   tipoTransporte: string;
+  tipoFrete?: string;
+  numeroRastreio?: string;
   observacoesEnvioJson: string;
   anexosJson: string;
   trabalhoId: string | null;
@@ -75,6 +77,8 @@ export function serializarSolicitacaoEnvio(row: {
     valorEstimado: row.valorEstimado,
     tipoTransporte: row.tipoTransporte,
     tipoTransporteLabel: rotuloTipoTransporte(row.tipoTransporte),
+    tipoFrete: row.tipoFrete || "",
+    numeroRastreio: row.numeroRastreio || "",
     observacoesEnvio: parseJsonArraySeguro<ObservacaoEnvioLinha>(
       row.observacoesEnvioJson
     ),
@@ -118,6 +122,8 @@ export async function criarSolicitacaoEnvioCliente(params: {
       dentes: dados.dentes || "",
       valorEstimado: dados.valorEstimado || 0,
       tipoTransporte: dados.tipoTransporte,
+      tipoFrete: dados.tipoFrete || "",
+      numeroRastreio: dados.numeroRastreio || "",
       observacoesEnvioJson: JSON.stringify(dados.observacoesEnvio || []),
       anexosJson: JSON.stringify(dados.anexos || []),
     },

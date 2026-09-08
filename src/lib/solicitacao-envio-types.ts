@@ -91,6 +91,8 @@ export const schemaCriarSolicitacaoEnvio = z.object({
   dentes: z.string().trim().max(500).optional().default(""),
   valorEstimado: z.number().min(0).max(1_000_000).optional().default(0),
   tipoTransporte: z.enum(TIPOS_TRANSPORTE_SOLICITACAO),
+  tipoFrete: z.string().trim().max(120).optional().default(""),
+  numeroRastreio: z.string().trim().max(120).optional().default(""),
   observacoesEnvio: z.array(schemaObservacaoEnvioLinha).max(30).optional().default([]),
   anexos: z
     .array(schemaAnexoSolicitacao)
