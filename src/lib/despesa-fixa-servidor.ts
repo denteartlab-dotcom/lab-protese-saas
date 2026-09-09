@@ -8,9 +8,9 @@ import {
 } from "@/lib/lancamento-despesa";
 import { brShortToIso } from "@/lib/datas-br";
 import {
+  diaVencimentoParaDespesaFixa,
   extrairGruposDespesaFixaAtivos,
   extrairTemplateDespesaFixa,
-  grupoFixaTemInstanciaNoMes,
   idsInstanciasFixasIndevidas,
   mesIgnoradoDespesaFixa,
   mesReferenciaAtual,
@@ -18,7 +18,6 @@ import {
   parcelasInstanciaFixaNoMes,
   podeGerarInstanciaFixaMesCorrente,
   type LancamentoDespesaFixa,
-  vencimentoParcelaNoMes,
 } from "@/lib/despesa-fixa";
 
 function parseDateOnly(value?: string) {
@@ -127,6 +126,11 @@ async function sincronizarDespesasFixaServidor(
 
     const parcelasMes = parcelasInstanciaFixaNoMes(template, mesAtual);
     if (!parcelasMes.length) continue;
+    const diaVencimento = diaVencimentoParaDespesaFixa(
+      mesAtual,
+      template.diaVencimento,
+      template.metaBase.categoria
+    );
 
     if (parcelasMes.length === 1) {
       const parcela = parcelasMes[0];
@@ -142,7 +146,7 @@ async function sincronizarDespesasFixaServidor(
             } as DespesaMeta,
             template.grupoId,
             mesAtual,
-            template.diaVencimento
+            diaVencimento
           )
         ),
         [
@@ -167,18 +171,15 @@ async function sincronizarDespesasFixaServidor(
           } as DespesaMeta,
           template.grupoId,
           mesAtual,
-          template.diaVencimento
+          diaVencimento
         )
       );
       await criarDespesaServidor(
         empresaId,
         descricaoBase,
-        parcelasMes.map((parcela, index) => ({
+        parcelasMes.map((parcela) => ({
           valor: parcela.valor,
-          data:
-            brShortToIso(
-              vencimentoParcelaNoMes(mesAtual, template.diaVencimento, index)
-            ) || "",
+          data: brShortToIso(parcela.vencimento) || "",
           status: "pendente" as const,
           formaPagamento: parcela.formaPagamento,
           parcelaLabel: parcela.parcela,

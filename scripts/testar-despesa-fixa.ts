@@ -14,6 +14,10 @@ import {
   vencimentoParcelaNoMes,
   mesReferenciaAtual,
   metaDespesaFixa,
+  ehCategoriaSalariosFixos,
+  quintoDiaUtilDoMes,
+  diaQuintoDiaUtilDoMes,
+  parcelasInstanciaFixaNoMes,
 } from "../src/lib/despesa-fixa";
 
 function assert(cond: unknown, msg: string) {
@@ -102,5 +106,47 @@ assert(
 
 const venc = vencimentoParcelaNoMes(mesAtual, 7, 0);
 assert(venc.includes("/07/"), "Vencimento parcela 0 no dia 7");
+
+assert(ehCategoriaSalariosFixos("Salários Fixos"), "Detecta Salários Fixos");
+assert(ehCategoriaSalariosFixos("Salarios Fixos"), "Detecta sem acento");
+assert(!ehCategoriaSalariosFixos("Aluguel"), "Não marca aluguel como salário");
+
+const quinto = quintoDiaUtilDoMes(mesAtual);
+assert(quinto.getDay() !== 0 && quinto.getDay() !== 6, "5º dia útil não é fim de semana");
+const vencSalario = vencimentoParcelaNoMes(mesAtual, 1, 1, {
+  categoria: "Salários Fixos",
+});
+const diaEsperado = String(diaQuintoDiaUtilDoMes(mesAtual)).padStart(2, "0");
+assert(
+  vencSalario.startsWith(`${diaEsperado}/`),
+  `Salário fixo vence no 5º dia útil (${vencSalario} vs dia ${diaEsperado})`
+);
+assert(
+  vencimentoParcelaNoMes(mesAtual, 1, 0, { categoria: "Salários Fixos" }) ===
+    vencimentoParcelaNoMes(mesAtual, 31, 2, { categoria: "Salários Fixos" }),
+  "Salário ignora dia preferido e índice de parcela"
+);
+
+const templateSalario = {
+  grupoId: grupo,
+  textoBase: "Andre Ribas",
+  metaBase: { categoria: "Salários Fixos", conta: "Caixa Principal" },
+  diaVencimento: 1,
+  parcelas: [
+    {
+      parcela: "1/1",
+      valor: 700,
+      vencimento: "01/01/2020",
+      status: "pendente" as const,
+      formaPagamento: "Pix",
+      conta: "Caixa Principal",
+    },
+  ],
+};
+const parcelasSalario = parcelasInstanciaFixaNoMes(templateSalario, mesAtual);
+assert(
+  parcelasSalario[0]?.vencimento === vencSalario,
+  "parcelasInstanciaFixaNoMes aplica 5º dia útil para salário"
+);
 
 console.log("OK — regras de despesa fixa validadas para mesAtual =", mesAtual);

@@ -67,6 +67,8 @@ import {
   type DespesaMeta,
 } from "@/lib/lancamento-despesa";
 import {
+  diaQuintoDiaUtilDoMes,
+  ehCategoriaSalariosFixos,
   gerarGrupoDespesaFixaId,
   mesReferenciaDeDataBr,
   mesReferenciaDeIso,
@@ -792,7 +794,9 @@ export function ContasPagarConteudo() {
         if (!Number.isFinite(valor) || valor <= 0) return null;
         const vencimentoBr =
           mesReferencia && diaVencimento
-            ? vencimentoParcelaNoMes(mesReferencia, diaVencimento, index)
+            ? vencimentoParcelaNoMes(mesReferencia, diaVencimento, index, {
+                categoria: payload.categoria,
+              })
             : parcela.vencimento || payload.dataLancamento;
         return {
           valor,
@@ -858,9 +862,14 @@ export function ContasPagarConteudo() {
     const grupoFixaId = despesaFixaAtiva
       ? grupoFixaExistente || gerarGrupoDespesaFixaId()
       : grupoFixaExistente;
+    const mesParaFixa = despesaFixaAtiva
+      ? mesReferenciaDeDataBr(payload.dataLancamento)
+      : undefined;
     const diaVencimento =
-      parseBrDate(payload.parcelas[0]?.vencimento || payload.dataLancamento)?.getDate() ||
-      1;
+      ehCategoriaSalariosFixos(payload.categoria) && mesParaFixa
+        ? diaQuintoDiaUtilDoMes(mesParaFixa)
+        : parseBrDate(payload.parcelas[0]?.vencimento || payload.dataLancamento)?.getDate() ||
+          1;
 
     function montarMeta(mesReferencia?: string): DespesaMeta {
       const base: DespesaMeta = {

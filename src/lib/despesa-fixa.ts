@@ -13,6 +13,58 @@ export const INTERVALO_DIAS_PARCELA_DESPESA_FIXA = 30;
 /** Mantido por compatibilidade — a sincronização gera só o mês corrente. */
 export const MESES_AVANCO_DESPESA_FIXA = 1;
 
+const CATEGORIA_SALARIOS_FIXOS = "salarios fixos";
+
+/** Contas recorrentes de Salários Fixos usam vencimento no 5º dia útil do mês. */
+export function ehCategoriaSalariosFixos(categoria?: string | null) {
+  const normalizado = (categoria || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  if (!normalizado) return false;
+  return (
+    normalizado === CATEGORIA_SALARIOS_FIXOS ||
+    normalizado === "d-4-3-1" ||
+    normalizado.includes(CATEGORIA_SALARIOS_FIXOS)
+  );
+}
+
+/** 5º dia útil (seg–sex) do mês de referência `YYYY-MM`. */
+export function quintoDiaUtilDoMes(mesReferencia: string): Date {
+  const [anoStr, mesStr] = mesReferencia.split("-");
+  const ano = Number(anoStr);
+  const mes = Number(mesStr);
+  if (!Number.isFinite(ano) || !Number.isFinite(mes) || mes < 1 || mes > 12) {
+    return new Date();
+  }
+  const ultimoDia = new Date(ano, mes, 0).getDate();
+  let uteis = 0;
+  for (let dia = 1; dia <= ultimoDia; dia++) {
+    const data = new Date(ano, mes - 1, dia, 12, 0, 0, 0);
+    const dow = data.getDay();
+    if (dow === 0 || dow === 6) continue;
+    uteis += 1;
+    if (uteis === 5) return data;
+  }
+  return new Date(ano, mes - 1, Math.min(5, ultimoDia), 12, 0, 0, 0);
+}
+
+export function diaQuintoDiaUtilDoMes(mesReferencia: string) {
+  return quintoDiaUtilDoMes(mesReferencia).getDate();
+}
+
+export function diaVencimentoParaDespesaFixa(
+  mesReferencia: string,
+  diaPreferido: number,
+  categoria?: string | null
+) {
+  if (ehCategoriaSalariosFixos(categoria)) {
+    return diaQuintoDiaUtilDoMes(mesReferencia);
+  }
+  return Math.min(Math.max(diaPreferido || 1, 1), 31);
+}
+
 export type LancamentoDespesaFixa = {
   id: string;
   descricao: string;
@@ -203,8 +255,14 @@ export function listarMesesReferencia(mesInicial: string, quantidade: number) {
 export function vencimentoParcelaNoMes(
   mesReferencia: string,
   diaPreferido: number,
-  indiceParcela: number
+  indiceParcela: number,
+  opts?: { categoria?: string | null }
 ) {
+  if (ehCategoriaSalariosFixos(opts?.categoria)) {
+    // Salários Fixos: sempre o 5º dia útil do mês vigente (sem +30 dias).
+    return dateToBrShort(quintoDiaUtilDoMes(mesReferencia));
+  }
+
   const [anoStr, mesStr] = mesReferencia.split("-");
   const ano = Number(anoStr);
   const mes = Number(mesStr);
@@ -218,7 +276,7 @@ export function vencimentoParcelaNoMes(
     );
     const mesResultado = `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}`;
     if (mesResultado !== mesReferencia) {
-      return vencimentoParcelaNoMes(mesReferencia, diaPreferido, 0);
+      return vencimentoParcelaNoMes(mesReferencia, diaPreferido, 0, opts);
     }
   }
 
@@ -422,12 +480,19 @@ export function parcelasInstanciaFixaNoMes(
   template: TemplateDespesaFixa,
   mesReferencia: string
 ): ParcelaDespesaFixaPayload[] {
+  const categoria = template.metaBase.categoria;
+  const diaVencimento = diaVencimentoParaDespesaFixa(
+    mesReferencia,
+    template.diaVencimento,
+    categoria
+  );
   return template.parcelas.map((parcela, index) => ({
     ...parcela,
     vencimento: vencimentoParcelaNoMes(
       mesReferencia,
-      template.diaVencimento,
-      index
+      diaVencimento,
+      index,
+      { categoria }
     ),
     status: "pendente",
   }));
@@ -547,6 +612,11 @@ export async function sincronizarDespesasFixaRemoto(
 
     const parcelasMes = parcelasInstanciaFixaNoMes(template, mesAtual);
     if (!parcelasMes.length) continue;
+    const diaVencimento = diaVencimentoParaDespesaFixa(
+      mesAtual,
+      template.diaVencimento,
+      template.metaBase.categoria
+    );
 
     if (parcelasMes.length === 1) {
       const parcela = parcelasMes[0];
@@ -561,7 +631,7 @@ export async function sincronizarDespesasFixaRemoto(
             },
             template.grupoId,
             mesAtual,
-            template.diaVencimento
+            diaVencimento
           )
         ),
         [
@@ -586,16 +656,14 @@ export async function sincronizarDespesasFixaRemoto(
           },
           template.grupoId,
           mesAtual,
-          template.diaVencimento
+          diaVencimento
         )
       );
       await criarDespesaApiRemoto(
         descricaoBase,
-        parcelasMes.map((parcela, index) => ({
+        parcelasMes.map((parcela) => ({
           valor: parcela.valor,
-          data: brShortToIso(
-            vencimentoParcelaNoMes(mesAtual, template.diaVencimento, index)
-          ),
+          data: brShortToIso(parcela.vencimento),
           status: "pendente" as const,
           formaPagamento: parcela.formaPagamento,
           parcelaLabel: parcela.parcela,
