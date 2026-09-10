@@ -231,6 +231,7 @@ export function LancarReceitaModal({
   const [semOs, setSemOs] = useState(true);
   const [valorDireto, setValorDireto] = useState("0,00");
   const [descricaoDireta, setDescricaoDireta] = useState("");
+  const [valorManualAtivo, setValorManualAtivo] = useState(false);
   const [jurosParcela, setJurosParcela] = useState("0,00");
   const [arquivoNota, setArquivoNota] = useState<File | null>(null);
   const [parseandoNota, setParseandoNota] = useState(false);
@@ -276,6 +277,9 @@ export function LancarReceitaModal({
     setReceitaFixa(false);
     setItens([novoItem()]);
     setCodigoBarras("");
+    setValorDireto("0,00");
+    setDescricaoDireta("");
+    setValorManualAtivo(false);
     setDescontoTipo("percentual");
     setDesconto("0,00");
     setNumParcelas(1);
@@ -358,17 +362,32 @@ export function LancarReceitaModal({
     setNotaFiscalRef(dados.notaFiscalRef);
     const metaEdicao = desempacotarDespesa(lancamentoEdicao.descricao).meta;
     setReceitaFixa(Boolean(metaEdicao.fixa && metaEdicao.fixaAtiva !== false));
-    setItens(
-      dados.itens.length
-        ? dados.itens.map((item) => ({
-            id: item.id,
-            produto: item.produto,
-            descricao: item.descricao,
-            quantidade: item.quantidade,
-            custoUnitario: item.custoUnitario,
-          }))
-        : [novoItem()]
+    const itensEdicao = dados.itens.length
+      ? dados.itens.map((item) => ({
+          id: item.id,
+          produto: item.produto,
+          descricao: item.descricao,
+          quantidade: item.quantidade,
+          custoUnitario: item.custoUnitario,
+        }))
+      : [novoItem()];
+    setItens(itensEdicao);
+    const soValorManual =
+      itensEdicao.length === 1 &&
+      !itensEdicao[0]!.produto.trim() &&
+      parseMoney(itensEdicao[0]!.custoUnitario) > 0;
+    setValorManualAtivo(soValorManual);
+    setValorDireto(
+      soValorManual
+        ? itensEdicao[0]!.custoUnitario
+        : money(
+            itensEdicao.reduce((sum, item) => {
+              const qtd = Number(item.quantidade.replace(",", ".")) || 0;
+              return sum + parseMoney(item.custoUnitario) * qtd;
+            }, 0)
+          )
     );
+    setDescricaoDireta(soValorManual ? itensEdicao[0]!.descricao : "");
     setObservacoes(dados.observacoes);
     setDescontoTipo("percentual");
     setDesconto("0,00");
@@ -502,6 +521,9 @@ export function LancarReceitaModal({
         }
       }
 
+      setValorManualAtivo(false);
+      setValorDireto("0,00");
+      setDescricaoDireta("");
       setItens(
         dados.itens.map((item) => ({
           id: `item-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -550,11 +572,14 @@ export function LancarReceitaModal({
     if (ehConciliacao) {
       return parseMoney(valorDireto) + parseMoney(jurosParcela);
     }
+    if (valorManualAtivo) {
+      return parseMoney(valorDireto);
+    }
     return itens.reduce((sum, item) => {
         const qtd = Number(item.quantidade.replace(",", ".")) || 0;
         return sum + parseMoney(item.custoUnitario) * qtd;
     }, 0);
-  }, [ehConciliacao, valorDireto, jurosParcela, itens]);
+  }, [ehConciliacao, valorManualAtivo, valorDireto, jurosParcela, itens]);
 
   const descontoValor = useMemo(() => {
     const base = parseMoney(desconto);
@@ -750,17 +775,20 @@ export function LancarReceitaModal({
       const lista = await anexosRef.current?.resolverAnexos();
       if (lista?.length) anexos = lista;
       const selecionada = entidadesLista.find((item) => item.id === clienteId);
-      const itensEnvio = ehConciliacao
-        ? [
-            {
-              id: itens[0]?.id || `item-conc-${Date.now()}`,
-              produto: "",
-              descricao: descricaoDireta,
-              quantidade: "1",
-              custoUnitario: valorDireto,
-            },
-          ]
-        : itens;
+      const itensEnvio =
+        ehConciliacao || valorManualAtivo
+          ? [
+              {
+                id: itens[0]?.id || `item-valor-${Date.now()}`,
+                produto: "",
+                descricao:
+                  descricaoDireta.trim() ||
+                  (modo === "despesa" ? "Despesa" : "Receita"),
+                quantidade: "1",
+                custoUnitario: valorDireto,
+              },
+            ]
+          : itens;
       const parcelasEnvio = ehConciliacao
         ? parcelas.map((p) => ({
             ...p,
@@ -1406,6 +1434,68 @@ export function LancarReceitaModal({
             )}
           </div>
 
+          <div className="mt-3 flex flex-wrap items-end gap-3">
+            <label className="flex cursor-pointer items-center gap-2 text-[12px] text-slate-700">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={valorManualAtivo}
+                onClick={() => {
+                  setValorManualAtivo((ativo) => {
+                    if (ativo) return false;
+                    const atual =
+                      itens.reduce((sum, item) => {
+                        const qtd =
+                          Number(item.quantidade.replace(",", ".")) || 0;
+                        return sum + parseMoney(item.custoUnitario) * qtd;
+                      }, 0) || parseMoney(valorDireto);
+                    setValorDireto(money(atual > 0 ? atual : 0));
+                    return true;
+                  });
+                }}
+                className={cn(
+                  "relative h-5 w-9 shrink-0 rounded-full transition",
+                  valorManualAtivo ? "bg-[#4a90d9]" : "bg-slate-300"
+                )}
+              >
+                <span
+                  className={cn(
+                    "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition",
+                    valorManualAtivo ? "left-[18px]" : "left-0.5"
+                  )}
+                />
+              </button>
+              Informar valor sem cadastrar produto
+            </label>
+            {valorManualAtivo ? (
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="w-36">
+                  <label className={labelClass}>Valor (R$)</label>
+                  <input
+                    type="text"
+                    value={valorDireto}
+                    onChange={(e) =>
+                      setValorDireto(formatMoneyInput(e.target.value))
+                    }
+                    className={cn(inputClass, "text-right font-medium")}
+                    placeholder="0,00"
+                  />
+                </div>
+                <div className="min-w-[220px] flex-1">
+                  <label className={labelClass}>Descrição (opcional)</label>
+                  <input
+                    type="text"
+                    value={descricaoDireta}
+                    onChange={(e) => setDescricaoDireta(e.target.value)}
+                    className={inputClass}
+                    placeholder="Ex.: boleto, taxa, serviço"
+                  />
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          {!valorManualAtivo ? (
           <div className="mt-2 overflow-x-auto rounded border border-slate-200">
             <table className="w-full min-w-[720px] border-collapse">
               <thead>
@@ -1498,8 +1588,10 @@ export function LancarReceitaModal({
               </tbody>
             </table>
           </div>
+          ) : null}
 
           <div className="mt-2 flex flex-wrap items-start justify-between gap-4">
+            {!valorManualAtivo ? (
             <button
               type="button"
               onClick={() => setItens((lista) => [...lista, novoItem()])}
@@ -1508,6 +1600,11 @@ export function LancarReceitaModal({
               <Plus className="h-3.5 w-3.5" />
               Adicionar Item
             </button>
+            ) : (
+              <span className="text-[11px] text-slate-500">
+                Valor informado manualmente em R$, sem itens de produto.
+              </span>
+            )}
             <div className="w-full max-w-xs space-y-2 text-[12px]">
               <div className="flex items-center justify-between">
                 <span className="text-slate-600">Valor Total</span>
