@@ -477,7 +477,7 @@ export function ContasPagarConteudo() {
     if (!veioDoDashboard) return;
 
     deepLinkFeito.current = true;
-    aplicarPeriodo("todos");
+    aplicarPeriodo("mes");
 
     if (
       tipoDespesaParam === "atraso" ||

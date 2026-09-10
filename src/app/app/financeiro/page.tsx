@@ -2493,9 +2493,17 @@ function FinanceiroReceberConteudo() {
       fim.setDate(hoje.getDate() + 30);
     }
 
+    if (value === "hoje") {
+      // inicio = fim = hoje
+    }
+
     setDataInicio(dateToBrShort(inicio));
     setDataFinal(dateToBrShort(fim));
   }
+
+  useEffect(() => {
+    aplicarPeriodo("mes");
+  }, []);
 
   if (!data) return <p>{t("common.carregando")}</p>;
 
@@ -2595,13 +2603,12 @@ function FinanceiroReceberConteudo() {
       <div className="rounded border border-slate-200 bg-white p-3 shadow-sm">
         <div className="grid gap-3 md:grid-cols-[1.2fr_1fr_1fr_1.2fr_1.4fr_auto]">
           <Select label={t("financeiro.pagar.filtro.periodo")} value={periodo} onChange={(e) => aplicarPeriodo(e.target.value)}>
+            <option value="mes">{t("financeiro.pagar.filtro.mes")}</option>
             <option value="hoje">{t("financeiro.pagar.filtro.hoje")}</option>
             <option value="semana">{t("financeiro.pagar.filtro.semana")}</option>
-            <option value="mes">{t("financeiro.pagar.filtro.mes")}</option>
             <option value="proximos30">{t("financeiro.receber.filtro.proximos30")}</option>
             <option value="todos">{t("financeiro.pagar.filtro.mostrarTodos")}</option>
             <option value="outro">{t("financeiro.pagar.filtro.outroPeriodo")}</option>
-            <option value="outro">{t("financeiro.receber.filtro.dataInicioFinal")}</option>
           </Select>
           <CampoDataBr
             label={t("financeiro.boletos.dataInicio")}
