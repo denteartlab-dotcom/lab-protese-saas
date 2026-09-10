@@ -121,24 +121,12 @@ export default function OrcamentoPublicoPage() {
       setObservacao(data.observacoes || "");
       const listaCond = parseListaCondicoesPagamento(data.condicoesPagamento);
       setCondicoesSalvas(listaCond);
-      const cond = listaCond[0];
-      if (cond) {
-        setFormaPagamento(cond.forma);
-        setParcelas(cond.parcelas);
-        setValorCondicao(formatMoedaInput(cond.valor || 0));
-        setDescontoCondicaoTipo(cond.descontoTipo || "percentual");
-        setDescontoCondicao(
-          cond.descontoTipo === "valor"
-            ? formatMoedaInput(cond.desconto || 0)
-            : String(cond.desconto || 0)
-        );
-      } else {
-        setFormaPagamento("a_vista");
-        setParcelas(1);
-        setValorCondicao("R$ 0,00");
-        setDescontoCondicaoTipo("percentual");
-        setDescontoCondicao("0");
-      }
+      // Rascunho sempre começa em À vista para exibir valor/desconto.
+      setFormaPagamento("a_vista");
+      setParcelas(1);
+      setValorCondicao(formatMoedaInput(data.totalLiquido || 0));
+      setDescontoCondicaoTipo("percentual");
+      setDescontoCondicao("0");
       setDescontoPercentual(data.descontoPercentual || 0);
       setDescontoValor(formatMoedaInput(data.desconto || 0));
       setEnviado(
@@ -319,10 +307,6 @@ export default function OrcamentoPublicoPage() {
     excluirLinhas([index]);
   }
 
-  function excluirSelecionados() {
-    excluirLinhas(Array.from(selecionados).sort((a, b) => b - a));
-  }
-
   const inputCelula =
     "h-8 w-full min-w-0 rounded-sm border border-slate-200 px-2 text-[10px] disabled:bg-slate-50";
 
@@ -460,12 +444,13 @@ export default function OrcamentoPublicoPage() {
     setErroArquivo("");
     setMsgArquivo("");
     try {
+      // Lib client-safe (sem pdfjs/IA de servidor) — evita quebrar o upload no navegador.
       const {
         validarArquivoOrcamento,
         preencherItensComTexto,
         casarLinhasComItens,
         extrairLinhasTextoHeuristico,
-      } = await import("@/lib/orcamento-leitura-arquivo");
+      } = await import("@/lib/orcamento-leitura-match");
 
       const erroValidacao = validarArquivoOrcamento(file);
       if (erroValidacao) throw new Error(erroValidacao);
@@ -476,18 +461,22 @@ export default function OrcamentoPublicoPage() {
       const ehPdf =
         file.type === "application/pdf" ||
         file.name.toLowerCase().endsWith(".pdf");
+      const ehImagem =
+        file.type.startsWith("image/") ||
+        /\.(png|jpe?g|webp|gif|bmp)$/i.test(file.name);
 
       let textoCliente = "";
       if (ehPdf) {
         try {
           const { extrairTextoPdf } = await import("@/lib/nfe-pdf");
           textoCliente = await extrairTextoPdf(file);
-        } catch {
+        } catch (err) {
+          console.error("extrairTextoPdf", err);
           textoCliente = "";
         }
       }
 
-      if (textoCliente.trim().length > 20) {
+      if (textoCliente.trim().length > 10) {
         try {
           const local = preencherItensComTexto(itens, textoCliente);
           setItens(local.itens);
@@ -500,8 +489,9 @@ export default function OrcamentoPublicoPage() {
               " Revise valores antes de enviar."
           );
           return;
-        } catch {
-          /* tenta servidor / IA */
+        } catch (err) {
+          // Continua para API se heurística local não casar
+          console.warn("leitura local", err);
         }
       }
 
@@ -510,13 +500,12 @@ export default function OrcamentoPublicoPage() {
       formData.append("itens", JSON.stringify(itens));
       if (textoCliente.trim()) formData.append("texto", textoCliente);
 
-      let res = await fetch(`/api/orcamentos/public/${encodeURIComponent(token)}/parse`, {
-        method: "POST",
-        body: formData,
-      });
+      let res = await fetch(
+        `/api/orcamentos/public/${encodeURIComponent(token)}/parse`,
+        { method: "POST", body: formData }
+      );
 
-      // Fallback JSON (evita problemas de File/Blob em alguns ambientes)
-      if (!res.ok && (res.status === 400 || res.status >= 500)) {
+      if (!res.ok) {
         const buffer = await file.arrayBuffer();
         const bytes = new Uint8Array(buffer);
         let binary = "";
@@ -525,17 +514,22 @@ export default function OrcamentoPublicoPage() {
           binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
         }
         const base64 = btoa(binary);
-        res = await fetch(`/api/orcamentos/public/${encodeURIComponent(token)}/parse`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            itens,
-            texto: textoCliente,
-            mimeType: file.type || (ehPdf ? "application/pdf" : "image/jpeg"),
-            base64,
-            nomeArquivo: file.name,
-          }),
-        });
+        res = await fetch(
+          `/api/orcamentos/public/${encodeURIComponent(token)}/parse`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              itens,
+              texto: textoCliente,
+              mimeType:
+                file.type ||
+                (ehPdf ? "application/pdf" : ehImagem ? "image/jpeg" : "application/octet-stream"),
+              base64,
+              nomeArquivo: file.name,
+            }),
+          }
+        );
       }
 
       const json = (await res.json().catch(() => null)) as {
@@ -548,7 +542,6 @@ export default function OrcamentoPublicoPage() {
       } | null;
 
       if (!res.ok) {
-        // Último recurso: só o texto local com heurística (sem casar ainda)
         if (textoCliente.trim()) {
           const linhas = extrairLinhasTextoHeuristico(textoCliente);
           if (linhas.length > 0) {
@@ -563,7 +556,11 @@ export default function OrcamentoPublicoPage() {
           }
         }
         throw new Error(
-          json?.error || json?.message || "Não foi possível ler o arquivo."
+          json?.error ||
+            json?.message ||
+            (ehImagem
+              ? "Não foi possível ler a imagem. Tente um PDF com texto ou uma foto mais nítida."
+              : "Não foi possível ler o arquivo.")
         );
       }
       if (!Array.isArray(json?.itens) || json.itens.length === 0) {
@@ -926,19 +923,6 @@ export default function OrcamentoPublicoPage() {
                 <span>Valor Total:</span>
                 <span className="font-medium">{formatCurrency(subtotal)}</span>
               </div>
-              {!somenteLeitura && selecionados.size > 0 && (
-                <div className="flex justify-end border-b border-slate-100 pb-2">
-                  <button
-                    type="button"
-                    onClick={excluirSelecionados}
-                    className="inline-flex items-center gap-1.5 rounded border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-medium text-red-600 hover:bg-red-100"
-                    title="Excluir produtos selecionados"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    Excluir selecionados ({selecionados.size})
-                  </button>
-                </div>
-              )}
               <div className="flex items-center justify-between gap-2">
                 <span className="text-slate-600">Desconto:</span>
                 <div className="flex items-center gap-1">
@@ -1048,8 +1032,14 @@ export default function OrcamentoPublicoPage() {
                     <option value="boleto">Boleto</option>
                   </select>
 
-                  {exigeValorDescontoVista(formaPagamento) && (
-                    <div className="grid grid-cols-2 gap-2 rounded-sm border border-slate-200 bg-slate-50 p-2">
+                  {exigeValorDescontoVista(formaPagamento) ? (
+                    <div className="space-y-2 rounded-sm border border-emerald-200 bg-emerald-50/50 p-2">
+                      <p className="text-[10px] font-semibold uppercase text-emerald-800">
+                        {formaPagamento === "pix"
+                          ? "Pix — valor e desconto"
+                          : "À vista — valor e desconto"}
+                      </p>
+                      <div className="grid grid-cols-2 gap-2">
                       <div>
                         <label className="mb-0.5 block text-[9px] font-medium uppercase text-slate-500">
                           Valor (R$)
@@ -1061,7 +1051,7 @@ export default function OrcamentoPublicoPage() {
                               formatMoedaInput(parseMoeda(e.target.value))
                             )
                           }
-                          className="h-8 w-full rounded-sm border border-slate-200 px-2 text-right text-[11px]"
+                          className="h-8 w-full rounded-sm border border-slate-200 bg-white px-2 text-right text-[11px]"
                           {...propsInputComSelecaoAoFocar({})}
                         />
                       </div>
@@ -1081,7 +1071,7 @@ export default function OrcamentoPublicoPage() {
                                 tipo === "valor" ? "R$ 0,00" : "0"
                               );
                             }}
-                            className="h-8 w-12 rounded-sm border border-slate-200 text-[10px]"
+                            className="h-8 w-12 rounded-sm border border-slate-200 bg-white text-[10px]"
                           >
                             <option value="percentual">%</option>
                             <option value="valor">R$</option>
@@ -1095,7 +1085,7 @@ export default function OrcamentoPublicoPage() {
                               onChange={(e) =>
                                 setDescontoCondicao(e.target.value)
                               }
-                              className="h-8 min-w-0 flex-1 rounded-sm border border-slate-200 px-1 text-right text-[11px]"
+                              className="h-8 min-w-0 flex-1 rounded-sm border border-slate-200 bg-white px-1 text-right text-[11px]"
                               {...propsInputComSelecaoAoFocar({})}
                             />
                           ) : (
@@ -1106,14 +1096,15 @@ export default function OrcamentoPublicoPage() {
                                   formatMoedaInput(parseMoeda(e.target.value))
                                 )
                               }
-                              className="h-8 min-w-0 flex-1 rounded-sm border border-slate-200 px-1 text-right text-[11px]"
+                              className="h-8 min-w-0 flex-1 rounded-sm border border-slate-200 bg-white px-1 text-right text-[11px]"
                               {...propsInputComSelecaoAoFocar({})}
                             />
                           )}
                         </div>
                       </div>
+                      </div>
                     </div>
-                  )}
+                  ) : null}
 
                   {exigeParcelamento(formaPagamento) && (
                     <div className="grid grid-cols-2 gap-2">

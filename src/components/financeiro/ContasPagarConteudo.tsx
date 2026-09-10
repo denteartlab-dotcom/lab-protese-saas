@@ -1247,9 +1247,9 @@ export function ContasPagarConteudo() {
                   onChange={(e) => aplicarPeriodo(e.target.value)}
                   className={cn(filtroInputClass, "w-[118px] shrink-0 text-[12px]")}
                 >
+                  <option value="mes">{t("financeiro.pagar.filtro.mes")}</option>
                   <option value="hoje">{t("financeiro.pagar.filtro.hoje")}</option>
                   <option value="semana">{t("financeiro.pagar.filtro.semana")}</option>
-                  <option value="mes">{t("financeiro.pagar.filtro.mes")}</option>
                   <option value="todos">{t("financeiro.pagar.filtro.mostrarTodos")}</option>
                   <option value="outro">{t("financeiro.pagar.filtro.outroPeriodo")}</option>
                 </select>
