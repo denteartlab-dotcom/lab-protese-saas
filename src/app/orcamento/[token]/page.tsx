@@ -88,6 +88,8 @@ export default function OrcamentoPublicoPage() {
   const [enviandoFoto, setEnviandoFoto] = useState(false);
   const [erroFoto, setErroFoto] = useState("");
   const inputFotoRef = useRef<HTMLInputElement>(null);
+  const inputArquivoOrcamentoRef = useRef<HTMLInputElement>(null);
+  const [lendoArquivo, setLendoArquivo] = useState(false);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -373,6 +375,55 @@ export default function OrcamentoPublicoPage() {
     if (fotoModalIndex == null || enviado) return;
     atualizarItem(fotoModalIndex, "imagemUrl", undefined);
     setErroFoto("");
+  }
+
+  async function onSelecionarArquivoOrcamento(file: File | null) {
+    if (!file || enviado || lendoArquivo || enviando) return;
+    setLendoArquivo(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("itens", JSON.stringify(itens));
+      const res = await fetch(`/api/orcamentos/public/${token}/parse`, {
+        method: "POST",
+        body: formData,
+      });
+      const json = (await res.json().catch(() => null)) as {
+        error?: string;
+        message?: string;
+        mensagem?: string;
+        itens?: ItemOrcamento[];
+        matches?: Array<{ produtoNomeSistema: string; nomeArquivo: string }>;
+        naoEncontrados?: Array<{ nome: string }>;
+      } | null;
+      if (!res.ok) {
+        throw new Error(
+          json?.error || json?.message || "Não foi possível ler o arquivo."
+        );
+      }
+      if (!Array.isArray(json?.itens) || json.itens.length === 0) {
+        throw new Error("Resposta inválida da leitura do arquivo.");
+      }
+      setItens(json.itens);
+      const qtd = json.matches?.length ?? 0;
+      const semMatch = json.naoEncontrados?.length ?? 0;
+      const detalhe =
+        semMatch > 0
+          ? ` ${semMatch} linha(s) do arquivo não bateram com produtos do pedido.`
+          : "";
+      alert(
+        (json.mensagem || `Preenchemos ${qtd} item(ns) automaticamente.`) +
+          detalhe +
+          " Revise valores e nomes antes de enviar."
+      );
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Falha ao ler o arquivo.");
+    } finally {
+      setLendoArquivo(false);
+      if (inputArquivoOrcamentoRef.current) {
+        inputArquivoOrcamentoRef.current.value = "";
+      }
+    }
   }
 
   const itemFotoModal =
@@ -839,7 +890,7 @@ export default function OrcamentoPublicoPage() {
             <div className="grid gap-3 border-t border-slate-100 px-5 py-4 md:grid-cols-2 print:hidden">
               <button
                 type="button"
-                disabled={enviando}
+                disabled={enviando || lendoArquivo}
                 onClick={() => void enviarResposta()}
                 className="inline-flex h-10 items-center justify-center gap-2 rounded bg-[#8bc34a] text-[12px] font-medium text-white hover:bg-[#7cb342] disabled:opacity-60"
               >
@@ -848,11 +899,28 @@ export default function OrcamentoPublicoPage() {
               </button>
               <button
                 type="button"
-                className="inline-flex h-10 items-center justify-center gap-2 rounded border border-slate-300 bg-white text-[12px] text-slate-600 hover:bg-slate-50"
+                disabled={enviando || lendoArquivo}
+                onClick={() => inputArquivoOrcamentoRef.current?.click()}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded border border-slate-300 bg-white text-[12px] text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+                title="Envie PDF ou imagem da cotação para preencher valores automaticamente"
               >
                 <Upload className="h-4 w-4" />
-                Upload Arquivo
+                {lendoArquivo ? "Lendo arquivo..." : "Upload Arquivo"}
               </button>
+              <input
+                ref={inputArquivoOrcamentoRef}
+                type="file"
+                accept="application/pdf,image/*,.pdf,.png,.jpg,.jpeg,.webp"
+                className="hidden"
+                onChange={(e) =>
+                  void onSelecionarArquivoOrcamento(e.target.files?.[0] ?? null)
+                }
+              />
+              <p className="md:col-span-2 text-[10px] text-slate-500">
+                No Upload Arquivo, envie o PDF ou a imagem da cotação do fornecedor. O
+                sistema lê os produtos e valores e preenche os itens do pedido pelos
+                nomes mais parecidos com o cadastro do laboratório.
+              </p>
             </div>
           )}
 
