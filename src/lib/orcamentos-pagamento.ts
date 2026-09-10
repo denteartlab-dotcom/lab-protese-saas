@@ -254,6 +254,7 @@ export function itemOrcamentoLinhaNova(): {
   marca: string;
   codigoBarras: string;
   imagemUrl?: string;
+  unidade: string;
   quantidade: number;
   valorUnitario: number;
 } {
@@ -263,6 +264,7 @@ export function itemOrcamentoLinhaNova(): {
     marca: "",
     codigoBarras: "",
     imagemUrl: undefined,
+    unidade: "un (Unitário)",
     quantidade: 1,
     valorUnitario: 0,
   };

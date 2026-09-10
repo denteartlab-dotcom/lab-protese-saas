@@ -12,6 +12,8 @@ export type ItemOrcamento = {
   marca?: string;
   codigoBarras?: string;
   imagemUrl?: string;
+  /** Unidade de medida (g, kg, ml, L, un, cx…). */
+  unidade?: string;
   quantidade: number;
   valorUnitario: number;
 };

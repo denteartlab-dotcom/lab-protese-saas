@@ -12,6 +12,7 @@ export type ProdutoCatalogo = {
   imagemUrl?: string;
   valorCusto: number;
   estoque: number;
+  unidadeMedida?: string;
 };
 
 type ProdutoApi = {
@@ -54,6 +55,10 @@ export async function listarProdutosCatalogo(): Promise<ProdutoCatalogo[]> {
           : undefined,
       valorCusto: Number(extra?.valorCusto ?? item.valor ?? 0),
       estoque: Number(extra?.estoque ?? 0),
+      unidadeMedida:
+        typeof extra?.unidadeMedida === "string" && extra.unidadeMedida.trim()
+          ? extra.unidadeMedida.trim()
+          : undefined,
     });
   }
 

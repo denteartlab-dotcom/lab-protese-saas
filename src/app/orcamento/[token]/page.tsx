@@ -31,9 +31,16 @@ import {
   type CondicoesPagamentoOrcamento,
   type FormaPagamentoOrcamento,
 } from "@/lib/orcamentos-pagamento";
-import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import { fetchPortalPublico } from "@/lib/portal-publico-cliente";
 import type { PortalPublicoPaginaOrcamento } from "@/lib/portal-publico-types";
+import {
+  normalizarUnidadeMedida,
+  rotuloUnidadeCurto,
+  UNIDADE_MEDIDA_PADRAO,
+  UNIDADES_MEDIDA,
+  unidadeEhDecimal,
+} from "@/lib/unidades-medida";
 
 function parseMoeda(value: string) {
   return Number(value.replace(/\D/g, "")) / 100;
@@ -117,7 +124,12 @@ export default function OrcamentoPublicoPage() {
       }
       const data = res.dados.entidade;
       setOrcamento(data);
-      setItens(data.itens || []);
+      setItens(
+        (data.itens || []).map((item) => ({
+          ...item,
+          unidade: item.unidade || UNIDADE_MEDIDA_PADRAO,
+        }))
+      );
       setObservacao(data.observacoes || "");
       const listaCond = parseListaCondicoesPagamento(data.condicoesPagamento);
       setCondicoesSalvas(listaCond);
@@ -312,12 +324,13 @@ export default function OrcamentoPublicoPage() {
 
   function exportarExcel() {
     const linhas = [
-      ["Cod Barras", "Produto", "Marca", "Qtd", "Valor Unit.", "Subtotal"],
+      ["Cod Barras", "Produto", "Marca", "Qtd", "Unidade", "Valor Unit.", "Subtotal"],
       ...itens.map((item) => [
         item.codigoBarras || "",
         item.produtoNome,
         item.marca || "",
         String(item.quantidade),
+        item.unidade || UNIDADE_MEDIDA_PADRAO,
         String(item.valorUnitario),
         String(item.quantidade * item.valorUnitario),
       ]),
@@ -736,6 +749,7 @@ export default function OrcamentoPublicoPage() {
                   <th className="px-2 py-2 text-left font-semibold uppercase">Produto</th>
                   <th className="px-2 py-2 text-left font-semibold uppercase">Marca</th>
                   <th className="px-2 py-2 text-center font-semibold uppercase">Quantidade</th>
+                  <th className="w-24 px-2 py-2 text-center font-semibold uppercase">Unidade</th>
                   <th className="px-2 py-2 text-right font-semibold uppercase">
                     Valor Unitário
                   </th>
@@ -747,7 +761,7 @@ export default function OrcamentoPublicoPage() {
                 {itensVisiveis.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={somenteLeitura ? 7 : 9}
+                      colSpan={somenteLeitura ? 8 : 10}
                       className="px-3 py-8 text-center text-[11px] text-slate-400"
                     >
                       {itens.length === 0
@@ -862,19 +876,86 @@ export default function OrcamentoPublicoPage() {
                     </td>
                     <td className="px-2 py-2 text-center">
                       {somenteLeitura ? (
-                        item.quantidade
+                        <span>
+                          {item.quantidade}{" "}
+                          <span className="text-slate-400">
+                            {rotuloUnidadeCurto(item.unidade)}
+                          </span>
+                        </span>
                       ) : (
                         <input
                           type="number"
-                          min={1}
+                          min={unidadeEhDecimal(item.unidade || "") ? 0.001 : 1}
+                          step={unidadeEhDecimal(item.unidade || "") ? 0.001 : 1}
                           value={item.quantidade}
                           onChange={(e) => {
-                            const qtd = Math.max(1, Number(e.target.value) || 1);
+                            const raw = Number(
+                              String(e.target.value).replace(",", ".")
+                            );
+                            const decimal = unidadeEhDecimal(item.unidade || "");
+                            const qtd = decimal
+                              ? Math.max(
+                                  Math.round((raw || 0) * 1000) / 1000,
+                                  0.001
+                                )
+                              : Math.max(1, Math.trunc(raw) || 1);
                             atualizarItem(index, "quantidade", qtd);
                           }}
                           className={`${inputCelula} mx-auto max-w-[72px] text-center`}
                           {...propsInputComSelecaoAoFocar({})}
                         />
+                      )}
+                    </td>
+                    <td className="px-2 py-2 text-center">
+                      {somenteLeitura ? (
+                        <span className="text-slate-600">
+                          {item.unidade || UNIDADE_MEDIDA_PADRAO}
+                        </span>
+                      ) : (
+                        <div className="mx-auto flex max-w-[110px] flex-col gap-1">
+                          <select
+                            value={
+                              UNIDADES_MEDIDA.some(
+                                (u) => u.value === (item.unidade || UNIDADE_MEDIDA_PADRAO)
+                              )
+                                ? item.unidade || UNIDADE_MEDIDA_PADRAO
+                                : "__outra__"
+                            }
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              if (v === "__outra__") {
+                                atualizarItem(index, "unidade", "gr");
+                                return;
+                              }
+                              atualizarItem(
+                                index,
+                                "unidade",
+                                normalizarUnidadeMedida(v)
+                              );
+                            }}
+                            className={`${inputCelula} text-left`}
+                          >
+                            {UNIDADES_MEDIDA.map((u) => (
+                              <option key={u.value} value={u.value}>
+                                {rotuloUnidadeCurto(u.value)}
+                              </option>
+                            ))}
+                            <option value="__outra__">Outra…</option>
+                          </select>
+                          {!UNIDADES_MEDIDA.some(
+                            (u) => u.value === (item.unidade || "")
+                          ) && (
+                            <input
+                              value={item.unidade || ""}
+                              onChange={(e) =>
+                                atualizarItem(index, "unidade", e.target.value)
+                              }
+                              placeholder="gr, kg, ml…"
+                              className={`${inputCelula} text-center`}
+                              {...propsInputComSelecaoAoFocar({})}
+                            />
+                          )}
+                        </div>
                       )}
                     </td>
                     <td className="px-2 py-2 text-right">

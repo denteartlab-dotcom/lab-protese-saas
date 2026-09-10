@@ -155,6 +155,7 @@ export default function OrcamentosPage() {
         imagemUrl: produto.imagemUrl,
         valorCusto: produto.valorCusto ?? 0,
         estoque: produto.estoque ?? 0,
+        unidadeMedida: produto.unidadeMedida,
       })),
     [produtos]
   );
