@@ -20,6 +20,7 @@ export type {
 export {
   casarLinhasComItens,
   deduplicarLinhasProduto,
+  extrairLinhasTabelaFornecedor,
   extrairLinhasTextoHeuristico,
   limparDescricaoProdutoArquivo,
   linhaPareceProdutoValido,
@@ -33,19 +34,22 @@ export {
 } from "@/lib/orcamento-leitura-match";
 
 const PROMPT_EXTRACAO = [
-  "Você lê orçamentos, cotações, listas de preços e notas de fornecedores (PDF, imagem ou planilha).",
-  "Extraia SOMENTE linhas de PRODUTO (materiais). Ignore tudo que não for item vendável.",
-  "Responda SOMENTE um JSON array válido, sem markdown, no formato:",
-  '[{"nome":"Resina Autoden Rosa","quantidade":1,"unidadeValor":1,"unidade":"kg","valorUnitario":12.5,"codigoBarras":"23198","marca":""}]',
-  "Regras:",
-  "- Inclua só produtos com nome e valorUnitario > 0.",
-  "- IGNORE: boleto, pix, parcelas (ex.: 4x Boleto), nomes de pessoa, telefone, endereço, totais, frete, impostos, cabeçalhos, observações, linhas vazias ou só com /.",
-  "- nome: SEM números soltos (ex.: 00, 23198), SEM unidade (1KG, UND) e SEM quantidade.",
-  "- unidadeValor: número da medida (1KG → 1; 500ml → 500). Vazio se não houver.",
-  "- unidade: kg, g, ml, l, cx ou un quando aparecer.",
-  "- quantidade: da linha (UND 1 → 1). Padrão 1.",
-  "- codigoBarras: EAN/código/SKU se existir.",
-  "- valorUnitario é número (ponto decimal).",
+  "Você lê orçamentos/cotações de fornecedores odontológicos (PDF ou imagem), no formato de tabela:",
+  "CODIGO | DESCRICAO DO PRODUTO | UND (UND/UN/CXA) | QNTDE | VLR.UNIT | VALOR TOTAL",
+  "Extraia SOMENTE as linhas da tabela de produtos. Ignore cabeçalho, cliente, frete, totais, 4x boleto, vendedor e parcelas.",
+  "Responda SOMENTE um JSON array válido, sem markdown:",
+  '[{"nome":"Resina Triunfo Auto Liq","quantidade":1,"unidadeValor":1000,"unidade":"ml","valorUnitario":125,"codigoBarras":"22094","marca":"Triunfo"}]',
+  "Exemplos de descrição → campos:",
+  '- "RESINA TRIUNFO AUTO LIQ.1000ML (LATA)" → nome "Resina Triunfo Auto Liq", unidadeValor 1000, unidade ml',
+  '- "RESINA AUTODEN ROSA 1 KG" → nome "Resina Autoden Rosa", unidadeValor 1, unidade kg',
+  '- "CERA ROLETE REGULAR 225GR LYSANDA" → nome "Cera Rolete Regular Lysanda", unidadeValor 225, unidade g',
+  '- "CERA ROSA 7 LYSANDA 18 LAMINAS" → nome "Cera Rosa 7 Lysanda 18 Laminas" (mantenha o 7)',
+  "- codigoBarras = coluna CODIGO (ex.: 22094).",
+  "- quantidade = coluna QNTDE.",
+  "- valorUnitario = coluna VLR.UNIT (número com ponto).",
+  "- UND/CXA da coluna UND é embalagem (un/cx); se a descrição tiver kg/g/ml, use essa medida em unidade/unidadeValor.",
+  "- NÃO invente nomes curtos como 'Liquido Cx'. Use a DESCRICAO completa (sem só a medida).",
+  "- IGNORE linhas sem código de produto ou sem valor unitário.",
 ].join("\n");
 
 function parseJsonLinhas(texto: string): LinhaOrcamentoLida[] {
@@ -387,22 +391,40 @@ function consolidarLinhas(
   ia: LinhaOrcamentoLida[] | null,
   heuristicas: LinhaOrcamentoLida[]
 ): { linhas: LinhaOrcamentoLida[]; fonte: ResultadoLeituraOrcamento["fonte"] } {
-  if (ia && ia.length > 0 && heuristicas.length > ia.length * 1.5) {
+  const h = deduplicarLinhasProduto(heuristicas);
+  const a = ia ? deduplicarLinhasProduto(ia) : [];
+
+  // Tabela CODIGO+DESCRICAO do PDF é mais confiável que a IA (evita "Liquido Cx").
+  const heuristicasComCodigo = h.filter(
+    (l) => (l.codigoBarras || "").replace(/\D/g, "").length >= 4
+  );
+  if (heuristicasComCodigo.length >= 2) {
+    return {
+      linhas: heuristicasComCodigo,
+      fonte: a.length > 0 ? "misto" : "texto",
+    };
+  }
+
+  if (a.length > 0 && h.length > a.length * 1.5) {
     const mapa = new Map<string, LinhaOrcamentoLida>();
-    for (const l of [...ia, ...heuristicas]) {
+    for (const l of [...a, ...h]) {
+      if (!linhaPareceProdutoValido(l)) continue;
       const k = normalizarTextoProduto(l.nome);
       if (!k) continue;
       if (!mapa.has(k)) mapa.set(k, l);
     }
-    return { linhas: [...mapa.values()], fonte: "misto" };
-  }
-  if (ia && ia.length > 0) {
     return {
-      linhas: ia,
-      fonte: heuristicas.length > 0 ? "misto" : "ia",
+      linhas: deduplicarLinhasProduto([...mapa.values()]),
+      fonte: "misto",
     };
   }
-  return { linhas: heuristicas, fonte: "texto" };
+  if (a.length > 0) {
+    return {
+      linhas: a,
+      fonte: h.length > 0 ? "misto" : "ia",
+    };
+  }
+  return { linhas: h, fonte: "texto" };
 }
 
 export async function lerPayloadOrcamento(params: {

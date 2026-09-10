@@ -49,7 +49,17 @@ const RE_LIXO_LINHA =
 
 /** Sinais comuns de produto laboratorial / material. */
 const RE_SINAL_PRODUTO =
-  /\b(resina|cera|l[ií]quido|acr[ií]lico|gesso|silicone|alginato|broca|disco|pasta|cimento|porcelana|zirc[oô]nio|metal|liga|fio|autoden|create|evoden|lys|rolette|monomer|pol[ií]mero|espa[cç]ador|isolante|goma|cera|opaco|glaze|dentina|esmalte)\b/i;
+  /\b(resina|cera|l[ií]quido|liq|acr[ií]lico|gesso|silicone|alginato|broca|disco|pasta|cimento|porcelana|zirc[oô]nio|metal|liga|fio|autoden|create|evoden|lysanda|lys|rolette|rolete|monomer|pol[ií]mero|espa[cç]ador|isolante|goma|opaco|glaze|dentina|esmalte|revestimento|triunfo|wilson|heat|shock|enceramento|l[aâ]minas?|env)\b/i;
+
+const MARCAS_DISTINTIVAS = [
+  "autoden",
+  "create",
+  "triunfo",
+  "wilson",
+  "lysanda",
+  "evoden",
+  "heat",
+];
 
 /**
  * Aceita só linhas de produto com valor (e nome/código válidos).
@@ -179,11 +189,22 @@ export function similaridadeNomes(nomeA: string, nomeB: string) {
   const b = normalizarTextoProduto(nomeB);
   if (!a || !b) return 0;
   if (a === b) return 1;
+
+  const marcasA = MARCAS_DISTINTIVAS.filter((m) => a.includes(m));
+  const marcasB = MARCAS_DISTINTIVAS.filter((m) => b.includes(m));
+  if (
+    marcasA.length > 0 &&
+    marcasB.length > 0 &&
+    !marcasA.some((m) => marcasB.includes(m))
+  ) {
+    // Ex.: Resina Create ≠ Resina Autoden / Triunfo
+    return Math.min(0.35, jaccardTokens(a, b) * 0.5);
+  }
+
   if (a.includes(b) || b.includes(a)) {
     const menor = Math.min(a.length, b.length);
     const maior = Math.max(a.length, b.length);
     const razao = menor / maior;
-    // Inclusão fraca (ex.: "rosa" dentro de nome longo) não conta como mesmo produto.
     if (razao < 0.55) return 0.35 + 0.2 * razao;
     return 0.82 + 0.18 * razao;
   }
@@ -194,7 +215,6 @@ export function similaridadeNomes(nomeA: string, nomeB: string) {
   if (comuns.length >= 2) {
     const cobertura =
       comuns.length / Math.max(tokensA.length, tokensB.length, 1);
-    // Ex.: só "resina"+"rosa" em nomes com 3–4 tokens distintos → produto diferente.
     if (cobertura <= 0.5) {
       return Math.min(0.48, 0.25 + cobertura);
     }
@@ -218,15 +238,39 @@ function mapearUnidadeCurta(raw: string) {
   const u = raw.toLowerCase().replace(/\./g, "").trim();
   if (u === "lt" || u === "litro" || u === "litros") return "l";
   if (u === "gr" || u === "grama" || u === "gramas") return "g";
-  if (u === "und" || u === "unid" || u === "unidade" || u === "pcs" || u === "pc")
+  if (
+    u === "und" ||
+    u === "unid" ||
+    u === "unidade" ||
+    u === "pcs" ||
+    u === "pc"
+  ) {
     return "un";
+  }
+  if (u === "cxa" || u === "caixa") return "cx";
   if (u === "kilo" || u === "kilos" || u === "quilograma") return "kg";
   return u;
 }
 
+function capitalizarNomeProduto(s: string) {
+  return s
+    .split(" ")
+    .filter(Boolean)
+    .map((p) => {
+      const lower = p.toLowerCase();
+      // Mantém abreviações comuns do fornecedor
+      if (/^(liq|r|auto|env)$/i.test(lower)) {
+        return lower.charAt(0).toUpperCase() + lower.slice(1);
+      }
+      if (p.length <= 2 && !/^\d+$/.test(p)) return p.toUpperCase();
+      return p.charAt(0).toUpperCase() + p.slice(1).toLowerCase();
+    })
+    .join(" ");
+}
+
 /**
- * Separa do texto bruto: nome limpo (sem números soltos), unidade (kg/und…)
- * e quantidade quando vier como "UND 1".
+ * Separa do texto bruto: nome limpo, medida (1000ml / 1kg) e código.
+ * Não remove abreviações do produto (ex.: LIQ. em "Resina Triunfo Auto Liq").
  */
 export function limparDescricaoProdutoArquivo(raw: string): {
   nome: string;
@@ -235,7 +279,10 @@ export function limparDescricaoProdutoArquivo(raw: string): {
   quantidade?: number;
   codigoBarras?: string;
 } {
-  let s = String(raw || "").replace(/\s+/g, " ").trim();
+  let s = String(raw || "")
+    .replace(/\s+/g, " ")
+    .replace(/LIQ\./gi, "LIQ ")
+    .trim();
   if (!s) return { nome: "" };
 
   let quantidade: number | undefined;
@@ -244,68 +291,74 @@ export function limparDescricaoProdutoArquivo(raw: string): {
   let codigoBarras: string | undefined;
 
   const codRotulo = s.match(
-    /(?:cod(?:igo)?(?:\s*de)?\s*barras?|ean|sku|ref\.?)[:\s#]*(\d{6,14})/i
+    /(?:cod(?:igo)?(?:\s*de)?\s*barras?|ean|sku|ref\.?)[:\s#]*(\d{4,14})/i
   );
   if (codRotulo?.[1]) {
     codigoBarras = codRotulo[1];
     s = s.replace(codRotulo[0], " ").trim();
   }
 
-  // UND 1 / UN: 1 / QTD 2 — quantidade + unidade unitária
-  const undQtd = s.match(
-    /\b(?:und|unid|un|qtd|qtde|quant(?:idade)?)\s*[.:]?\s*(\d+(?:[.,]\d+)?)\b/gi
+  // Coluna UND/CXA + quantidade no final da descrição (quando veio colado)
+  const undFinal = s.match(
+    /\s+(UND|UNID|UN|CXA|CX)\s+(\d+(?:[.,]\d+)?)\s*$/i
   );
-  if (undQtd?.length) {
-    const ultimo = undQtd[undQtd.length - 1]!;
-    const num = ultimo.match(/(\d+(?:[.,]\d+)?)/);
-    if (num) {
-      const n = Number(String(num[1]).replace(",", "."));
-      if (Number.isFinite(n) && n > 0) quantidade = n;
+  if (undFinal) {
+    const n = Number(String(undFinal[2]).replace(",", "."));
+    if (Number.isFinite(n) && n > 0) quantidade = n;
+    // UND/CXA = embalagem; medida (kg/ml) tem prioridade se existir na descrição
+    const emb = mapearUnidadeCurta(undFinal[1] || "");
+    if (emb && !unidadeCurta) unidadeCurta = emb;
+    s = s.slice(0, undFinal.index).trim();
+  }
+
+  // Medidas coladas ou com espaço: 1000ML, 1KG, 200G, 225GR, 1 KG
+  const medidas: RegExpMatchArray[] = [];
+  const reMedida =
+    /(\d+(?:[.,]\d+)?)\s*(kg|gr|ml|lt|g|l)\b|(\d+(?:[.,]\d+)?)(kg|gr|ml|lt|g|l)\b/gi;
+  let mMed: RegExpExecArray | null;
+  while ((mMed = reMedida.exec(s)) !== null) {
+    medidas.push(mMed);
+  }
+  if (medidas.length > 0) {
+    const ultimo = medidas[medidas.length - 1]!;
+    const numRaw = ultimo[1] || ultimo[3] || "";
+    const undRaw = ultimo[2] || ultimo[4] || "";
+    const u = mapearUnidadeCurta(undRaw);
+    if (u) unidadeCurta = u; // kg/ml sobrescreve UND/CXA da embalagem
+    const n = Number(String(numRaw).replace(",", "."));
+    if (Number.isFinite(n) && n > 0) unidadeValor = n;
+    for (const m of medidas) {
+      s = s.replace(m[0], " ");
     }
-    if (/\bund|unid|\bun\b/i.test(ultimo) && !unidadeCurta) {
-      unidadeCurta = "un";
-    }
-    for (const m of undQtd) s = s.replace(m, " ");
     s = s.replace(/\s+/g, " ").trim();
   }
 
-  // 1KG / 1 KG / 500 ml / KG — valor da medida + unidade
-  const pesoVol = s.match(
-    /\b(\d+(?:[.,]\d+)?)\s*(kg|g|gr|ml|l|lt|cx)\b|\b(kg|g|gr|ml|l|lt|cx)\b/i
-  );
-  if (pesoVol) {
-    const u = mapearUnidadeCurta(pesoVol[2] || pesoVol[3] || "");
-    if (u) unidadeCurta = u;
-    if (pesoVol[1]) {
-      const n = Number(String(pesoVol[1]).replace(",", "."));
-      if (Number.isFinite(n) && n > 0) unidadeValor = n;
+  // Código no início (4–6 dígitos típicos de fornecedor)
+  const codInicio = s.match(/^(\d{4,6})\s+/);
+  if (codInicio?.[1]) {
+    if (!codigoBarras) codigoBarras = codInicio[1];
+    s = s.slice(codInicio[0].length).trim();
+  } else {
+    const codSolto = s.match(/\b(\d{5,14})\b/);
+    if (codSolto?.[1]) {
+      if (!codigoBarras) codigoBarras = codSolto[1];
+      s = s.replace(codSolto[0], " ").replace(/\s+/g, " ").trim();
     }
-    s = s.replace(pesoVol[0], " ").replace(/\s+/g, " ").trim();
   }
 
-  // Código numérico solto (ex.: 23198) — guarda se ainda não houver, remove do nome
-  const codSolto = s.match(/\b(\d{5,14})\b/);
-  if (codSolto?.[1]) {
-    if (!codigoBarras) codigoBarras = codSolto[1];
-    s = s.replace(codSolto[0], " ").replace(/\s+/g, " ").trim();
-  }
-
-  // Remove números restantes do nome (00, 1, etc.) e tokens de unidade órfãos
+  // Remove embalagem órfã e números de envase (12ENV), mantém variantes curtas (Rosa 7 / Rosa 9)
   s = s
-    .replace(/\b\d+([.,]\d+)?\b/g, " ")
-    .replace(/\b(kg|g|gr|ml|l|lt|cx|und|unid|un|pcs?)\b/gi, " ")
+    .replace(/\(\s*lata\s*\)/gi, " ")
+    .replace(/\b\d+\s*env\b/gi, " ")
+    .replace(/\b(und|unid|un|cxa|cx|pcs?)\b/gi, " ")
+    .replace(/\s*[+|/]+\s*/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 
-  // Capitalização leve
-  const nome = s
-    .split(" ")
-    .filter(Boolean)
-    .map((p) => {
-      if (p.length <= 2) return p.toUpperCase();
-      return p.charAt(0).toUpperCase() + p.slice(1).toLowerCase();
-    })
-    .join(" ");
+  // Não apaga números de 1–2 dígitos (ex.: Cera Rosa 7); remove só números longos restantes
+  s = s.replace(/\b\d{3,}\b/g, " ").replace(/\s+/g, " ").trim();
+
+  const nome = capitalizarNomeProduto(s);
 
   return {
     nome,
@@ -318,24 +371,136 @@ export function limparDescricaoProdutoArquivo(raw: string): {
   };
 }
 
+/**
+ * Formato típico de orçamento de fornecedor (Dental Protetic e similares):
+ * CODIGO | DESCRICAO | UND/CXA | QNTDE | VLR.UNIT | VALOR TOTAL
+ */
+export function extrairLinhasTabelaFornecedor(
+  texto: string
+): LinhaOrcamentoLida[] {
+  const flat = String(texto || "")
+    .replace(/\r/g, "\n")
+    .replace(/[ \t]+/g, " ");
+  const linhasBrutas = flat
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.length >= 8);
+
+  const candidatos: LinhaOrcamentoLida[] = [];
+  const reLinha =
+    /^(\d{4,6})\s+(.+?)\s+(UND|UNID|UN|CXA|CX)\s+(\d+(?:[.,]\d+)?)\s+(\d{1,3}(?:\.\d{3})*,\d{2})(?:\s+(\d{1,3}(?:\.\d{3})*,\d{2}))?\s*$/i;
+
+  for (const linha of linhasBrutas) {
+    if (
+      /total\s*(bruto|geral)|frete|desconto|boleto|vendedor|cliente|pagamento|orçamento|codigo\s+descricao/i.test(
+        linha
+      )
+    ) {
+      continue;
+    }
+    const m = linha.match(reLinha);
+    if (!m) continue;
+    const codigo = m[1]!;
+    const descricao = m[2]!.trim();
+    const undColuna = mapearUnidadeCurta(m[3]!);
+    const qtd = Number(String(m[4]).replace(",", "."));
+    const valorUnitario = moedaParaNumero(m[5]!);
+    if (!(valorUnitario > 0) || !descricao) continue;
+
+    const limpo = limparDescricaoProdutoArquivo(descricao);
+    // Medida da descrição (1000ml, 1kg) tem prioridade; senão UND/CXA da coluna
+    const unidade = limpo.unidade || normalizarUnidadeMedida(undColuna);
+    const nome = limpo.nome || capitalizarNomeProduto(descricao);
+    if (!nome || nome.length < 3) continue;
+
+    candidatos.push({
+      nome,
+      codigoBarras: codigo,
+      quantidade: Number.isFinite(qtd) && qtd > 0 ? qtd : 1,
+      valorUnitario,
+      unidade,
+      unidadeValor: limpo.unidadeValor,
+      marca: descricao.match(
+        /\b(lysanda|wilson|autoden|triunfo|evoden|create)\b/i
+      )?.[1],
+    });
+  }
+
+  // Texto colado em uma linha só (PDF sem quebras)
+  if (candidatos.length === 0) {
+    const reGlobal =
+      /(\d{4,6})\s+([A-ZÀ-Ÿ0-9][A-ZÀ-Ÿ0-9\s\.\,\-\/\+\(\)]+?)\s+(UND|UNID|UN|CXA|CX)\s+(\d+(?:[.,]\d+)?)\s+(\d{1,3}(?:\.\d{3})*,\d{2})(?:\s+(\d{1,3}(?:\.\d{3})*,\d{2}))?/gi;
+    let m: RegExpExecArray | null;
+    while ((m = reGlobal.exec(flat.replace(/\n/g, " "))) !== null) {
+      const codigo = m[1]!;
+      const descricao = m[2]!.trim();
+      if (/total|frete|desconto|boleto|vendedor/i.test(descricao)) continue;
+      const undColuna = mapearUnidadeCurta(m[3]!);
+      const qtd = Number(String(m[4]).replace(",", "."));
+      const valorUnitario = moedaParaNumero(m[5]!);
+      if (!(valorUnitario > 0)) continue;
+      const limpo = limparDescricaoProdutoArquivo(descricao);
+      const nome = limpo.nome || capitalizarNomeProduto(descricao);
+      if (!nome || nome.length < 3) continue;
+      candidatos.push({
+        nome,
+        codigoBarras: codigo,
+        quantidade: Number.isFinite(qtd) && qtd > 0 ? qtd : 1,
+        valorUnitario,
+        unidade: limpo.unidade || normalizarUnidadeMedida(undColuna),
+        unidadeValor: limpo.unidadeValor,
+      });
+    }
+  }
+
+  return deduplicarLinhasProduto(
+    candidatos.map((c) => normalizarLinhaOrcamentoLida(c))
+  );
+}
+
 /** Normaliza linha lida (IA/PDF/Excel) antes do casamento. */
 export function normalizarLinhaOrcamentoLida(
   linha: LinhaOrcamentoLida
 ): LinhaOrcamentoLida {
   const limpo = limparDescricaoProdutoArquivo(linha.nome);
-  const unidade =
-    linha.unidade?.trim()
-      ? normalizarUnidadeMedida(linha.unidade)
-      : limpo.unidade;
+  const undLinha = linha.unidade?.trim()
+    ? normalizarUnidadeMedida(linha.unidade)
+    : undefined;
+  const undLimpo = limpo.unidade;
+  const ehPesoVol = (u?: string) =>
+    !!u && /^(kg|g|ml|l|m)\b/i.test(u.split("(")[0]?.trim() || u);
+
+  // 1000ml / 1kg da descrição ganha de UND/CXA da coluna
+  let unidade = undLinha;
+  if (undLimpo && ehPesoVol(undLimpo) && !ehPesoVol(undLinha)) {
+    unidade = undLimpo;
+  } else if (!unidade) {
+    unidade = undLimpo;
+  }
+
   const unidadeValor =
     linha.unidadeValor && linha.unidadeValor > 0
       ? linha.unidadeValor
       : limpo.unidadeValor && limpo.unidadeValor > 0
         ? limpo.unidadeValor
         : undefined;
+
+  // Prefere nome já limpo da tabela; se a limpeza destruiu demais, mantém o original
+  let nome = limpo.nome || linha.nome.trim();
+  if (
+    limpo.nome &&
+    linha.nome.trim().length > limpo.nome.length + 8 &&
+    tokensSignificativos(limpo.nome).length < 2 &&
+    tokensSignificativos(linha.nome).length >= 2
+  ) {
+    nome = capitalizarNomeProduto(
+      limparDescricaoProdutoArquivo(linha.nome).nome || linha.nome
+    );
+  }
+
   return {
     ...linha,
-    nome: limpo.nome || linha.nome.trim(),
+    nome,
     unidade: unidade || undefined,
     unidadeValor,
     quantidade:
@@ -380,6 +545,10 @@ function extrairMarcaLinha(linha: string) {
 
 /** Heurística: linhas com nome + valor monetário no texto do PDF. */
 export function extrairLinhasTextoHeuristico(texto: string): LinhaOrcamentoLida[] {
+  // Formato tabular de fornecedor (CODIGO + DESCRICAO + UND + QTD + VLR)
+  const tabela = extrairLinhasTabelaFornecedor(texto);
+  if (tabela.length > 0) return tabela;
+
   const linhas = texto
     .split(/\r?\n/)
     .map((l) => l.replace(/\s+/g, " ").trim())
@@ -390,7 +559,8 @@ export function extrairLinhasTextoHeuristico(texto: string): LinhaOrcamentoLida[
     /(?:R\$\s*)?(\d{1,3}(?:\.\d{3})*,\d{2}|\d+[.,]\d{2})\s*$/i;
 
   for (const linha of linhas) {
-    if (/total|subtotal|desconto|frete|imposto|página|page/i.test(linha)) continue;
+    if (/total|subtotal|desconto|frete|imposto|página|page|boleto|vendedor/i.test(linha))
+      continue;
     const m = linha.match(reValor);
     if (!m?.[1]) continue;
     const valorUnitario = moedaParaNumero(m[1]);
@@ -407,6 +577,7 @@ export function extrairLinhasTextoHeuristico(texto: string): LinhaOrcamentoLida[
         codigoBarras: limpo.codigoBarras || extrairCodigoBarrasLinha(linha),
         marca,
         unidade: limpo.unidade,
+        unidadeValor: limpo.unidadeValor,
       })
     );
   }
@@ -421,7 +592,7 @@ export function extrairLinhasTextoHeuristico(texto: string): LinhaOrcamentoLida[
       const limpo = limparDescricaoProdutoArquivo(m[1]);
       const valorUnitario = moedaParaNumero(m[2]);
       if (!limpo.nome || limpo.nome.length < 3 || !(valorUnitario > 0)) continue;
-      if (/total|subtotal|desconto|frete/i.test(limpo.nome)) continue;
+      if (/total|subtotal|desconto|frete|boleto/i.test(limpo.nome)) continue;
       candidatos.push(
         normalizarLinhaOrcamentoLida({
           nome: limpo.nome,
@@ -430,6 +601,7 @@ export function extrairLinhasTextoHeuristico(texto: string): LinhaOrcamentoLida[
           codigoBarras: limpo.codigoBarras || extrairCodigoBarrasLinha(trecho),
           marca: extrairMarcaLinha(trecho),
           unidade: limpo.unidade,
+          unidadeValor: limpo.unidadeValor,
         })
       );
     }
@@ -492,7 +664,7 @@ export function casarLinhasComItens(
       if (
         codigoLinha &&
         codigoItem &&
-        codigoLinha.length >= 5 &&
+        codigoLinha.length >= 4 &&
         codigoLinha === codigoItem
       ) {
         score = 1;
