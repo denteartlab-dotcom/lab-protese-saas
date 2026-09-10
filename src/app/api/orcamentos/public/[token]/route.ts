@@ -48,6 +48,14 @@ type BodyFornecedor = {
   descontoPercentual?: number;
   observacoes?: string;
   condicoesPagamento?: string;
+  condicoesPagamentoLista?: Array<{
+    forma: string;
+    parcelas?: number;
+    valor?: number;
+    descontoTipo?: "percentual" | "valor";
+    desconto?: number;
+    id?: string;
+  }>;
   formaPagamento?: string;
   parcelas?: number;
   respostaFornecedor?: string;

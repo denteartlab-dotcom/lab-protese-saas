@@ -21,10 +21,14 @@ import {
 import { propsInputComSelecaoAoFocar } from "@/lib/input-selecao";
 import {
   exigeParcelamento,
+  exigeValorDescontoVista,
   itemOrcamentoLinhaNova,
   normalizarParcelas,
-  parseCondicoesPagamento,
+  parseListaCondicoesPagamento,
   rotuloCondicoesPagamento,
+  rotuloListaCondicoesPagamento,
+  serializarListaCondicoesPagamento,
+  type CondicoesPagamentoOrcamento,
   type FormaPagamentoOrcamento,
 } from "@/lib/orcamentos-pagamento";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
@@ -80,6 +84,14 @@ export default function OrcamentoPublicoPage() {
   const [formaPagamento, setFormaPagamento] =
     useState<FormaPagamentoOrcamento>("a_vista");
   const [parcelas, setParcelas] = useState(1);
+  const [valorCondicao, setValorCondicao] = useState("R$ 0,00");
+  const [descontoCondicaoTipo, setDescontoCondicaoTipo] = useState<
+    "percentual" | "valor"
+  >("percentual");
+  const [descontoCondicao, setDescontoCondicao] = useState("0");
+  const [condicoesSalvas, setCondicoesSalvas] = useState<
+    CondicoesPagamentoOrcamento[]
+  >([]);
   const [enviando, setEnviando] = useState(false);
   const [enviado, setEnviado] = useState(false);
   const [selecionados, setSelecionados] = useState<Set<number>>(new Set());
@@ -107,9 +119,26 @@ export default function OrcamentoPublicoPage() {
       setOrcamento(data);
       setItens(data.itens || []);
       setObservacao(data.observacoes || "");
-      const cond = parseCondicoesPagamento(data.condicoesPagamento);
-      setFormaPagamento(cond.forma);
-      setParcelas(cond.parcelas);
+      const listaCond = parseListaCondicoesPagamento(data.condicoesPagamento);
+      setCondicoesSalvas(listaCond);
+      const cond = listaCond[0];
+      if (cond) {
+        setFormaPagamento(cond.forma);
+        setParcelas(cond.parcelas);
+        setValorCondicao(formatMoedaInput(cond.valor || 0));
+        setDescontoCondicaoTipo(cond.descontoTipo || "percentual");
+        setDescontoCondicao(
+          cond.descontoTipo === "valor"
+            ? formatMoedaInput(cond.desconto || 0)
+            : String(cond.desconto || 0)
+        );
+      } else {
+        setFormaPagamento("a_vista");
+        setParcelas(1);
+        setValorCondicao("R$ 0,00");
+        setDescontoCondicaoTipo("percentual");
+        setDescontoCondicao("0");
+      }
       setDescontoPercentual(data.descontoPercentual || 0);
       setDescontoValor(formatMoedaInput(data.desconto || 0));
       setEnviado(
@@ -135,6 +164,49 @@ export default function OrcamentoPublicoPage() {
     }
     return totalLiquidoOrcamento(subtotal, parseMoeda(descontoValor), 0);
   }, [subtotal, descontoPercentual, descontoValor, tipoDesconto]);
+
+  function montarCondicaoRascunho(): CondicoesPagamentoOrcamento {
+    const valorInformado = parseMoeda(valorCondicao);
+    const descontoInformado =
+      descontoCondicaoTipo === "valor"
+        ? parseMoeda(descontoCondicao)
+        : Number(String(descontoCondicao).replace(",", ".")) || 0;
+    return {
+      id: `cond-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      forma: formaPagamento,
+      parcelas: exigeParcelamento(formaPagamento)
+        ? normalizarParcelas(parcelas)
+        : 1,
+      valor: valorInformado > 0 ? valorInformado : totalLiquido,
+      descontoTipo: exigeValorDescontoVista(formaPagamento)
+        ? descontoCondicaoTipo
+        : undefined,
+      desconto:
+        exigeValorDescontoVista(formaPagamento) && descontoInformado > 0
+          ? descontoInformado
+          : undefined,
+    };
+  }
+
+  function limparRascunhoCondicao() {
+    setFormaPagamento("a_vista");
+    setParcelas(1);
+    setValorCondicao(formatMoedaInput(totalLiquido));
+    setDescontoCondicaoTipo("percentual");
+    setDescontoCondicao("0");
+  }
+
+  function adicionarCondicaoPagamento() {
+    const nova = montarCondicaoRascunho();
+    setCondicoesSalvas((atual) => [...atual, nova]);
+    limparRascunhoCondicao();
+  }
+
+  function removerCondicaoPagamento(id?: string, index?: number) {
+    setCondicoesSalvas((atual) =>
+      atual.filter((c, i) => (id ? c.id !== id : i !== index))
+    );
+  }
 
   function atualizarItem<K extends keyof ItemOrcamento>(
     index: number,
@@ -280,6 +352,10 @@ export default function OrcamentoPublicoPage() {
     if (!orcamento || enviado) return;
     setEnviando(true);
     try {
+      let listaEnvio = [...condicoesSalvas];
+      if (listaEnvio.length === 0) {
+        listaEnvio = [montarCondicaoRascunho()];
+      }
       const response = await fetch(`/api/orcamentos/public/${token}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -288,10 +364,8 @@ export default function OrcamentoPublicoPage() {
           desconto: tipoDesconto === "valor" ? parseMoeda(descontoValor) : 0,
           descontoPercentual: tipoDesconto === "percentual" ? descontoPercentual : 0,
           observacoes: observacao,
-          formaPagamento,
-          parcelas: exigeParcelamento(formaPagamento)
-            ? normalizarParcelas(parcelas)
-            : 1,
+          condicoesPagamento: serializarListaCondicoesPagamento(listaEnvio),
+          condicoesPagamentoLista: listaEnvio,
         }),
       });
       const data = await response.json();
@@ -300,6 +374,7 @@ export default function OrcamentoPublicoPage() {
         return;
       }
       setEnviado(true);
+      setCondicoesSalvas(listaEnvio);
       setOrcamento(data);
       if (data.mensagem) {
         /* confirmação 202 — UI já mostra estado "enviado" */
@@ -935,12 +1010,21 @@ export default function OrcamentoPublicoPage() {
                 Condições de pagamento
               </label>
               {somenteLeitura ? (
-                <p className="min-h-[88px] rounded-sm border border-slate-200 bg-slate-50 px-2 py-2 text-[11px] text-slate-700">
-                  {rotuloCondicoesPagamento({
-                    forma: formaPagamento,
-                    parcelas: normalizarParcelas(parcelas),
-                  })}
-                </p>
+                <div className="min-h-[88px] space-y-1.5 rounded-sm border border-slate-200 bg-slate-50 px-2 py-2 text-[11px] text-slate-700">
+                  {condicoesSalvas.length > 0 ? (
+                    condicoesSalvas.map((c, i) => (
+                      <p key={c.id || i}>{rotuloCondicoesPagamento(c)}</p>
+                    ))
+                  ) : (
+                    <p>
+                      {rotuloListaCondicoesPagamento(
+                        parseListaCondicoesPagamento(
+                          orcamento.condicoesPagamento
+                        )
+                      )}
+                    </p>
+                  )}
+                </div>
               ) : (
                 <div className="space-y-2">
                   <select
@@ -949,6 +1033,12 @@ export default function OrcamentoPublicoPage() {
                       const forma = e.target.value as FormaPagamentoOrcamento;
                       setFormaPagamento(forma);
                       if (!exigeParcelamento(forma)) setParcelas(1);
+                      if (
+                        exigeValorDescontoVista(forma) &&
+                        parseMoeda(valorCondicao) <= 0
+                      ) {
+                        setValorCondicao(formatMoedaInput(totalLiquido));
+                      }
                     }}
                     className="h-9 w-full rounded-sm border border-slate-200 px-2 text-[11px]"
                   >
@@ -957,21 +1047,141 @@ export default function OrcamentoPublicoPage() {
                     <option value="cartao_credito">Cartão de crédito</option>
                     <option value="boleto">Boleto</option>
                   </select>
-                  {exigeParcelamento(formaPagamento) && (
-                    <select
-                      value={parcelas}
-                      onChange={(e) =>
-                        setParcelas(normalizarParcelas(Number(e.target.value)))
-                      }
-                      className="h-9 w-full rounded-sm border border-slate-200 px-2 text-[11px]"
-                    >
-                      {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
-                        <option key={n} value={n}>
-                          Parcelamento {n}x
-                        </option>
-                      ))}
-                    </select>
+
+                  {exigeValorDescontoVista(formaPagamento) && (
+                    <div className="grid grid-cols-2 gap-2 rounded-sm border border-slate-200 bg-slate-50 p-2">
+                      <div>
+                        <label className="mb-0.5 block text-[9px] font-medium uppercase text-slate-500">
+                          Valor (R$)
+                        </label>
+                        <input
+                          value={valorCondicao}
+                          onChange={(e) =>
+                            setValorCondicao(
+                              formatMoedaInput(parseMoeda(e.target.value))
+                            )
+                          }
+                          className="h-8 w-full rounded-sm border border-slate-200 px-2 text-right text-[11px]"
+                          {...propsInputComSelecaoAoFocar({})}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-0.5 block text-[9px] font-medium uppercase text-slate-500">
+                          Desconto à vista
+                        </label>
+                        <div className="flex gap-1">
+                          <select
+                            value={descontoCondicaoTipo}
+                            onChange={(e) => {
+                              const tipo = e.target.value as
+                                | "percentual"
+                                | "valor";
+                              setDescontoCondicaoTipo(tipo);
+                              setDescontoCondicao(
+                                tipo === "valor" ? "R$ 0,00" : "0"
+                              );
+                            }}
+                            className="h-8 w-12 rounded-sm border border-slate-200 text-[10px]"
+                          >
+                            <option value="percentual">%</option>
+                            <option value="valor">R$</option>
+                          </select>
+                          {descontoCondicaoTipo === "percentual" ? (
+                            <input
+                              type="number"
+                              min={0}
+                              max={100}
+                              value={descontoCondicao}
+                              onChange={(e) =>
+                                setDescontoCondicao(e.target.value)
+                              }
+                              className="h-8 min-w-0 flex-1 rounded-sm border border-slate-200 px-1 text-right text-[11px]"
+                              {...propsInputComSelecaoAoFocar({})}
+                            />
+                          ) : (
+                            <input
+                              value={descontoCondicao}
+                              onChange={(e) =>
+                                setDescontoCondicao(
+                                  formatMoedaInput(parseMoeda(e.target.value))
+                                )
+                              }
+                              className="h-8 min-w-0 flex-1 rounded-sm border border-slate-200 px-1 text-right text-[11px]"
+                              {...propsInputComSelecaoAoFocar({})}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   )}
+
+                  {exigeParcelamento(formaPagamento) && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <select
+                        value={parcelas}
+                        onChange={(e) =>
+                          setParcelas(
+                            normalizarParcelas(Number(e.target.value))
+                          )
+                        }
+                        className="h-9 w-full rounded-sm border border-slate-200 px-2 text-[11px]"
+                      >
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map(
+                          (n) => (
+                            <option key={n} value={n}>
+                              Parcelamento {n}x
+                            </option>
+                          )
+                        )}
+                      </select>
+                      <input
+                        value={valorCondicao}
+                        onChange={(e) =>
+                          setValorCondicao(
+                            formatMoedaInput(parseMoeda(e.target.value))
+                          )
+                        }
+                        placeholder="Valor (R$)"
+                        className="h-9 w-full rounded-sm border border-slate-200 px-2 text-right text-[11px]"
+                        {...propsInputComSelecaoAoFocar({})}
+                      />
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={adicionarCondicaoPagamento}
+                    className="inline-flex h-8 w-full items-center justify-center rounded border border-[#4a90d9] bg-white text-[11px] font-medium text-[#4a90d9] hover:bg-[#f0f7ff]"
+                  >
+                    Salvar condição de pagamento
+                  </button>
+
+                  {condicoesSalvas.length > 0 && (
+                    <ul className="space-y-1.5 rounded-sm border border-slate-200 bg-white p-2">
+                      {condicoesSalvas.map((c, i) => (
+                        <li
+                          key={c.id || i}
+                          className="flex items-start justify-between gap-2 text-[11px] text-slate-700"
+                        >
+                          <span>{rotuloCondicoesPagamento(c)}</span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              removerCondicaoPagamento(c.id, i)
+                            }
+                            className="shrink-0 text-slate-400 hover:text-red-500"
+                            aria-label="Remover condição"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <p className="text-[9px] text-slate-500">
+                    Salve à vista com valor/desconto e, se quiser, adicione
+                    outra condição (ex.: boleto parcelado).
+                  </p>
                 </div>
               )}
             </div>

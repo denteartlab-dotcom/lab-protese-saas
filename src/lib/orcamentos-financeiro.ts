@@ -8,6 +8,7 @@ import {
   parseCondicoesPagamento,
   rotuloCondicoesPagamento,
   serializarCondicoesPagamento,
+  serializarListaCondicoesPagamento,
   type CondicoesPagamentoOrcamento,
   type FormaPagamentoOrcamento,
 } from "@/lib/orcamentos-pagamento";
@@ -167,7 +168,20 @@ export function condicoesPagamentoFromBody(body: {
   formaPagamento?: string;
   parcelas?: number;
   condicoesPagamento?: string;
+  condicoesPagamentoLista?: CondicoesPagamentoOrcamento[];
 }): string {
+  if (
+    Array.isArray(body.condicoesPagamentoLista) &&
+    body.condicoesPagamentoLista.length > 0
+  ) {
+    return serializarListaCondicoesPagamento(body.condicoesPagamentoLista);
+  }
+  if (
+    typeof body.condicoesPagamento === "string" &&
+    body.condicoesPagamento.startsWith("@@PAG@@")
+  ) {
+    return body.condicoesPagamento;
+  }
   if (body.formaPagamento) {
     const cond: CondicoesPagamentoOrcamento = {
       forma: body.formaPagamento as FormaPagamentoOrcamento,

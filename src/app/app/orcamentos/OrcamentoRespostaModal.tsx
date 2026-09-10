@@ -6,7 +6,7 @@ import { ExternalLink, X } from "lucide-react";
 import type { MessageKey } from "@/lib/i18n";
 import { STATUS_ORCAMENTO, totalLiquidoOrcamento, type Orcamento, type StatusOrcamento } from "@/lib/orcamentos-types";
 import {
-  parseCondicoesPagamento,
+  parseListaCondicoesPagamento,
   rotuloCondicoesPagamentoI18n,
 } from "@/lib/orcamentos-pagamento";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -164,12 +164,15 @@ export function OrcamentoRespostaModal({
           {orcamento.condicoesPagamento && (
             <div className="mt-3">
               <p className="mb-1 font-medium text-slate-700">{t("estoque.orcamentos.condicoesPagamento")}</p>
-              <p className="rounded-sm border border-slate-100 bg-slate-50 p-2 text-slate-600">
-                {rotuloCondicoesPagamentoI18n(
-                  parseCondicoesPagamento(orcamento.condicoesPagamento),
-                  t
+              <ul className="space-y-1 rounded-sm border border-slate-100 bg-slate-50 p-2 text-slate-600">
+                {parseListaCondicoesPagamento(orcamento.condicoesPagamento).map(
+                  (c, i) => (
+                    <li key={c.id || i}>
+                      {rotuloCondicoesPagamentoI18n(c, t)}
+                    </li>
+                  )
                 )}
-              </p>
+              </ul>
             </div>
           )}
         </div>
