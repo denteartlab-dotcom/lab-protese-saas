@@ -27,7 +27,7 @@ import {
   rotuloCondicoesPagamento,
   type FormaPagamentoOrcamento,
 } from "@/lib/orcamentos-pagamento";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { fetchPortalPublico } from "@/lib/portal-publico-cliente";
 import type { PortalPublicoPaginaOrcamento } from "@/lib/portal-publico-types";
 
@@ -90,6 +90,8 @@ export default function OrcamentoPublicoPage() {
   const inputFotoRef = useRef<HTMLInputElement>(null);
   const inputArquivoOrcamentoRef = useRef<HTMLInputElement>(null);
   const [lendoArquivo, setLendoArquivo] = useState(false);
+  const [erroArquivo, setErroArquivo] = useState("");
+  const [msgArquivo, setMsgArquivo] = useState("");
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -380,14 +382,87 @@ export default function OrcamentoPublicoPage() {
   async function onSelecionarArquivoOrcamento(file: File | null) {
     if (!file || enviado || lendoArquivo || enviando) return;
     setLendoArquivo(true);
+    setErroArquivo("");
+    setMsgArquivo("");
     try {
+      const {
+        validarArquivoOrcamento,
+        preencherItensComTexto,
+        casarLinhasComItens,
+        extrairLinhasTextoHeuristico,
+      } = await import("@/lib/orcamento-leitura-arquivo");
+
+      const erroValidacao = validarArquivoOrcamento(file);
+      if (erroValidacao) throw new Error(erroValidacao);
+      if (itens.length === 0) {
+        throw new Error("O orçamento não tem itens para preencher.");
+      }
+
+      const ehPdf =
+        file.type === "application/pdf" ||
+        file.name.toLowerCase().endsWith(".pdf");
+
+      let textoCliente = "";
+      if (ehPdf) {
+        try {
+          const { extrairTextoPdf } = await import("@/lib/nfe-pdf");
+          textoCliente = await extrairTextoPdf(file);
+        } catch {
+          textoCliente = "";
+        }
+      }
+
+      if (textoCliente.trim().length > 20) {
+        try {
+          const local = preencherItensComTexto(itens, textoCliente);
+          setItens(local.itens);
+          const semMatch = local.naoEncontrados.length;
+          setMsgArquivo(
+            `Preenchemos ${local.matches.length} item(ns) com base no arquivo.` +
+              (semMatch > 0
+                ? ` ${semMatch} linha(s) não bateram com produtos do pedido.`
+                : "") +
+              " Revise valores antes de enviar."
+          );
+          return;
+        } catch {
+          /* tenta servidor / IA */
+        }
+      }
+
       const formData = new FormData();
       formData.append("file", file);
       formData.append("itens", JSON.stringify(itens));
-      const res = await fetch(`/api/orcamentos/public/${token}/parse`, {
+      if (textoCliente.trim()) formData.append("texto", textoCliente);
+
+      let res = await fetch(`/api/orcamentos/public/${encodeURIComponent(token)}/parse`, {
         method: "POST",
         body: formData,
       });
+
+      // Fallback JSON (evita problemas de File/Blob em alguns ambientes)
+      if (!res.ok && (res.status === 400 || res.status >= 500)) {
+        const buffer = await file.arrayBuffer();
+        const bytes = new Uint8Array(buffer);
+        let binary = "";
+        const chunk = 0x8000;
+        for (let i = 0; i < bytes.length; i += chunk) {
+          binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+        }
+        const base64 = btoa(binary);
+        res = await fetch(`/api/orcamentos/public/${encodeURIComponent(token)}/parse`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            itens,
+            texto: textoCliente,
+            mimeType: file.type || (ehPdf ? "application/pdf" : "image/jpeg"),
+            base64,
+            nomeArquivo: file.name,
+          }),
+        });
+      }
+
       const json = (await res.json().catch(() => null)) as {
         error?: string;
         message?: string;
@@ -396,7 +471,22 @@ export default function OrcamentoPublicoPage() {
         matches?: Array<{ produtoNomeSistema: string; nomeArquivo: string }>;
         naoEncontrados?: Array<{ nome: string }>;
       } | null;
+
       if (!res.ok) {
+        // Último recurso: só o texto local com heurística (sem casar ainda)
+        if (textoCliente.trim()) {
+          const linhas = extrairLinhasTextoHeuristico(textoCliente);
+          if (linhas.length > 0) {
+            const local = casarLinhasComItens(itens, linhas);
+            if (local.matches.length > 0) {
+              setItens(local.itens);
+              setMsgArquivo(
+                `Preenchemos ${local.matches.length} item(ns) com o texto do PDF. Revise valores antes de enviar.`
+              );
+              return;
+            }
+          }
+        }
         throw new Error(
           json?.error || json?.message || "Não foi possível ler o arquivo."
         );
@@ -407,17 +497,18 @@ export default function OrcamentoPublicoPage() {
       setItens(json.itens);
       const qtd = json.matches?.length ?? 0;
       const semMatch = json.naoEncontrados?.length ?? 0;
-      const detalhe =
-        semMatch > 0
-          ? ` ${semMatch} linha(s) do arquivo não bateram com produtos do pedido.`
-          : "";
-      alert(
+      setMsgArquivo(
         (json.mensagem || `Preenchemos ${qtd} item(ns) automaticamente.`) +
-          detalhe +
+          (semMatch > 0
+            ? ` ${semMatch} linha(s) do arquivo não bateram com produtos do pedido.`
+            : "") +
           " Revise valores e nomes antes de enviar."
       );
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Falha ao ler o arquivo.");
+      const msg =
+        err instanceof Error ? err.message : "Falha ao ler o arquivo.";
+      setErroArquivo(msg);
+      alert(msg);
     } finally {
       setLendoArquivo(false);
       if (inputArquivoOrcamentoRef.current) {
@@ -897,30 +988,41 @@ export default function OrcamentoPublicoPage() {
                 <Send className="h-4 w-4" />
                 {enviando ? "Enviando..." : "Enviar Orçamento"}
               </button>
-              <button
-                type="button"
-                disabled={enviando || lendoArquivo}
-                onClick={() => inputArquivoOrcamentoRef.current?.click()}
-                className="inline-flex h-10 items-center justify-center gap-2 rounded border border-slate-300 bg-white text-[12px] text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+              <label
+                className={cn(
+                  "inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded border border-slate-300 bg-white text-[12px] text-slate-600 hover:bg-slate-50",
+                  (enviando || lendoArquivo) && "pointer-events-none opacity-60"
+                )}
                 title="Envie PDF ou imagem da cotação para preencher valores automaticamente"
               >
                 <Upload className="h-4 w-4" />
                 {lendoArquivo ? "Lendo arquivo..." : "Upload Arquivo"}
-              </button>
-              <input
-                ref={inputArquivoOrcamentoRef}
-                type="file"
-                accept="application/pdf,image/*,.pdf,.png,.jpg,.jpeg,.webp"
-                className="hidden"
-                onChange={(e) =>
-                  void onSelecionarArquivoOrcamento(e.target.files?.[0] ?? null)
-                }
-              />
+                <input
+                  ref={inputArquivoOrcamentoRef}
+                  type="file"
+                  accept="application/pdf,image/*,.pdf,.png,.jpg,.jpeg,.webp"
+                  className="sr-only"
+                  disabled={enviando || lendoArquivo}
+                  onChange={(e) =>
+                    void onSelecionarArquivoOrcamento(e.target.files?.[0] ?? null)
+                  }
+                />
+              </label>
               <p className="md:col-span-2 text-[10px] text-slate-500">
                 No Upload Arquivo, envie o PDF ou a imagem da cotação do fornecedor. O
                 sistema lê os produtos e valores e preenche os itens do pedido pelos
                 nomes mais parecidos com o cadastro do laboratório.
               </p>
+              {msgArquivo ? (
+                <p className="md:col-span-2 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] text-emerald-800">
+                  {msgArquivo}
+                </p>
+              ) : null}
+              {erroArquivo ? (
+                <p className="md:col-span-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+                  {erroArquivo}
+                </p>
+              ) : null}
             </div>
           )}
 

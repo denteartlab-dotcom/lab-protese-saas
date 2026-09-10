@@ -61,7 +61,7 @@ const nextConfig: NextConfig = {
   devIndicators: false,
   outputFileTracingRoot: projectRoot,
   /** Evita bundling de libs Node (unzipper puxa @aws-sdk/client-s3 opcional). */
-  serverExternalPackages: ["archiver", "unzipper", "ioredis"],
+  serverExternalPackages: ["archiver", "unzipper", "ioredis", "pdfjs-dist"],
   eslint: {
     ignoreDuringBuilds: true,
   },

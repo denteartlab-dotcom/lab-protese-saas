@@ -24,7 +24,7 @@ export type ResultadoLeituraOrcamento = {
   fonte: "ia" | "texto" | "misto";
 };
 
-const LIMIAR_SIMILARIDADE = 0.42;
+const LIMIAR_SIMILARIDADE = 0.35;
 const MAX_BYTES = 10 * 1024 * 1024;
 
 const PROMPT_EXTRACAO = [
@@ -445,11 +445,11 @@ async function extrairTextoPdfBuffer(buffer: ArrayBuffer): Promise<string> {
   }
 }
 
-export function validarArquivoOrcamento(file: File) {
+export function validarArquivoOrcamento(file: { size: number; type?: string; name?: string }) {
   if (file.size <= 0) return "Arquivo vazio.";
   if (file.size > MAX_BYTES) return "Arquivo muito grande (máx. 10 MB).";
   const mime = (file.type || "").toLowerCase();
-  const nome = file.name.toLowerCase();
+  const nome = (file.name || "").toLowerCase();
   const okMime =
     mime === "application/pdf" ||
     mime.startsWith("image/") ||
@@ -459,59 +459,54 @@ export function validarArquivoOrcamento(file: File) {
   return null;
 }
 
-export async function lerArquivoEPreencherItens(
-  file: File,
-  itens: ItemOrcamento[]
-): Promise<ResultadoLeituraOrcamento> {
-  const erro = validarArquivoOrcamento(file);
-  if (erro) throw new Error(erro);
-  if (!Array.isArray(itens) || itens.length === 0) {
-    throw new Error("O orçamento não tem itens para preencher.");
+function toBase64(buffer: ArrayBuffer) {
+  if (typeof Buffer !== "undefined") {
+    return Buffer.from(buffer).toString("base64");
   }
-
-  const mime =
-    file.type ||
-    (file.name.toLowerCase().endsWith(".pdf")
-      ? "application/pdf"
-      : "image/jpeg");
-  const buffer = await file.arrayBuffer();
-  const base64 = Buffer.from(buffer).toString("base64");
-
-  let textoPdf = "";
-  if (mime === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
-    textoPdf = await extrairTextoPdfBuffer(buffer);
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
   }
+  return btoa(binary);
+}
 
-  const heuristicas = textoPdf
-    ? extrairLinhasTextoHeuristico(textoPdf)
-    : [];
-  const ia = await extrairLinhasComIa(mime, base64, textoPdf);
-
-  let linhas = ia && ia.length > 0 ? ia : heuristicas;
-  let fonte: ResultadoLeituraOrcamento["fonte"] = ia?.length
-    ? heuristicas.length
-      ? "misto"
-      : "ia"
-    : "texto";
-
+function consolidarLinhas(
+  ia: LinhaOrcamentoLida[] | null,
+  heuristicas: LinhaOrcamentoLida[]
+): { linhas: LinhaOrcamentoLida[]; fonte: ResultadoLeituraOrcamento["fonte"] } {
   if (ia && ia.length > 0 && heuristicas.length > ia.length * 1.5) {
-    // Heurística achou bem mais linhas: mescla por nome normalizado.
     const mapa = new Map<string, LinhaOrcamentoLida>();
     for (const l of [...ia, ...heuristicas]) {
       const k = normalizarTextoProduto(l.nome);
       if (!k) continue;
       if (!mapa.has(k)) mapa.set(k, l);
     }
-    linhas = [...mapa.values()];
-    fonte = "misto";
+    return { linhas: [...mapa.values()], fonte: "misto" };
   }
+  if (ia && ia.length > 0) {
+    return {
+      linhas: ia,
+      fonte: heuristicas.length > 0 ? "misto" : "ia",
+    };
+  }
+  return { linhas: heuristicas, fonte: "texto" };
+}
 
+export function preencherItensComLinhas(
+  itens: ItemOrcamento[],
+  linhas: LinhaOrcamentoLida[],
+  fonte: ResultadoLeituraOrcamento["fonte"] = "texto"
+): ResultadoLeituraOrcamento {
+  if (!Array.isArray(itens) || itens.length === 0) {
+    throw new Error("O orçamento não tem itens para preencher.");
+  }
   if (linhas.length === 0) {
     throw new Error(
       "Não foi possível ler produtos no arquivo. Tente um PDF com texto selecionável ou uma imagem mais nítida."
     );
   }
-
   const resultado = casarLinhasComItens(itens, linhas);
   resultado.fonte = fonte;
   if (resultado.matches.length === 0) {
@@ -520,4 +515,76 @@ export async function lerArquivoEPreencherItens(
     );
   }
   return resultado;
+}
+
+/** Preenche itens a partir de texto já extraído (ex.: PDF no navegador). */
+export function preencherItensComTexto(
+  itens: ItemOrcamento[],
+  texto: string
+): ResultadoLeituraOrcamento {
+  const linhas = extrairLinhasTextoHeuristico(texto);
+  return preencherItensComLinhas(itens, linhas, "texto");
+}
+
+export async function lerPayloadOrcamento(params: {
+  itens: ItemOrcamento[];
+  mimeType?: string;
+  base64?: string;
+  texto?: string;
+  nomeArquivo?: string;
+}): Promise<ResultadoLeituraOrcamento> {
+  const { itens } = params;
+  if (!Array.isArray(itens) || itens.length === 0) {
+    throw new Error("O orçamento não tem itens para preencher.");
+  }
+
+  const textoPdf = (params.texto || "").trim();
+  const mime =
+    (params.mimeType || "").toLowerCase() ||
+    (params.nomeArquivo?.toLowerCase().endsWith(".pdf")
+      ? "application/pdf"
+      : "image/jpeg");
+  const base64 = params.base64 || "";
+
+  const heuristicas = textoPdf ? extrairLinhasTextoHeuristico(textoPdf) : [];
+  const ia =
+    base64 || textoPdf.length > 40
+      ? await extrairLinhasComIa(mime || "text/plain", base64, textoPdf)
+      : null;
+
+  const { linhas, fonte } = consolidarLinhas(ia, heuristicas);
+  return preencherItensComLinhas(itens, linhas, fonte);
+}
+
+export async function lerArquivoEPreencherItens(
+  file: File,
+  itens: ItemOrcamento[],
+  textoExtraido?: string
+): Promise<ResultadoLeituraOrcamento> {
+  const erro = validarArquivoOrcamento(file);
+  if (erro) throw new Error(erro);
+
+  const mime =
+    file.type ||
+    (file.name.toLowerCase().endsWith(".pdf")
+      ? "application/pdf"
+      : "image/jpeg");
+  const buffer = await file.arrayBuffer();
+  const base64 = toBase64(buffer);
+
+  let textoPdf = (textoExtraido || "").trim();
+  if (
+    !textoPdf &&
+    (mime === "application/pdf" || file.name.toLowerCase().endsWith(".pdf"))
+  ) {
+    textoPdf = await extrairTextoPdfBuffer(buffer);
+  }
+
+  return lerPayloadOrcamento({
+    itens,
+    mimeType: mime,
+    base64,
+    texto: textoPdf,
+    nomeArquivo: file.name,
+  });
 }
