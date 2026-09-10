@@ -1,6 +1,8 @@
 import type { ItemOrcamento } from "@/lib/orcamentos-types";
 import {
+  deduplicarLinhasProduto,
   extrairLinhasTextoHeuristico,
+  linhaPareceProdutoValido,
   normalizarLinhaOrcamentoLida,
   normalizarTextoProduto,
   preencherItensComLinhas,
@@ -17,8 +19,10 @@ export type {
 
 export {
   casarLinhasComItens,
+  deduplicarLinhasProduto,
   extrairLinhasTextoHeuristico,
   limparDescricaoProdutoArquivo,
+  linhaPareceProdutoValido,
   mensagemResultadoLeitura,
   normalizarLinhaOrcamentoLida,
   normalizarTextoProduto,
@@ -30,18 +34,18 @@ export {
 
 const PROMPT_EXTRACAO = [
   "Você lê orçamentos, cotações, listas de preços e notas de fornecedores (PDF, imagem ou planilha).",
-  "Extraia cada linha de produto com nome limpo, quantidade, unidade, valor unitário, código e marca quando existirem.",
+  "Extraia SOMENTE linhas de PRODUTO (materiais). Ignore tudo que não for item vendável.",
   "Responda SOMENTE um JSON array válido, sem markdown, no formato:",
   '[{"nome":"Resina Autoden Rosa","quantidade":1,"unidadeValor":1,"unidade":"kg","valorUnitario":12.5,"codigoBarras":"23198","marca":""}]',
   "Regras:",
-  "- nome: SEM números soltos (ex.: 00, 23198), SEM unidade (1KG, UND, UN) e SEM quantidade.",
-  "- unidadeValor: número da medida (ex.: 1KG → 1; 500ml → 500). Vazio se não houver.",
-  "- unidade: use kg, g, ml, l, cx ou un quando aparecer (ex.: 1KG → kg; UND → un).",
-  "- quantidade: número da linha (ex.: UND 1 → 1). Padrão 1 se não aparecer.",
-  "- codigoBarras: EAN/código/SKU se existir (senão string vazia).",
-  "- valorUnitario é número (ponto decimal). Se só houver total e quantidade, calcule o unitário.",
-  "- marca: se existir (senão string vazia).",
-  "- Ignore totais gerais, frete, impostos e cabeçalhos sem produto.",
+  "- Inclua só produtos com nome e valorUnitario > 0.",
+  "- IGNORE: boleto, pix, parcelas (ex.: 4x Boleto), nomes de pessoa, telefone, endereço, totais, frete, impostos, cabeçalhos, observações, linhas vazias ou só com /.",
+  "- nome: SEM números soltos (ex.: 00, 23198), SEM unidade (1KG, UND) e SEM quantidade.",
+  "- unidadeValor: número da medida (1KG → 1; 500ml → 500). Vazio se não houver.",
+  "- unidade: kg, g, ml, l, cx ou un quando aparecer.",
+  "- quantidade: da linha (UND 1 → 1). Padrão 1.",
+  "- codigoBarras: EAN/código/SKU se existir.",
+  "- valorUnitario é número (ponto decimal).",
 ].join("\n");
 
 function parseJsonLinhas(texto: string): LinhaOrcamentoLida[] {
@@ -78,6 +82,7 @@ function parseJsonLinhas(texto: string): LinhaOrcamentoLida[] {
       unidadeValor: Number(r.unidadeValor ?? r.medida ?? r.conteudo ?? 0) || undefined,
     });
     if (!normalizada.nome || normalizada.nome.length < 2) continue;
+    if (!linhaPareceProdutoValido(normalizada)) continue;
     out.push(normalizada);
   }
   return out;
@@ -364,7 +369,7 @@ export async function extrairLinhasDePlanilha(
     );
   }
 
-  return out;
+  return out.filter(linhaPareceProdutoValido);
 }
 
 function ehPlanilha(mime: string, nomeArquivo?: string) {

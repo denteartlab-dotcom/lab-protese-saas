@@ -1344,10 +1344,8 @@ export default function OrcamentoPublicoPage() {
                 />
               </label>
               <p className="md:col-span-2 text-[10px] text-slate-500">
-                No Upload Arquivo, envie PDF, imagem ou Excel da cotação. Itens com
-                nome bem parecido atualizam preço/qtd/unidade; produtos diferentes
-                viram linha nova. Números e textos como 1KG/UND vão para código e
-                unidade, não ficam no nome.
+                No Upload Arquivo, o sistema lê só produtos (nome, valor, quantidade e
+                unidade). Boletos, nomes de pessoa e outros textos do PDF são ignorados.
               </p>
               {msgArquivo ? (
                 <p className="md:col-span-2 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] text-emerald-800">

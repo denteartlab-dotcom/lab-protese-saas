@@ -43,6 +43,82 @@ const LIMIAR_CASAR = 0.68;
 const LIMIAR_RENOMEAR = 0.82;
 const MAX_BYTES = 10 * 1024 * 1024;
 
+/** Texto que não é linha de produto (pagamento, cabeçalho, lixo do PDF). */
+const RE_LIXO_LINHA =
+  /\b(boleto|pix|cart[aã]o|parcela|parcelado|a\s*vista|desconto|frete|total|subtotal|imposto|condi[cç][oõ]es?|pagamento|vendedor|representante|cliente|pedido|obrigad|assinatura|banco|ag[eê]ncia|vencimento|observa[cç][aã]o|telefone|email|e-mail|whatsapp|endere[cç]o|cnpj|cpf|ie\b|página|page|fornecedor)\b|\d+\s*x\s*(boleto|parcela|vezes)?|\bx\s*boleto\b/i;
+
+/** Sinais comuns de produto laboratorial / material. */
+const RE_SINAL_PRODUTO =
+  /\b(resina|cera|l[ií]quido|acr[ií]lico|gesso|silicone|alginato|broca|disco|pasta|cimento|porcelana|zirc[oô]nio|metal|liga|fio|autoden|create|evoden|lys|rolette|monomer|pol[ií]mero|espa[cç]ador|isolante|goma|cera|opaco|glaze|dentina|esmalte)\b/i;
+
+/**
+ * Aceita só linhas de produto com valor (e nome/código válidos).
+ * Descarta boleto, nomes de pessoa, “/ /”, cabeçalhos etc.
+ */
+export function linhaPareceProdutoValido(linha: LinhaOrcamentoLida): boolean {
+  if (!(linha.valorUnitario > 0)) return false;
+
+  const nomeBruto = String(linha.nome || "").trim();
+  if (!nomeBruto || nomeBruto.length < 3) return false;
+
+  const alfanum = nomeBruto.replace(/[^A-Za-zÀ-ÿ0-9]/g, "");
+  if (alfanum.length < 3) return false;
+
+  // Só barras / pontuação (ex.: "/ /")
+  if (/^[\s\/\-|_.]+$/.test(nomeBruto)) return false;
+
+  if (RE_LIXO_LINHA.test(nomeBruto)) return false;
+
+  const tokens = tokensSignificativos(nomeBruto);
+  if (tokens.length === 0) return false;
+
+  const codigo = (linha.codigoBarras || "").replace(/\D/g, "");
+  const temCodigo = codigo.length >= 4;
+  const temUnidade = Boolean(linha.unidade || (linha.unidadeValor && linha.unidadeValor > 0));
+  const temSinalProduto = RE_SINAL_PRODUTO.test(nomeBruto);
+
+  // Código + nome → produto
+  if (temCodigo && tokens.length >= 1) return true;
+
+  // Nome de material + preço
+  if (temSinalProduto && tokens.length >= 1) return true;
+
+  // Pelo menos 2 tokens significativos + unidade/medida ou preço plausível de item
+  if (tokens.length >= 2 && (temUnidade || linha.valorUnitario >= 1)) {
+    // Evita "Nome Sobrenome" sem sinal de produto/código
+    const pareceNomePessoa =
+      tokens.length <= 3 &&
+      tokens.every((t) => /^[a-záàâãéêíóôõúç]+$/i.test(t)) &&
+      !temSinalProduto &&
+      !temCodigo &&
+      !temUnidade;
+    if (pareceNomePessoa) return false;
+    return true;
+  }
+
+  return false;
+}
+
+/** Remove duplicatas (mesmo código ou mesmo nome+valor). */
+export function deduplicarLinhasProduto(
+  linhas: LinhaOrcamentoLida[]
+): LinhaOrcamentoLida[] {
+  const vistas = new Set<string>();
+  const out: LinhaOrcamentoLida[] = [];
+  for (const linha of linhas) {
+    if (!linhaPareceProdutoValido(linha)) continue;
+    const cod = (linha.codigoBarras || "").replace(/\D/g, "");
+    const chave =
+      cod.length >= 4
+        ? `c:${cod}`
+        : `n:${normalizarTextoProduto(linha.nome)}|v:${linha.valorUnitario.toFixed(2)}`;
+    if (vistas.has(chave)) continue;
+    vistas.add(chave);
+    out.push(linha);
+  }
+  return out;
+}
+
 export function normalizarTextoProduto(nome: string) {
   return nome
     .toLowerCase()
@@ -359,7 +435,7 @@ export function extrairLinhasTextoHeuristico(texto: string): LinhaOrcamentoLida[
     }
   }
 
-  return candidatos;
+  return candidatos.filter(linhaPareceProdutoValido);
 }
 
 function linhaParaNovoItem(linha: LinhaOrcamentoLida): ItemOrcamento {
@@ -392,12 +468,16 @@ export function casarLinhasComItens(
   let acrescentados = 0;
   let qtdAtualizados = 0;
 
-  const ordenadas = linhas
-    .map(normalizarLinhaOrcamentoLida)
-    .filter((l) => l.nome.trim().length >= 2)
-    .sort((a, b) => b.valorUnitario - a.valorUnitario);
+  const ordenadas = deduplicarLinhasProduto(
+    linhas.map(normalizarLinhaOrcamentoLida)
+  ).sort((a, b) => b.valorUnitario - a.valorUnitario);
 
   for (const linha of ordenadas) {
+    if (!linhaPareceProdutoValido(linha)) {
+      naoEncontrados.push(linha);
+      continue;
+    }
+
     let melhorIdx = -1;
     let melhorScore = 0;
     let matchPorCodigo = false;
@@ -436,7 +516,7 @@ export function casarLinhasComItens(
       }
     }
 
-    // Produto diferente → nova linha no orçamento (não sobrescreve o cadastrado).
+    // Produto diferente e válido → nova linha; lixo já foi filtrado acima.
     if (melhorIdx < 0 || (!matchPorCodigo && melhorScore < limiar)) {
       const novo = linhaParaNovoItem(linha);
       const idxNovo = atualizados.length;
@@ -547,7 +627,7 @@ export function preencherItensComLinhas(
   resultado.fonte = fonte;
   if (resultado.matches.length === 0) {
     throw new Error(
-      "Li o arquivo, mas não consegui aplicar nenhum item ao orçamento."
+      "Li o arquivo, mas não encontrei linhas de produto válidas (nome + valor). Ignorei boletos, nomes e outros textos."
     );
   }
   return resultado;
@@ -571,7 +651,7 @@ export function mensagemResultadoLeitura(resultado: ResultadoLeituraOrcamento) {
   }
   return (
     partes.join("; ") +
-    ". Produtos com nome bem diferente viram linha nova (não substituem o cadastrado). Números e 1KG/UND vão para código/unidade, não no nome. Revise antes de enviar."
+    ". Só produtos com valor foram aplicados; boletos e textos extras foram ignorados. Revise antes de enviar."
   );
 }
 
