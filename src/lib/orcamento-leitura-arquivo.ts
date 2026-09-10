@@ -32,9 +32,10 @@ const PROMPT_EXTRACAO = [
   "Você lê orçamentos, cotações, listas de preços e notas de fornecedores (PDF, imagem ou planilha).",
   "Extraia cada linha de produto com nome limpo, quantidade, unidade, valor unitário, código e marca quando existirem.",
   "Responda SOMENTE um JSON array válido, sem markdown, no formato:",
-  '[{"nome":"Resina Autoden Rosa","quantidade":1,"unidade":"kg","valorUnitario":12.5,"codigoBarras":"23198","marca":""}]',
+  '[{"nome":"Resina Autoden Rosa","quantidade":1,"unidadeValor":1,"unidade":"kg","valorUnitario":12.5,"codigoBarras":"23198","marca":""}]',
   "Regras:",
   "- nome: SEM números soltos (ex.: 00, 23198), SEM unidade (1KG, UND, UN) e SEM quantidade.",
+  "- unidadeValor: número da medida (ex.: 1KG → 1; 500ml → 500). Vazio se não houver.",
   "- unidade: use kg, g, ml, l, cx ou un quando aparecer (ex.: 1KG → kg; UND → un).",
   "- quantidade: número da linha (ex.: UND 1 → 1). Padrão 1 se não aparecer.",
   "- codigoBarras: EAN/código/SKU se existir (senão string vazia).",
@@ -74,6 +75,7 @@ function parseJsonLinhas(texto: string): LinhaOrcamentoLida[] {
       codigoBarras: String(r.codigoBarras || r.ean || "").trim() || undefined,
       marca: String(r.marca || "").trim() || undefined,
       unidade: String(r.unidade || r.un || r.und || "").trim() || undefined,
+      unidadeValor: Number(r.unidadeValor ?? r.medida ?? r.conteudo ?? 0) || undefined,
     });
     if (!normalizada.nome || normalizada.nome.length < 2) continue;
     out.push(normalizada);
@@ -344,6 +346,9 @@ export async function extrairLinhasDePlanilha(
     const unidadePlanilha = String(
       pegar("unidade", "un", "und", "unid", "medida")
     ).trim();
+    const unidadeValorRaw = valorCelulaPlanilha(
+      pegar("unidadevalor", "medida", "conteudo", "tamanho", "peso", "volume")
+    );
     const marca = String(pegar("marca", "fabricante", "brand")).trim();
 
     out.push(
@@ -354,6 +359,7 @@ export async function extrairLinhasDePlanilha(
         codigoBarras: codigoBarras || undefined,
         marca: marca || undefined,
         unidade: unidadePlanilha || undefined,
+        unidadeValor: unidadeValorRaw > 0 ? unidadeValorRaw : undefined,
       })
     );
   }

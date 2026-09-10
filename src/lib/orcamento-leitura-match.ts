@@ -12,6 +12,8 @@ export type LinhaOrcamentoLida = {
   marca?: string;
   /** Unidade já normalizada (kg, un, ml…). */
   unidade?: string;
+  /** Valor numérico da medida (500 em 500ml, 1 em 1kg). */
+  unidadeValor?: number;
 };
 
 export type MatchOrcamentoLeitura = {
@@ -153,6 +155,7 @@ function mapearUnidadeCurta(raw: string) {
 export function limparDescricaoProdutoArquivo(raw: string): {
   nome: string;
   unidade?: string;
+  unidadeValor?: number;
   quantidade?: number;
   codigoBarras?: string;
 } {
@@ -161,6 +164,7 @@ export function limparDescricaoProdutoArquivo(raw: string): {
 
   let quantidade: number | undefined;
   let unidadeCurta: string | undefined;
+  let unidadeValor: number | undefined;
   let codigoBarras: string | undefined;
 
   const codRotulo = s.match(
@@ -189,13 +193,17 @@ export function limparDescricaoProdutoArquivo(raw: string): {
     s = s.replace(/\s+/g, " ").trim();
   }
 
-  // 1KG / 1 KG / 500 ml / KG — prioriza peso/volume na unidade
+  // 1KG / 1 KG / 500 ml / KG — valor da medida + unidade
   const pesoVol = s.match(
     /\b(\d+(?:[.,]\d+)?)\s*(kg|g|gr|ml|l|lt|cx)\b|\b(kg|g|gr|ml|l|lt|cx)\b/i
   );
   if (pesoVol) {
     const u = mapearUnidadeCurta(pesoVol[2] || pesoVol[3] || "");
     if (u) unidadeCurta = u;
+    if (pesoVol[1]) {
+      const n = Number(String(pesoVol[1]).replace(",", "."));
+      if (Number.isFinite(n) && n > 0) unidadeValor = n;
+    }
     s = s.replace(pesoVol[0], " ").replace(/\s+/g, " ").trim();
   }
 
@@ -228,6 +236,7 @@ export function limparDescricaoProdutoArquivo(raw: string): {
     unidade: unidadeCurta
       ? normalizarUnidadeMedida(unidadeCurta)
       : undefined,
+    unidadeValor,
     quantidade,
     codigoBarras,
   };
@@ -242,10 +251,17 @@ export function normalizarLinhaOrcamentoLida(
     linha.unidade?.trim()
       ? normalizarUnidadeMedida(linha.unidade)
       : limpo.unidade;
+  const unidadeValor =
+    linha.unidadeValor && linha.unidadeValor > 0
+      ? linha.unidadeValor
+      : limpo.unidadeValor && limpo.unidadeValor > 0
+        ? limpo.unidadeValor
+        : undefined;
   return {
     ...linha,
     nome: limpo.nome || linha.nome.trim(),
     unidade: unidade || undefined,
+    unidadeValor,
     quantidade:
       linha.quantidade && linha.quantidade > 0
         ? linha.quantidade
@@ -354,6 +370,10 @@ function linhaParaNovoItem(linha: LinhaOrcamentoLida): ItemOrcamento {
     marca: linha.marca || "",
     codigoBarras: linha.codigoBarras || "",
     unidade: linha.unidade || UNIDADE_MEDIDA_PADRAO,
+    unidadeValor:
+      linha.unidadeValor && linha.unidadeValor > 0
+        ? linha.unidadeValor
+        : undefined,
     quantidade:
       linha.quantidade && linha.quantidade > 0 ? linha.quantidade : 1,
     valorUnitario: linha.valorUnitario,
@@ -442,6 +462,9 @@ export function casarLinhasComItens(
       item.quantidade = linha.quantidade;
     }
     if (linha.unidade) item.unidade = linha.unidade;
+    if (linha.unidadeValor && linha.unidadeValor > 0) {
+      item.unidadeValor = linha.unidadeValor;
+    }
     if (linha.codigoBarras?.trim()) {
       item.codigoBarras = linha.codigoBarras.trim();
     }

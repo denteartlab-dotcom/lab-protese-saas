@@ -15,9 +15,9 @@ import { mensagemSolicitarOrcamento, orcamentoPublicUrl } from "@/lib/whatsapp";
 import { dispararOuAbrirWhatsapp } from "@/lib/whatsapp-disparo-cliente";
 import {
   normalizarUnidadeMedida,
+  rotuloUnidadeCurto,
   UNIDADE_MEDIDA_PADRAO,
   UNIDADES_MEDIDA,
-  unidadeEhDecimal,
 } from "@/lib/unidades-medida";
 
 export type SalvarOrcamentoPayload = {
@@ -61,6 +61,8 @@ type LinhaProduto = {
   produtoId: string;
   selecionado: boolean;
   quantidade: number;
+  /** Valor numérico da medida (ex.: 500 em 500ml). */
+  unidadeValor?: number;
   unidade: string;
 };
 
@@ -173,6 +175,7 @@ export function OrcamentoFormModal({
       produtoId: "",
       selecionado: true,
       quantidade: 1,
+      unidadeValor: undefined,
       unidade: UNIDADE_MEDIDA_PADRAO,
     };
   }
@@ -183,6 +186,7 @@ export function OrcamentoFormModal({
       produtoId: produto.id,
       selecionado,
       quantidade: 1,
+      unidadeValor: undefined,
       unidade: normalizarUnidadeMedida(produto.unidadeMedida),
     };
   }
@@ -279,6 +283,10 @@ export function OrcamentoFormModal({
             produtoId: item.produtoId,
             selecionado: true,
             quantidade: item.quantidade,
+            unidadeValor:
+              item.unidadeValor && item.unidadeValor > 0
+                ? item.unidadeValor
+                : undefined,
             unidade: normalizarUnidadeMedida(
               item.unidade || produto?.unidadeMedida
             ),
@@ -390,6 +398,20 @@ export function OrcamentoFormModal({
     );
   }
 
+  function atualizarUnidadeValor(linhaId: string, valor: string) {
+    setLinhas((atual) =>
+      atual.map((linha) => {
+        if (linha.linhaId !== linhaId) return linha;
+        if (valor.trim() === "") return { ...linha, unidadeValor: undefined };
+        const n = Number(String(valor).replace(",", "."));
+        if (!Number.isFinite(n) || n <= 0) {
+          return { ...linha, unidadeValor: undefined };
+        }
+        return { ...linha, unidadeValor: n };
+      })
+    );
+  }
+
   function atualizarQuantidade(linhaId: string, valor: string) {
     setLinhas((atual) =>
       atual.map((linha) => {
@@ -397,11 +419,7 @@ export function OrcamentoFormModal({
         if (valor === "" || valor === "-") return { ...linha, quantidade: 0 };
         const quantidade = Number(String(valor).replace(",", "."));
         if (!Number.isFinite(quantidade)) return linha;
-        const decimal = unidadeEhDecimal(linha.unidade);
-        const normalizada = decimal
-          ? Math.max(Math.round(quantidade * 1000) / 1000, 0)
-          : Math.max(Math.trunc(quantidade), 0);
-        return { ...linha, quantidade: normalizada };
+        return { ...linha, quantidade: Math.max(Math.trunc(quantidade), 0) };
       })
     );
   }
@@ -447,6 +465,10 @@ export function OrcamentoFormModal({
         unidade: normalizarUnidadeMedida(
           linha.unidade || produto.unidadeMedida
         ),
+        unidadeValor:
+          linha.unidadeValor && linha.unidadeValor > 0
+            ? linha.unidadeValor
+            : undefined,
         quantidade: linha.quantidade,
         valorUnitario: 0,
       };
@@ -627,9 +649,10 @@ export function OrcamentoFormModal({
                   <th className="w-[30%] px-2 py-2.5 text-left font-semibold uppercase">{t("estoque.orcamentos.col.nome")}</th>
                   <th className="w-[22%] px-2 py-2.5 text-left font-semibold uppercase">{t("estoque.orcamentos.col.marca")}</th>
                   <th className="w-[10%] px-2 py-2.5 text-right font-semibold uppercase">{t("estoque.orcamentos.col.estoque")}</th>
-                  <th className="w-[11%] px-2 py-2.5 text-right font-semibold uppercase">
+                  <th className="w-[10%] px-2 py-2.5 text-right font-semibold uppercase">
                     {t("estoque.orcamentos.col.quantidade")}
                   </th>
+                  <th className="w-[8%] px-1 py-2.5" aria-label="Valor da unidade" />
                   <th className="w-[12%] px-2 py-2.5 text-left font-semibold uppercase">
                     Unidade
                   </th>
@@ -639,7 +662,7 @@ export function OrcamentoFormModal({
               <tbody>
                 {linhasVisiveis.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-3 py-6 text-center text-[11px] text-slate-400">
+                    <td colSpan={9} className="px-3 py-6 text-center text-[11px] text-slate-400">
                       {linhas.length === 0 ? (
                         <span className="inline-block h-4" />
                       ) : (
@@ -725,22 +748,53 @@ export function OrcamentoFormModal({
                         <td className="px-2 py-2 text-right align-middle">
                           <input
                             type="number"
-                            min={unidadeEhDecimal(linha.unidade) ? 0.001 : 1}
-                            step={unidadeEhDecimal(linha.unidade) ? 0.001 : 1}
+                            min={1}
+                            step={1}
                             value={linha.quantidade > 0 ? linha.quantidade : ""}
                             disabled={somenteLeitura}
                             onChange={(e) =>
                               atualizarQuantidade(linha.linhaId, e.target.value)
                             }
                             onBlur={() => normalizarQuantidadeLinha(linha.linhaId)}
-                            className="ml-auto block h-8 w-full max-w-[72px] rounded-sm border border-slate-200 px-1 text-right text-[10px] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-auto [&::-webkit-outer-spin-button]:appearance-auto"
+                            className="ml-auto block h-8 w-full max-w-[64px] rounded-sm border border-slate-200 px-1 text-right text-[10px] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-auto [&::-webkit-outer-spin-button]:appearance-auto"
                             {...propsInputComSelecaoAoFocar({})}
                           />
+                        </td>
+                        <td className="px-1 py-2 text-center align-middle">
+                          {somenteLeitura ? (
+                            <span className="text-slate-600">
+                              {linha.unidadeValor && linha.unidadeValor > 0
+                                ? linha.unidadeValor
+                                : ""}
+                            </span>
+                          ) : (
+                            <input
+                              type="number"
+                              min={0}
+                              step="any"
+                              value={
+                                linha.unidadeValor && linha.unidadeValor > 0
+                                  ? linha.unidadeValor
+                                  : ""
+                              }
+                              disabled={somenteLeitura}
+                              title="Valor da unidade (ex.: 500 em 500ml)"
+                              aria-label="Valor da unidade"
+                              onChange={(e) =>
+                                atualizarUnidadeValor(
+                                  linha.linhaId,
+                                  e.target.value
+                                )
+                              }
+                              className="mx-auto block h-8 w-full max-w-[56px] rounded-sm border border-slate-200 px-1 text-center text-[10px]"
+                              {...propsInputComSelecaoAoFocar({})}
+                            />
+                          )}
                         </td>
                         <td className="px-2 py-2 align-middle">
                           {somenteLeitura ? (
                             <span className="text-slate-600">
-                              {linha.unidade || UNIDADE_MEDIDA_PADRAO}
+                              {rotuloUnidadeCurto(linha.unidade)}
                             </span>
                           ) : (
                             <div className="flex flex-col gap-1">
@@ -764,7 +818,7 @@ export function OrcamentoFormModal({
                               >
                                 {UNIDADES_MEDIDA.map((u) => (
                                   <option key={u.value} value={u.value}>
-                                    {u.value}
+                                    {rotuloUnidadeCurto(u.value)}
                                   </option>
                                 ))}
                                 <option value="__outra__">Outra…</option>

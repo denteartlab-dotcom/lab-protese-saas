@@ -14,6 +14,11 @@ export type ItemOrcamento = {
   imagemUrl?: string;
   /** Unidade de medida (g, kg, ml, L, un, cx…). */
   unidade?: string;
+  /**
+   * Valor numérico da medida (ex.: 500 em 500 ml, 1 em 1 kg).
+   * Quantidade = quantos itens; unidadeValor = tamanho/conteúdo da embalagem.
+   */
+  unidadeValor?: number;
   quantidade: number;
   valorUnitario: number;
 };

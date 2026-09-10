@@ -101,6 +101,7 @@ export function OrcamentoRespostaModal({
                   <th className="px-3 py-2 text-left font-semibold uppercase">{t("estoque.orcamentos.col.produto")}</th>
                   <th className="px-3 py-2 text-left font-semibold uppercase">{t("estoque.orcamentos.col.marca")}</th>
                   <th className="px-3 py-2 text-center font-semibold uppercase">{t("estoque.orcamentos.col.qtd")}</th>
+                  <th className="w-12 px-2 py-2" aria-label="Valor da unidade" />
                   <th className="px-3 py-2 text-center font-semibold uppercase">Unidade</th>
                   <th className="px-3 py-2 text-right font-semibold uppercase">{t("estoque.orcamentos.col.valorUnit")}</th>
                   <th className="px-3 py-2 text-right font-semibold uppercase">{t("estoque.orcamentos.col.subtotal")}</th>
@@ -126,6 +127,11 @@ export function OrcamentoRespostaModal({
                     <td className="px-3 py-2 font-medium text-slate-700">{item.produtoNome}</td>
                     <td className="px-3 py-2 text-slate-500">{item.marca || ""}</td>
                     <td className="px-3 py-2 text-center">{item.quantidade}</td>
+                    <td className="px-2 py-2 text-center text-slate-500">
+                      {item.unidadeValor && item.unidadeValor > 0
+                        ? item.unidadeValor
+                        : ""}
+                    </td>
                     <td className="px-3 py-2 text-center text-slate-500">
                       {item.unidade || "un (Unitário)"}
                     </td>
