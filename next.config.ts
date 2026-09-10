@@ -77,6 +77,10 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "310mb",
     },
+    // VPS pequena: 1 worker reduz pico de RAM no `next build`.
+    ...(process.env.NEXT_BUILD_WORKERS === "1"
+      ? { cpus: 1, workerThreads: false }
+      : {}),
   },
   ...(assetPrefix ? { assetPrefix } : {}),
   env: {

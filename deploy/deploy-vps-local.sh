@@ -54,18 +54,22 @@ npm run vps:validar
 
 echo ""
 echo "==> Build produção..."
-if command -v swapon >/dev/null 2>&1 && [[ "$(swapon --show 2>/dev/null | wc -l)" -le 0 ]]; then
-  echo "    VPS sem swap — criando antes do build..."
-  bash "$APP_DIR/deploy/garantir-swap.sh"
+# Para o app antes do build — libera RAM (crítico em VPS 1–2 GB).
+if command -v pm2 >/dev/null 2>&1; then
+  echo "    Parando PM2 temporariamente para liberar memória..."
+  pm2 stop lab-protese lab-protese-whatsapp 2>/dev/null || true
 fi
-RAM_MB="$(awk '/^Mem:/{print $2}' /proc/meminfo 2>/dev/null || echo 4096)"
-if [[ -z "${NODE_OPTIONS:-}" ]]; then
+bash "$APP_DIR/deploy/garantir-swap.sh"
+RAM_MB="$(awk '/^MemTotal:/{printf "%d", $2/1024}' /proc/meminfo 2>/dev/null || echo 2048)"
+SWAP_MB="$(awk '/^SwapTotal:/{printf "%d", $2/1024}' /proc/meminfo 2>/dev/null || echo 0)"
+if [[ -z "${NODE_OPTIONS:-}" ]] || [[ "$NODE_OPTIONS" != *max-old-space-size* ]]; then
   if [[ "$RAM_MB" -lt 2048 ]]; then
-    export NODE_OPTIONS="--max-old-space-size=1280"
+    # Precisa de swap; heap maior que a RAM física.
+    export NODE_OPTIONS="--max-old-space-size=2304"
   elif [[ "$RAM_MB" -lt 4096 ]]; then
-    export NODE_OPTIONS="--max-old-space-size=1536"
-  else
     export NODE_OPTIONS="--max-old-space-size=3072"
+  else
+    export NODE_OPTIONS="--max-old-space-size=4096"
   fi
 fi
 BUILD_ID="$(git rev-parse --short HEAD)"
@@ -73,8 +77,11 @@ echo "$BUILD_ID" > .build-id
 export NEXT_PUBLIC_APP_BUILD_ID="$BUILD_ID"
 export NODE_ENV=production
 export SKIP_TYPECHECK=1
-echo "    RAM: ${RAM_MB} MB | NODE_OPTIONS=$NODE_OPTIONS"
-echo "    SKIP_TYPECHECK=$SKIP_TYPECHECK (VPS: pula checagem de tipos no build)"
+export CLEAN_NEXT=1
+export NEXT_BUILD_WORKERS=1
+export NEXT_TELEMETRY_DISABLED=1
+echo "    RAM: ${RAM_MB} MB | Swap: ${SWAP_MB} MB | NODE_OPTIONS=$NODE_OPTIONS"
+echo "    SKIP_TYPECHECK=$SKIP_TYPECHECK | CLEAN_NEXT=$CLEAN_NEXT | NEXT_BUILD_WORKERS=$NEXT_BUILD_WORKERS"
 free -h 2>/dev/null || true
 npm run build
 echo "    buildId: $BUILD_ID"
