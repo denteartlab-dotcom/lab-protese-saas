@@ -28,5 +28,9 @@ export function SiteTopoMarca() {
   const logoHref =
     autenticado === null ? "/login" : autenticado ? "/app" : "/login";
 
-  return <AppFaixaTopo esquerda={null} direita={null} logoHref={logoHref} />;
+  return (
+    <div className="no-print">
+      <AppFaixaTopo esquerda={null} direita={null} logoHref={logoHref} />
+    </div>
+  );
 }

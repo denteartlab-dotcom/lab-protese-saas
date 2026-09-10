@@ -34,6 +34,7 @@ import {
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import { fetchPortalPublico } from "@/lib/portal-publico-cliente";
 import type { PortalPublicoPaginaOrcamento } from "@/lib/portal-publico-types";
+import { baixarExcel } from "@/lib/exportar-excel";
 import {
   normalizarUnidadeMedida,
   rotuloUnidadeCurto,
@@ -322,27 +323,46 @@ export default function OrcamentoPublicoPage() {
   const inputCelula =
     "h-8 w-full min-w-0 rounded-sm border border-slate-200 px-2 text-[10px] disabled:bg-slate-50";
 
-  function exportarExcel() {
-    const linhas = [
-      ["Cod Barras", "Produto", "Marca", "Qtd", "Unidade", "Valor Unit.", "Subtotal"],
-      ...itens.map((item) => [
-        item.codigoBarras || "",
-        item.produtoNome,
-        item.marca || "",
-        String(item.quantidade),
-        item.unidade || UNIDADE_MEDIDA_PADRAO,
-        String(item.valorUnitario),
-        String(item.quantidade * item.valorUnitario),
-      ]),
-    ];
-    const csv = linhas.map((linha) => linha.join(";")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `orcamento-pedido-${orcamento?.numeroPedido || token}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+  async function exportarExcel() {
+    try {
+      await baixarExcel(
+        `orcamento-pedido-${orcamento?.numeroPedido || token}`,
+        [
+          "Cod Barras",
+          "Produto",
+          "Marca",
+          "Qtd",
+          "Unidade",
+          "Valor Unit.",
+          "Subtotal",
+        ],
+        [
+          ...itens.map((item) => [
+            item.codigoBarras || "",
+            item.produtoNome,
+            item.marca || "",
+            item.quantidade,
+            item.unidade || UNIDADE_MEDIDA_PADRAO,
+            Number(item.valorUnitario.toFixed(2)),
+            Number((item.quantidade * item.valorUnitario).toFixed(2)),
+          ]),
+          [],
+          ["", "", "", "", "", "Valor Total", Number(subtotal.toFixed(2))],
+          [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "Total Líquido",
+            Number(totalLiquido.toFixed(2)),
+          ],
+        ],
+        { nomeAba: "Orcamento", colunasTexto: [0] }
+      );
+    } catch {
+      alert("Não foi possível gerar o Excel. Tente novamente.");
+    }
   }
 
   async function enviarResposta() {
@@ -477,6 +497,9 @@ export default function OrcamentoPublicoPage() {
       const ehImagem =
         file.type.startsWith("image/") ||
         /\.(png|jpe?g|webp|gif|bmp)$/i.test(file.name);
+      const ehPlanilha =
+        /\.(xlsx|xls|csv)$/i.test(file.name) ||
+        /sheet|excel|csv/i.test(file.type || "");
 
       let textoCliente = "";
       if (ehPdf) {
@@ -489,17 +512,17 @@ export default function OrcamentoPublicoPage() {
         }
       }
 
-      if (textoCliente.trim().length > 10) {
+      if (!ehPlanilha && textoCliente.trim().length > 10) {
         try {
           const local = preencherItensComTexto(itens, textoCliente);
           setItens(local.itens);
           const semMatch = local.naoEncontrados.length;
           setMsgArquivo(
-            `Preenchemos ${local.matches.length} item(ns) com base no arquivo.` +
+            `Atualizamos ${local.matches.length} item(ns) com nome, marca, código, quantidade e valores do arquivo.` +
               (semMatch > 0
                 ? ` ${semMatch} linha(s) não bateram com produtos do pedido.`
                 : "") +
-              " Revise valores antes de enviar."
+              " Revise antes de enviar."
           );
           return;
         } catch (err) {
@@ -537,7 +560,13 @@ export default function OrcamentoPublicoPage() {
               texto: textoCliente,
               mimeType:
                 file.type ||
-                (ehPdf ? "application/pdf" : ehImagem ? "image/jpeg" : "application/octet-stream"),
+                (ehPdf
+                  ? "application/pdf"
+                  : ehPlanilha
+                    ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    : ehImagem
+                      ? "image/jpeg"
+                      : "application/octet-stream"),
               base64,
               nomeArquivo: file.name,
             }),
@@ -583,11 +612,12 @@ export default function OrcamentoPublicoPage() {
       const qtd = json.matches?.length ?? 0;
       const semMatch = json.naoEncontrados?.length ?? 0;
       setMsgArquivo(
-        (json.mensagem || `Preenchemos ${qtd} item(ns) automaticamente.`) +
+        (json.mensagem ||
+          `Atualizamos ${qtd} item(ns) com os dados do arquivo.`) +
           (semMatch > 0
             ? ` ${semMatch} linha(s) do arquivo não bateram com produtos do pedido.`
             : "") +
-          " Revise valores e nomes antes de enviar."
+          " Nome, marca, código e quantidade do fornecedor substituem os do pedido quando encontrados. Revise antes de enviar."
       );
     } catch (err) {
       const msg =
@@ -629,11 +659,11 @@ export default function OrcamentoPublicoPage() {
   return (
     <div className="min-h-screen bg-[#f3f4f6] py-6 print:bg-white print:py-0">
       <div className="mx-auto max-w-5xl px-4 print:max-w-none print:px-0">
-        <div className="mb-4 flex items-center justify-end print:hidden">
+        <div className="mb-4 flex items-center justify-end no-print">
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={exportarExcel}
+              onClick={() => void exportarExcel()}
               className="inline-flex h-8 items-center gap-1 rounded border border-slate-300 bg-white px-3 text-[11px] text-slate-600 hover:bg-slate-50"
             >
               <FileSpreadsheet className="h-3.5 w-3.5" />
@@ -650,7 +680,7 @@ export default function OrcamentoPublicoPage() {
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm print:border-0 print:shadow-none">
+        <div className="print-area overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm print:overflow-visible print:border-0 print:shadow-none">
           <div className="hidden border-b border-slate-100 py-6 text-center print:block">
             <img
               src="/images/lab-protese-logo.png"
@@ -686,8 +716,8 @@ export default function OrcamentoPublicoPage() {
             </div>
           </div>
 
-          <div className="overflow-x-auto px-5 py-4">
-            <div className="mb-3 flex flex-wrap items-end gap-3">
+          <div className="overflow-x-auto px-5 py-4 print:overflow-visible">
+            <div className="mb-3 flex flex-wrap items-end gap-3 no-print">
               {!somenteLeitura && (
                 <button
                   type="button"
@@ -719,11 +749,11 @@ export default function OrcamentoPublicoPage() {
                 </div>
               </div>
             </div>
-            <table className="w-full min-w-[760px] text-[10px]">
+            <table className="w-full min-w-[760px] text-[10px] print:min-w-0">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50 text-slate-500">
                   {!somenteLeitura && (
-                    <th className="w-9 px-2 py-2 text-center">
+                    <th className="w-9 px-2 py-2 text-center no-print">
                       <input
                         type="checkbox"
                         checked={
@@ -744,7 +774,9 @@ export default function OrcamentoPublicoPage() {
                       />
                     </th>
                   )}
-                  <th className="w-16 px-2 py-2 text-center font-semibold uppercase">Foto</th>
+                  <th className="w-16 px-2 py-2 text-center font-semibold uppercase no-print">
+                    Foto
+                  </th>
                   <th className="px-2 py-2 text-left font-semibold uppercase">Cod Barras</th>
                   <th className="px-2 py-2 text-left font-semibold uppercase">Produto</th>
                   <th className="px-2 py-2 text-left font-semibold uppercase">Marca</th>
@@ -754,14 +786,16 @@ export default function OrcamentoPublicoPage() {
                     Valor Unitário
                   </th>
                   <th className="px-2 py-2 text-right font-semibold uppercase">Subtotal</th>
-                  {!somenteLeitura && <th className="w-9 px-1 py-2" aria-label="Excluir" />}
+                  {!somenteLeitura && (
+                    <th className="w-9 px-1 py-2 no-print" aria-label="Excluir" />
+                  )}
                 </tr>
               </thead>
               <tbody>
                 {itensVisiveis.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={somenteLeitura ? 8 : 10}
+                      colSpan={somenteLeitura ? 7 : 10}
                       className="px-3 py-8 text-center text-[11px] text-slate-400"
                     >
                       {itens.length === 0
@@ -778,7 +812,7 @@ export default function OrcamentoPublicoPage() {
                     }`}
                   >
                     {!somenteLeitura && (
-                      <td className="px-2 py-2 text-center">
+                      <td className="px-2 py-2 text-center no-print">
                         <input
                           type="checkbox"
                           checked={selecionados.has(index)}
@@ -788,7 +822,7 @@ export default function OrcamentoPublicoPage() {
                         />
                       </td>
                     )}
-                    <td className="px-2 py-2 text-center">
+                    <td className="px-2 py-2 text-center no-print">
                       {somenteLeitura ? (
                         <div className="mx-auto flex h-14 w-14 items-center justify-center overflow-hidden rounded border border-slate-200 bg-slate-50">
                           {item.imagemUrl ? (
@@ -979,7 +1013,7 @@ export default function OrcamentoPublicoPage() {
                       {formatCurrency(item.quantidade * item.valorUnitario)}
                     </td>
                     {!somenteLeitura && (
-                      <td className="px-1 py-2 text-center">
+                      <td className="px-1 py-2 text-center no-print">
                         <button
                           type="button"
                           onClick={() => excluirLinha(index)}
@@ -1260,7 +1294,7 @@ export default function OrcamentoPublicoPage() {
           </div>
 
           {!somenteLeitura && (
-            <div className="grid gap-3 border-t border-slate-100 px-5 py-4 md:grid-cols-2 print:hidden">
+            <div className="grid gap-3 border-t border-slate-100 px-5 py-4 md:grid-cols-2 no-print">
               <button
                 type="button"
                 disabled={enviando || lendoArquivo}
@@ -1275,14 +1309,14 @@ export default function OrcamentoPublicoPage() {
                   "inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded border border-slate-300 bg-white text-[12px] text-slate-600 hover:bg-slate-50",
                   (enviando || lendoArquivo) && "pointer-events-none opacity-60"
                 )}
-                title="Envie PDF ou imagem da cotação para preencher valores automaticamente"
+                title="Envie PDF, imagem ou Excel da cotação para preencher valores automaticamente"
               >
                 <Upload className="h-4 w-4" />
                 {lendoArquivo ? "Lendo arquivo..." : "Upload Arquivo"}
                 <input
                   ref={inputArquivoOrcamentoRef}
                   type="file"
-                  accept="application/pdf,image/*,.pdf,.png,.jpg,.jpeg,.webp"
+                  accept="application/pdf,image/*,.pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
                   className="sr-only"
                   disabled={enviando || lendoArquivo}
                   onChange={(e) =>
@@ -1291,9 +1325,9 @@ export default function OrcamentoPublicoPage() {
                 />
               </label>
               <p className="md:col-span-2 text-[10px] text-slate-500">
-                No Upload Arquivo, envie o PDF ou a imagem da cotação do fornecedor. O
-                sistema lê os produtos e valores e preenche os itens do pedido pelos
-                nomes mais parecidos com o cadastro do laboratório.
+                No Upload Arquivo, envie PDF, imagem ou Excel da cotação do fornecedor.
+                O sistema lê código, quantidade, nome, marca e valores e substitui os
+                dados do pedido pelos do arquivo (mesmo com nomes/marcas diferentes).
               </p>
               {msgArquivo ? (
                 <p className="md:col-span-2 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] text-emerald-800">
@@ -1320,7 +1354,7 @@ export default function OrcamentoPublicoPage() {
 
       {itemFotoModal && fotoModalIndex != null && !somenteLeitura ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 print:hidden"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 no-print"
           onClick={fecharModalFoto}
         >
           <div

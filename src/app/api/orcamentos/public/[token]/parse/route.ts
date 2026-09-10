@@ -94,7 +94,7 @@ export async function POST(request: Request, { params }: Params) {
         matches: resultado.matches,
         naoEncontrados: resultado.naoEncontrados,
         fonte: resultado.fonte,
-        mensagem: `Preenchemos ${resultado.matches.length} item(ns) com base no arquivo.`,
+        mensagem: `Atualizamos ${resultado.matches.length} item(ns) com nome, marca, código, quantidade e valores do arquivo.`,
       });
     }
 
@@ -135,7 +135,7 @@ export async function POST(request: Request, { params }: Params) {
       matches: resultado.matches,
       naoEncontrados: resultado.naoEncontrados,
       fonte: resultado.fonte,
-      mensagem: `Preenchemos ${resultado.matches.length} item(ns) com base no arquivo.`,
+      mensagem: `Atualizamos ${resultado.matches.length} item(ns) com nome, marca, código, quantidade e valores do arquivo.`,
     });
   } catch (err) {
     console.error("POST /api/orcamentos/public/[token]/parse", err);

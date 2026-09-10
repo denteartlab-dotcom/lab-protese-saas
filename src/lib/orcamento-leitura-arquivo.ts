@@ -25,15 +25,17 @@ export {
 } from "@/lib/orcamento-leitura-match";
 
 const PROMPT_EXTRACAO = [
-  "Você lê orçamentos, cotações, listas de preços e notas de fornecedores (PDF ou imagem).",
-  "Extraia cada linha de produto com nome e valor unitário em reais (BRL).",
+  "Você lê orçamentos, cotações, listas de preços e notas de fornecedores (PDF, imagem ou planilha).",
+  "Extraia cada linha de produto com nome, quantidade, valor unitário, código e marca quando existirem.",
   "Responda SOMENTE um JSON array válido, sem markdown, no formato:",
-  '[{"nome":"texto do produto","quantidade":1,"valorUnitario":12.5,"codigoBarras":"","marca":""}]',
+  '[{"nome":"texto do produto","quantidade":1,"valorUnitario":12.5,"codigoBarras":"789123","marca":"Marca"}]',
   "Regras:",
   "- valorUnitario é número (use ponto decimal). Se só houver total da linha e quantidade, calcule o unitário.",
-  "- quantidade padrão 1 se não aparecer.",
+  "- quantidade: leia a quantidade do documento; use 1 só se não aparecer.",
+  "- codigoBarras: leia EAN/código/SKU/referência se existir (senão string vazia).",
+  "- marca: leia a marca do fornecedor se existir (senão string vazia).",
+  "- Mantenha o nome EXATAMENTE como aparece no documento do fornecedor (não invente nem use o nome do laboratório).",
   "- Ignore totais gerais, frete, impostos e cabeçalhos sem produto.",
-  "- Mantenha o nome como aparece no documento (não invente).",
 ].join("\n");
 
 function parseJsonLinhas(texto: string): LinhaOrcamentoLida[] {
@@ -238,6 +240,124 @@ function toBase64(buffer: ArrayBuffer) {
   return Buffer.from(buffer).toString("base64");
 }
 
+function valorCelulaPlanilha(raw: unknown): number {
+  if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+  const s = String(raw ?? "")
+    .replace(/R\$\s?/gi, "")
+    .trim();
+  if (!s) return 0;
+  const limpo = s
+    .replace(/[^\d,.-]/g, "")
+    .replace(/\.(?=\d{3}(?:\D|$))/g, "")
+    .replace(",", ".");
+  const n = Number(limpo);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function chaveColunaPlanilha(chave: string) {
+  return chave
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "");
+}
+
+/** Lê linhas de Excel/CSV do fornecedor (código, nome, marca, qtd, valor). */
+export async function extrairLinhasDePlanilha(
+  buffer: ArrayBuffer | Uint8Array | Buffer
+): Promise<LinhaOrcamentoLida[]> {
+  const XLSX = await import("xlsx");
+  const wb = XLSX.read(buffer, {
+    type: Buffer.isBuffer(buffer) ? "buffer" : "array",
+  });
+  const nomeAba = wb.SheetNames[0];
+  if (!nomeAba) return [];
+  const sheet = wb.Sheets[nomeAba];
+  if (!sheet) return [];
+  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
+    defval: "",
+  });
+  const out: LinhaOrcamentoLida[] = [];
+
+  for (const row of rows) {
+    const mapa = new Map<string, unknown>();
+    for (const [k, v] of Object.entries(row)) {
+      mapa.set(chaveColunaPlanilha(k), v);
+    }
+    const pegar = (...chaves: string[]) => {
+      for (const c of chaves) {
+        const v = mapa.get(chaveColunaPlanilha(c));
+        if (v != null && String(v).trim() !== "") return v;
+      }
+      return "";
+    };
+
+    const nome = String(
+      pegar(
+        "nome",
+        "produto",
+        "descricao",
+        "desc",
+        "item",
+        "mercadoria",
+        "produto nome",
+        "produtonome"
+      )
+    ).trim();
+    const valorUnitario = valorCelulaPlanilha(
+      pegar(
+        "valorunitario",
+        "preco",
+        "preco unitario",
+        "precounitario",
+        "valor",
+        "vlrunit",
+        "unitario",
+        "vlr"
+      )
+    );
+    if (!nome || !(valorUnitario > 0)) continue;
+
+    const quantidadeRaw = valorCelulaPlanilha(
+      pegar("quantidade", "qtd", "qtde", "quant", "qty")
+    );
+    const codigoBarras = String(
+      pegar(
+        "codigobarras",
+        "codigo",
+        "cod",
+        "ean",
+        "sku",
+        "referencia",
+        "ref",
+        "barras"
+      )
+    ).trim();
+    const marca = String(pegar("marca", "fabricante", "brand")).trim();
+
+    out.push({
+      nome,
+      valorUnitario,
+      quantidade: quantidadeRaw > 0 ? quantidadeRaw : 1,
+      codigoBarras: codigoBarras || undefined,
+      marca: marca || undefined,
+    });
+  }
+
+  return out;
+}
+
+function ehPlanilha(mime: string, nomeArquivo?: string) {
+  const mimeL = (mime || "").toLowerCase();
+  const nome = (nomeArquivo || "").toLowerCase();
+  return (
+    mimeL.includes("sheet") ||
+    mimeL.includes("excel") ||
+    mimeL === "text/csv" ||
+    /\.(xlsx|xls|csv)$/i.test(nome)
+  );
+}
+
 function consolidarLinhas(
   ia: LinhaOrcamentoLida[] | null,
   heuristicas: LinhaOrcamentoLida[]
@@ -280,6 +400,14 @@ export async function lerPayloadOrcamento(params: {
       : "image/jpeg");
   const base64 = params.base64 || "";
 
+  if (ehPlanilha(mime, params.nomeArquivo) && base64) {
+    const buffer = Buffer.from(base64, "base64");
+    const linhasPlanilha = await extrairLinhasDePlanilha(buffer);
+    if (linhasPlanilha.length > 0) {
+      return preencherItensComLinhas(itens, linhasPlanilha, "texto");
+    }
+  }
+
   const heuristicas = textoPdf ? extrairLinhasTextoHeuristico(textoPdf) : [];
   const ia =
     base64 || textoPdf.length > 40
@@ -302,9 +430,18 @@ export async function lerArquivoEPreencherItens(
     file.type ||
     (file.name.toLowerCase().endsWith(".pdf")
       ? "application/pdf"
-      : "image/jpeg");
+      : file.name.toLowerCase().match(/\.(xlsx|xls|csv)$/)
+        ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        : "image/jpeg");
   const buffer = await file.arrayBuffer();
   const base64 = toBase64(buffer);
+
+  if (ehPlanilha(mime, file.name)) {
+    const linhasPlanilha = await extrairLinhasDePlanilha(buffer);
+    if (linhasPlanilha.length > 0) {
+      return preencherItensComLinhas(itens, linhasPlanilha, "texto");
+    }
+  }
 
   let textoPdf = (textoExtraido || "").trim();
   if (

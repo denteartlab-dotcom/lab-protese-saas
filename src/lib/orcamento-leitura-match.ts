@@ -112,6 +112,32 @@ function moedaParaNumero(raw: string) {
   return Number.isFinite(n) ? n : 0;
 }
 
+function extrairCodigoBarrasLinha(linha: string) {
+  const m =
+    linha.match(
+      /(?:cod(?:igo)?(?:\s*de)?\s*barras?|ean|sku|ref\.?|c[oó]d\.?)[:\s#]*(\d{6,14})/i
+    ) || linha.match(/\b(\d{8,14})\b/);
+  return m?.[1]?.trim() || undefined;
+}
+
+function extrairQuantidadeLinha(linha: string) {
+  const m =
+    linha.match(/(?:qtd|qtde|quant(?:idade)?)[:\s]*(\d+(?:[.,]\d+)?)/i) ||
+    linha.match(
+      /(?:^|\s)(\d+(?:[.,]\d+)?)\s*(?:un|und|cx|pcs?|kg|g|ml|l|lt|gr)\b/i
+    );
+  if (!m?.[1]) return undefined;
+  const n = Number(String(m[1]).replace(",", "."));
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+}
+
+function extrairMarcaLinha(linha: string) {
+  const m = linha.match(
+    /(?:marca|fabricante)[:\s]+([A-Za-zÀ-ÿ0-9][\wÀ-ÿ.\-\s]{1,40})/i
+  );
+  return m?.[1]?.trim() || undefined;
+}
+
 /** Heurística: linhas com nome + valor monetário no texto do PDF. */
 export function extrairLinhasTextoHeuristico(texto: string): LinhaOrcamentoLida[] {
   const linhas = texto
@@ -130,21 +156,30 @@ export function extrairLinhasTextoHeuristico(texto: string): LinhaOrcamentoLida[
     const valorUnitario = moedaParaNumero(m[1]);
     if (!(valorUnitario > 0)) continue;
     let nome = linha.slice(0, m.index).trim();
+    const codigoBarras = extrairCodigoBarrasLinha(linha);
+    const quantidade = extrairQuantidadeLinha(linha) ?? 1;
+    const marca = extrairMarcaLinha(linha);
+    if (codigoBarras) {
+      nome = nome.replace(new RegExp(`\\b${codigoBarras}\\b`), " ").trim();
+    }
     nome = nome
       .replace(/^\d+[\).\-\s]+/, "")
-      .replace(/\b\d+([.,]\d+)?\s*(un|und|cx|kg|g|ml|lt|pcs?)?\s*$/i, "")
+      .replace(/\b\d+([.,]\d+)?\s*(?:un|und|cx|kg|g|ml|lt|pcs?|gr)?\s*$/i, "")
+      .replace(/(?:cod(?:igo)?(?:\s*de)?\s*barras?|ean|sku|ref\.?)[:\s#]*/gi, "")
+      .replace(/(?:qtd|qtde|quant(?:idade)?)[:\s]*\d+(?:[.,]\d+)?/gi, "")
+      .replace(
+        /(?:marca|fabricante)[:\s]+[A-Za-zÀ-ÿ0-9][\wÀ-ÿ.\-\s]{1,40}/gi,
+        ""
+      )
+      .replace(/\s+/g, " ")
       .trim();
     if (nome.length < 3) continue;
-    const qtdMatch = linha.match(
-      /(?:^|\s)(\d+(?:[.,]\d+)?)\s*(?:un|und|cx|pcs?|qtd|quant)\b/i
-    );
-    const quantidade = qtdMatch
-      ? Number(String(qtdMatch[1]).replace(",", "."))
-      : 1;
     candidatos.push({
       nome,
       valorUnitario,
       quantidade: Number.isFinite(quantidade) && quantidade > 0 ? quantidade : 1,
+      codigoBarras,
+      marca,
     });
   }
 
@@ -154,11 +189,18 @@ export function extrairLinhasTextoHeuristico(texto: string): LinhaOrcamentoLida[
       /([A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9\s\/\-\.%]{2,80}?)\s+(?:R\$\s*)?(\d{1,3}(?:\.\d{3})*,\d{2})/g;
     let m: RegExpExecArray | null;
     while ((m = re.exec(flat)) !== null) {
+      const trecho = m[0];
       const nome = m[1].trim();
       const valorUnitario = moedaParaNumero(m[2]);
       if (nome.length < 3 || !(valorUnitario > 0)) continue;
       if (/total|subtotal|desconto|frete/i.test(nome)) continue;
-      candidatos.push({ nome, valorUnitario, quantidade: 1 });
+      candidatos.push({
+        nome,
+        valorUnitario,
+        quantidade: extrairQuantidadeLinha(trecho) ?? 1,
+        codigoBarras: extrairCodigoBarrasLinha(trecho),
+        marca: extrairMarcaLinha(trecho),
+      });
     }
   }
 
@@ -216,17 +258,20 @@ export function casarLinhasComItens(
 
     usados.add(melhorIdx);
     const item = atualizados[melhorIdx]!;
+    const nomeSistema = item.produtoNome;
+    // Substitui pelos dados do arquivo do fornecedor (nome/marca/código/qtd/preço).
     item.valorUnitario = linha.valorUnitario;
-    if (linha.quantidade && linha.quantidade > 0 && item.quantidade <= 0) {
-      item.quantidade = linha.quantidade;
+    if (linha.nome?.trim()) item.produtoNome = linha.nome.trim();
+    if (linha.marca?.trim()) item.marca = linha.marca.trim();
+    if (linha.codigoBarras?.trim()) {
+      item.codigoBarras = linha.codigoBarras.trim();
     }
-    if (linha.marca && !item.marca?.trim()) item.marca = linha.marca;
-    if (linha.codigoBarras && !item.codigoBarras?.trim()) {
-      item.codigoBarras = linha.codigoBarras;
+    if (linha.quantidade && linha.quantidade > 0) {
+      item.quantidade = linha.quantidade;
     }
     matches.push({
       indiceItem: melhorIdx,
-      produtoNomeSistema: item.produtoNome,
+      produtoNomeSistema: nomeSistema,
       nomeArquivo: linha.nome,
       score: melhorScore,
       valorUnitario: linha.valorUnitario,
@@ -254,9 +299,15 @@ export function validarArquivoOrcamento(file: {
   const okMime =
     mime === "application/pdf" ||
     mime.startsWith("image/") ||
+    mime.includes("sheet") ||
+    mime.includes("excel") ||
+    mime === "text/csv" ||
     nome.endsWith(".pdf") ||
-    /\.(png|jpe?g|webp|gif|bmp)$/i.test(nome);
-  if (!okMime) return "Envie um PDF ou imagem (JPG, PNG, WEBP).";
+    /\.(png|jpe?g|webp|gif|bmp)$/i.test(nome) ||
+    /\.(xlsx|xls|csv)$/i.test(nome);
+  if (!okMime) {
+    return "Envie PDF, imagem (JPG, PNG, WEBP) ou planilha (Excel/CSV).";
+  }
   return null;
 }
 
