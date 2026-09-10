@@ -483,6 +483,7 @@ export default function OrcamentoPublicoPage() {
         preencherItensComTexto,
         casarLinhasComItens,
         extrairLinhasTextoHeuristico,
+        mensagemResultadoLeitura,
       } = await import("@/lib/orcamento-leitura-match");
 
       const erroValidacao = validarArquivoOrcamento(file);
@@ -516,14 +517,7 @@ export default function OrcamentoPublicoPage() {
         try {
           const local = preencherItensComTexto(itens, textoCliente);
           setItens(local.itens);
-          const semMatch = local.naoEncontrados.length;
-          setMsgArquivo(
-            `Atualizamos ${local.matches.length} item(ns) com nome, marca, código, quantidade e valores do arquivo.` +
-              (semMatch > 0
-                ? ` ${semMatch} linha(s) não bateram com produtos do pedido.`
-                : "") +
-              " Revise antes de enviar."
-          );
+          setMsgArquivo(mensagemResultadoLeitura(local));
           return;
         } catch (err) {
           // Continua para API se heurística local não casar
@@ -590,9 +584,7 @@ export default function OrcamentoPublicoPage() {
             const local = casarLinhasComItens(itens, linhas);
             if (local.matches.length > 0) {
               setItens(local.itens);
-              setMsgArquivo(
-                `Preenchemos ${local.matches.length} item(ns) com o texto do PDF. Revise valores antes de enviar.`
-              );
+              setMsgArquivo(mensagemResultadoLeitura(local));
               return;
             }
           }
@@ -609,15 +601,9 @@ export default function OrcamentoPublicoPage() {
         throw new Error("Resposta inválida da leitura do arquivo.");
       }
       setItens(json.itens);
-      const qtd = json.matches?.length ?? 0;
-      const semMatch = json.naoEncontrados?.length ?? 0;
       setMsgArquivo(
-        (json.mensagem ||
-          `Atualizamos ${qtd} item(ns) com os dados do arquivo.`) +
-          (semMatch > 0
-            ? ` ${semMatch} linha(s) do arquivo não bateram com produtos do pedido.`
-            : "") +
-          " Nome, marca, código e quantidade do fornecedor substituem os do pedido quando encontrados. Revise antes de enviar."
+        json.mensagem ||
+          `Aplicamos ${(json.matches?.length ?? 0)} item(ns) do arquivo. Revise antes de enviar.`
       );
     } catch (err) {
       const msg =
@@ -1325,9 +1311,10 @@ export default function OrcamentoPublicoPage() {
                 />
               </label>
               <p className="md:col-span-2 text-[10px] text-slate-500">
-                No Upload Arquivo, envie PDF, imagem ou Excel da cotação do fornecedor.
-                O sistema lê código, quantidade, nome, marca e valores e substitui os
-                dados do pedido pelos do arquivo (mesmo com nomes/marcas diferentes).
+                No Upload Arquivo, envie PDF, imagem ou Excel da cotação. Itens com
+                nome bem parecido atualizam preço/qtd/unidade; produtos diferentes
+                viram linha nova. Números e textos como 1KG/UND vão para código e
+                unidade, não ficam no nome.
               </p>
               {msgArquivo ? (
                 <p className="md:col-span-2 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] text-emerald-800">

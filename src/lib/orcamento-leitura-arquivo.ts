@@ -1,6 +1,7 @@
 import type { ItemOrcamento } from "@/lib/orcamentos-types";
 import {
   extrairLinhasTextoHeuristico,
+  normalizarLinhaOrcamentoLida,
   normalizarTextoProduto,
   preencherItensComLinhas,
   validarArquivoOrcamento,
@@ -17,6 +18,9 @@ export type {
 export {
   casarLinhasComItens,
   extrairLinhasTextoHeuristico,
+  limparDescricaoProdutoArquivo,
+  mensagemResultadoLeitura,
+  normalizarLinhaOrcamentoLida,
   normalizarTextoProduto,
   preencherItensComLinhas,
   preencherItensComTexto,
@@ -26,15 +30,16 @@ export {
 
 const PROMPT_EXTRACAO = [
   "Você lê orçamentos, cotações, listas de preços e notas de fornecedores (PDF, imagem ou planilha).",
-  "Extraia cada linha de produto com nome, quantidade, valor unitário, código e marca quando existirem.",
+  "Extraia cada linha de produto com nome limpo, quantidade, unidade, valor unitário, código e marca quando existirem.",
   "Responda SOMENTE um JSON array válido, sem markdown, no formato:",
-  '[{"nome":"texto do produto","quantidade":1,"valorUnitario":12.5,"codigoBarras":"789123","marca":"Marca"}]',
+  '[{"nome":"Resina Autoden Rosa","quantidade":1,"unidade":"kg","valorUnitario":12.5,"codigoBarras":"23198","marca":""}]',
   "Regras:",
-  "- valorUnitario é número (use ponto decimal). Se só houver total da linha e quantidade, calcule o unitário.",
-  "- quantidade: leia a quantidade do documento; use 1 só se não aparecer.",
-  "- codigoBarras: leia EAN/código/SKU/referência se existir (senão string vazia).",
-  "- marca: leia a marca do fornecedor se existir (senão string vazia).",
-  "- Mantenha o nome EXATAMENTE como aparece no documento do fornecedor (não invente nem use o nome do laboratório).",
+  "- nome: SEM números soltos (ex.: 00, 23198), SEM unidade (1KG, UND, UN) e SEM quantidade.",
+  "- unidade: use kg, g, ml, l, cx ou un quando aparecer (ex.: 1KG → kg; UND → un).",
+  "- quantidade: número da linha (ex.: UND 1 → 1). Padrão 1 se não aparecer.",
+  "- codigoBarras: EAN/código/SKU se existir (senão string vazia).",
+  "- valorUnitario é número (ponto decimal). Se só houver total e quantidade, calcule o unitário.",
+  "- marca: se existir (senão string vazia).",
   "- Ignore totais gerais, frete, impostos e cabeçalhos sem produto.",
 ].join("\n");
 
@@ -62,13 +67,16 @@ function parseJsonLinhas(texto: string): LinhaOrcamentoLida[] {
     const valorUnitario = Number(r.valorUnitario ?? r.preco ?? r.valor ?? 0);
     if (!nome || !(valorUnitario > 0)) continue;
     const quantidade = Number(r.quantidade ?? 1);
-    out.push({
+    const normalizada = normalizarLinhaOrcamentoLida({
       nome,
       valorUnitario,
       quantidade: Number.isFinite(quantidade) && quantidade > 0 ? quantidade : 1,
       codigoBarras: String(r.codigoBarras || r.ean || "").trim() || undefined,
       marca: String(r.marca || "").trim() || undefined,
+      unidade: String(r.unidade || r.un || r.und || "").trim() || undefined,
     });
+    if (!normalizada.nome || normalizada.nome.length < 2) continue;
+    out.push(normalizada);
   }
   return out;
 }
@@ -333,15 +341,21 @@ export async function extrairLinhasDePlanilha(
         "barras"
       )
     ).trim();
+    const unidadePlanilha = String(
+      pegar("unidade", "un", "und", "unid", "medida")
+    ).trim();
     const marca = String(pegar("marca", "fabricante", "brand")).trim();
 
-    out.push({
-      nome,
-      valorUnitario,
-      quantidade: quantidadeRaw > 0 ? quantidadeRaw : 1,
-      codigoBarras: codigoBarras || undefined,
-      marca: marca || undefined,
-    });
+    out.push(
+      normalizarLinhaOrcamentoLida({
+        nome,
+        valorUnitario,
+        quantidade: quantidadeRaw > 0 ? quantidadeRaw : 1,
+        codigoBarras: codigoBarras || undefined,
+        marca: marca || undefined,
+        unidade: unidadePlanilha || undefined,
+      })
+    );
   }
 
   return out;

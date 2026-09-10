@@ -5,6 +5,7 @@ import { linkOrcamentoAtivo, type ItemOrcamento } from "@/lib/orcamentos-types";
 import {
   lerArquivoEPreencherItens,
   lerPayloadOrcamento,
+  mensagemResultadoLeitura,
   validarArquivoOrcamento,
 } from "@/lib/orcamento-leitura-arquivo";
 
@@ -94,7 +95,9 @@ export async function POST(request: Request, { params }: Params) {
         matches: resultado.matches,
         naoEncontrados: resultado.naoEncontrados,
         fonte: resultado.fonte,
-        mensagem: `Atualizamos ${resultado.matches.length} item(ns) com nome, marca, código, quantidade e valores do arquivo.`,
+        acrescentados: resultado.acrescentados,
+        atualizados: resultado.atualizados,
+        mensagem: mensagemResultadoLeitura(resultado),
       });
     }
 
@@ -135,7 +138,9 @@ export async function POST(request: Request, { params }: Params) {
       matches: resultado.matches,
       naoEncontrados: resultado.naoEncontrados,
       fonte: resultado.fonte,
-      mensagem: `Atualizamos ${resultado.matches.length} item(ns) com nome, marca, código, quantidade e valores do arquivo.`,
+      acrescentados: resultado.acrescentados,
+      atualizados: resultado.atualizados,
+      mensagem: mensagemResultadoLeitura(resultado),
     });
   } catch (err) {
     console.error("POST /api/orcamentos/public/[token]/parse", err);
