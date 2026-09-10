@@ -237,10 +237,37 @@ async function extrairTextoPdfBuffer(buffer: ArrayBuffer): Promise<string> {
     for (let pagina = 1; pagina <= doc.numPages; pagina++) {
       const page = await doc.getPage(pagina);
       const content = await page.getTextContent();
-      const linha = content.items
-        .map((item) => ("str" in item ? String(item.str) : ""))
-        .join(" ");
-      partes.push(linha);
+      type ItemTxt = { str: string; x: number; y: number };
+      const itens: ItemTxt[] = [];
+      for (const raw of content.items) {
+        if (!raw || typeof raw !== "object" || !("str" in raw)) continue;
+        const str = String((raw as { str?: string }).str || "").trim();
+        if (!str) continue;
+        const tr = (raw as { transform?: number[] }).transform;
+        const x = Array.isArray(tr) ? Number(tr[4] ?? 0) : 0;
+        const y = Array.isArray(tr) ? Number(tr[5] ?? 0) : 0;
+        itens.push({ str, x, y });
+      }
+      itens.sort((a, b) => b.y - a.y || a.x - b.x);
+      const linhas: string[] = [];
+      let linhaAtual: ItemTxt[] = [];
+      let yRef: number | null = null;
+      for (const item of itens) {
+        if (yRef == null || Math.abs(item.y - yRef) <= 3) {
+          linhaAtual.push(item);
+          yRef = yRef == null ? item.y : (yRef + item.y) / 2;
+        } else {
+          linhaAtual.sort((a, b) => a.x - b.x);
+          linhas.push(linhaAtual.map((i) => i.str).join(" "));
+          linhaAtual = [item];
+          yRef = item.y;
+        }
+      }
+      if (linhaAtual.length > 0) {
+        linhaAtual.sort((a, b) => a.x - b.x);
+        linhas.push(linhaAtual.map((i) => i.str).join(" "));
+      }
+      partes.push(linhas.join("\n"));
     }
     return partes.join("\n");
   } catch {
