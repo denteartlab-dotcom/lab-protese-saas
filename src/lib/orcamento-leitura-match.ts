@@ -87,8 +87,8 @@ export function linhaPareceProdutoValido(linha: LinhaOrcamentoLida): boolean {
   const temUnidade = Boolean(linha.unidade || (linha.unidadeValor && linha.unidadeValor > 0));
   const temSinalProduto = RE_SINAL_PRODUTO.test(nomeBruto);
 
-  // Código + nome → produto
-  if (temCodigo && tokens.length >= 1) return true;
+  // Código do fornecedor + valor → sempre produto (sem limite artificial)
+  if (temCodigo && tokens.length >= 1 && linha.valorUnitario > 0) return true;
 
   // Nome de material + preço
   if (temSinalProduto && tokens.length >= 1) return true;
@@ -386,7 +386,48 @@ export function extrairLinhasTabelaFornecedor(
     .map((l) => l.trim())
     .filter((l) => l.length >= 8);
 
-  const candidatos: LinhaOrcamentoLida[] = [];
+  const porCodigo = new Map<string, LinhaOrcamentoLida>();
+
+  function registrar(raw: {
+    codigo: string;
+    descricao: string;
+    undColuna: string;
+    qtd: number;
+    valorUnitario: number;
+  }) {
+    const { codigo, descricao, undColuna, qtd, valorUnitario } = raw;
+    if (!(valorUnitario > 0) || !descricao.trim()) return;
+    if (
+      /total\s*(bruto|geral)|frete|desconto|boleto|vendedor|cliente|pagamento|orçamento|codigo\s+descricao/i.test(
+        descricao
+      )
+    ) {
+      return;
+    }
+    const limpo = limparDescricaoProdutoArquivo(descricao);
+    const unidade = limpo.unidade || normalizarUnidadeMedida(undColuna);
+    const nome = limpo.nome || capitalizarNomeProduto(descricao);
+    if (!nome || nome.length < 3) return;
+
+    const linha: LinhaOrcamentoLida = {
+      nome,
+      codigoBarras: codigo,
+      quantidade: Number.isFinite(qtd) && qtd > 0 ? qtd : 1,
+      valorUnitario,
+      unidade,
+      unidadeValor: limpo.unidadeValor,
+      marca: descricao.match(
+        /\b(lysanda|wilson|autoden|triunfo|evoden|create)\b/i
+      )?.[1],
+    };
+    const chave = codigo.replace(/\D/g, "") || normalizarTextoProduto(nome);
+    const atual = porCodigo.get(chave);
+    // Prefere nome mais completo se houver duplicata
+    if (!atual || (linha.nome?.length || 0) > (atual.nome?.length || 0)) {
+      porCodigo.set(chave, linha);
+    }
+  }
+
   const reLinha =
     /^(\d{4,6})\s+(.+?)\s+(UND|UNID|UN|CXA|CX)\s+(\d+(?:[.,]\d+)?)\s+(\d{1,3}(?:\.\d{3})*,\d{2})(?:\s+(\d{1,3}(?:\.\d{3})*,\d{2}))?\s*$/i;
 
@@ -400,62 +441,62 @@ export function extrairLinhasTabelaFornecedor(
     }
     const m = linha.match(reLinha);
     if (!m) continue;
-    const codigo = m[1]!;
-    const descricao = m[2]!.trim();
-    const undColuna = mapearUnidadeCurta(m[3]!);
-    const qtd = Number(String(m[4]).replace(",", "."));
-    const valorUnitario = moedaParaNumero(m[5]!);
-    if (!(valorUnitario > 0) || !descricao) continue;
-
-    const limpo = limparDescricaoProdutoArquivo(descricao);
-    // Medida da descrição (1000ml, 1kg) tem prioridade; senão UND/CXA da coluna
-    const unidade = limpo.unidade || normalizarUnidadeMedida(undColuna);
-    const nome = limpo.nome || capitalizarNomeProduto(descricao);
-    if (!nome || nome.length < 3) continue;
-
-    candidatos.push({
-      nome,
-      codigoBarras: codigo,
-      quantidade: Number.isFinite(qtd) && qtd > 0 ? qtd : 1,
-      valorUnitario,
-      unidade,
-      unidadeValor: limpo.unidadeValor,
-      marca: descricao.match(
-        /\b(lysanda|wilson|autoden|triunfo|evoden|create)\b/i
-      )?.[1],
+    registrar({
+      codigo: m[1]!,
+      descricao: m[2]!.trim(),
+      undColuna: mapearUnidadeCurta(m[3]!),
+      qtd: Number(String(m[4]).replace(",", ".")),
+      valorUnitario: moedaParaNumero(m[5]!),
     });
   }
 
-  // Texto colado em uma linha só (PDF sem quebras)
-  if (candidatos.length === 0) {
-    const reGlobal =
-      /(\d{4,6})\s+([A-ZÀ-Ÿ0-9][A-ZÀ-Ÿ0-9\s\.\,\-\/\+\(\)]+?)\s+(UND|UNID|UN|CXA|CX)\s+(\d+(?:[.,]\d+)?)\s+(\d{1,3}(?:\.\d{3})*,\d{2})(?:\s+(\d{1,3}(?:\.\d{3})*,\d{2}))?/gi;
-    let m: RegExpExecArray | null;
-    while ((m = reGlobal.exec(flat.replace(/\n/g, " "))) !== null) {
-      const codigo = m[1]!;
-      const descricao = m[2]!.trim();
-      if (/total|frete|desconto|boleto|vendedor/i.test(descricao)) continue;
-      const undColuna = mapearUnidadeCurta(m[3]!);
-      const qtd = Number(String(m[4]).replace(",", "."));
-      const valorUnitario = moedaParaNumero(m[5]!);
-      if (!(valorUnitario > 0)) continue;
-      const limpo = limparDescricaoProdutoArquivo(descricao);
-      const nome = limpo.nome || capitalizarNomeProduto(descricao);
-      if (!nome || nome.length < 3) continue;
-      candidatos.push({
-        nome,
-        codigoBarras: codigo,
-        quantidade: Number.isFinite(qtd) && qtd > 0 ? qtd : 1,
-        valorUnitario,
-        unidade: limpo.unidade || normalizarUnidadeMedida(undColuna),
-        unidadeValor: limpo.unidadeValor,
+  // Sempre tenta também no texto contínuo (PDF costuma quebrar linhas).
+  const textoContinuo = flat.replace(/\n/g, " ");
+  const reGlobal =
+    /(\d{4,6})\s+([A-ZÀ-Ÿa-zà-ÿ0-9][A-ZÀ-Ÿa-zà-ÿ0-9\s\.\,\-\/\+\(\)]{3,120}?)\s+(UND|UNID|UN|CXA|CX)\s+(\d+(?:[.,]\d+)?)\s+(\d{1,3}(?:\.\d{3})*,\d{2})(?:\s+(\d{1,3}(?:\.\d{3})*,\d{2}))?/gi;
+  let m: RegExpExecArray | null;
+  while ((m = reGlobal.exec(textoContinuo)) !== null) {
+    registrar({
+      codigo: m[1]!,
+      descricao: m[2]!.trim(),
+      undColuna: mapearUnidadeCurta(m[3]!),
+      qtd: Number(String(m[4]).replace(",", ".")),
+      valorUnitario: moedaParaNumero(m[5]!),
+    });
+  }
+
+  // Padrão alternativo: código + descrição + valor (sem UND explícito no meio)
+  if (porCodigo.size === 0) {
+    const reAlt =
+      /(\d{4,6})\s+([A-ZÀ-Ÿa-zà-ÿ][A-ZÀ-Ÿa-zà-ÿ0-9\s\.\,\-\/\+\(\)]{4,100}?)\s+(\d+(?:[.,]\d+)?)\s+(\d{1,3}(?:\.\d{3})*,\d{2})/gi;
+    while ((m = reAlt.exec(textoContinuo)) !== null) {
+      const qtdRaw = Number(String(m[3]).replace(",", "."));
+      // qtd costuma ser inteiro pequeno; se vier preço, ignora
+      const qtd = qtdRaw > 0 && qtdRaw <= 999 ? qtdRaw : 1;
+      registrar({
+        codigo: m[1]!,
+        descricao: m[2]!.trim(),
+        undColuna: "un",
+        qtd,
+        valorUnitario: moedaParaNumero(m[4]!),
       });
     }
   }
 
   return deduplicarLinhasProduto(
-    candidatos.map((c) => normalizarLinhaOrcamentoLida(c))
+    [...porCodigo.values()].map((c) => normalizarLinhaOrcamentoLida(c))
   );
+}
+
+/** Conta códigos de produto no texto do PDF (para saber se a leitura ficou incompleta). */
+export function contarCodigosProdutoNoTexto(texto: string) {
+  const matches = String(texto || "").match(
+    /(?:^|\s)(\d{4,6})\s+[A-Za-zÀ-ÿ]/gm
+  );
+  if (!matches) return 0;
+  return new Set(
+    matches.map((m) => m.trim().replace(/\s.*/, "").replace(/\D/g, ""))
+  ).size;
 }
 
 /** Normaliza linha lida (IA/PDF/Excel) antes do casamento. */
@@ -823,7 +864,7 @@ export function mensagemResultadoLeitura(resultado: ResultadoLeituraOrcamento) {
   }
   return (
     partes.join("; ") +
-    ". Só produtos com valor foram aplicados; boletos e textos extras foram ignorados. Revise antes de enviar."
+    ". Todos os produtos válidos do arquivo foram incluídos (sem limite). Revise antes de enviar."
   );
 }
 

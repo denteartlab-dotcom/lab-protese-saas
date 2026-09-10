@@ -486,6 +486,7 @@ export default function OrcamentoPublicoPage() {
         casarLinhasComItens,
         extrairLinhasTextoHeuristico,
         mensagemResultadoLeitura,
+        contarCodigosProdutoNoTexto,
       } = await import("@/lib/orcamento-leitura-match");
 
       const erroValidacao = validarArquivoOrcamento(file);
@@ -515,14 +516,27 @@ export default function OrcamentoPublicoPage() {
         }
       }
 
+      let resultadoLocal: Awaited<
+        ReturnType<typeof preencherItensComTexto>
+      > | null = null;
+
       if (!ehPlanilha && textoCliente.trim().length > 10) {
         try {
-          const local = preencherItensComTexto(itens, textoCliente);
-          setItens(local.itens);
-          setMsgArquivo(mensagemResultadoLeitura(local));
-          return;
+          resultadoLocal = preencherItensComTexto(itens, textoCliente);
+          const codigosNoTexto = contarCodigosProdutoNoTexto(textoCliente);
+          const aplicados =
+            (resultadoLocal.acrescentados || 0) +
+            (resultadoLocal.atualizados || 0);
+          // Só aceita o parse local se pegou todos (ou quase) os códigos do PDF.
+          if (codigosNoTexto === 0 || aplicados >= Math.max(1, codigosNoTexto - 1)) {
+            setItens(resultadoLocal.itens);
+            setMsgArquivo(mensagemResultadoLeitura(resultadoLocal));
+            return;
+          }
+          console.warn(
+            `leitura local incompleta: ${aplicados}/${codigosNoTexto} códigos — continua na API`
+          );
         } catch (err) {
-          // Continua para API se heurística local não casar
           console.warn("leitura local", err);
         }
       }
@@ -602,6 +616,16 @@ export default function OrcamentoPublicoPage() {
       if (!Array.isArray(json?.itens) || json.itens.length === 0) {
         throw new Error("Resposta inválida da leitura do arquivo.");
       }
+
+      // Se a API trouxe menos itens que o parse local, mantém o local (mais completo).
+      const qtdApi = json.itens.length;
+      const qtdLocal = resultadoLocal?.itens.length ?? 0;
+      if (resultadoLocal && qtdLocal > qtdApi) {
+        setItens(resultadoLocal.itens);
+        setMsgArquivo(mensagemResultadoLeitura(resultadoLocal));
+        return;
+      }
+
       setItens(json.itens);
       setMsgArquivo(
         json.mensagem ||
@@ -1344,8 +1368,9 @@ export default function OrcamentoPublicoPage() {
                 />
               </label>
               <p className="md:col-span-2 text-[10px] text-slate-500">
-                No Upload Arquivo, o sistema lê só produtos (nome, valor, quantidade e
-                unidade). Boletos, nomes de pessoa e outros textos do PDF são ignorados.
+                No Upload Arquivo, o sistema lê todos os produtos da tabela do
+                fornecedor (sem limite) — nome, valor, quantidade e unidade.
+                Boletos e textos extras são ignorados.
               </p>
               {msgArquivo ? (
                 <p className="md:col-span-2 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] text-emerald-800">

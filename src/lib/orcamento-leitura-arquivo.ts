@@ -19,6 +19,7 @@ export type {
 
 export {
   casarLinhasComItens,
+  contarCodigosProdutoNoTexto,
   deduplicarLinhasProduto,
   extrairLinhasTabelaFornecedor,
   extrairLinhasTextoHeuristico,
@@ -113,7 +114,7 @@ async function chamarGeminiPartes(
         contents: [{ role: "user", parts }],
         generationConfig: {
           temperature: 0.1,
-          maxOutputTokens: 4096,
+          maxOutputTokens: 8192,
         },
       }),
     });
@@ -199,7 +200,7 @@ async function extrairLinhasComIa(
   const parts: Array<Record<string, unknown>> = [{ text: PROMPT_EXTRACAO }];
   if (textoPdf && textoPdf.trim().length > 40) {
     parts.push({
-      text: `Texto extraído do PDF:\n${textoPdf.slice(0, 12000)}`,
+      text: `Texto extraído do PDF:\n${textoPdf.slice(0, 50000)}`,
     });
   } else if (base64) {
     parts.push({
@@ -212,7 +213,7 @@ async function extrairLinhasComIa(
 
   if (textoPdf && textoPdf.trim().length > 40) {
     const geminiTexto = await chamarGeminiPartes([
-      { text: `${PROMPT_EXTRACAO}\n\nTexto:\n${textoPdf.slice(0, 12000)}` },
+      { text: `${PROMPT_EXTRACAO}\n\nTexto:\n${textoPdf.slice(0, 50000)}` },
     ]);
     if (geminiTexto) return geminiTexto;
   }
