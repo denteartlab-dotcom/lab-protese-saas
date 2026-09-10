@@ -456,7 +456,7 @@ export function ContasPagarConteudo() {
       entregadores: lerNomesStorage("labProteseEntregadores"),
     });
     setFornecedores(lerFornecedoresStorage());
-    aplicarPeriodo("todos");
+    aplicarPeriodo("mes");
   }, []);
 
   useEffect(() => {

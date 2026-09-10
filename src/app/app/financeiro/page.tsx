@@ -392,9 +392,21 @@ function FinanceiroReceberConteudo() {
     status: "pendente",
   });
   const [osRemovidasEdicao, setOsRemovidasEdicao] = useState<string[]>([]);
-  const [periodo, setPeriodo] = useState("todos");
-  const [dataInicio, setDataInicio] = useState("");
-  const [dataFinal, setDataFinal] = useState("");
+  const [periodo, setPeriodo] = useState("mes");
+  const [dataInicio, setDataInicio] = useState(() => {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const inicio = new Date(hoje);
+    inicio.setDate(1);
+    return dateToBrShort(inicio);
+  });
+  const [dataFinal, setDataFinal] = useState(() => {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const fim = new Date(hoje);
+    fim.setMonth(hoje.getMonth() + 1, 0);
+    return dateToBrShort(fim);
+  });
   const [situacao, setSituacao] = useState("");
   const [busca, setBusca] = useState("");
   const [form, setForm] = useState({
@@ -2375,9 +2387,7 @@ function FinanceiroReceberConteudo() {
   }
 
   function limparFiltros() {
-    setPeriodo("todos");
-    setDataInicio("");
-    setDataFinal("");
+    aplicarPeriodo("mes");
     setSituacao("");
     setBusca("");
   }
