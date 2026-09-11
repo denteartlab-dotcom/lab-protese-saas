@@ -248,41 +248,65 @@ export function extrairFreteDoTexto(texto: string): number {
   const bruto = String(texto || "");
   if (!bruto.trim()) return 0;
 
-  const rotulo =
-    "(?:valor\\s+(?:do\\s+|de\\s+)?)?(?:frete|fretes|transporte|transportes|despacho|shipping|delivery|cif|fob|custo\\s+de\\s+entrega|taxa\\s+de\\s+entrega|entrega)";
-
-  const padroes = [
-    // Frete: 30,00 | Frete R$ 30,00 | Frete .... 30,00
-    new RegExp(
-      `${rotulo}\\s*(?:\\([^)]*\\))?\\s*[:.\\-–—]*\\s*(?:R\\$\\s*)?([\\d]{1,3}(?:\\.\\d{3})*,\\d{2}|\\d+[.,]\\d{1,2}|\\d+)`,
-      "gi"
-    ),
-    // Frete na linha de cima, valor na de baixo
-    new RegExp(
-      `${rotulo}\\s*(?:\\([^)]*\\))?\\s*[:.\\-–—]*\\s*(?:R\\$\\s*)?\\s*[\\r\\n]+\\s*(?:R\\$\\s*)?([\\d]{1,3}(?:\\.\\d{3})*,\\d{2}|\\d+[.,]\\d{1,2}|\\d+)`,
-      "gi"
-    ),
-    // 30,00 Frete / R$ 30,00 de frete
-    new RegExp(
-      `(?:R\\$\\s*)?([\\d]{1,3}(?:\\.\\d{3})*,\\d{2}|\\d+[.,]\\d{1,2}|\\d+)\\s*(?:de\\s+)?${rotulo}\\b`,
-      "gi"
-    ),
-  ];
-
-  let encontrado = 0;
-  for (const re of padroes) {
-    re.lastIndex = 0;
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(bruto)) !== null) {
-      const valor = moedaParaNumero(m[1] || "");
-      // Frete típico de cotação: evita capturar totais enormes por engano
-      if (valor > 0 && valor <= 50_000) {
-        encontrado = valor;
-      }
-    }
-    if (encontrado > 0) break;
+  /** Totais/descontos na mesma linha — nunca confundir com frete. */
+  const excluir = new Set<number>();
+  const reTotais =
+    /(?:total\s*bruto|total\s*geral|sub\s*total|subtotal|descontos?)\s*(?:-->|->|→|:|=)?\s*(?:R\$\s*)?([\d]{1,3}(?:\.\d{3})*,\d{2}|\d+[.,]\d{1,2}|\d+)/gi;
+  let tm: RegExpExecArray | null;
+  while ((tm = reTotais.exec(bruto)) !== null) {
+    const v = moedaParaNumero(tm[1] || "");
+    if (v > 0) excluir.add(Number(v.toFixed(2)));
   }
-  return encontrado;
+
+  const candidatos: number[] = [];
+  const pushSeOk = (raw: string) => {
+    const v = moedaParaNumero(raw);
+    if (v > 0 && v <= 50_000 && !excluir.has(Number(v.toFixed(2)))) {
+      candidatos.push(v);
+    }
+  };
+
+  // Prioridade 1: Dental Protetic "Frete --> 30,00" / "Frete -> 30,00" / "Frete: 30,00"
+  const reSeta =
+    /\bfretes?\b\s*(?:-->|->|→|:|=)\s*(?:R\$\s*)?([\d]{1,3}(?:\.\d{3})*,\d{2}|\d+[.,]\d{1,2}|\d+)/gi;
+  while ((tm = reSeta.exec(bruto)) !== null) pushSeOk(tm[1] || "");
+  if (candidatos.length > 0) return candidatos[candidatos.length - 1]!;
+
+  // Prioridade 2: rótulo + valor DEPOIS (nunca número antes do rótulo)
+  const rotulo =
+    "(?:valor\\s+(?:do\\s+|de\\s+)?)?(?:frete|fretes|transporte|transportes|despacho|shipping|custo\\s+de\\s+entrega|taxa\\s+de\\s+entrega)";
+  const reDepois = new RegExp(
+    `${rotulo}\\s*(?:\\([^)]*\\))?\\s*(?:-->|->|→|[:.\\-=–—])*\\s*(?:R\\$\\s*)?([\\d]{1,3}(?:\\.\\d{3})*,\\d{2}|\\d+[.,]\\d{1,2}|\\d+)`,
+    "gi"
+  );
+  while ((tm = reDepois.exec(bruto)) !== null) pushSeOk(tm[1] || "");
+  if (candidatos.length > 0) return candidatos[candidatos.length - 1]!;
+
+  // Prioridade 3: rótulo numa linha, valor na seguinte
+  const reLinha = new RegExp(
+    `${rotulo}\\s*(?:\\([^)]*\\))?\\s*(?:-->|->|→|[:.\\-=–—])*\\s*[\\r\\n]+\\s*(?:R\\$\\s*)?([\\d]{1,3}(?:\\.\\d{3})*,\\d{2}|\\d+[.,]\\d{1,2}|\\d+)`,
+    "gi"
+  );
+  while ((tm = reLinha.exec(bruto)) !== null) pushSeOk(tm[1] || "");
+  if (candidatos.length > 0) return candidatos[candidatos.length - 1]!;
+
+  return 0;
+}
+
+/**
+ * Frete plausível: não pode ser o subtotal dos produtos (Total Bruto confundido).
+ */
+export function fretePlausivel(frete: number, subtotalProdutos: number): number {
+  const v = Number(frete) || 0;
+  if (!(v > 0)) return 0;
+  const sub = Number(subtotalProdutos) || 0;
+  if (sub > 0) {
+    const sub2 = Number(sub.toFixed(2));
+    const v2 = Number(v.toFixed(2));
+    if (Math.abs(v2 - sub2) < 0.05) return 0;
+    if (v2 >= sub2 * 0.85) return 0;
+  }
+  return v;
 }
 
 /** Anexa frete ao resultado da leitura (texto e/ou valor já lido pela IA). */
@@ -291,10 +315,17 @@ export function anexarFreteDoTexto(
   texto: string,
   freteIa = 0
 ): ResultadoLeituraOrcamento {
-  const doTexto = extrairFreteDoTexto(texto);
-  const frete = Math.max(Number(freteIa) || 0, doTexto, resultado.frete || 0);
+  const subtotal = resultado.itens.reduce(
+    (acc, i) => acc + i.quantidade * i.valorUnitario,
+    0
+  );
+  const doTexto = fretePlausivel(extrairFreteDoTexto(texto), subtotal);
+  const daIa = fretePlausivel(Number(freteIa) || 0, subtotal);
+  const jaTem = fretePlausivel(resultado.frete || 0, subtotal);
+  // Texto explícito (Frete -->) tem prioridade; nunca Math.max (pegava Total Bruto)
+  const frete = doTexto > 0 ? doTexto : daIa > 0 ? daIa : jaTem;
   if (frete > 0) return { ...resultado, frete };
-  return resultado;
+  return { ...resultado, frete: 0 };
 }
 
 function mapearUnidadeCurta(raw: string) {

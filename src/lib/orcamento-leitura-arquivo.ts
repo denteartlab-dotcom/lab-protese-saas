@@ -25,6 +25,7 @@ export {
   contarCodigosProdutoNoTexto,
   deduplicarLinhasProduto,
   extrairFreteDoTexto,
+  fretePlausivel,
   extrairLinhasTabelaFornecedor,
   extrairLinhasTextoHeuristico,
   limparDescricaoProdutoArquivo,
@@ -50,10 +51,11 @@ const PROMPT_EXTRACAO = [
   "- Se a descrição tiver kg/g/ml/L, preencha unidade e unidadeValor.",
   "- Use a DESCRICAO completa do produto (não invente nomes curtos).",
   "Regras do FRETE (campo frete, número):",
-  "- Procure no rodapé/totais qualquer valor rotulado como: Frete, Fretes, Transporte, Despacho, CIF, FOB, Shipping, Entrega, Taxa de entrega, Custo de entrega.",
-  "- Se encontrar, preencha frete com o valor numérico (ex.: 30 ou 30.5). Se não houver ou for zero, use 0.",
-  "- NÃO coloque o frete como item de produto.",
-  "- NÃO invente frete: só informe se estiver escrito no documento.",
+  "- Formato Dental Protetic (linha de totais): 'Total Bruto --> 683,88    Frete --> 30,00    Descontos --> 0,00    Total Geral --> 713,88'.",
+  "- O frete é SOMENTE o número IMEDIATAMENTE após a palavra Frete (com --> ou :). No exemplo, frete=30 (NÃO 683.88 nem 713.88).",
+  "- Procure também: Fretes, Transporte, Despacho, CIF, FOB, Shipping, Taxa/Custo de entrega.",
+  "- NUNCA use Total Bruto, Total Geral, subtotal ou soma dos produtos como frete.",
+  "- Se não houver frete escrito, use 0. NÃO invente. NÃO coloque frete como item de produto.",
 ].join("\n");
 
 type ExtracaoIa = {

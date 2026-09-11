@@ -502,12 +502,24 @@ export default function OrcamentoPublicoPage() {
   function aplicarFreteLido(
     frete: number | undefined | null,
     textoArquivo: string,
-    extrairFrete: (texto: string) => number
+    extrairFrete: (texto: string) => number,
+    itensAtual: ItemOrcamento[] = itens
   ) {
-    const doResultado = Number(frete) || 0;
-    const doTexto = doResultado > 0 ? 0 : extrairFrete(textoArquivo);
-    const valor = doResultado > 0 ? doResultado : doTexto;
-    if (valor > 0) setFreteValor(formatMoedaInput(valor));
+    const subtotal = itensAtual.reduce(
+      (acc, i) => acc + i.quantidade * i.valorUnitario,
+      0
+    );
+    const rejeitaSeTotal = (v: number) => {
+      if (!(v > 0)) return 0;
+      if (subtotal > 0 && Math.abs(v - subtotal) < 0.05) return 0;
+      if (subtotal > 0 && v >= subtotal * 0.85) return 0;
+      return v;
+    };
+    const doTexto = rejeitaSeTotal(extrairFrete(textoArquivo));
+    const doResultado = rejeitaSeTotal(Number(frete) || 0);
+    // Texto "Frete --> 30,00" tem prioridade sobre frete vindo da IA/API
+    const valor = doTexto > 0 ? doTexto : doResultado;
+    setFreteValor(formatMoedaInput(valor > 0 ? valor : 0));
   }
 
   async function onSelecionarArquivoOrcamento(file: File | null) {
@@ -627,7 +639,8 @@ export default function OrcamentoPublicoPage() {
           aplicarFreteLido(
             resultadoLocal.frete,
             textoCliente,
-            extrairFreteDoTexto
+            extrairFreteDoTexto,
+            resultadoLocal.itens
           );
           setMsgArquivo(mensagemResultadoLeitura(resultadoLocal));
           return;
@@ -638,7 +651,12 @@ export default function OrcamentoPublicoPage() {
             const local = casarLinhasComItens(itens, linhas);
             if (local.matches.length > 0) {
               setItens(local.itens);
-              aplicarFreteLido(local.frete, textoCliente, extrairFreteDoTexto);
+              aplicarFreteLido(
+                local.frete,
+                textoCliente,
+                extrairFreteDoTexto,
+                local.itens
+              );
               setMsgArquivo(mensagemResultadoLeitura(local));
               return;
             }
@@ -658,7 +676,8 @@ export default function OrcamentoPublicoPage() {
           aplicarFreteLido(
             resultadoLocal.frete,
             textoCliente,
-            extrairFreteDoTexto
+            extrairFreteDoTexto,
+            resultadoLocal.itens
           );
           setMsgArquivo(mensagemResultadoLeitura(resultadoLocal));
           return;
@@ -686,14 +705,20 @@ export default function OrcamentoPublicoPage() {
         aplicarFreteLido(
           resultadoLocal.frete ?? json.frete,
           textoCliente,
-          extrairFreteDoTexto
+          extrairFreteDoTexto,
+          resultadoLocal.itens
         );
         setMsgArquivo(mensagemResultadoLeitura(resultadoLocal));
         return;
       }
 
       setItens(json.itens);
-      aplicarFreteLido(json.frete, textoCliente, extrairFreteDoTexto);
+      aplicarFreteLido(
+        json.frete,
+        textoCliente,
+        extrairFreteDoTexto,
+        json.itens
+      );
       setMsgArquivo(
         json.mensagem ||
           `Aplicamos ${(json.matches?.length ?? 0)} item(ns) do arquivo. Revise antes de enviar.`
