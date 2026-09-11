@@ -3,6 +3,7 @@ import { buscarOrcamentoPublicoPorToken } from "@/lib/tenant-db";
 import { executarSemRls } from "@/lib/db";
 import {
   calcularTotaisItens,
+  itensSemPrecoOrcamento,
   linkOrcamentoAtivo,
   totalLiquidoOrcamento,
   type ItemOrcamento,
@@ -95,6 +96,31 @@ export async function PATCH(request: Request, { params }: Params) {
   const body = (await request.json()) as BodyFornecedor;
   if (!Array.isArray(body.itens) || body.itens.length === 0) {
     return NextResponse.json({ error: "Itens obrigatórios" }, { status: 400 });
+  }
+
+  const semPreco = itensSemPrecoOrcamento(body.itens);
+  if (semPreco.length > 0) {
+    return NextResponse.json(
+      {
+        error: "itens_sem_preco",
+        message:
+          "Não é possível enviar com item(ns) em R$ 0,00. Informe o valor ou marque como Em falta.",
+      },
+      { status: 400 }
+    );
+  }
+  const comValor = body.itens.filter(
+    (i) => !i.emFalta && Number(i.valorUnitario) > 0
+  );
+  if (comValor.length === 0) {
+    return NextResponse.json(
+      {
+        error: "sem_itens_cotados",
+        message:
+          "Informe o valor de pelo menos um produto disponível para enviar o orçamento.",
+      },
+      { status: 400 }
+    );
   }
 
   const subtotal = calcularTotaisItens(body.itens);

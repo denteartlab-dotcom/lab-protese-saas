@@ -128,6 +128,11 @@ export function OrcamentoRespostaModal({
                     </td>
                     <td className="max-w-[280px] px-3 py-2 font-medium leading-snug text-slate-700 whitespace-normal break-words">
                       {item.produtoNome}
+                      {item.emFalta ? (
+                        <span className="ml-1 inline-block rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-amber-800">
+                          Em falta
+                        </span>
+                      ) : null}
                     </td>
                     <td className="px-3 py-2 text-slate-500">{item.marca || ""}</td>
                     <td className="px-3 py-2 text-center">{item.quantidade}</td>
@@ -139,9 +144,15 @@ export function OrcamentoRespostaModal({
                     <td className="px-3 py-2 text-center text-slate-500">
                       {item.unidade || "un (Unitário)"}
                     </td>
-                    <td className="px-3 py-2 text-right">{formatCurrency(item.valorUnitario)}</td>
+                    <td className="px-3 py-2 text-right">
+                      {item.emFalta
+                        ? "—"
+                        : formatCurrency(item.valorUnitario)}
+                    </td>
                     <td className="px-3 py-2 text-right font-medium">
-                      {formatCurrency(item.quantidade * item.valorUnitario)}
+                      {item.emFalta
+                        ? "—"
+                        : formatCurrency(item.quantidade * item.valorUnitario)}
                     </td>
                   </tr>
                 ))}

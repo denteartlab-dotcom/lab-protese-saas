@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import {
   calcularTotaisItens,
+  itensSemPrecoOrcamento,
   totalLiquidoOrcamento,
   type ItemOrcamento,
   type Orcamento,
@@ -396,6 +397,30 @@ export default function OrcamentoPublicoPage() {
 
   async function enviarResposta() {
     if (!orcamento || enviado) return;
+
+    const semPreco = itensSemPrecoOrcamento(itens);
+    if (semPreco.length > 0) {
+      const nomes = semPreco
+        .slice(0, 5)
+        .map((i) => i.produtoNome || "produto")
+        .join(", ");
+      alert(
+        `Não é possível enviar com item(ns) em R$ 0,00. Informe o valor ou marque como "Em falta": ${nomes}${
+          semPreco.length > 5 ? "…" : ""
+        }.`
+      );
+      return;
+    }
+    const comValor = itens.filter(
+      (i) => !i.emFalta && Number(i.valorUnitario) > 0
+    );
+    if (comValor.length === 0) {
+      alert(
+        "Informe o valor de pelo menos um produto disponível (ou remova os itens em falta)."
+      );
+      return;
+    }
+
     setEnviando(true);
     try {
       let listaEnvio = [...condicoesSalvas];
@@ -431,6 +456,20 @@ export default function OrcamentoPublicoPage() {
     } finally {
       setEnviando(false);
     }
+  }
+
+  function marcarEmFalta(index: number, emFalta: boolean) {
+    setItens((atual) =>
+      atual.map((item, i) =>
+        i === index
+          ? {
+              ...item,
+              emFalta,
+              valorUnitario: emFalta ? 0 : item.valorUnitario,
+            }
+          : item
+      )
+    );
   }
 
   function abrirModalFoto(index: number) {
@@ -956,6 +995,9 @@ export default function OrcamentoPublicoPage() {
                   <th className="px-2 py-2 text-right font-semibold uppercase">
                     Valor Unitário
                   </th>
+                  <th className="w-[72px] px-1 py-2 text-center font-semibold uppercase no-print">
+                    Em falta
+                  </th>
                   <th className="px-2 py-2 text-right font-semibold uppercase">Subtotal</th>
                   {!somenteLeitura && (
                     <th className="w-9 px-1 py-2 no-print" aria-label="Excluir" />
@@ -966,7 +1008,7 @@ export default function OrcamentoPublicoPage() {
                 {itensVisiveis.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={somenteLeitura ? 8 : 11}
+                      colSpan={somenteLeitura ? 9 : 12}
                       className="px-3 py-8 text-center text-[11px] text-slate-400"
                     >
                       {itens.length === 0
@@ -979,7 +1021,11 @@ export default function OrcamentoPublicoPage() {
                   <tr
                     key={`${item.produtoId}-${index}`}
                     className={`border-b border-slate-50 ${
-                      selecionados.has(index) ? "bg-blue-50/60" : ""
+                      item.emFalta
+                        ? "bg-amber-50/70"
+                        : selecionados.has(index)
+                          ? "bg-blue-50/60"
+                          : ""
                     }`}
                   >
                     {!somenteLeitura && (
@@ -1055,6 +1101,11 @@ export default function OrcamentoPublicoPage() {
                       {somenteLeitura ? (
                         <span className="block whitespace-normal break-words font-medium leading-snug text-slate-700">
                           {item.produtoNome}
+                          {item.emFalta ? (
+                            <span className="ml-1 inline-block rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-amber-800">
+                              Em falta
+                            </span>
+                          ) : null}
                         </span>
                       ) : (
                         <textarea
@@ -1198,23 +1249,69 @@ export default function OrcamentoPublicoPage() {
                     </td>
                     <td className="px-2 py-2 text-right">
                       {somenteLeitura ? (
-                        formatCurrency(item.valorUnitario)
+                        item.emFalta ? (
+                          <span className="text-amber-700">Em falta</span>
+                        ) : (
+                          formatCurrency(item.valorUnitario)
+                        )
                       ) : (
                         <input
                           value={
-                            item.valorUnitario > 0
-                              ? formatMoedaInput(item.valorUnitario)
-                              : ""
+                            item.emFalta
+                              ? ""
+                              : item.valorUnitario > 0
+                                ? formatMoedaInput(item.valorUnitario)
+                                : ""
                           }
-                          placeholder="R$ 0,00"
-                          onChange={(e) => atualizarValorUnitario(index, e.target.value)}
-                          className="ml-auto block h-8 w-28 rounded-sm border border-slate-200 px-2 text-right text-[10px]"
+                          placeholder={item.emFalta ? "Em falta" : "R$ 0,00"}
+                          disabled={item.emFalta}
+                          onChange={(e) =>
+                            atualizarValorUnitario(index, e.target.value)
+                          }
+                          className={`ml-auto block h-8 w-28 rounded-sm border px-2 text-right text-[10px] ${
+                            item.emFalta
+                              ? "border-amber-200 bg-amber-50 text-amber-700"
+                              : !(item.valorUnitario > 0)
+                                ? "border-red-300 bg-red-50"
+                                : "border-slate-200"
+                          }`}
                           {...propsInputComSelecaoAoFocar({})}
                         />
                       )}
                     </td>
+                    <td className="px-1 py-2 text-center align-middle no-print">
+                      {somenteLeitura ? (
+                        item.emFalta ? (
+                          <span className="text-[10px] font-semibold text-amber-700">
+                            Sim
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-slate-400">—</span>
+                        )
+                      ) : (
+                        <label
+                          className="inline-flex cursor-pointer flex-col items-center gap-0.5"
+                          title="Marcar produto como em falta / indisponível"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={Boolean(item.emFalta)}
+                            onChange={(e) =>
+                              marcarEmFalta(index, e.target.checked)
+                            }
+                            className="h-4 w-4 accent-amber-600"
+                            aria-label={`Em falta: ${item.produtoNome || "produto"}`}
+                          />
+                          <span className="text-[8px] uppercase text-slate-500">
+                            Falta
+                          </span>
+                        </label>
+                      )}
+                    </td>
                     <td className="px-2 py-2 text-right font-medium text-slate-700">
-                      {formatCurrency(item.quantidade * item.valorUnitario)}
+                      {item.emFalta
+                        ? "—"
+                        : formatCurrency(item.quantidade * item.valorUnitario)}
                     </td>
                     {!somenteLeitura && (
                       <td className="px-1 py-2 text-center no-print">
@@ -1543,7 +1640,8 @@ export default function OrcamentoPublicoPage() {
               </label>
               <p className="md:col-span-2 text-[10px] text-slate-500">
                 No Upload Arquivo, o sistema lê produtos, frete e condição de
-                pagamento (ex.: 4X BOLETO) e preenche automaticamente.
+                pagamento (ex.: 4X BOLETO). Marque &quot;Em falta&quot; nos itens
+                indisponíveis. Não é possível enviar com valor R$ 0,00.
               </p>
               {msgArquivo ? (
                 <p className="md:col-span-2 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] text-emerald-800">

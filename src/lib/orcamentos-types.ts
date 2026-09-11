@@ -21,6 +21,8 @@ export type ItemOrcamento = {
   unidadeValor?: number;
   quantidade: number;
   valorUnitario: number;
+  /** Produto indisponível no fornecedor (não entra no total / estoque). */
+  emFalta?: boolean;
 };
 
 export type Orcamento = {
@@ -79,9 +81,16 @@ export function linkOrcamentoAtivo(status: StatusOrcamento, linkAtivo = true) {
 }
 
 export function calcularTotaisItens(itens: ItemOrcamento[]) {
-  return itens.reduce(
-    (acc, item) => acc + item.quantidade * item.valorUnitario,
-    0
+  return itens.reduce((acc, item) => {
+    if (item.emFalta) return acc;
+    return acc + item.quantidade * item.valorUnitario;
+  }, 0);
+}
+
+/** Itens sem preço que impedem o envio (exceto marcados como em falta). */
+export function itensSemPrecoOrcamento(itens: ItemOrcamento[]) {
+  return itens.filter(
+    (item) => !item.emFalta && !(Number(item.valorUnitario) > 0)
   );
 }
 

@@ -21,6 +21,7 @@ type ItemOrcamentoAplicacao = {
   unidade?: string;
   quantidade: number;
   valorUnitario: number;
+  emFalta?: boolean;
 };
 
 function parseItensJson(raw: string): ItemOrcamentoAplicacao[] {
@@ -43,6 +44,7 @@ function parseItensJson(raw: string): ItemOrcamentoAplicacao[] {
         unidade: String(i.unidade || "").trim() || undefined,
         quantidade: Number(i.quantidade) || 1,
         valorUnitario: Number(i.valorUnitario) || 0,
+        emFalta: Boolean(i.emFalta),
       }));
   } catch {
     return [];
@@ -179,6 +181,7 @@ export async function aplicarOrcamentoAprovadoServidor(
   let custosAtualizados = 0;
 
   for (const item of itens) {
+    if (item.emFalta) continue;
     const quantidade = Number(item.quantidade);
     if (!Number.isFinite(quantidade) || quantidade <= 0) continue;
     if (!(item.valorUnitario > 0) && !item.produtoId && !item.produtoNome) continue;
