@@ -37,6 +37,11 @@ export type ResultadoLeituraOrcamento = {
   atualizados: number;
   /** Frete lido do rodapé/arquivo, se houver. */
   frete?: number;
+  /** Condição de pagamento lida do arquivo (ex.: 4x boleto). */
+  pagamento?: {
+    forma: "a_vista" | "pix" | "cartao_credito" | "boleto";
+    parcelas: number;
+  };
 };
 
 /** Score mínimo para considerar o mesmo item do pedido (atualizar). */
@@ -326,6 +331,90 @@ export function anexarFreteDoTexto(
   const frete = doTexto > 0 ? doTexto : daIa > 0 ? daIa : jaTem;
   if (frete > 0) return { ...resultado, frete };
   return { ...resultado, frete: 0 };
+}
+
+export type CondicaoPagamentoLida = NonNullable<
+  ResultadoLeituraOrcamento["pagamento"]
+>;
+
+/**
+ * Lê meios de pagamento do texto do arquivo.
+ * Ex.: "4X BOLETO", "Boleto 1X", "3x cartão", "PIX", "À vista".
+ */
+export function extrairCondicaoPagamentoDoTexto(
+  texto: string
+): CondicaoPagamentoLida | null {
+  const bruto = String(texto || "");
+  if (!bruto.trim()) return null;
+
+  const clampParcelas = (n: number) =>
+    Math.min(12, Math.max(1, Math.round(n)));
+
+  const padroesBoleto: RegExp[] = [
+    /\b(\d{1,2})\s*[xX×]\s*(?:no\s+)?boleto(?:s)?\b/gi,
+    /\bboleto(?:s)?\s*(?:em\s+)?(\d{1,2})\s*[xX×]\b/gi,
+    /\bcondi[cç][aã]o(?:es)?\s+de\s+pagamento\s*[:\-]?\s*(\d{1,2})\s*[xX×]\s*boleto/gi,
+    /\bpagamento\s*[:\-]?\s*(\d{1,2})\s*[xX×]\s*boleto/gi,
+  ];
+  for (const re of padroesBoleto) {
+    re.lastIndex = 0;
+    const m = re.exec(bruto);
+    if (m?.[1]) {
+      return { forma: "boleto", parcelas: clampParcelas(Number(m[1])) };
+    }
+  }
+
+  const padroesCartao: RegExp[] = [
+    /\b(\d{1,2})\s*[xX×]\s*(?:no\s+)?cart[aã]o(?:\s+de\s+cr[eé]dito)?\b/gi,
+    /\bcart[aã]o(?:\s+de\s+cr[eé]dito)?\s*(?:em\s+)?(\d{1,2})\s*[xX×]\b/gi,
+    /\bcredito\s*(\d{1,2})\s*[xX×]\b/gi,
+  ];
+  for (const re of padroesCartao) {
+    re.lastIndex = 0;
+    const m = re.exec(bruto);
+    if (m?.[1]) {
+      return {
+        forma: "cartao_credito",
+        parcelas: clampParcelas(Number(m[1])),
+      };
+    }
+  }
+
+  // Agenda de vencimentos + menção a boleto (fallback Dental Protetic)
+  if (/\bboleto/i.test(bruto)) {
+    const datas =
+      bruto.match(
+        /\d{2}\/\d{2}\/\d{2,4}\s+R\$\s*[\d]{1,3}(?:\.\d{3})*,\d{2}/gi
+      ) || [];
+    if (datas.length >= 2) {
+      return { forma: "boleto", parcelas: clampParcelas(datas.length) };
+    }
+    if (/\bboleto\s*1\s*[xX×]|\b1\s*[xX×]\s*boleto|\bboleto\b/i.test(bruto)) {
+      // "boleto" sem Nx explícito e sem várias datas → 1x
+      if (datas.length <= 1) return { forma: "boleto", parcelas: 1 };
+    }
+  }
+
+  if (/\bpix\b/i.test(bruto) && !/\bboleto|\bcart[aã]o/i.test(bruto)) {
+    return { forma: "pix", parcelas: 1 };
+  }
+  if (/\b[aà]\s*vista\b/i.test(bruto) && !/\bboleto|\bcart[aã]o/i.test(bruto)) {
+    return { forma: "a_vista", parcelas: 1 };
+  }
+
+  return null;
+}
+
+/** Anexa condição de pagamento lida do texto/IA. */
+export function anexarPagamentoDoTexto(
+  resultado: ResultadoLeituraOrcamento,
+  texto: string,
+  pagamentoIa?: CondicaoPagamentoLida | null
+): ResultadoLeituraOrcamento {
+  const doTexto = extrairCondicaoPagamentoDoTexto(texto);
+  const pag = doTexto || pagamentoIa || null;
+  if (!pag) return resultado;
+  return { ...resultado, pagamento: pag };
 }
 
 function mapearUnidadeCurta(raw: string) {
@@ -1054,6 +1143,22 @@ export function mensagemResultadoLeitura(resultado: ResultadoLeituraOrcamento) {
       `frete R$ ${resultado.frete.toFixed(2).replace(".", ",")}`
     );
   }
+  if (resultado.pagamento) {
+    const p = resultado.pagamento;
+    const rotulo =
+      p.forma === "boleto"
+        ? "boleto"
+        : p.forma === "cartao_credito"
+          ? "cartão"
+          : p.forma === "pix"
+            ? "pix"
+            : "à vista";
+    partes.push(
+      p.parcelas > 1
+        ? `pagamento ${p.parcelas}x ${rotulo}`
+        : `pagamento ${rotulo}`
+    );
+  }
   if (partes.length === 0) {
     return "Nenhum item foi aplicado. Revise o arquivo.";
   }
@@ -1069,8 +1174,8 @@ export function preencherItensComTexto(
   texto: string
 ): ResultadoLeituraOrcamento {
   const linhas = extrairLinhasTextoHeuristico(texto);
-  return anexarFreteDoTexto(
-    preencherItensComLinhas(itens, linhas, "texto"),
+  return anexarPagamentoDoTexto(
+    anexarFreteDoTexto(preencherItensComLinhas(itens, linhas, "texto"), texto),
     texto
   );
 }

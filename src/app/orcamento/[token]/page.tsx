@@ -522,6 +522,38 @@ export default function OrcamentoPublicoPage() {
     setFreteValor(formatMoedaInput(valor > 0 ? valor : 0));
   }
 
+  function aplicarPagamentoLido(
+    pagamento:
+      | { forma: FormaPagamentoOrcamento; parcelas: number }
+      | null
+      | undefined,
+    textoArquivo: string,
+    extrairPagamento: (
+      texto: string
+    ) => { forma: FormaPagamentoOrcamento; parcelas: number } | null
+  ) {
+    const doTexto = extrairPagamento(textoArquivo);
+    const pag = doTexto || pagamento || null;
+    if (!pag?.forma) return;
+    const forma = pag.forma;
+    const parcelas = exigeParcelamento(forma)
+      ? normalizarParcelas(pag.parcelas)
+      : 1;
+    setFormaPagamento(forma);
+    setParcelas(parcelas);
+    setCondicoesSalvas((atual) => {
+      const semMesmaForma = atual.filter((c) => c.forma !== forma);
+      return [
+        ...semMesmaForma,
+        {
+          id: `arquivo-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          forma,
+          parcelas,
+        },
+      ];
+    });
+  }
+
   async function onSelecionarArquivoOrcamento(file: File | null) {
     if (!file || enviado || lendoArquivo || enviando) return;
     setLendoArquivo(true);
@@ -535,6 +567,7 @@ export default function OrcamentoPublicoPage() {
         casarLinhasComItens,
         extrairLinhasTextoHeuristico,
         extrairFreteDoTexto,
+        extrairCondicaoPagamentoDoTexto,
         mensagemResultadoLeitura,
       } = await import("@/lib/orcamento-leitura-match");
 
@@ -631,6 +664,10 @@ export default function OrcamentoPublicoPage() {
         acrescentados?: number;
         atualizados?: number;
         frete?: number;
+        pagamento?: {
+          forma: FormaPagamentoOrcamento;
+          parcelas: number;
+        } | null;
       } | null;
 
       if (!res.ok) {
@@ -641,6 +678,11 @@ export default function OrcamentoPublicoPage() {
             textoCliente,
             extrairFreteDoTexto,
             resultadoLocal.itens
+          );
+          aplicarPagamentoLido(
+            resultadoLocal.pagamento,
+            textoCliente,
+            extrairCondicaoPagamentoDoTexto
           );
           setMsgArquivo(mensagemResultadoLeitura(resultadoLocal));
           return;
@@ -656,6 +698,11 @@ export default function OrcamentoPublicoPage() {
                 textoCliente,
                 extrairFreteDoTexto,
                 local.itens
+              );
+              aplicarPagamentoLido(
+                local.pagamento,
+                textoCliente,
+                extrairCondicaoPagamentoDoTexto
               );
               setMsgArquivo(mensagemResultadoLeitura(local));
               return;
@@ -678,6 +725,11 @@ export default function OrcamentoPublicoPage() {
             textoCliente,
             extrairFreteDoTexto,
             resultadoLocal.itens
+          );
+          aplicarPagamentoLido(
+            resultadoLocal.pagamento,
+            textoCliente,
+            extrairCondicaoPagamentoDoTexto
           );
           setMsgArquivo(mensagemResultadoLeitura(resultadoLocal));
           return;
@@ -708,6 +760,11 @@ export default function OrcamentoPublicoPage() {
           extrairFreteDoTexto,
           resultadoLocal.itens
         );
+        aplicarPagamentoLido(
+          resultadoLocal.pagamento ?? json.pagamento,
+          textoCliente,
+          extrairCondicaoPagamentoDoTexto
+        );
         setMsgArquivo(mensagemResultadoLeitura(resultadoLocal));
         return;
       }
@@ -718,6 +775,11 @@ export default function OrcamentoPublicoPage() {
         textoCliente,
         extrairFreteDoTexto,
         json.itens
+      );
+      aplicarPagamentoLido(
+        json.pagamento,
+        textoCliente,
+        extrairCondicaoPagamentoDoTexto
       );
       setMsgArquivo(
         json.mensagem ||
@@ -1473,9 +1535,8 @@ export default function OrcamentoPublicoPage() {
                 />
               </label>
               <p className="md:col-span-2 text-[10px] text-slate-500">
-                No Upload Arquivo, o sistema lê todos os produtos da tabela do
-                fornecedor (sem limite) — nome, valor, quantidade e unidade.
-                Boletos e textos extras são ignorados.
+                No Upload Arquivo, o sistema lê produtos, frete e condição de
+                pagamento (ex.: 4X BOLETO) e preenche automaticamente.
               </p>
               {msgArquivo ? (
                 <p className="md:col-span-2 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] text-emerald-800">
