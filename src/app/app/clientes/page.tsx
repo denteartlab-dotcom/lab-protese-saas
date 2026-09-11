@@ -574,11 +574,11 @@ export default function ClientesPage() {
         const notasN = data.syncDesconto.lancamentosAtualizados ?? 0;
         if (data.syncDesconto.descontoRemovido) {
           setMsgGravacao(
-            `Desconto removido. Valores reais restaurados em ${osN} OS e ${notasN} nota(s) pendente(s).`
+            `Desconto removido. OS e lançamentos pendentes voltaram ao valor real (${osN} OS, ${notasN} nota(s)).`
           );
         } else {
           setMsgGravacao(
-            `Desconto aplicado em ${osN} OS e ${notasN} nota(s) pendente(s).`
+            `Desconto aplicado nas OS (inclui finalizadas) e lançamentos pendentes (${osN} OS, ${notasN} nota(s)).`
           );
         }
         notificarTrabalhosAtualizados();
@@ -1332,8 +1332,9 @@ export default function ClientesPage() {
                     />
                   </div>
                   <p className="mt-1 text-[10px] text-slate-400">
-                    Ao gravar, OS e notas pendentes são recalculadas. Zere o
-                    desconto para restaurar o valor real (sem desconto).
+                    Ao gravar, o desconto entra nas OS já criadas (inclui
+                    finalizadas) e nos lançamentos pendentes. Zere para voltar ao
+                    valor real sem desconto.
                   </p>
                 </div>
 

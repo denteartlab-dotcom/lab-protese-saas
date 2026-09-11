@@ -205,8 +205,9 @@ export type SyncDescontoClienteResultado = {
 
 /**
  * Ao alterar o Desconto Geral do cliente:
- * - atualiza valores/descontos de TODAS as OS do cliente
- * - recalcula faturas (Cobrança OS) já lançadas ainda pendentes
+ * - atualiza valores/descontos de todas as OS do cliente (inclui finalizadas/entregues)
+ * - recalcula lançamentos "Cobrança OS" ainda pendentes (parcelas a pagar)
+ * - ao zerar o desconto, OS e notas pendentes voltam ao valor bruto (real)
  */
 export async function sincronizarFaturasPendentesDescontoCliente(params: {
   empresaId: string;
@@ -220,7 +221,12 @@ export async function sincronizarFaturasPendentesDescontoCliente(params: {
   const descontoRemovido = descontoEstaZerado(desconto);
 
   const trabalhos = await prisma.trabalho.findMany({
-    where: { empresaId: params.empresaId, clienteId: params.clienteId },
+    where: {
+      empresaId: params.empresaId,
+      clienteId: params.clienteId,
+      // Mantém finalizado/entregue; só ignora canceladas.
+      NOT: { status: "cancelado" },
+    },
     select: {
       id: true,
       numeroOs: true,
@@ -228,13 +234,19 @@ export async function sincronizarFaturasPendentesDescontoCliente(params: {
       instrucoes: true,
       valor: true,
       clienteId: true,
+      status: true,
     },
   });
 
   const valorPorTrabalho = new Map<string, number>();
+  const trabalhosPorNumero = new Map<number, string[]>();
   let trabalhosAtualizados = 0;
 
   for (const trabalho of trabalhos) {
+    const lista = trabalhosPorNumero.get(trabalho.numeroOs) ?? [];
+    lista.push(trabalho.id);
+    trabalhosPorNumero.set(trabalho.numeroOs, lista);
+
     const atualizado = reescreverInstrucoesComDescontoCliente(
       trabalho.instrucoes,
       desconto,
@@ -323,6 +335,18 @@ export async function sincronizarFaturasPendentesDescontoCliente(params: {
       })) {
         idsTrabalho.add(id);
       }
+
+      // Fallback: Cobrança OS 12, 4 → inclui todos os segmentos da OS.
+      for (const numero of numerosOsDoLancamentoFatura({
+        id: l.id,
+        status: l.status,
+        descricao: l.descricao,
+        trabalho: l.trabalhoId ? { id: l.trabalhoId } : null,
+      })) {
+        for (const id of trabalhosPorNumero.get(numero) ?? []) {
+          idsTrabalho.add(id);
+        }
+      }
     }
 
     if (!idsTrabalho.size) continue;
@@ -336,6 +360,7 @@ export async function sincronizarFaturasPendentesDescontoCliente(params: {
 
     const pagos = grupo.filter((l) => l.status === "pago");
     const pendentes = grupo.filter((l) => l.status === "pendente");
+    // Só reescreve parcelas ainda a pagar (lançamentos que faltam).
     if (!pendentes.length) continue;
 
     const totalPago = arredondar2(pagos.reduce((s, l) => s + l.valor, 0));
