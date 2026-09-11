@@ -113,21 +113,12 @@ export async function PUT(
     let syncDesconto: {
       lancamentosAtualizados: number;
       trabalhosAtualizados: number;
+      descontoRemovido: boolean;
     } | null = null;
 
-    // Sempre sincroniza se observações vieram no PUT (desconto geral no formulário).
-    // A regravação é idempotente quando o desconto não mudou.
-    if (data.observacoes !== undefined) {
-      try {
-        syncDesconto = await sincronizarFaturasPendentesDescontoCliente({
-          empresaId: session.empresaId,
-          clienteId: id,
-          observacoes: cliente.observacoes,
-        });
-      } catch (err) {
-        console.error("[clientes] sync desconto OS/faturas", err);
-      }
-    } else if (descontoGeralClienteMudou(descontoAntesObs, cliente.observacoes)) {
+    // Só recalcula OS/notas quando o Desconto Geral efetivo mudou
+    // (inclui remoção → valores voltam ao bruto).
+    if (descontoGeralClienteMudou(descontoAntesObs, cliente.observacoes)) {
       try {
         syncDesconto = await sincronizarFaturasPendentesDescontoCliente({
           empresaId: session.empresaId,

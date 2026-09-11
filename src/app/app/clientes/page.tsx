@@ -28,6 +28,8 @@ import {
 import { BarraConfigListagem } from "@/components/listagem/BarraConfigListagem";
 import { useListagemPaginada } from "@/hooks/use-listagem-paginada";
 import { compararTextoBr } from "@/lib/listagem-config";
+import { notificarFinanceiroAtualizado } from "@/lib/financeiro-events";
+import { notificarTrabalhosAtualizados } from "@/lib/trabalhos-events";
 import { buscarEnderecoPorCep as buscarCepApi } from "@/lib/cep-lookup";
 import { validarNomeCliente } from "@/lib/cliente-validacao";
 import { formatCepInput } from "@/lib/documento-br";
@@ -538,6 +540,12 @@ export default function ClientesPage() {
     const data = (await res.json().catch(() => ({}))) as {
       error?: string;
       temSenhaPortal?: boolean;
+      syncDesconto?: {
+        trabalhosAtualizados?: number;
+        lancamentosAtualizados?: number;
+        descontoRemovido?: boolean;
+        aplicado?: boolean;
+      };
     };
     if (!res.ok) {
       alert(data.error || t("cadastros.clientes.erroSalvar"));
@@ -561,9 +569,25 @@ export default function ClientesPage() {
         limparSenhaPortal: false,
       }));
       setGravacaoOk(true);
-      setMsgGravacao(
-        abaModal === "configuracao" ? "Desconto aplicado" : "Alterações gravadas"
-      );
+      if (abaModal === "configuracao" && data.syncDesconto) {
+        const osN = data.syncDesconto.trabalhosAtualizados ?? 0;
+        const notasN = data.syncDesconto.lancamentosAtualizados ?? 0;
+        if (data.syncDesconto.descontoRemovido) {
+          setMsgGravacao(
+            `Desconto removido. Valores reais restaurados em ${osN} OS e ${notasN} nota(s) pendente(s).`
+          );
+        } else {
+          setMsgGravacao(
+            `Desconto aplicado em ${osN} OS e ${notasN} nota(s) pendente(s).`
+          );
+        }
+        notificarTrabalhosAtualizados();
+        notificarFinanceiroAtualizado();
+      } else if (abaModal === "configuracao") {
+        setMsgGravacao("Configuração gravada");
+      } else {
+        setMsgGravacao("Alterações gravadas");
+      }
       return;
     }
     setOpen(false);
@@ -1307,6 +1331,10 @@ export default function ClientesPage() {
                       className="w-full px-2 text-xs outline-none"
                     />
                   </div>
+                  <p className="mt-1 text-[10px] text-slate-400">
+                    Ao gravar, OS e notas pendentes são recalculadas. Zere o
+                    desconto para restaurar o valor real (sem desconto).
+                  </p>
                 </div>
 
                 <div className="space-y-1">

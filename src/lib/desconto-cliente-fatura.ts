@@ -42,7 +42,7 @@ export function descontoGeralClienteMudou(
 function extrairValorBrutoLinhaItem(line: string): number | null {
   if (!/^Item adicionado:/i.test(line)) return null;
   const valorTexto = line.match(
-    / - valor (.*?)(?: - categoria| - desc| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i
+    / - valor (.*?)(?: - categoria| - desc| - situação| - situacao| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i
   )?.[1];
   if (!valorTexto) return null;
   return parseCurrencyBr(valorTexto);
@@ -51,10 +51,15 @@ function extrairValorBrutoLinhaItem(line: string): number | null {
 function removerDescDaLinhaItem(line: string) {
   return line
     .replace(
-      / - desc .*?(?= - descTipo| - categoria| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i,
+      / - desc .*?(?= - descTipo| - categoria| - situação| - situacao| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i,
       ""
     )
     .replace(/ - descTipo (percentual|valor)(?= -|$)/i, "")
+    // Legado / impressão: "- desc % 10.00" sem descTipo
+    .replace(
+      / - desc\s+%?\s*[\d.,]+(?= - categoria| - situação| - situacao| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i,
+      ""
+    )
     .replace(/\s+$/g, "");
 }
 
@@ -194,6 +199,8 @@ function chaveGrupoCobranca(lancamento: {
 export type SyncDescontoClienteResultado = {
   lancamentosAtualizados: number;
   trabalhosAtualizados: number;
+  /** true quando o desconto geral ficou zerado (valores voltam ao bruto). */
+  descontoRemovido: boolean;
 };
 
 /**
@@ -210,6 +217,7 @@ export async function sincronizarFaturasPendentesDescontoCliente(params: {
   const tipo = descontoGeralTipoClienteObservacoes(params.observacoes) as
     | "percentual"
     | "valor";
+  const descontoRemovido = descontoEstaZerado(desconto);
 
   const trabalhos = await prisma.trabalho.findMany({
     where: { empresaId: params.empresaId, clienteId: params.clienteId },
@@ -356,5 +364,5 @@ export async function sincronizarFaturasPendentesDescontoCliente(params: {
     }
   }
 
-  return { lancamentosAtualizados, trabalhosAtualizados };
+  return { lancamentosAtualizados, trabalhosAtualizados, descontoRemovido };
 }
