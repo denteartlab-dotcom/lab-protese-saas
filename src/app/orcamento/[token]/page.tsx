@@ -331,7 +331,7 @@ export default function OrcamentoPublicoPage() {
   const inputCelula =
     "h-8 w-full min-w-0 rounded-sm border border-slate-200 px-2 text-[10px] disabled:bg-slate-50";
   const inputNomeProduto =
-    "min-h-[2.75rem] w-full min-w-[200px] resize-y rounded-sm border border-slate-200 px-2 py-1.5 text-[10px] leading-snug disabled:bg-slate-50";
+    "min-h-[2.75rem] w-full min-w-[180px] resize-y rounded-sm border border-slate-200 px-2 py-1.5 text-[10px] leading-snug disabled:bg-slate-50";
 
   async function exportarExcel() {
     try {
@@ -956,7 +956,7 @@ export default function OrcamentoPublicoPage() {
                 </div>
               </div>
             </div>
-            <table className="w-full min-w-[760px] text-[10px] print:min-w-0">
+            <table className="w-full min-w-[860px] text-[10px] print:min-w-0">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50 text-slate-500">
                   {!somenteLeitura && (
@@ -984,21 +984,31 @@ export default function OrcamentoPublicoPage() {
                   <th className="w-16 px-2 py-2 text-center font-semibold uppercase no-print">
                     Foto
                   </th>
-                  <th className="px-2 py-2 text-left font-semibold uppercase">Cod Barras</th>
-                  <th className="min-w-[220px] px-2 py-2 text-left font-semibold uppercase">
+                  <th className="w-[88px] px-2 py-2 text-left font-semibold uppercase">
+                    Cod Barras
+                  </th>
+                  <th className="min-w-[200px] px-2 py-2 text-left font-semibold uppercase">
                     Produto
                   </th>
-                  <th className="px-2 py-2 text-left font-semibold uppercase">Marca</th>
-                  <th className="px-2 py-2 text-center font-semibold uppercase">Quantidade</th>
-                  <th className="w-14 px-1 py-2" aria-label="Valor da unidade" />
-                  <th className="w-24 px-2 py-2 text-center font-semibold uppercase">Unidade</th>
-                  <th className="px-2 py-2 text-right font-semibold uppercase">
-                    Valor Unitário
+                  <th className="min-w-[120px] w-[130px] px-2 py-2 text-left font-semibold uppercase">
+                    Marca
                   </th>
-                  <th className="w-[72px] px-1 py-2 text-center font-semibold uppercase no-print">
+                  <th className="w-[72px] px-2 py-2 text-center font-semibold uppercase">
+                    Quantidade
+                  </th>
+                  <th className="w-14 px-1 py-2" aria-label="Valor da unidade" />
+                  <th className="w-20 px-2 py-2 text-center font-semibold uppercase">
+                    Unidade
+                  </th>
+                  <th className="w-[76px] px-1 py-2 text-right font-semibold uppercase">
+                    Valor Unit.
+                  </th>
+                  <th className="w-[64px] px-1 py-2 text-center font-semibold uppercase no-print">
                     Em falta
                   </th>
-                  <th className="px-2 py-2 text-right font-semibold uppercase">Subtotal</th>
+                  <th className="w-[80px] px-2 py-2 text-right font-semibold uppercase">
+                    Subtotal
+                  </th>
                   {!somenteLeitura && (
                     <th className="w-9 px-1 py-2 no-print" aria-label="Excluir" />
                   )}
@@ -1097,7 +1107,7 @@ export default function OrcamentoPublicoPage() {
                         />
                       )}
                     </td>
-                    <td className="min-w-[220px] px-2 py-2 align-top">
+                    <td className="min-w-[200px] px-2 py-2 align-top">
                       {somenteLeitura ? (
                         <span className="block whitespace-normal break-words font-medium leading-snug text-slate-700">
                           {item.produtoNome}
@@ -1120,15 +1130,21 @@ export default function OrcamentoPublicoPage() {
                         />
                       )}
                     </td>
-                    <td className="px-2 py-2">
+                    <td className="min-w-[120px] w-[130px] px-2 py-2 align-middle">
                       {somenteLeitura ? (
-                        <span className="text-slate-500">{item.marca || ""}</span>
+                        <span
+                          className="block whitespace-normal break-words text-slate-600"
+                          title={item.marca || undefined}
+                        >
+                          {item.marca || ""}
+                        </span>
                       ) : (
                         <input
                           value={item.marca || ""}
                           onChange={(e) => atualizarItem(index, "marca", e.target.value)}
-                          className={inputCelula}
+                          className={`${inputCelula} min-w-[110px]`}
                           placeholder="Marca"
+                          title={item.marca || "Marca"}
                           {...propsInputComSelecaoAoFocar({})}
                         />
                       )}
@@ -1201,7 +1217,7 @@ export default function OrcamentoPublicoPage() {
                           {rotuloUnidadeCurto(item.unidade)}
                         </span>
                       ) : (
-                        <div className="mx-auto flex max-w-[110px] flex-col gap-1">
+                        <div className="mx-auto flex max-w-[88px] flex-col gap-1">
                           <select
                             value={
                               UNIDADES_MEDIDA.some(
@@ -1247,7 +1263,7 @@ export default function OrcamentoPublicoPage() {
                         </div>
                       )}
                     </td>
-                    <td className="px-2 py-2 text-right">
+                    <td className="w-[76px] px-1 py-2 text-right align-middle">
                       {somenteLeitura ? (
                         item.emFalta ? (
                           <span className="text-amber-700">Em falta</span>
@@ -1268,7 +1284,7 @@ export default function OrcamentoPublicoPage() {
                           onChange={(e) =>
                             atualizarValorUnitario(index, e.target.value)
                           }
-                          className={`ml-auto block h-8 w-28 rounded-sm border px-2 text-right text-[10px] ${
+                          className={`ml-auto block h-8 w-[4.5rem] rounded-sm border px-1 text-right text-[10px] ${
                             item.emFalta
                               ? "border-amber-200 bg-amber-50 text-amber-700"
                               : !(item.valorUnitario > 0)
