@@ -464,8 +464,8 @@ function FinanceiroReceberConteudo() {
       JSON.stringify(painelData.lancamentos)
     ) as typeof painelData.lancamentos;
 
-    // Repara Cobrança OS faltante quando só existe "Desconto com crédito" (bug legado).
-    if (!opts?.aposReparo) {
+    // Repara legado só no carregamento inicial — no refresh pós-mutação atrasa o KPI.
+    if (!opts?.aposReparo && !opts?.refresh) {
       const orfaos = listarAbatimentosCreditoSemFatura(
         lancamentosSerializados as unknown as LancamentoContasReceber[]
       );

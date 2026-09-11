@@ -167,6 +167,7 @@ import {
   type PrioridadeOsForm,
 } from "@/lib/prioridade-os";
 import { notificarTrabalhosAtualizados } from "@/lib/trabalhos-events";
+import { notificarFinanceiroAtualizado } from "@/lib/financeiro-events";
 import {
   excluirUploadPorUrl,
   notificarUploadsAtualizados,
@@ -3253,6 +3254,7 @@ export default function ControlePage() {
       );
     }
     notificarTrabalhosAtualizados({ trabalhoId: editando.id });
+    notificarFinanceiroAtualizado();
     fecharEdicaoOs();
     void load();
     } finally {
@@ -3293,6 +3295,7 @@ export default function ControlePage() {
         dadosControleEntrega(trabalho)
       );
       notificarTrabalhosAtualizados({ trabalhoId: trabalho.id });
+      notificarFinanceiroAtualizado();
     }
   }
 

@@ -19,6 +19,7 @@ import {
 } from "@/lib/os-faturamento";
 import { excluirFaturaCobrancaOsServidor } from "@/lib/fatura-exclusao-servidor";
 import { sincronizarContasReceberAposAlteracaoTrabalho } from "@/lib/os-faturamento-sync-servidor";
+import { invalidarCachePainelFinanceiro } from "@/lib/financeiro-painel-cache";
 import { grupoOsIdOf, segmentoEfetivoTrabalho, whereGrupoOs } from "@/lib/trabalho-os-segmento";
 import { alinharDataEntradaGrupoOs } from "@/lib/os-data-criacao";
 import { STATUS_TRABALHO } from "@/lib/utils";
@@ -421,6 +422,11 @@ export async function PUT(
       } catch (err) {
         console.warn("[trabalhos/PUT] sync contas a receber", err);
       }
+    }
+
+    // Situação altera "não faturados" e notas de cobrança — invalida cache do painel.
+    if (statusMudou || valorMudou || instrucoesMudou) {
+      invalidarCachePainelFinanceiro(ctx.empresaId);
     }
 
     void notificarTvOrdensEmpresa(ctx.empresaId, id);

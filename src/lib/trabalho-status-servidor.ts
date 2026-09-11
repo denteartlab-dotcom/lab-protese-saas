@@ -26,6 +26,7 @@ import {
 } from "@/lib/historico-situacao-os";
 import { removerUrgenciaOs } from "@/lib/urgencia-cliente";
 import { STATUS_TRABALHO } from "@/lib/utils";
+import { invalidarCachePainelFinanceiro } from "@/lib/financeiro-painel-cache";
 import type { SessionUser } from "@/lib/auth";
 
 export type ResultadoMudancaStatusTrabalho = {
@@ -221,6 +222,7 @@ export async function aplicarMudancaStatusTrabalho(
     novoStatus
   );
   await aplicarEfeitosStatus(empresaId, statusAnterior, novoStatus, trabalho);
+  invalidarCachePainelFinanceiro(empresaId);
 
   return {
     id: trabalho.id,
