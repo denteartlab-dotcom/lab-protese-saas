@@ -159,9 +159,29 @@ export function OrcamentoFormModal({
     [fornecedores, t]
   );
 
-  const produtosMap = useMemo(
-    () => new Map(produtos.map((produto) => [produto.id, produto])),
-    [produtos]
+  const produtosMap = useMemo(() => {
+    const map = new Map(produtos.map((produto) => [produto.id, produto]));
+    if (orcamento) {
+      for (const item of orcamento.itens) {
+        if (!item.produtoId || map.has(item.produtoId)) continue;
+        map.set(item.produtoId, {
+          id: item.produtoId,
+          nome: item.produtoNome,
+          marca: item.marca,
+          codigoBarras: item.codigoBarras,
+          imagemUrl: item.imagemUrl,
+          valorCusto: 0,
+          estoque: 0,
+          unidadeMedida: item.unidade,
+        });
+      }
+    }
+    return map;
+  }, [produtos, orcamento]);
+
+  const produtosCatalogo = useMemo(
+    () => Array.from(produtosMap.values()),
+    [produtosMap]
   );
 
   function criarLinhaId() {
@@ -223,7 +243,7 @@ export function OrcamentoFormModal({
         .map((linha) => linha.produtoId)
     );
 
-    return produtos.filter((produto) => {
+    return produtosCatalogo.filter((produto) => {
       if (idsUsados.has(produto.id)) return false;
       return produtoCombinaBusca(produto, termoBuscaProduto);
     });
@@ -277,7 +297,7 @@ export function OrcamentoFormModal({
       );
       setLinhas(
         orcamento.itens.map((item) => {
-          const produto = produtos.find((p) => p.id === item.produtoId);
+          const produto = produtosMap.get(item.produtoId);
           return {
             linhaId: criarLinhaId(),
             produtoId: item.produtoId,
@@ -293,11 +313,8 @@ export function OrcamentoFormModal({
           };
         })
       );
-      const temZerado = orcamento.itens.some((item) => {
-        const produto = produtos.find((p) => p.id === item.produtoId);
-        return (produto?.estoque ?? 0) === 0;
-      });
-      setMostrarZerados(temZerado);
+      // Edição: só os produtos já do pedido; usuário acrescenta manualmente.
+      setMostrarZerados(false);
     } else {
       setFornecedorId("");
       setWhatsappEnvio("");
@@ -307,7 +324,7 @@ export function OrcamentoFormModal({
         aoSelecionarFornecedor(fornecedores[0].id);
       }
     }
-  }, [open, orcamento, fornecedores, aoSelecionarFornecedor]);
+  }, [open, orcamento, fornecedores, aoSelecionarFornecedor, produtosMap]);
 
   useEffect(() => {
     if (!open || somenteLeitura || orcamento || produtos.length === 0) return;
@@ -337,9 +354,17 @@ export function OrcamentoFormModal({
   }, [open, preencherZerados, orcamento, somenteLeitura, alterarMostrarZerados]);
 
   useEffect(() => {
-    if (!open || somenteLeitura || !mostrarZerados) return;
+    // Em edição do pedido, não mesclar o catálogo de estoque zerado automaticamente.
+    if (!open || somenteLeitura || !mostrarZerados || orcamento) return;
     setLinhas((atual) => mesclarProdutosZerados(atual));
-  }, [open, somenteLeitura, mostrarZerados, produtosEstoqueZero, mesclarProdutosZerados]);
+  }, [
+    open,
+    somenteLeitura,
+    mostrarZerados,
+    produtosEstoqueZero,
+    mesclarProdutosZerados,
+    orcamento,
+  ]);
 
   const todosSelecionados =
     linhasVisiveis.length > 0 && linhasVisiveis.every((linha) => linha.selecionado);
@@ -455,15 +480,18 @@ export function OrcamentoFormModal({
     }
 
     const itens: ItemOrcamento[] = itensSelecionados.map((linha) => {
-      const produto = produtosMap.get(linha.produtoId)!;
+      const produto = produtosMap.get(linha.produtoId);
+      const itemOrigem = orcamento?.itens.find(
+        (item) => item.produtoId === linha.produtoId
+      );
       return {
-        produtoId: produto.id,
-        produtoNome: produto.nome,
-        marca: produto.marca,
-        codigoBarras: produto.codigoBarras,
-        imagemUrl: produto.imagemUrl,
+        produtoId: linha.produtoId,
+        produtoNome: produto?.nome || itemOrigem?.produtoNome || "",
+        marca: produto?.marca || itemOrigem?.marca,
+        codigoBarras: produto?.codigoBarras || itemOrigem?.codigoBarras,
+        imagemUrl: produto?.imagemUrl || itemOrigem?.imagemUrl,
         unidade: normalizarUnidadeMedida(
-          linha.unidade || produto.unidadeMedida
+          linha.unidade || produto?.unidadeMedida || itemOrigem?.unidade
         ),
         unidadeValor:
           linha.unidadeValor && linha.unidadeValor > 0
@@ -490,7 +518,12 @@ export function OrcamentoFormModal({
       if (resultado?.whatsappEnvio && resultado.token) {
         const publicUrl = orcamentoPublicUrl(resultado.token);
         const texto = mensagemSolicitarOrcamento(publicUrl);
-        const envio = await dispararOuAbrirWhatsapp(resultado.whatsappEnvio, texto);
+        // Ao editar/reenviar o link, abre sempre o WhatsApp Web.
+        const envio = await dispararOuAbrirWhatsapp(
+          resultado.whatsappEnvio,
+          texto,
+          orcamento ? { forcarWhatsAppWeb: true } : undefined
+        );
         if (envio.modo === "erro") {
           window.alert(
             envio.error || t("estoque.orcamentos.alerta.salvoWhatsappErro")
@@ -530,7 +563,7 @@ export function OrcamentoFormModal({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 text-[11px] text-slate-600">
-          {!somenteLeitura && (
+          {!somenteLeitura && !orcamento && (
             <label className="mb-4 flex cursor-pointer items-center gap-2">
               <span
                 className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition ${

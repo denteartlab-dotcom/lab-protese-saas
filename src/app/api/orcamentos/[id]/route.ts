@@ -72,27 +72,65 @@ export async function PATCH(request: Request, { params }: Params) {
     status = "aguardando_resposta";
   }
 
-  let itens: ItemOrcamento[] = body.itens ?? JSON.parse(atual.itensJson || "[]");
-  if (body.itens && status === "aguardando_resposta" && !body.reabrirParaEdicao) {
-    itens = body.itens.map((item) => ({ ...item, valorUnitario: 0 }));
+  /** Editar lista + reenviar: volta a aguardar e zera preços para nova cotação. */
+  const reabrindoComItens =
+    Boolean(body.itens) &&
+    (Boolean(body.reabrirParaEdicao) ||
+      (statusAnterior === "enviado" && status === "aguardando_resposta"));
+
+  if (
+    (body.reabrirParaEdicao || reabrindoComItens) &&
+    statusAnterior === "enviado"
+  ) {
+    status = "aguardando_resposta";
   }
-  const subtotal = body.reabrirParaEdicao
-    ? atual.subtotal
-    : calcularTotaisItens(itens);
-  const desconto = body.desconto ?? atual.desconto;
-  const descontoPercentual = body.descontoPercentual ?? atual.descontoPercentual;
+
+  let itens: ItemOrcamento[] = body.itens ?? JSON.parse(atual.itensJson || "[]");
+  if (body.itens && status === "aguardando_resposta") {
+    itens = body.itens.map((item) => ({
+      ...item,
+      valorUnitario: 0,
+      emFalta: false,
+    }));
+  }
+
+  const resetarRespostaFornecedor =
+    Boolean(body.reabrirParaEdicao) || reabrindoComItens;
+
+  const subtotal =
+    body.itens != null
+      ? calcularTotaisItens(itens)
+      : resetarRespostaFornecedor
+        ? atual.subtotal
+        : calcularTotaisItens(itens);
+  const desconto =
+    body.itens != null && resetarRespostaFornecedor
+      ? body.desconto ?? 0
+      : body.desconto ?? atual.desconto;
+  const descontoPercentual =
+    body.itens != null && resetarRespostaFornecedor
+      ? body.descontoPercentual ?? 0
+      : body.descontoPercentual ?? atual.descontoPercentual;
   const frete =
-    body.frete !== undefined
-      ? Math.max(Number(body.frete) || 0, 0)
-      : Number((atual as { frete?: number | null }).frete) || 0;
-  const totalLiquido = body.reabrirParaEdicao
-    ? atual.totalLiquido
-    : totalLiquidoOrcamento(subtotal, desconto, descontoPercentual, frete);
-  const linkAtivo = body.reabrirParaEdicao
-    ? true
-    : statusInvalidaLink(status)
-      ? false
-      : atual.linkAtivo;
+    body.itens != null && resetarRespostaFornecedor
+      ? body.frete !== undefined
+        ? Math.max(Number(body.frete) || 0, 0)
+        : 0
+      : body.frete !== undefined
+        ? Math.max(Number(body.frete) || 0, 0)
+        : Number((atual as { frete?: number | null }).frete) || 0;
+  const totalLiquido =
+    body.itens != null
+      ? totalLiquidoOrcamento(subtotal, desconto, descontoPercentual, frete)
+      : resetarRespostaFornecedor
+        ? atual.totalLiquido
+        : totalLiquidoOrcamento(subtotal, desconto, descontoPercentual, frete);
+  const linkAtivo =
+    body.reabrirParaEdicao || reabrindoComItens
+      ? true
+      : statusInvalidaLink(status)
+        ? false
+        : atual.linkAtivo;
 
   const condicoesPagamentoAtualizadas =
     body.condicoesPagamentoLista != null ||
@@ -114,14 +152,21 @@ export async function PATCH(request: Request, { params }: Params) {
       frete,
       totalLiquido,
       observacoes: body.observacoes ?? atual.observacoes,
-      condicoesPagamento: body.reabrirParaEdicao
-        ? atual.condicoesPagamento
-        : condicoesPagamentoAtualizadas,
+      condicoesPagamento:
+        body.itens != null && resetarRespostaFornecedor
+          ? null
+          : body.reabrirParaEdicao
+            ? atual.condicoesPagamento
+            : condicoesPagamentoAtualizadas,
+      respostaFornecedor:
+        body.itens != null && resetarRespostaFornecedor
+          ? null
+          : atual.respostaFornecedor,
       fornecedorId: body.fornecedorId ?? atual.fornecedorId,
       fornecedorNome: body.fornecedorNome ?? atual.fornecedorNome,
       emailEnvio: body.emailEnvio ?? atual.emailEnvio,
       whatsappEnvio: body.whatsappEnvio ?? atual.whatsappEnvio,
-      dataResposta: body.reabrirParaEdicao
+      dataResposta: resetarRespostaFornecedor
         ? null
         : body.dataResposta
           ? new Date(body.dataResposta)

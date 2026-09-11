@@ -33,7 +33,6 @@ import { hrefBoletoControle } from "@/lib/notificacao-links";
 import { formatCurrency } from "@/lib/utils";
 import {
   mensagemAprovacaoOrcamento,
-  mensagemReenviarOrcamentoConferencia,
   orcamentoPublicUrl,
 } from "@/lib/whatsapp";
 import { dispararOuAbrirWhatsapp } from "@/lib/whatsapp-disparo-cliente";
@@ -99,7 +98,6 @@ export default function OrcamentosPage() {
   const [somenteLeitura, setSomenteLeitura] = useState(false);
   const [orcamentoAtual, setOrcamentoAtual] = useState<Orcamento | null>(null);
   const [orcamentoParaExcluir, setOrcamentoParaExcluir] = useState<Orcamento | null>(null);
-  const [orcamentoParaReabrir, setOrcamentoParaReabrir] = useState<Orcamento | null>(null);
   const [orcamentoParaAprovar, setOrcamentoParaAprovar] = useState<Orcamento | null>(null);
   const [orcamentoParaRecusar, setOrcamentoParaRecusar] = useState<Orcamento | null>(null);
   const [respostaModalAberto, setRespostaModalAberto] = useState(false);
@@ -199,6 +197,14 @@ export default function OrcamentosPage() {
   }
 
   function abrirEdicao(orcamento: Orcamento) {
+    setOrcamentoAtual(orcamento);
+    setSomenteLeitura(false);
+    setModalAberto(true);
+  }
+
+  function abrirEditarLink(orcamento: Orcamento) {
+    setRespostaModalAberto(false);
+    setOrcamentoResposta(null);
     setOrcamentoAtual(orcamento);
     setSomenteLeitura(false);
     setModalAberto(true);
@@ -311,6 +317,9 @@ export default function OrcamentosPage() {
           body: JSON.stringify({
             ...body,
             itens: payload.itens,
+            ...(orcamentoAtual?.status === "enviado"
+              ? { reabrirParaEdicao: true }
+              : {}),
           }),
         })
       : await fetch("/api/orcamentos", {
@@ -458,51 +467,6 @@ export default function OrcamentosPage() {
     const url = orcamentoPublicUrl(orcamento.token);
     void navigator.clipboard.writeText(url);
     alert(t("estoque.orcamentos.linkCopiado"));
-  }
-
-  async function confirmarReabrirLinkOrcamento() {
-    const orcamento = orcamentoParaReabrir;
-    if (!orcamento) return;
-
-    setProcessandoAprovacao(true);
-    try {
-      const response = await fetch(`/api/orcamentos/${orcamento.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reabrirParaEdicao: true }),
-      });
-      const data = (await response.json()) as Orcamento & { message?: string };
-      if (!response.ok) {
-        alert(data.message || t("estoque.orcamentos.alerta.erroReabrir"));
-        return;
-      }
-
-      await recarregarOrcamentos();
-
-      const url = orcamentoPublicUrl(data.token);
-      window.open(url, "_blank", "noopener,noreferrer");
-
-      const telefone = data.whatsappEnvio?.trim();
-      if (telefone) {
-        const texto = mensagemReenviarOrcamentoConferencia(
-          data.numeroPedido,
-          url
-        );
-        const resultado = await dispararOuAbrirWhatsapp(telefone, texto);
-        if (resultado.modo === "erro") {
-          alert(
-            resultado.error || t("estoque.orcamentos.alerta.reabertoWhatsappErro")
-          );
-        }
-      } else {
-        alert(t("estoque.orcamentos.alerta.reabertoSemWhatsapp"));
-      }
-
-      setOrcamentoParaReabrir(null);
-      fecharRespostaModal();
-    } finally {
-      setProcessandoAprovacao(false);
-    }
   }
 
   async function enviarAprovacaoWhatsApp(orcamento: Orcamento) {
@@ -796,7 +760,7 @@ export default function OrcamentosPage() {
         onClose={fecharRespostaModal}
         onAprovar={solicitarAprovarOrcamento}
         onRecusar={solicitarRecusarOrcamento}
-        onReabrirLink={setOrcamentoParaReabrir}
+        onReabrirLink={abrirEditarLink}
         processando={processandoAprovacao}
       />
 
@@ -827,30 +791,6 @@ export default function OrcamentosPage() {
         processando={processandoAprovacao}
         onClose={() => setOrcamentoParaRecusar(null)}
         onConfirm={() => void confirmarRecusarOrcamento()}
-      />
-
-      <ConfirmacaoExclusaoModal
-        open={!!orcamentoParaReabrir}
-        titulo={t("estoque.orcamentos.confirm.reabrirTitulo")}
-        mensagem={
-          orcamentoParaReabrir
-            ? t("estoque.orcamentos.confirm.reabrirMensagem", {
-                numero: orcamentoParaReabrir.numeroPedido,
-              })
-            : ""
-        }
-        aviso={t("estoque.orcamentos.confirm.reabrirAviso")}
-        detalhe={
-          orcamentoParaReabrir
-            ? `${orcamentoParaReabrir.fornecedorNome || t("estoque.orcamentos.fornecedorPadrao")}`
-            : undefined
-        }
-        tipoConfirmacao="primario"
-        labelConfirmar={t("estoque.orcamentos.confirm.sim")}
-        labelCancelar={t("estoque.orcamentos.confirm.nao")}
-        processando={processandoAprovacao}
-        onClose={() => setOrcamentoParaReabrir(null)}
-        onConfirm={() => void confirmarReabrirLinkOrcamento()}
       />
 
       <ConfirmacaoExclusaoModal
