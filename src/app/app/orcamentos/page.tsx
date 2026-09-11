@@ -24,7 +24,10 @@ import type { MessageKey } from "@/lib/i18n";
 import {
   exigeParcelamento,
   parseCondicoesPagamento,
+  rotuloCondicoesPagamento,
   rotuloParcelamentoColuna,
+  serializarListaCondicoesPagamento,
+  type CondicoesPagamentoOrcamento,
 } from "@/lib/orcamentos-pagamento";
 import { hrefBoletoControle } from "@/lib/notificacao-links";
 import { formatCurrency } from "@/lib/utils";
@@ -41,6 +44,7 @@ import {
   type SalvarOrcamentoResult,
 } from "./OrcamentoFormModal";
 import { OrcamentoRespostaModal } from "./OrcamentoRespostaModal";
+import { OrcamentoAprovarModal } from "./OrcamentoAprovarModal";
 
 const FORNECEDORES_STORAGE_KEY = "labProteseFornecedores";
 const LAB_TELEFONE_STORAGE_KEY = "labProteseLabTelefone";
@@ -220,11 +224,13 @@ export default function OrcamentosPage() {
     setOrcamentoParaAprovar(orcamento);
   }
 
-  async function confirmarAprovarOrcamento() {
+  async function confirmarAprovarOrcamento(
+    pagamento: CondicoesPagamentoOrcamento
+  ) {
     const orcamento = orcamentoParaAprovar;
     if (!orcamento) return;
     setOrcamentoParaAprovar(null);
-    await alterarStatusOrcamento(orcamento, "aprovado");
+    await alterarStatusOrcamento(orcamento, "aprovado", pagamento);
   }
 
   function solicitarRecusarOrcamento(orcamento: Orcamento) {
@@ -366,14 +372,22 @@ export default function OrcamentosPage() {
 
   async function alterarStatusOrcamento(
     orcamento: Orcamento,
-    status: "aprovado" | "cancelado"
+    status: "aprovado" | "cancelado",
+    pagamentoEscolhido?: CondicoesPagamentoOrcamento
   ) {
     setProcessandoAprovacao(true);
     try {
+      const body: Record<string, unknown> = { status };
+      if (status === "aprovado" && pagamentoEscolhido) {
+        body.condicoesPagamentoLista = [pagamentoEscolhido];
+        body.condicoesPagamento = serializarListaCondicoesPagamento([
+          pagamentoEscolhido,
+        ]);
+      }
       const response = await fetch(`/api/orcamentos/${orcamento.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify(body),
       });
       const data = (await response.json()) as Orcamento & {
         parcelasFinanceiro?: number;
@@ -385,17 +399,33 @@ export default function OrcamentosPage() {
         return;
       }
       if (status === "aprovado") {
-        const cond = parseCondicoesPagamento(orcamento.condicoesPagamento);
+        const cond =
+          pagamentoEscolhido ||
+          parseCondicoesPagamento(
+            data.condicoesPagamento || orcamento.condicoesPagamento
+          );
+        const rotuloPagamento = rotuloCondicoesPagamento(cond);
         const n = data.parcelasFinanceiro ?? 0;
         if (n > 0) {
           const parcelado = exigeParcelamento(cond.forma);
           alert(
             parcelado
-              ? t("estoque.orcamentos.alerta.aprovadoParcelado", { n })
-              : t("estoque.orcamentos.alerta.aprovadoDespesa")
+              ? t("estoque.orcamentos.alerta.aprovadoParcelado", {
+                  n,
+                  pagamento: rotuloPagamento,
+                })
+              : t("estoque.orcamentos.alerta.aprovadoDespesa", {
+                  pagamento: rotuloPagamento,
+                })
           );
         } else if (exigeParcelamento(cond.forma)) {
           alert(t("estoque.orcamentos.alerta.parcelasNaoGeradas"));
+        } else {
+          alert(
+            t("estoque.orcamentos.alerta.aprovadoDespesa", {
+              pagamento: rotuloPagamento,
+            })
+          );
         }
 
         /** Estoque + custos em job (issue 029) — não bloqueia o modal no client. */
@@ -484,7 +514,10 @@ export default function OrcamentosPage() {
     const texto = mensagemAprovacaoOrcamento(
       orcamento.numeroPedido,
       orcamento.fornecedorNome || t("estoque.orcamentos.fornecedorPadrao"),
-      formatCurrency(totalLiquido(orcamento))
+      formatCurrency(totalLiquido(orcamento)),
+      rotuloCondicoesPagamento(
+        parseCondicoesPagamento(orcamento.condicoesPagamento)
+      )
     );
     const resultado = await dispararOuAbrirWhatsapp(telefone, texto);
     if (resultado.modo === "erro") {
@@ -767,26 +800,12 @@ export default function OrcamentosPage() {
         processando={processandoAprovacao}
       />
 
-      <ConfirmacaoExclusaoModal
+      <OrcamentoAprovarModal
         open={!!orcamentoParaAprovar}
-        titulo={t("estoque.orcamentos.confirm.aprovarTitulo")}
-        mensagem={
-          orcamentoParaAprovar
-            ? t("estoque.orcamentos.confirm.aprovarMensagem", {
-                numero: orcamentoParaAprovar.numeroPedido,
-              })
-            : ""
-        }
-        aviso={t("estoque.orcamentos.confirm.aprovarAviso")}
-        detalhe={
-          orcamentoParaAprovar
-            ? `${orcamentoParaAprovar.fornecedorNome || t("estoque.orcamentos.fornecedorPadrao")}`
-            : undefined
-        }
-        tipoConfirmacao="primario"
+        orcamento={orcamentoParaAprovar}
         processando={processandoAprovacao}
         onClose={() => setOrcamentoParaAprovar(null)}
-        onConfirm={() => void confirmarAprovarOrcamento()}
+        onConfirm={(pagamento) => void confirmarAprovarOrcamento(pagamento)}
       />
 
       <ConfirmacaoExclusaoModal

@@ -1544,9 +1544,9 @@ export const messagesModulosPt = {
   "estoque.orcamentos.alerta.nenhumaParcela":
     "Nenhuma parcela foi gerada. Verifique o total líquido e o parcelamento.",
   "estoque.orcamentos.alerta.aprovadoParcelado":
-    'Orçamento aprovado. {n} parcela(s) em Contas a Pagar (vencimento a cada 30 dias). O preço de custo dos produtos foi atualizado com o valor aceito.',
+    "Compra confirmada com pagamento parcelado ({pagamento}). {n} parcela(s) em Contas a Pagar / Controle de Boletos. O preço de custo dos produtos foi atualizado.",
   "estoque.orcamentos.alerta.aprovadoDespesa":
-    "Orçamento aprovado. Despesa registrada em Contas a Pagar. O preço de custo dos produtos foi atualizado com o valor aceito.",
+    "Compra confirmada com pagamento à vista ({pagamento}). Despesa registrada em Contas a Pagar. O preço de custo dos produtos foi atualizado.",
   "estoque.orcamentos.alerta.parcelasNaoGeradas":
     "Orçamento aprovado, mas as parcelas não foram geradas. Verifique o valor líquido e tente novamente.",
   "estoque.orcamentos.alerta.estoqueProcessando":
@@ -1560,7 +1560,17 @@ export const messagesModulosPt = {
   "estoque.orcamentos.confirm.aprovarTitulo": "Aprovar orçamento",
   "estoque.orcamentos.confirm.aprovarMensagem": "Deseja aprovar o orçamento #{numero}?",
   "estoque.orcamentos.confirm.aprovarAviso":
-    "O custo dos produtos e o estoque serão atualizados. Despesas serão registradas em Contas a Pagar conforme o parcelamento.",
+    "O custo dos produtos e o estoque serão atualizados. Despesas serão registradas em Contas a Pagar conforme a opção de pagamento escolhida.",
+  "estoque.orcamentos.confirm.aprovarOfertasFornecedor": "Ofertas do fornecedor",
+  "estoque.orcamentos.confirm.aprovarEscolherPagamento": "Pagamento desta compra",
+  "estoque.orcamentos.confirm.aprovarAVista": "À vista",
+  "estoque.orcamentos.confirm.aprovarParcelado": "Parcelado",
+  "estoque.orcamentos.confirm.aprovarForma": "Forma",
+  "estoque.orcamentos.confirm.aprovarParcelas": "Parcelas",
+  "estoque.orcamentos.confirm.aprovarResumoTitulo": "Confirmação da compra",
+  "estoque.orcamentos.confirm.aprovarResumoTexto":
+    "Pagamento {pagamento}. Total {total}.",
+  "estoque.orcamentos.confirm.aprovando": "Aprovando...",
   "estoque.orcamentos.confirm.recusarTitulo": "Recusar orçamento",
   "estoque.orcamentos.confirm.recusarMensagem": "Deseja recusar o orçamento #{numero}?",
   "estoque.orcamentos.confirm.recusarAviso": "O pedido será marcado como cancelado.",
@@ -3525,9 +3535,9 @@ export const messagesModulosEn: Record<keyof typeof messagesModulosPt, string> =
   "estoque.orcamentos.alerta.nenhumaParcela":
     "No installments were generated. Check the net total and payment plan.",
   "estoque.orcamentos.alerta.aprovadoParcelado":
-    "Quote approved. {n} installment(s) in Accounts payable (due every 30 days). Product cost prices were updated with the accepted quote values.",
+    "Purchase confirmed with installment payment ({pagamento}). {n} installment(s) in Accounts payable / Boleto control. Product cost prices were updated.",
   "estoque.orcamentos.alerta.aprovadoDespesa":
-    "Quote approved. Expense recorded in Accounts payable. Product cost prices were updated with the accepted quote values.",
+    "Purchase confirmed with cash payment ({pagamento}). Expense recorded in Accounts payable. Product cost prices were updated.",
   "estoque.orcamentos.alerta.parcelasNaoGeradas":
     "Quote approved, but installments were not generated. Check the net amount and try again.",
   "estoque.orcamentos.alerta.estoqueProcessando":
@@ -3541,7 +3551,17 @@ export const messagesModulosEn: Record<keyof typeof messagesModulosPt, string> =
   "estoque.orcamentos.confirm.aprovarTitulo": "Approve quote",
   "estoque.orcamentos.confirm.aprovarMensagem": "Do you want to approve quote #{numero}?",
   "estoque.orcamentos.confirm.aprovarAviso":
-    "Product costs and stock will be updated. Expenses will be recorded in Accounts payable according to the payment plan.",
+    "Product costs and stock will be updated. Expenses will be recorded in Accounts payable according to the selected payment option.",
+  "estoque.orcamentos.confirm.aprovarOfertasFornecedor": "Supplier offers",
+  "estoque.orcamentos.confirm.aprovarEscolherPagamento": "Payment for this purchase",
+  "estoque.orcamentos.confirm.aprovarAVista": "Cash / upfront",
+  "estoque.orcamentos.confirm.aprovarParcelado": "Installments",
+  "estoque.orcamentos.confirm.aprovarForma": "Method",
+  "estoque.orcamentos.confirm.aprovarParcelas": "Installments",
+  "estoque.orcamentos.confirm.aprovarResumoTitulo": "Purchase confirmation",
+  "estoque.orcamentos.confirm.aprovarResumoTexto":
+    "Payment {pagamento}. Total {total}.",
+  "estoque.orcamentos.confirm.aprovando": "Approving...",
   "estoque.orcamentos.confirm.recusarTitulo": "Reject quote",
   "estoque.orcamentos.confirm.recusarMensagem": "Do you want to reject quote #{numero}?",
   "estoque.orcamentos.confirm.recusarAviso": "The order will be marked as cancelled.",
@@ -5508,12 +5528,13 @@ export const messagesModulosEs: Record<keyof typeof messagesModulosPt, string> =
   "estoque.orcamentos.alerta.nenhumaParcela":
     "No se generaron cuotas. Verifique el total neto y el parcelamiento.",
   "estoque.orcamentos.alerta.aprovadoParcelado":
-    'Presupuesto aprobado. {n} cuota(s) en Cuentas por pagar (vencimiento cada 30 días). Vea en Finanzas › Cuentas por pagar con filtro "Todos".',
-  "estoque.orcamentos.alerta.aprovadoDespesa": "Presupuesto aprobado. Gasto registrado en Cuentas por pagar.",
+    "Compra confirmada con pago parcelado ({pagamento}). {n} cuota(s) en Cuentas por pagar / Control de boletos. El precio de costo de los productos se actualizó.",
+  "estoque.orcamentos.alerta.aprovadoDespesa":
+    "Compra confirmada con pago al contado ({pagamento}). Gasto registrado en Cuentas por pagar. El precio de costo de los productos se actualizó.",
   "estoque.orcamentos.alerta.parcelasNaoGeradas":
     "Presupuesto aprobado, pero no se generaron las cuotas. Verifique el valor neto e intente de nuevo.",
   "estoque.orcamentos.alerta.estoqueProcessando":
-    "Presupuesto aprobado, pero la actualización de stock aún se está procesando. Actualice la página de productos en unos instantes.",
+    "Presupuesto aprobado, pero stock y precio de costo aún se están procesando. Actualice la página de productos en unos instantes.",
   "estoque.orcamentos.alerta.reabertoWhatsappErro":
     "Presupuesto reabierto y enlace abierto en el navegador. No fue posible enviar por WhatsApp — verifique el número o la conexión en Configuración → WhatsApp.",
   "estoque.orcamentos.alerta.reabertoSemWhatsapp":
@@ -5523,7 +5544,17 @@ export const messagesModulosEs: Record<keyof typeof messagesModulosPt, string> =
   "estoque.orcamentos.confirm.aprovarTitulo": "Aprobar presupuesto",
   "estoque.orcamentos.confirm.aprovarMensagem": "¿Desea aprobar el presupuesto #{numero}?",
   "estoque.orcamentos.confirm.aprovarAviso":
-    "Se actualizarán el costo de los productos y el stock. Los gastos se registrarán en Cuentas por pagar según el parcelamiento.",
+    "Se actualizarán el costo de los productos y el stock. Los gastos se registrarán en Cuentas por pagar según la opción de pago elegida.",
+  "estoque.orcamentos.confirm.aprovarOfertasFornecedor": "Ofertas del proveedor",
+  "estoque.orcamentos.confirm.aprovarEscolherPagamento": "Pago de esta compra",
+  "estoque.orcamentos.confirm.aprovarAVista": "Al contado",
+  "estoque.orcamentos.confirm.aprovarParcelado": "Parcelado",
+  "estoque.orcamentos.confirm.aprovarForma": "Forma",
+  "estoque.orcamentos.confirm.aprovarParcelas": "Cuotas",
+  "estoque.orcamentos.confirm.aprovarResumoTitulo": "Confirmación de la compra",
+  "estoque.orcamentos.confirm.aprovarResumoTexto":
+    "Pago {pagamento}. Total {total}.",
+  "estoque.orcamentos.confirm.aprovando": "Aprobando...",
   "estoque.orcamentos.confirm.recusarTitulo": "Rechazar presupuesto",
   "estoque.orcamentos.confirm.recusarMensagem": "¿Desea rechazar el presupuesto #{numero}?",
   "estoque.orcamentos.confirm.recusarAviso": "El pedido se marcará como cancelado.",

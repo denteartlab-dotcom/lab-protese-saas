@@ -69,9 +69,13 @@ export function mensagemReenviarOrcamentoConferencia(
 export function mensagemAprovacaoOrcamento(
   numeroPedido: number,
   fornecedorNome: string,
-  totalFormatado: string
+  totalFormatado: string,
+  pagamentoDescricao?: string
 ) {
-  return `Olá! O orçamento do pedido #${numeroPedido} foi APROVADO.\n\nFornecedor: ${fornecedorNome}\nValor total: ${totalFormatado}\n\nObrigado pela cotação!`;
+  const pagamento = pagamentoDescricao?.trim()
+    ? `\nPagamento: ${pagamentoDescricao.trim()}`
+    : "";
+  return `Olá! O orçamento do pedido #${numeroPedido} foi APROVADO.\n\nFornecedor: ${fornecedorNome}\nValor total: ${totalFormatado}${pagamento}\n\nObrigado pela cotação!`;
 }
 
 function buildWhatsAppSendUrl(phone: string, text: string) {
@@ -94,11 +98,17 @@ export function buildAprovacaoWhatsAppUrl(
   phone: string,
   numeroPedido: number,
   fornecedorNome: string,
-  totalFormatado: string
+  totalFormatado: string,
+  pagamentoDescricao?: string
 ) {
   return buildWhatsAppSendUrl(
     phone,
-    mensagemAprovacaoOrcamento(numeroPedido, fornecedorNome, totalFormatado)
+    mensagemAprovacaoOrcamento(
+      numeroPedido,
+      fornecedorNome,
+      totalFormatado,
+      pagamentoDescricao
+    )
   );
 }
 

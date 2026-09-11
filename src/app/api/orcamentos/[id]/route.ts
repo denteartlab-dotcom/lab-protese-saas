@@ -10,7 +10,10 @@ import {
   type StatusOrcamento,
 } from "@/lib/orcamentos-types";
 import { mapOrcamento, statusInvalidaLink } from "@/lib/orcamentos-db";
-import { registrarDespesaOrcamentoAprovado } from "@/lib/orcamentos-financeiro";
+import {
+  condicoesPagamentoFromBody,
+  registrarDespesaOrcamentoAprovado,
+} from "@/lib/orcamentos-financeiro";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -38,6 +41,8 @@ export async function PATCH(request: Request, { params }: Params) {
     whatsappEnvio?: string;
     forcarFinanceiro?: boolean;
     reabrirParaEdicao?: boolean;
+    condicoesPagamento?: string;
+    condicoesPagamentoLista?: unknown;
   };
 
   const atual = await prisma.orcamento.findFirst({
@@ -89,6 +94,16 @@ export async function PATCH(request: Request, { params }: Params) {
       ? false
       : atual.linkAtivo;
 
+  const condicoesPagamentoAtualizadas =
+    body.condicoesPagamentoLista != null ||
+    (typeof body.condicoesPagamento === "string" &&
+      body.condicoesPagamento.length > 0)
+      ? condicoesPagamentoFromBody({
+          condicoesPagamento: body.condicoesPagamento,
+          condicoesPagamentoLista: body.condicoesPagamentoLista as never,
+        }) || atual.condicoesPagamento
+      : atual.condicoesPagamento;
+
   const row = await prisma.orcamento.update({
     where: { id },
     data: {
@@ -99,6 +114,9 @@ export async function PATCH(request: Request, { params }: Params) {
       frete,
       totalLiquido,
       observacoes: body.observacoes ?? atual.observacoes,
+      condicoesPagamento: body.reabrirParaEdicao
+        ? atual.condicoesPagamento
+        : condicoesPagamentoAtualizadas,
       fornecedorId: body.fornecedorId ?? atual.fornecedorId,
       fornecedorNome: body.fornecedorNome ?? atual.fornecedorNome,
       emailEnvio: body.emailEnvio ?? atual.emailEnvio,
