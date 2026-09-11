@@ -126,7 +126,9 @@ export function OrcamentoRespostaModal({
                         )}
                       </div>
                     </td>
-                    <td className="px-3 py-2 font-medium text-slate-700">{item.produtoNome}</td>
+                    <td className="max-w-[280px] px-3 py-2 font-medium leading-snug text-slate-700 whitespace-normal break-words">
+                      {item.produtoNome}
+                    </td>
                     <td className="px-3 py-2 text-slate-500">{item.marca || ""}</td>
                     <td className="px-3 py-2 text-center">{item.quantidade}</td>
                     <td className="px-2 py-2 text-center text-slate-500">
