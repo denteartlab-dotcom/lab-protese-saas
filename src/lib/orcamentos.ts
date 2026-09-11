@@ -18,10 +18,12 @@ export function totalLiquido(orcamento: {
   subtotal: number;
   desconto: number;
   descontoPercentual?: number;
+  frete?: number;
 }) {
   return totalLiquidoOrcamento(
     orcamento.subtotal,
     orcamento.desconto,
-    orcamento.descontoPercentual ?? 0
+    orcamento.descontoPercentual ?? 0,
+    orcamento.frete ?? 0
   );
 }

@@ -35,6 +35,8 @@ export type ResultadoLeituraOrcamento = {
   fonte: "ia" | "texto" | "misto";
   acrescentados: number;
   atualizados: number;
+  /** Frete lido do rodapé/arquivo, se houver. */
+  frete?: number;
 };
 
 /** Score mínimo para considerar o mesmo item do pedido (atualizar). */
@@ -239,6 +241,41 @@ function moedaParaNumero(raw: string) {
     .replace(",", ".");
   const n = Number(limpo);
   return Number.isFinite(n) ? n : 0;
+}
+
+/** Extrai valor de frete do texto do arquivo (ex.: "Frete: 30,00"). */
+export function extrairFreteDoTexto(texto: string): number {
+  const bruto = String(texto || "");
+  if (!bruto.trim()) return 0;
+
+  const padroes = [
+    /frete\s*(?:\(.*?\)|cif|fob)?\s*[:\-]?\s*(?:R\$\s*)?([\d]{1,3}(?:\.\d{3})*,\d{2}|\d+[.,]\d{1,2}|\d+)/gi,
+    /(?:valor\s+do\s+)?frete\s+([\d]{1,3}(?:\.\d{3})*,\d{2}|\d+[.,]\d{1,2}|\d+)/gi,
+  ];
+
+  let encontrado = 0;
+  for (const re of padroes) {
+    re.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(bruto)) !== null) {
+      const valor = moedaParaNumero(m[1] || "");
+      if (valor > 0 && valor < 1_000_000) {
+        encontrado = valor;
+      }
+    }
+    if (encontrado > 0) break;
+  }
+  return encontrado;
+}
+
+/** Anexa frete ao resultado da leitura quando o texto do arquivo informar. */
+export function anexarFreteDoTexto(
+  resultado: ResultadoLeituraOrcamento,
+  texto: string
+): ResultadoLeituraOrcamento {
+  const frete = extrairFreteDoTexto(texto);
+  if (frete > 0) return { ...resultado, frete };
+  return resultado;
 }
 
 function mapearUnidadeCurta(raw: string) {
@@ -962,6 +999,11 @@ export function mensagemResultadoLeitura(resultado: ResultadoLeituraOrcamento) {
       `acrescentamos ${resultado.acrescentados} produto(s) novo(s) do arquivo`
     );
   }
+  if (resultado.frete && resultado.frete > 0) {
+    partes.push(
+      `frete R$ ${resultado.frete.toFixed(2).replace(".", ",")}`
+    );
+  }
   if (partes.length === 0) {
     return "Nenhum item foi aplicado. Revise o arquivo.";
   }
@@ -977,5 +1019,8 @@ export function preencherItensComTexto(
   texto: string
 ): ResultadoLeituraOrcamento {
   const linhas = extrairLinhasTextoHeuristico(texto);
-  return preencherItensComLinhas(itens, linhas, "texto");
+  return anexarFreteDoTexto(
+    preencherItensComLinhas(itens, linhas, "texto"),
+    texto
+  );
 }

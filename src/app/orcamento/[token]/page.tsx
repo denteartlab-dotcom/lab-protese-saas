@@ -87,6 +87,7 @@ export default function OrcamentoPublicoPage() {
   const [descontoPercentual, setDescontoPercentual] = useState(0);
   const [descontoValor, setDescontoValor] = useState("R$ 0,00");
   const [tipoDesconto, setTipoDesconto] = useState<"percentual" | "valor">("percentual");
+  const [freteValor, setFreteValor] = useState("R$ 0,00");
   const [observacao, setObservacao] = useState("");
   const [formaPagamento, setFormaPagamento] =
     useState<FormaPagamentoOrcamento>("a_vista");
@@ -141,6 +142,7 @@ export default function OrcamentoPublicoPage() {
       setDescontoCondicao("0");
       setDescontoPercentual(data.descontoPercentual || 0);
       setDescontoValor(formatMoedaInput(data.desconto || 0));
+      setFreteValor(formatMoedaInput(data.frete || 0));
       setEnviado(
         data.status === "enviado" ||
           data.status === "aprovado" ||
@@ -158,12 +160,18 @@ export default function OrcamentoPublicoPage() {
   }, [carregar]);
 
   const subtotal = useMemo(() => calcularTotaisItens(itens), [itens]);
+  const freteNumero = useMemo(() => parseMoeda(freteValor), [freteValor]);
   const totalLiquido = useMemo(() => {
     if (tipoDesconto === "percentual") {
-      return totalLiquidoOrcamento(subtotal, 0, descontoPercentual);
+      return totalLiquidoOrcamento(subtotal, 0, descontoPercentual, freteNumero);
     }
-    return totalLiquidoOrcamento(subtotal, parseMoeda(descontoValor), 0);
-  }, [subtotal, descontoPercentual, descontoValor, tipoDesconto]);
+    return totalLiquidoOrcamento(
+      subtotal,
+      parseMoeda(descontoValor),
+      0,
+      freteNumero
+    );
+  }, [subtotal, descontoPercentual, descontoValor, tipoDesconto, freteNumero]);
 
   function montarCondicaoRascunho(): CondicoesPagamentoOrcamento {
     const valorInformado = parseMoeda(valorCondicao);
@@ -356,6 +364,23 @@ export default function OrcamentoPublicoPage() {
             "",
             "",
             "",
+            "Desconto",
+            Number(
+              (
+                tipoDesconto === "percentual"
+                  ? subtotal * (descontoPercentual / 100)
+                  : parseMoeda(descontoValor)
+              ).toFixed(2)
+            ),
+          ],
+          ["", "", "", "", "", "", "Frete", Number(freteNumero.toFixed(2))],
+          [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
             "Total Líquido",
             Number(totalLiquido.toFixed(2)),
           ],
@@ -382,6 +407,7 @@ export default function OrcamentoPublicoPage() {
           itens,
           desconto: tipoDesconto === "valor" ? parseMoeda(descontoValor) : 0,
           descontoPercentual: tipoDesconto === "percentual" ? descontoPercentual : 0,
+          frete: freteNumero,
           observacoes: observacao,
           condicoesPagamento: serializarListaCondicoesPagamento(listaEnvio),
           condicoesPagamentoLista: listaEnvio,
@@ -473,6 +499,17 @@ export default function OrcamentoPublicoPage() {
     setErroFoto("");
   }
 
+  function aplicarFreteLido(
+    frete: number | undefined | null,
+    textoArquivo: string,
+    extrairFrete: (texto: string) => number
+  ) {
+    const doResultado = Number(frete) || 0;
+    const doTexto = doResultado > 0 ? 0 : extrairFrete(textoArquivo);
+    const valor = doResultado > 0 ? doResultado : doTexto;
+    if (valor > 0) setFreteValor(formatMoedaInput(valor));
+  }
+
   async function onSelecionarArquivoOrcamento(file: File | null) {
     if (!file || enviado || lendoArquivo || enviando) return;
     setLendoArquivo(true);
@@ -485,6 +522,7 @@ export default function OrcamentoPublicoPage() {
         preencherItensComTexto,
         casarLinhasComItens,
         extrairLinhasTextoHeuristico,
+        extrairFreteDoTexto,
         mensagemResultadoLeitura,
       } = await import("@/lib/orcamento-leitura-match");
 
@@ -580,11 +618,17 @@ export default function OrcamentoPublicoPage() {
         naoEncontrados?: Array<{ nome: string }>;
         acrescentados?: number;
         atualizados?: number;
+        frete?: number;
       } | null;
 
       if (!res.ok) {
         if (resultadoLocal && resultadoLocal.matches.length > 0) {
           setItens(resultadoLocal.itens);
+          aplicarFreteLido(
+            resultadoLocal.frete,
+            textoCliente,
+            extrairFreteDoTexto
+          );
           setMsgArquivo(mensagemResultadoLeitura(resultadoLocal));
           return;
         }
@@ -594,6 +638,7 @@ export default function OrcamentoPublicoPage() {
             const local = casarLinhasComItens(itens, linhas);
             if (local.matches.length > 0) {
               setItens(local.itens);
+              aplicarFreteLido(local.frete, textoCliente, extrairFreteDoTexto);
               setMsgArquivo(mensagemResultadoLeitura(local));
               return;
             }
@@ -610,6 +655,11 @@ export default function OrcamentoPublicoPage() {
       if (!Array.isArray(json?.itens) || json.itens.length === 0) {
         if (resultadoLocal && resultadoLocal.itens.length > 0) {
           setItens(resultadoLocal.itens);
+          aplicarFreteLido(
+            resultadoLocal.frete,
+            textoCliente,
+            extrairFreteDoTexto
+          );
           setMsgArquivo(mensagemResultadoLeitura(resultadoLocal));
           return;
         }
@@ -633,11 +683,17 @@ export default function OrcamentoPublicoPage() {
 
       if (preferLocal && resultadoLocal) {
         setItens(resultadoLocal.itens);
+        aplicarFreteLido(
+          resultadoLocal.frete ?? json.frete,
+          textoCliente,
+          extrairFreteDoTexto
+        );
         setMsgArquivo(mensagemResultadoLeitura(resultadoLocal));
         return;
       }
 
       setItens(json.itens);
+      aplicarFreteLido(json.frete, textoCliente, extrairFreteDoTexto);
       setMsgArquivo(
         json.mensagem ||
           `Aplicamos ${(json.matches?.length ?? 0)} item(ns) do arquivo. Revise antes de enviar.`
@@ -1137,6 +1193,19 @@ export default function OrcamentoPublicoPage() {
                     />
                   )}
                 </div>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-slate-600">Frete:</span>
+                <input
+                  value={freteValor}
+                  disabled={somenteLeitura}
+                  onChange={(e) => {
+                    const valor = parseMoeda(e.target.value);
+                    setFreteValor(formatMoedaInput(valor));
+                  }}
+                  className="h-7 w-24 rounded-sm border border-slate-200 px-1 text-right text-[10px]"
+                  {...propsInputComSelecaoAoFocar({})}
+                />
               </div>
               <div className="flex justify-between border-t border-slate-100 pt-2 text-sm font-semibold text-blue-600">
                 <span>Total Líquido:</span>

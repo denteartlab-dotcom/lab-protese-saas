@@ -44,10 +44,12 @@ export function OrcamentoRespostaModal({
     orcamento.descontoPercentual > 0
       ? orcamento.subtotal * (orcamento.descontoPercentual / 100)
       : orcamento.desconto;
+  const frete = orcamento.frete ?? 0;
   const liquido = totalLiquidoOrcamento(
     orcamento.subtotal,
     orcamento.desconto,
-    orcamento.descontoPercentual
+    orcamento.descontoPercentual,
+    frete
   );
   const status = STATUS_ORCAMENTO[orcamento.status];
   const podeAprovar = orcamento.status === "enviado";
@@ -154,6 +156,10 @@ export function OrcamentoRespostaModal({
               <div className="flex justify-between">
                 <span className="text-slate-500">{t("estoque.orcamentos.desconto")}</span>
                 <span>{formatCurrency(descontoValor)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">{t("estoque.orcamentos.frete")}</span>
+                <span>{formatCurrency(frete)}</span>
               </div>
               <div className="flex justify-between border-t border-slate-100 pt-1.5 text-sm font-semibold text-blue-600">
                 <span>{t("estoque.orcamentos.totalLiquidoLabel")}</span>

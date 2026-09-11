@@ -28,6 +28,7 @@ export async function PATCH(request: Request, { params }: Params) {
     status?: StatusOrcamento;
     desconto?: number;
     descontoPercentual?: number;
+    frete?: number;
     observacoes?: string;
     dataResposta?: string | null;
     itens?: ItemOrcamento[];
@@ -75,9 +76,13 @@ export async function PATCH(request: Request, { params }: Params) {
     : calcularTotaisItens(itens);
   const desconto = body.desconto ?? atual.desconto;
   const descontoPercentual = body.descontoPercentual ?? atual.descontoPercentual;
+  const frete =
+    body.frete !== undefined
+      ? Math.max(Number(body.frete) || 0, 0)
+      : Number((atual as { frete?: number | null }).frete) || 0;
   const totalLiquido = body.reabrirParaEdicao
     ? atual.totalLiquido
-    : totalLiquidoOrcamento(subtotal, desconto, descontoPercentual);
+    : totalLiquidoOrcamento(subtotal, desconto, descontoPercentual, frete);
   const linkAtivo = body.reabrirParaEdicao
     ? true
     : statusInvalidaLink(status)
@@ -91,6 +96,7 @@ export async function PATCH(request: Request, { params }: Params) {
       subtotal,
       desconto,
       descontoPercentual,
+      frete,
       totalLiquido,
       observacoes: body.observacoes ?? atual.observacoes,
       fornecedorId: body.fornecedorId ?? atual.fornecedorId,
@@ -105,7 +111,7 @@ export async function PATCH(request: Request, { params }: Params) {
       itensJson: body.itens ? JSON.stringify(itens) : atual.itensJson,
       linkAtivo,
       updatedAt: new Date(),
-    },
+    } as Parameters<typeof prisma.orcamento.update>[0]["data"],
   });
 
   let parcelasFinanceiro = 0;

@@ -35,6 +35,8 @@ export type Orcamento = {
   subtotal: number;
   desconto: number;
   descontoPercentual: number;
+  /** Frete informado pelo fornecedor (do arquivo ou manual). */
+  frete: number;
   totalLiquido: number;
   itens: ItemOrcamento[];
   observacoes: string;
@@ -86,11 +88,13 @@ export function calcularTotaisItens(itens: ItemOrcamento[]) {
 export function totalLiquidoOrcamento(
   subtotal: number,
   desconto: number,
-  descontoPercentual: number
+  descontoPercentual: number,
+  frete = 0
 ) {
   const descontoValor =
     descontoPercentual > 0
       ? subtotal * (descontoPercentual / 100)
       : desconto;
-  return Math.max(subtotal - descontoValor, 0);
+  const freteValor = Math.max(Number(frete) || 0, 0);
+  return Math.max(subtotal - descontoValor + freteValor, 0);
 }

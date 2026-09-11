@@ -46,6 +46,7 @@ type BodyFornecedor = {
   itens: ItemOrcamento[];
   desconto?: number;
   descontoPercentual?: number;
+  frete?: number;
   observacoes?: string;
   condicoesPagamento?: string;
   condicoesPagamentoLista?: Array<{
@@ -99,10 +100,12 @@ export async function PATCH(request: Request, { params }: Params) {
   const subtotal = calcularTotaisItens(body.itens);
   const desconto = body.desconto ?? 0;
   const descontoPercentual = body.descontoPercentual ?? 0;
+  const frete = Math.max(Number(body.frete) || 0, 0);
   const totalLiquido = totalLiquidoOrcamento(
     subtotal,
     desconto,
-    descontoPercentual
+    descontoPercentual,
+    frete
   );
 
   const dataResposta = new Date();
@@ -117,6 +120,7 @@ export async function PATCH(request: Request, { params }: Params) {
       subtotal,
       desconto,
       descontoPercentual,
+      frete,
       totalLiquido,
       observacoes: body.observacoes ?? atual.observacoes,
       condicoesPagamento,
@@ -124,7 +128,7 @@ export async function PATCH(request: Request, { params }: Params) {
       status: "enviado",
       dataResposta,
       updatedAt: new Date(),
-    },
+    } as Parameters<typeof tx.orcamento.update>[0]["data"],
     })
   );
 

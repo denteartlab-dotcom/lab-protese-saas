@@ -97,6 +97,7 @@ export async function POST(request: Request, { params }: Params) {
         fonte: resultado.fonte,
         acrescentados: resultado.acrescentados,
         atualizados: resultado.atualizados,
+        frete: resultado.frete ?? 0,
         mensagem: mensagemResultadoLeitura(resultado),
       });
     }
@@ -140,6 +141,7 @@ export async function POST(request: Request, { params }: Params) {
       fonte: resultado.fonte,
       acrescentados: resultado.acrescentados,
       atualizados: resultado.atualizados,
+      frete: resultado.frete ?? 0,
       mensagem: mensagemResultadoLeitura(resultado),
     });
   } catch (err) {

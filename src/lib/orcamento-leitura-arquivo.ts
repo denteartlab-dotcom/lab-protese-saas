@@ -1,6 +1,8 @@
 import type { ItemOrcamento } from "@/lib/orcamentos-types";
 import {
+  anexarFreteDoTexto,
   deduplicarLinhasProduto,
+  extrairFreteDoTexto,
   extrairLinhasTextoHeuristico,
   linhaPareceProdutoValido,
   normalizarLinhaOrcamentoLida,
@@ -18,9 +20,11 @@ export type {
 } from "@/lib/orcamento-leitura-match";
 
 export {
+  anexarFreteDoTexto,
   casarLinhasComItens,
   contarCodigosProdutoNoTexto,
   deduplicarLinhasProduto,
+  extrairFreteDoTexto,
   extrairLinhasTabelaFornecedor,
   extrairLinhasTextoHeuristico,
   limparDescricaoProdutoArquivo,
@@ -404,6 +408,26 @@ export async function extrairLinhasDePlanilha(
   return out.filter(linhaPareceProdutoValido);
 }
 
+/** Lê frete de células soltas na planilha (ex.: linha "Frete" / "30,00"). */
+export async function extrairFreteDePlanilha(
+  buffer: ArrayBuffer | Uint8Array | Buffer
+): Promise<number> {
+  try {
+    const XLSX = await import("xlsx");
+    const wb = XLSX.read(buffer, {
+      type: Buffer.isBuffer(buffer) ? "buffer" : "array",
+    });
+    const nomeAba = wb.SheetNames[0];
+    if (!nomeAba) return 0;
+    const sheet = wb.Sheets[nomeAba];
+    if (!sheet) return 0;
+    const csv = XLSX.utils.sheet_to_csv(sheet);
+    return extrairFreteDoTexto(csv);
+  } catch {
+    return 0;
+  }
+}
+
 function ehPlanilha(mime: string, nomeArquivo?: string) {
   const mimeL = (mime || "").toLowerCase();
   const nome = (nomeArquivo || "").toLowerCase();
@@ -479,7 +503,10 @@ export async function lerPayloadOrcamento(params: {
     const buffer = Buffer.from(base64, "base64");
     const linhasPlanilha = await extrairLinhasDePlanilha(buffer);
     if (linhasPlanilha.length > 0) {
-      return preencherItensComLinhas(itens, linhasPlanilha, "texto");
+      const fretePlanilha = await extrairFreteDePlanilha(buffer);
+      const resultado = preencherItensComLinhas(itens, linhasPlanilha, "texto");
+      if (fretePlanilha > 0) return { ...resultado, frete: fretePlanilha };
+      return resultado;
     }
   }
 
@@ -490,7 +517,10 @@ export async function lerPayloadOrcamento(params: {
       : null;
 
   const { linhas, fonte } = consolidarLinhas(ia, heuristicas);
-  return preencherItensComLinhas(itens, linhas, fonte);
+  return anexarFreteDoTexto(
+    preencherItensComLinhas(itens, linhas, fonte),
+    textoPdf
+  );
 }
 
 export async function lerArquivoEPreencherItens(
@@ -514,7 +544,10 @@ export async function lerArquivoEPreencherItens(
   if (ehPlanilha(mime, file.name)) {
     const linhasPlanilha = await extrairLinhasDePlanilha(buffer);
     if (linhasPlanilha.length > 0) {
-      return preencherItensComLinhas(itens, linhasPlanilha, "texto");
+      const fretePlanilha = await extrairFreteDePlanilha(buffer);
+      const resultado = preencherItensComLinhas(itens, linhasPlanilha, "texto");
+      if (fretePlanilha > 0) return { ...resultado, frete: fretePlanilha };
+      return resultado;
     }
   }
 

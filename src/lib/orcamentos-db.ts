@@ -21,6 +21,7 @@ type OrcamentoRow = {
   subtotal: number;
   desconto: number;
   descontoPercentual: number;
+  frete?: number | null;
   totalLiquido: number;
   observacoes: string | null;
   condicoesPagamento: string | null;
@@ -82,6 +83,7 @@ export function mapOrcamento(row: OrcamentoRow): Orcamento {
     subtotal: row.subtotal,
     desconto: row.desconto,
     descontoPercentual: row.descontoPercentual,
+    frete: row.frete ?? 0,
     totalLiquido: row.totalLiquido,
     itens: parseItens(row.itensJson),
     observacoes: row.observacoes || "",

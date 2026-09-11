@@ -467,6 +467,7 @@ model Orcamento {
   subtotal           Float     @default(0)
   desconto           Float     @default(0)
   descontoPercentual Float     @default(0)
+  frete              Float     @default(0)
   totalLiquido       Float     @default(0)
   observacoes        String?
   condicoesPagamento String?
