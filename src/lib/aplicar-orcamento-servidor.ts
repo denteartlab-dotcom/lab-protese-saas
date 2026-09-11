@@ -4,29 +4,43 @@ import {
   PRODUTOS_ESTOQUE_MOVIMENTOS_KEY,
   ORCAMENTOS_ESTOQUE_APLICADOS_KEY,
   custoUnitarioItemOrcamento,
-  type ItemEstoqueOrcamento,
   type MovimentoEstoque,
   type ProdutoExtra,
 } from "@/lib/estoque";
 import { lerJsonStoreTenant, salvarJsonStoreTenant } from "@/lib/json-store-tenant";
+import {
+  normalizarTextoProduto,
+  similaridadeNomes,
+} from "@/lib/orcamento-leitura-match";
 
-type ItemOrcamentoAplicacao = ItemEstoqueOrcamento & {
-  valorUnitario?: number;
+type ItemOrcamentoAplicacao = {
+  produtoId: string;
+  produtoNome?: string;
+  marca?: string;
+  codigoBarras?: string;
+  unidade?: string;
+  quantidade: number;
+  valorUnitario: number;
 };
 
 function parseItensJson(raw: string): ItemOrcamentoAplicacao[] {
   try {
-    const parsed = JSON.parse(raw) as {
-      itens?: Array<{ produtoId?: string; quantidade?: number; valorUnitario?: number }>;
-    };
-    /** itensJson pode ser array direto ou { itens: [...] }. */
+    const parsed = JSON.parse(raw) as
+      | ItemOrcamentoAplicacao[]
+      | { itens?: ItemOrcamentoAplicacao[] };
     const lista = Array.isArray(parsed)
-      ? (parsed as Array<{ produtoId?: string; quantidade?: number; valorUnitario?: number }>)
-      : (parsed.itens ?? []);
+      ? parsed
+      : Array.isArray(parsed.itens)
+        ? parsed.itens
+        : [];
     return lista
-      .filter((i) => i.produtoId)
+      .filter((i) => i && (i.produtoId || i.produtoNome))
       .map((i) => ({
-        produtoId: i.produtoId!,
+        produtoId: String(i.produtoId || "").trim(),
+        produtoNome: String(i.produtoNome || "").trim() || undefined,
+        marca: String(i.marca || "").trim() || undefined,
+        codigoBarras: String(i.codigoBarras || "").replace(/\D/g, "") || undefined,
+        unidade: String(i.unidade || "").trim() || undefined,
         quantidade: Number(i.quantidade) || 1,
         valorUnitario: Number(i.valorUnitario) || 0,
       }));
@@ -35,7 +49,83 @@ function parseItensJson(raw: string): ItemOrcamentoAplicacao[] {
   }
 }
 
-/** Aplica estoque + custos de orçamento aprovado no JsonStore (issue 029). Idempotente. */
+function idProdutoExiste(
+  produtos: Array<{ id: string }>,
+  id: string
+): boolean {
+  return Boolean(id) && !id.startsWith("arquivo-") && produtos.some((p) => p.id === id);
+}
+
+function acharPorCodigo(
+  extras: Record<string, ProdutoExtra>,
+  produtoIds: Set<string>,
+  codigo: string
+): string | null {
+  if (!codigo || codigo.length < 4) return null;
+  for (const [id, extra] of Object.entries(extras)) {
+    if (!produtoIds.has(id)) continue;
+    const cod = String(extra?.codigoBarras || "").replace(/\D/g, "");
+    if (cod && cod === codigo) return id;
+  }
+  return null;
+}
+
+function acharPorNome(
+  produtos: Array<{ id: string; nome: string }>,
+  nome: string
+): string | null {
+  const alvo = normalizarTextoProduto(nome);
+  if (!alvo || alvo.length < 3) return null;
+  let melhor: { id: string; score: number } | null = null;
+  for (const p of produtos) {
+    const score = similaridadeNomes(p.nome, nome);
+    if (score < 0.86) continue;
+    if (!melhor || score > melhor.score) melhor = { id: p.id, score };
+  }
+  return melhor?.id ?? null;
+}
+
+async function resolverProdutoId(params: {
+  empresaId: string;
+  item: ItemOrcamentoAplicacao;
+  produtos: Array<{ id: string; nome: string }>;
+  extras: Record<string, ProdutoExtra>;
+}): Promise<{ produtoId: string; criado: boolean }> {
+  const { empresaId, item, produtos, extras } = params;
+  const ids = new Set(produtos.map((p) => p.id));
+
+  if (idProdutoExiste(produtos, item.produtoId)) {
+    return { produtoId: item.produtoId, criado: false };
+  }
+
+  const porCodigo = item.codigoBarras
+    ? acharPorCodigo(extras, ids, item.codigoBarras)
+    : null;
+  if (porCodigo) return { produtoId: porCodigo, criado: false };
+
+  if (item.produtoNome) {
+    const porNome = acharPorNome(produtos, item.produtoNome);
+    if (porNome) return { produtoId: porNome, criado: false };
+  }
+
+  const nome = (item.produtoNome || "Produto orçamento").trim().slice(0, 200);
+  const criado = await prisma.produto.create({
+    data: {
+      empresaId,
+      nome,
+      categoria: "Orçamento",
+      valor: 0,
+      observacoes: item.codigoBarras
+        ? `Criado na aprovação do orçamento (cód. ${item.codigoBarras})`
+        : "Criado na aprovação do orçamento",
+      ativo: true,
+    },
+  });
+  produtos.push({ id: criado.id, nome: criado.nome });
+  return { produtoId: criado.id, criado: true };
+}
+
+/** Aplica estoque + custos de orçamento aprovado no cadastro do produto. Idempotente. */
 export async function aplicarOrcamentoAprovadoServidor(
   empresaId: string,
   orcamentoId: string
@@ -63,6 +153,11 @@ export async function aplicarOrcamentoAprovadoServidor(
     return { orcamentoId, itens: 0 };
   }
 
+  const produtos = await prisma.produto.findMany({
+    where: { empresaId, ativo: true },
+    select: { id: true, nome: true },
+  });
+
   const extras =
     (await lerJsonStoreTenant<Record<string, ProdutoExtra>>(
       empresaId,
@@ -80,12 +175,24 @@ export async function aplicarOrcamentoAprovadoServidor(
   const novosMovimentos: MovimentoEstoque[] = [];
 
   let extrasAtualizados = { ...extras };
+  let produtosCriados = 0;
+  let custosAtualizados = 0;
+
   for (const item of itens) {
     const quantidade = Number(item.quantidade);
-    if (!item.produtoId || !Number.isFinite(quantidade) || quantidade <= 0) continue;
+    if (!Number.isFinite(quantidade) || quantidade <= 0) continue;
+    if (!(item.valorUnitario > 0) && !item.produtoId && !item.produtoNome) continue;
 
-    const atual = Number(extrasAtualizados[item.produtoId]?.estoque ?? 0);
-    const custoAnterior = Number(extrasAtualizados[item.produtoId]?.valorCusto ?? 0);
+    const { produtoId, criado } = await resolverProdutoId({
+      empresaId,
+      item,
+      produtos,
+      extras: extrasAtualizados,
+    });
+    if (criado) produtosCriados += 1;
+
+    const atual = Number(extrasAtualizados[produtoId]?.estoque ?? 0);
+    const custoAnterior = Number(extrasAtualizados[produtoId]?.valorCusto ?? 0);
     const novoCusto = custoUnitarioItemOrcamento(
       { valorUnitario: item.valorUnitario ?? 0, quantidade },
       custoAnterior
@@ -95,11 +202,17 @@ export async function aplicarOrcamentoAprovadoServidor(
         ? undefined
         : Math.round((novoCusto - custoAnterior) * 100) / 100;
 
+    if (novoCusto !== null) custosAtualizados += 1;
+
+    const extraAnterior = extrasAtualizados[produtoId] || {};
     extrasAtualizados = {
       ...extrasAtualizados,
-      [item.produtoId]: {
-        ...extrasAtualizados[item.produtoId],
+      [produtoId]: {
+        ...extraAnterior,
         estoque: atual + quantidade,
+        ...(item.marca ? { marca: item.marca } : {}),
+        ...(item.codigoBarras ? { codigoBarras: item.codigoBarras } : {}),
+        ...(item.unidade ? { unidadeMedida: item.unidade } : {}),
         ...(novoCusto !== null
           ? {
               valorCusto: novoCusto,
@@ -110,7 +223,7 @@ export async function aplicarOrcamentoAprovadoServidor(
     };
 
     novosMovimentos.push({
-      produtoId: item.produtoId,
+      produtoId,
       quantidade,
       tipo: "entrada",
       origem: "fornecedor",
@@ -133,5 +246,11 @@ export async function aplicarOrcamentoAprovadoServidor(
     }),
   ]);
 
-  return { orcamentoId, itens: itens.length, movimentos: novosMovimentos.length };
+  return {
+    orcamentoId,
+    itens: itens.length,
+    movimentos: novosMovimentos.length,
+    produtosCriados,
+    custosAtualizados,
+  };
 }

@@ -1544,12 +1544,13 @@ export const messagesModulosPt = {
   "estoque.orcamentos.alerta.nenhumaParcela":
     "Nenhuma parcela foi gerada. Verifique o total líquido e o parcelamento.",
   "estoque.orcamentos.alerta.aprovadoParcelado":
-    'Orçamento aprovado. {n} parcela(s) em Contas a Pagar (vencimento a cada 30 dias). Veja em Financeiro › Contas a Pagar com filtro "Todos".',
-  "estoque.orcamentos.alerta.aprovadoDespesa": "Orçamento aprovado. Despesa registrada em Contas a Pagar.",
+    'Orçamento aprovado. {n} parcela(s) em Contas a Pagar (vencimento a cada 30 dias). O preço de custo dos produtos foi atualizado com o valor aceito.',
+  "estoque.orcamentos.alerta.aprovadoDespesa":
+    "Orçamento aprovado. Despesa registrada em Contas a Pagar. O preço de custo dos produtos foi atualizado com o valor aceito.",
   "estoque.orcamentos.alerta.parcelasNaoGeradas":
     "Orçamento aprovado, mas as parcelas não foram geradas. Verifique o valor líquido e tente novamente.",
   "estoque.orcamentos.alerta.estoqueProcessando":
-    "Orçamento aprovado, mas a atualização de estoque ainda está processando. Atualize a página de produtos em instantes.",
+    "Orçamento aprovado, mas estoque e preço de custo ainda estão processando. Atualize a página de produtos em instantes.",
   "estoque.orcamentos.alerta.reabertoWhatsappErro":
     "Orçamento reaberto e link aberto no navegador. Não foi possível enviar pelo WhatsApp — verifique o número ou a conexão em Configurações → WhatsApp.",
   "estoque.orcamentos.alerta.reabertoSemWhatsapp":
@@ -3524,12 +3525,13 @@ export const messagesModulosEn: Record<keyof typeof messagesModulosPt, string> =
   "estoque.orcamentos.alerta.nenhumaParcela":
     "No installments were generated. Check the net total and payment plan.",
   "estoque.orcamentos.alerta.aprovadoParcelado":
-    'Quote approved. {n} installment(s) in Accounts payable (due every 30 days). See Finance › Accounts payable with filter "All".',
-  "estoque.orcamentos.alerta.aprovadoDespesa": "Quote approved. Expense recorded in Accounts payable.",
+    "Quote approved. {n} installment(s) in Accounts payable (due every 30 days). Product cost prices were updated with the accepted quote values.",
+  "estoque.orcamentos.alerta.aprovadoDespesa":
+    "Quote approved. Expense recorded in Accounts payable. Product cost prices were updated with the accepted quote values.",
   "estoque.orcamentos.alerta.parcelasNaoGeradas":
     "Quote approved, but installments were not generated. Check the net amount and try again.",
   "estoque.orcamentos.alerta.estoqueProcessando":
-    "Quote approved, but stock update is still processing. Refresh the products page in a moment.",
+    "Quote approved, but stock and cost price update is still processing. Refresh the products page in a moment.",
   "estoque.orcamentos.alerta.reabertoWhatsappErro":
     "Quote reopened and link opened in the browser. Could not send via WhatsApp — check the number or connection in Settings → WhatsApp.",
   "estoque.orcamentos.alerta.reabertoSemWhatsapp":
