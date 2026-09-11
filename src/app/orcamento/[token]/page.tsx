@@ -329,6 +329,8 @@ export default function OrcamentoPublicoPage() {
 
   const inputCelula =
     "h-8 w-full min-w-0 rounded-sm border border-slate-200 px-2 text-[10px] disabled:bg-slate-50";
+  const inputNomeProduto =
+    "min-h-[2.75rem] w-full min-w-[200px] resize-y rounded-sm border border-slate-200 px-2 py-1.5 text-[10px] leading-snug disabled:bg-slate-50";
 
   async function exportarExcel() {
     try {
@@ -944,7 +946,9 @@ export default function OrcamentoPublicoPage() {
                     Foto
                   </th>
                   <th className="px-2 py-2 text-left font-semibold uppercase">Cod Barras</th>
-                  <th className="px-2 py-2 text-left font-semibold uppercase">Produto</th>
+                  <th className="min-w-[220px] px-2 py-2 text-left font-semibold uppercase">
+                    Produto
+                  </th>
                   <th className="px-2 py-2 text-left font-semibold uppercase">Marca</th>
                   <th className="px-2 py-2 text-center font-semibold uppercase">Quantidade</th>
                   <th className="w-14 px-1 py-2" aria-label="Valor da unidade" />
@@ -1047,18 +1051,21 @@ export default function OrcamentoPublicoPage() {
                         />
                       )}
                     </td>
-                    <td className="px-2 py-2">
+                    <td className="min-w-[220px] px-2 py-2 align-top">
                       {somenteLeitura ? (
-                        <span className="font-medium text-slate-700">{item.produtoNome}</span>
+                        <span className="block whitespace-normal break-words font-medium leading-snug text-slate-700">
+                          {item.produtoNome}
+                        </span>
                       ) : (
-                        <input
+                        <textarea
                           value={item.produtoNome}
                           onChange={(e) =>
                             atualizarItem(index, "produtoNome", e.target.value)
                           }
-                          className={inputCelula}
+                          rows={2}
+                          className={inputNomeProduto}
                           placeholder="Nome do produto"
-                          {...propsInputComSelecaoAoFocar({})}
+                          title={item.produtoNome}
                         />
                       )}
                     </td>
