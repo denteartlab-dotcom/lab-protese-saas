@@ -19,6 +19,18 @@ export function formaEhBoleto(forma?: string | null): boolean {
   return (forma || "").trim().toLowerCase().includes("boleto");
 }
 
+/** Boleto ou cartão de crédito — entram no Controle de Boletos (parcelas de orçamento). */
+export function formaEhBoletoOuCartaoCredito(forma?: string | null): boolean {
+  const f = (forma || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  if (f.includes("boleto")) return true;
+  if (f.includes("cartao") && f.includes("credito")) return true;
+  return false;
+}
+
 export const FORMA_PAGAMENTO_PLACEHOLDER = "Forma Pagamento";
 export const FORMA_PAGAMENTO_TODOS = "Todos";
 

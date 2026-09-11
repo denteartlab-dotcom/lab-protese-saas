@@ -1,5 +1,5 @@
 import { dateToBrShort, parseBrDate } from "@/lib/datas-br";
-import { formaEhBoleto } from "@/lib/formas-pagamento";
+import { formaEhBoletoOuCartaoCredito } from "@/lib/formas-pagamento";
 import { desempacotarDespesa } from "@/lib/lancamento-despesa";
 import { hrefBoletoControle } from "@/lib/notificacao-links";
 
@@ -54,14 +54,14 @@ export function lancamentoParaResumoBoleto(l: {
   };
 }
 
-/** Somente despesas em boleto — exclui Pix, transferência, salário fixo etc. */
+/** Despesas em boleto ou cartão de crédito (parcelas de orçamento/fornecedor). */
 export function lancamentoEhDespesaBoleto(
   lancamento: Pick<LancamentoBoletoResumo, "tipo" | "status" | "formaPagamento">
 ) {
   return (
     lancamento.tipo === "despesa" &&
     lancamento.status !== "cancelado" &&
-    formaEhBoleto(lancamento.formaPagamento)
+    formaEhBoletoOuCartaoCredito(lancamento.formaPagamento)
   );
 }
 

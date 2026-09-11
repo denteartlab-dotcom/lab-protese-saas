@@ -243,14 +243,30 @@ function moedaParaNumero(raw: string) {
   return Number.isFinite(n) ? n : 0;
 }
 
-/** Extrai valor de frete do texto do arquivo (ex.: "Frete: 30,00"). */
+/** Extrai valor de frete/transporte do texto do arquivo. */
 export function extrairFreteDoTexto(texto: string): number {
   const bruto = String(texto || "");
   if (!bruto.trim()) return 0;
 
+  const rotulo =
+    "(?:valor\\s+(?:do\\s+|de\\s+)?)?(?:frete|fretes|transporte|transportes|despacho|shipping|delivery|cif|fob|custo\\s+de\\s+entrega|taxa\\s+de\\s+entrega|entrega)";
+
   const padroes = [
-    /frete\s*(?:\(.*?\)|cif|fob)?\s*[:\-]?\s*(?:R\$\s*)?([\d]{1,3}(?:\.\d{3})*,\d{2}|\d+[.,]\d{1,2}|\d+)/gi,
-    /(?:valor\s+do\s+)?frete\s+([\d]{1,3}(?:\.\d{3})*,\d{2}|\d+[.,]\d{1,2}|\d+)/gi,
+    // Frete: 30,00 | Frete R$ 30,00 | Frete .... 30,00
+    new RegExp(
+      `${rotulo}\\s*(?:\\([^)]*\\))?\\s*[:.\\-–—]*\\s*(?:R\\$\\s*)?([\\d]{1,3}(?:\\.\\d{3})*,\\d{2}|\\d+[.,]\\d{1,2}|\\d+)`,
+      "gi"
+    ),
+    // Frete na linha de cima, valor na de baixo
+    new RegExp(
+      `${rotulo}\\s*(?:\\([^)]*\\))?\\s*[:.\\-–—]*\\s*(?:R\\$\\s*)?\\s*[\\r\\n]+\\s*(?:R\\$\\s*)?([\\d]{1,3}(?:\\.\\d{3})*,\\d{2}|\\d+[.,]\\d{1,2}|\\d+)`,
+      "gi"
+    ),
+    // 30,00 Frete / R$ 30,00 de frete
+    new RegExp(
+      `(?:R\\$\\s*)?([\\d]{1,3}(?:\\.\\d{3})*,\\d{2}|\\d+[.,]\\d{1,2}|\\d+)\\s*(?:de\\s+)?${rotulo}\\b`,
+      "gi"
+    ),
   ];
 
   let encontrado = 0;
@@ -259,7 +275,8 @@ export function extrairFreteDoTexto(texto: string): number {
     let m: RegExpExecArray | null;
     while ((m = re.exec(bruto)) !== null) {
       const valor = moedaParaNumero(m[1] || "");
-      if (valor > 0 && valor < 1_000_000) {
+      // Frete típico de cotação: evita capturar totais enormes por engano
+      if (valor > 0 && valor <= 50_000) {
         encontrado = valor;
       }
     }
@@ -268,12 +285,14 @@ export function extrairFreteDoTexto(texto: string): number {
   return encontrado;
 }
 
-/** Anexa frete ao resultado da leitura quando o texto do arquivo informar. */
+/** Anexa frete ao resultado da leitura (texto e/ou valor já lido pela IA). */
 export function anexarFreteDoTexto(
   resultado: ResultadoLeituraOrcamento,
-  texto: string
+  texto: string,
+  freteIa = 0
 ): ResultadoLeituraOrcamento {
-  const frete = extrairFreteDoTexto(texto);
+  const doTexto = extrairFreteDoTexto(texto);
+  const frete = Math.max(Number(freteIa) || 0, doTexto, resultado.frete || 0);
   if (frete > 0) return { ...resultado, frete };
   return resultado;
 }

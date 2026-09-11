@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Check, Copy, Edit3, Eye, Plus, Trash2 } from "lucide-react";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { ModuloCabecalho } from "@/components/ModuloCabecalho";
@@ -26,6 +26,7 @@ import {
   parseCondicoesPagamento,
   rotuloParcelamentoColuna,
 } from "@/lib/orcamentos-pagamento";
+import { hrefBoletoControle } from "@/lib/notificacao-links";
 import { formatCurrency } from "@/lib/utils";
 import {
   mensagemAprovacaoOrcamento,
@@ -80,6 +81,7 @@ function rotuloStatusOrcamento(
 
 export default function OrcamentosPage() {
   const { t } = useI18n();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
   const [fornecedores, setFornecedores] = useState<FornecedorContato[]>([]);
@@ -348,11 +350,15 @@ export default function OrcamentosPage() {
         return;
       }
       const n = data.parcelasFinanceiro ?? 0;
+      const cond = parseCondicoesPagamento(orcamento.condicoesPagamento);
       alert(
         n > 0
           ? t("estoque.orcamentos.alerta.parcelasRegistradas", { n })
           : t("estoque.orcamentos.alerta.nenhumaParcela")
       );
+      if (n > 0 && exigeParcelamento(cond.forma)) {
+        router.push(hrefBoletoControle());
+      }
     } finally {
       setProcessandoAprovacao(false);
     }
@@ -402,6 +408,13 @@ export default function OrcamentosPage() {
             console.warn("[orcamento] job estoque", err);
             alert(t("estoque.orcamentos.alerta.estoqueProcessando"));
           }
+        }
+
+        if (n > 0 && exigeParcelamento(cond.forma)) {
+          await recarregarOrcamentos();
+          fecharRespostaModal();
+          router.push(hrefBoletoControle());
+          return;
         }
       }
       await recarregarOrcamentos();

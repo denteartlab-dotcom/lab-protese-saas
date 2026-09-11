@@ -39,39 +39,30 @@ export {
 } from "@/lib/orcamento-leitura-match";
 
 const PROMPT_EXTRACAO = [
-  "Você lê orçamentos/cotações de fornecedores odontológicos (PDF ou imagem), no formato de tabela:",
-  "CODIGO | DESCRICAO DO PRODUTO | UND (UND/UN/CXA) | QNTDE | VLR.UNIT | VALOR TOTAL",
-  "Extraia SOMENTE as linhas da tabela de produtos. Ignore cabeçalho, cliente, frete, totais, 4x boleto, vendedor e parcelas.",
-  "Responda SOMENTE um JSON array válido, sem markdown:",
-  '[{"nome":"Resina Triunfo Auto Liq","quantidade":1,"unidadeValor":1000,"unidade":"ml","valorUnitario":125,"codigoBarras":"22094","marca":"Triunfo"}]',
-  "Exemplos de descrição → campos:",
-  '- "RESINA TRIUNFO AUTO LIQ.1000ML (LATA)" → nome "Resina Triunfo Auto Liq", unidadeValor 1000, unidade ml',
-  '- "RESINA AUTODEN ROSA 1 KG" → nome "Resina Autoden Rosa", unidadeValor 1, unidade kg',
-  '- "CERA ROLETE REGULAR 225GR LYSANDA" → nome "Cera Rolete Regular Lysanda", unidadeValor 225, unidade g',
-  '- "CERA ROSA 7 LYSANDA 18 LAMINAS" → nome "Cera Rosa 7 Lysanda 18 Laminas" (mantenha o 7)',
-  "- codigoBarras = coluna CODIGO (ex.: 22094).",
-  "- quantidade = coluna QNTDE.",
-  "- valorUnitario = coluna VLR.UNIT (número com ponto).",
-  "- UND/CXA da coluna UND é embalagem (un/cx); se a descrição tiver kg/g/ml, use essa medida em unidade/unidadeValor.",
-  "- NÃO invente nomes curtos como 'Liquido Cx'. Use a DESCRICAO completa (sem só a medida).",
-  "- IGNORE linhas sem código de produto ou sem valor unitário.",
+  "Você lê orçamentos/cotações de fornecedores odontológicos (PDF ou imagem).",
+  "Formato típico da tabela: CODIGO | DESCRICAO | UND (UND/UN/CXA) | QNTDE | VLR.UNIT | VALOR TOTAL",
+  "Responda SOMENTE um JSON válido, sem markdown, neste formato:",
+  '{"itens":[{"nome":"Resina Triunfo Auto Liq","quantidade":1,"unidadeValor":1000,"unidade":"ml","valorUnitario":125,"codigoBarras":"22094","marca":"Triunfo"}],"frete":30}',
+  "Regras dos ITENS (array itens):",
+  "- Extraia TODAS as linhas de produto da tabela (código + descrição + valor).",
+  "- IGNORE cabeçalho, cliente, totais, 4x boleto, vendedor, parcelas e nomes de pessoa.",
+  "- codigoBarras = coluna CODIGO; quantidade = QNTDE; valorUnitario = VLR.UNIT (número com ponto).",
+  "- Se a descrição tiver kg/g/ml/L, preencha unidade e unidadeValor.",
+  "- Use a DESCRICAO completa do produto (não invente nomes curtos).",
+  "Regras do FRETE (campo frete, número):",
+  "- Procure no rodapé/totais qualquer valor rotulado como: Frete, Fretes, Transporte, Despacho, CIF, FOB, Shipping, Entrega, Taxa de entrega, Custo de entrega.",
+  "- Se encontrar, preencha frete com o valor numérico (ex.: 30 ou 30.5). Se não houver ou for zero, use 0.",
+  "- NÃO coloque o frete como item de produto.",
+  "- NÃO invente frete: só informe se estiver escrito no documento.",
 ].join("\n");
 
-function parseJsonLinhas(texto: string): LinhaOrcamentoLida[] {
-  const limpo = texto
-    .trim()
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/\s*```$/i, "")
-    .trim();
-  const inicio = limpo.indexOf("[");
-  const fim = limpo.lastIndexOf("]");
-  if (inicio < 0 || fim <= inicio) return [];
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(limpo.slice(inicio, fim + 1));
-  } catch {
-    return [];
-  }
+type ExtracaoIa = {
+  linhas: LinhaOrcamentoLida[];
+  frete: number;
+  textoBruto: string;
+};
+
+function linhasDeArrayJson(parsed: unknown): LinhaOrcamentoLida[] {
   if (!Array.isArray(parsed)) return [];
   const out: LinhaOrcamentoLida[] = [];
   for (const row of parsed) {
@@ -97,9 +88,64 @@ function parseJsonLinhas(texto: string): LinhaOrcamentoLida[] {
   return out;
 }
 
+function parseJsonExtracao(texto: string): ExtracaoIa {
+  const limpo = texto
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+
+  let linhas: LinhaOrcamentoLida[] = [];
+  let frete = 0;
+
+  const inicioObj = limpo.indexOf("{");
+  const fimObj = limpo.lastIndexOf("}");
+  if (inicioObj >= 0 && fimObj > inicioObj) {
+    try {
+      const obj = JSON.parse(limpo.slice(inicioObj, fimObj + 1)) as Record<
+        string,
+        unknown
+      >;
+      const itensRaw = obj.itens ?? obj.items ?? obj.produtos ?? obj.linhas;
+      linhas = linhasDeArrayJson(itensRaw);
+      const freteRaw = obj.frete ?? obj.Frete ?? obj.transporte ?? obj.shipping;
+      if (typeof freteRaw === "number" && freteRaw > 0) frete = freteRaw;
+      else if (typeof freteRaw === "string") {
+        const n = Number(
+          String(freteRaw)
+            .replace(/[^\d,.-]/g, "")
+            .replace(/\.(?=\d{3}(?:\D|$))/g, "")
+            .replace(",", ".")
+        );
+        if (Number.isFinite(n) && n > 0) frete = n;
+      }
+    } catch {
+      /* tenta array abaixo */
+    }
+  }
+
+  if (linhas.length === 0) {
+    const inicio = limpo.indexOf("[");
+    const fim = limpo.lastIndexOf("]");
+    if (inicio >= 0 && fim > inicio) {
+      try {
+        linhas = linhasDeArrayJson(JSON.parse(limpo.slice(inicio, fim + 1)));
+      } catch {
+        linhas = [];
+      }
+    }
+  }
+
+  if (!(frete > 0)) {
+    frete = extrairFreteDoTexto(limpo);
+  }
+
+  return { linhas, frete, textoBruto: limpo };
+}
+
 async function chamarGeminiPartes(
   parts: Array<Record<string, unknown>>
-): Promise<LinhaOrcamentoLida[] | null> {
+): Promise<ExtracaoIa | null> {
   const apiKey =
     process.env.GEMINI_API_KEY?.trim() || process.env.GOOGLE_AI_API_KEY?.trim();
   if (!apiKey) return null;
@@ -133,8 +179,8 @@ async function chamarGeminiPartes(
       .join("")
       .trim();
     if (!texto) return null;
-    const linhas = parseJsonLinhas(texto);
-    return linhas.length > 0 ? linhas : null;
+    const extracao = parseJsonExtracao(texto);
+    return extracao.linhas.length > 0 || extracao.frete > 0 ? extracao : null;
   } catch {
     return null;
   } finally {
@@ -145,7 +191,7 @@ async function chamarGeminiPartes(
 async function chamarOpenAIVisao(
   mime: string,
   base64: string
-): Promise<LinhaOrcamentoLida[] | null> {
+): Promise<ExtracaoIa | null> {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) return null;
   if (!mime.startsWith("image/")) return null;
@@ -171,7 +217,10 @@ async function chamarOpenAIVisao(
           {
             role: "user",
             content: [
-              { type: "text", text: "Extraia os itens deste documento." },
+              {
+                type: "text",
+                text: "Extraia os itens e o frete (se houver) deste documento.",
+              },
               {
                 type: "image_url",
                 image_url: { url: `data:${mime};base64,${base64}` },
@@ -187,8 +236,8 @@ async function chamarOpenAIVisao(
     };
     const texto = data.choices?.[0]?.message?.content?.trim();
     if (!texto) return null;
-    const linhas = parseJsonLinhas(texto);
-    return linhas.length > 0 ? linhas : null;
+    const extracao = parseJsonExtracao(texto);
+    return extracao.linhas.length > 0 || extracao.frete > 0 ? extracao : null;
   } catch {
     return null;
   } finally {
@@ -200,11 +249,11 @@ async function extrairLinhasComIa(
   mime: string,
   base64: string,
   textoPdf?: string
-): Promise<LinhaOrcamentoLida[] | null> {
+): Promise<ExtracaoIa | null> {
   const parts: Array<Record<string, unknown>> = [{ text: PROMPT_EXTRACAO }];
   if (textoPdf && textoPdf.trim().length > 40) {
     parts.push({
-      text: `Texto extraído do PDF:\n${textoPdf.slice(0, 50000)}`,
+      text: `Texto extraído do PDF (use também para achar Frete/Transporte no rodapé):\n${textoPdf.slice(0, 50000)}`,
     });
   } else if (base64) {
     parts.push({
@@ -213,13 +262,17 @@ async function extrairLinhasComIa(
   }
 
   const gemini = await chamarGeminiPartes(parts);
-  if (gemini) return gemini;
+  if (gemini && (gemini.linhas.length > 0 || gemini.frete > 0)) return gemini;
 
   if (textoPdf && textoPdf.trim().length > 40) {
     const geminiTexto = await chamarGeminiPartes([
-      { text: `${PROMPT_EXTRACAO}\n\nTexto:\n${textoPdf.slice(0, 50000)}` },
+      {
+        text: `${PROMPT_EXTRACAO}\n\nTexto:\n${textoPdf.slice(0, 50000)}`,
+      },
     ]);
-    if (geminiTexto) return geminiTexto;
+    if (geminiTexto && (geminiTexto.linhas.length > 0 || geminiTexto.frete > 0)) {
+      return geminiTexto;
+    }
   }
 
   return base64 ? chamarOpenAIVisao(mime, base64) : null;
@@ -440,11 +493,16 @@ function ehPlanilha(mime: string, nomeArquivo?: string) {
 }
 
 function consolidarLinhas(
-  ia: LinhaOrcamentoLida[] | null,
+  ia: ExtracaoIa | null,
   heuristicas: LinhaOrcamentoLida[]
-): { linhas: LinhaOrcamentoLida[]; fonte: ResultadoLeituraOrcamento["fonte"] } {
+): {
+  linhas: LinhaOrcamentoLida[];
+  fonte: ResultadoLeituraOrcamento["fonte"];
+  freteIa: number;
+} {
   const h = deduplicarLinhasProduto(heuristicas);
-  const a = ia ? deduplicarLinhasProduto(ia) : [];
+  const a = ia ? deduplicarLinhasProduto(ia.linhas) : [];
+  const freteIa = ia?.frete ?? 0;
 
   // Tabela CODIGO+DESCRICAO do PDF é mais confiável que a IA (evita "Liquido Cx").
   const heuristicasComCodigo = h.filter(
@@ -454,6 +512,7 @@ function consolidarLinhas(
     return {
       linhas: heuristicasComCodigo,
       fonte: a.length > 0 ? "misto" : "texto",
+      freteIa,
     };
   }
 
@@ -468,15 +527,17 @@ function consolidarLinhas(
     return {
       linhas: deduplicarLinhasProduto([...mapa.values()]),
       fonte: "misto",
+      freteIa,
     };
   }
   if (a.length > 0) {
     return {
       linhas: a,
       fonte: h.length > 0 ? "misto" : "ia",
+      freteIa,
     };
   }
-  return { linhas: h, fonte: "texto" };
+  return { linhas: h, fonte: "texto", freteIa };
 }
 
 export async function lerPayloadOrcamento(params: {
@@ -505,8 +566,7 @@ export async function lerPayloadOrcamento(params: {
     if (linhasPlanilha.length > 0) {
       const fretePlanilha = await extrairFreteDePlanilha(buffer);
       const resultado = preencherItensComLinhas(itens, linhasPlanilha, "texto");
-      if (fretePlanilha > 0) return { ...resultado, frete: fretePlanilha };
-      return resultado;
+      return anexarFreteDoTexto(resultado, "", fretePlanilha);
     }
   }
 
@@ -516,10 +576,12 @@ export async function lerPayloadOrcamento(params: {
       ? await extrairLinhasComIa(mime || "text/plain", base64, textoPdf)
       : null;
 
-  const { linhas, fonte } = consolidarLinhas(ia, heuristicas);
+  const { linhas, fonte, freteIa } = consolidarLinhas(ia, heuristicas);
+  const textoFrete = [textoPdf, ia?.textoBruto || ""].filter(Boolean).join("\n");
   return anexarFreteDoTexto(
     preencherItensComLinhas(itens, linhas, fonte),
-    textoPdf
+    textoFrete,
+    freteIa
   );
 }
 
@@ -546,8 +608,7 @@ export async function lerArquivoEPreencherItens(
     if (linhasPlanilha.length > 0) {
       const fretePlanilha = await extrairFreteDePlanilha(buffer);
       const resultado = preencherItensComLinhas(itens, linhasPlanilha, "texto");
-      if (fretePlanilha > 0) return { ...resultado, frete: fretePlanilha };
-      return resultado;
+      return anexarFreteDoTexto(resultado, "", fretePlanilha);
     }
   }
 

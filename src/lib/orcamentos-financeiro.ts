@@ -6,7 +6,6 @@ import {
   exigeParcelamento,
   normalizarParcelas,
   parseCondicoesPagamento,
-  rotuloCondicoesPagamento,
   serializarCondicoesPagamento,
   serializarListaCondicoesPagamento,
   type CondicoesPagamentoOrcamento,
@@ -58,11 +57,13 @@ async function criarParcelasDespesaOrcamento(
     totalLiquido: number;
     dataAprovacao: Date;
     parcelas: number;
+    formaPagamento: string;
   }
 ) {
   const parcelas = normalizarParcelas(orcamento.parcelas);
   const valores = dividirValorParcelas(orcamento.totalLiquido, parcelas);
   const criados = [];
+  const formaPagamento = orcamento.formaPagamento || "Boleto";
 
   for (let i = 0; i < parcelas; i++) {
     const numero = i + 1;
@@ -88,13 +89,23 @@ async function criarParcelasDespesaOrcamento(
         valor: valores[i],
         data: dataVencimentoParcelaOrcamento(orcamento.dataAprovacao, numero),
         status: "pendente",
-        formaPagamento: "Boleto",
+        formaPagamento,
       },
     });
     criados.push(lancamento);
   }
 
   return criados;
+}
+
+/** Forma exibida nas despesas/parcelas (Controle de Boletos + Contas a Pagar). */
+export function formaPagamentoDespesaOrcamento(
+  forma: FormaPagamentoOrcamento
+): string {
+  if (forma === "cartao_credito") return "Cartão de Crédito";
+  if (forma === "boleto") return "Boleto";
+  if (forma === "pix") return "Pix";
+  return "À vista";
 }
 
 /** Registra despesas ao aprovar orçamento (parcelas 30/30/30… ou lançamento único). */
@@ -120,6 +131,7 @@ export async function registrarDespesaOrcamentoAprovado(
 
   if (exigeParcelamento(cond.forma)) {
     const esperado = normalizarParcelas(cond.parcelas);
+    const formaPagamento = formaPagamentoDespesaOrcamento(cond.forma);
     if (existentes.length === esperado) return existentes;
     await removerDespesasOrcamento(empresaId, orcamento.numeroPedido);
     return criarParcelasDespesaOrcamento(empresaId, {
@@ -128,6 +140,7 @@ export async function registrarDespesaOrcamentoAprovado(
       totalLiquido: valor,
       dataAprovacao: orcamento.dataAprovacao,
       parcelas: esperado,
+      formaPagamento,
     });
   }
 
@@ -137,7 +150,7 @@ export async function registrarDespesaOrcamentoAprovado(
 
   await removerDespesasOrcamento(empresaId, orcamento.numeroPedido);
 
-  const formaPagamento = rotuloCondicoesPagamento(cond);
+  const formaPagamento = formaPagamentoDespesaOrcamento(cond.forma);
   const descricao = empacotarDespesa(
     descricaoDespesaOrcamento(orcamento.numeroPedido, orcamento.fornecedorNome),
     {
