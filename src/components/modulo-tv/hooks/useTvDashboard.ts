@@ -19,6 +19,7 @@ import {
 } from "@/lib/armazenamento-laboratorio";
 import { MODULO_PRODUCAO_ETAPAS_STORAGE_KEY } from "@/lib/modulo-producao-etapas";
 import { notificarTrabalhosAtualizados } from "@/lib/trabalhos-events";
+import { trabalhoVisivelModuloTv } from "@/lib/status-os";
 
 function formatRelogio(date: Date) {
   return date.toLocaleTimeString("pt-BR", {
@@ -131,7 +132,14 @@ export function useTvDashboard() {
     },
   });
 
-  const ordensBrutas = ordensQuery.data?.ordens ?? [];
+  const ordensBrutas = useMemo(
+    () =>
+      (ordensQuery.data?.ordens ?? []).filter((o) => {
+        if (o.statusChave == null || o.statusChave === "") return true;
+        return trabalhoVisivelModuloTv(o.statusChave);
+      }),
+    [ordensQuery.data?.ordens]
+  );
   const stats = ordensQuery.data?.stats ?? STATS_VAZIO;
   const colaboradores = ordensQuery.data?.colaboradores ?? [];
 

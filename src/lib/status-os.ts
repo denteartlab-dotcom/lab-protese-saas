@@ -11,13 +11,23 @@ const ALIASES_STATUS_OS: Record<string, string> = {
   "entregue cliente": "entregue_cliente",
 };
 
+function semAcentos(valor: string) {
+  return valor.normalize("NFD").replace(/\p{M}/gu, "");
+}
+
 const ROTULO_PARA_CHAVE_STATUS_OS = Object.fromEntries(
-  Object.entries(STATUS_TRABALHO).map(([chave, meta]) => [meta.label.trim().toLowerCase(), chave])
+  Object.entries(STATUS_TRABALHO).map(([chave, meta]) => [
+    semAcentos(meta.label.trim().toLowerCase()),
+    chave,
+  ])
 ) as Record<string, string>;
+
+/** Valores brutos no banco que equivalem à situação Produção (filtro Prisma do Módulo TV). */
+export const STATUS_DB_MODULO_TV = ["producao", "processando"] as const;
 
 export function normalizarChaveStatusOs(status?: string | null): string {
   const original = (status ?? "").trim();
-  const raw = original.toLowerCase();
+  const raw = semAcentos(original.toLowerCase());
   if (!raw) return "pendente";
 
   const alias = ALIASES_STATUS_OS[raw];

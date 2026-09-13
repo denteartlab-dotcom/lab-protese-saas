@@ -18,7 +18,10 @@ export type OrdemServicoTv = {
   prioridade: PrioridadeOs;
   prazo: string;
   prazoIso: string;
+  /** Rótulo da etapa/coluna (exibição no card). */
   status: string;
+  /** Chave da situação da OS (ex.: producao). Ausente em payloads legados. */
+  statusChave?: string;
   coluna: ColunaKanbanId;
   atrasada: boolean;
   etapaDesde: string;

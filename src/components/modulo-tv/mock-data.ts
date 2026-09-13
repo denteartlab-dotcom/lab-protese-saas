@@ -205,6 +205,7 @@ export function criarNovaOsMock(ordens: OrdemServicoTv[]): OrdemServicoTv {
     prazo: prazoBr(prazoDate),
     prazoIso: prazoDate.toISOString(),
     status: "Nova entrada",
+    statusChave: "producao",
     coluna: "entrada",
     atrasada: false,
     etapaDesde: new Date().toISOString(),

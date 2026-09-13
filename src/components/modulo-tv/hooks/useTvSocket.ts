@@ -2,7 +2,11 @@
 
 import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import type { TvChartPoint, TvOrdensResponse } from "@/components/modulo-tv/types";
+import type {
+  OrdemServicoTv,
+  TvChartPoint,
+  TvOrdensResponse,
+} from "@/components/modulo-tv/types";
 import { useTvDashboardStore } from "@/components/modulo-tv/store/tv-dashboard-store";
 import { playTvSound } from "@/components/modulo-tv/lib/tv-sounds";
 import {
@@ -12,11 +16,27 @@ import {
   onTvSocketEvent,
   referenciarTvSocket,
 } from "@/lib/tv/tv-socket-singleton";
+import { trabalhoVisivelModuloTv } from "@/lib/status-os";
 
 export const TV_QUERY_KEYS = {
   ordens: ["tv", "ordens"] as const,
   chart: ["tv", "chart"] as const,
 };
+
+function filtrarOrdensSituacaoProducao(ordens: OrdemServicoTv[]) {
+  return ordens.filter((o) => {
+    // Payload legado sem statusChave: confia no filtro do servidor.
+    if (o.statusChave == null || o.statusChave === "") return true;
+    return trabalhoVisivelModuloTv(o.statusChave);
+  });
+}
+
+function payloadOrdensTv(data: TvOrdensResponse): TvOrdensResponse {
+  return {
+    ...data,
+    ordens: filtrarOrdensSituacaoProducao(data.ordens ?? []),
+  };
+}
 
 export function useTvSocket() {
   const queryClient = useQueryClient();
@@ -38,11 +58,12 @@ export function useTvSocket() {
         const data = payload as TvOrdensResponse & {
           chart?: TvChartPoint[] | { pontos?: TvChartPoint[] };
         };
+        const filtrado = payloadOrdensTv(data);
         queryClient.setQueryData(TV_QUERY_KEYS.ordens, {
-          ordens: data.ordens,
-          colaboradores: data.colaboradores,
-          stats: data.stats,
-          ultimaAtualizacao: data.ultimaAtualizacao,
+          ordens: filtrado.ordens,
+          colaboradores: filtrado.colaboradores,
+          stats: filtrado.stats,
+          ultimaAtualizacao: filtrado.ultimaAtualizacao,
         });
         if (data.chart) {
           const pontos = Array.isArray(data.chart)
@@ -52,7 +73,10 @@ export function useTvSocket() {
         }
       }),
       onTvSocketEvent("tv:ordens:update", (payload) => {
-        queryClient.setQueryData(TV_QUERY_KEYS.ordens, payload);
+        queryClient.setQueryData(
+          TV_QUERY_KEYS.ordens,
+          payloadOrdensTv(payload as TvOrdensResponse)
+        );
       }),
       onTvSocketEvent("tv:ordens:delta", (payload) => {
         const delta = payload as {
@@ -69,11 +93,20 @@ export function useTvSocket() {
           for (const id of delta.ids) {
             if (!idsPresentes.has(id)) mapa.delete(id);
           }
-          for (const ordem of delta.ordens) {
+          for (const ordem of filtrarOrdensSituacaoProducao(delta.ordens)) {
             mapa.set(ordem.id, ordem);
           }
+          for (const ordem of delta.ordens) {
+            if (
+              ordem.statusChave != null &&
+              ordem.statusChave !== "" &&
+              !trabalhoVisivelModuloTv(ordem.statusChave)
+            ) {
+              mapa.delete(ordem.id);
+            }
+          }
           return {
-            ordens: [...mapa.values()],
+            ordens: filtrarOrdensSituacaoProducao([...mapa.values()]),
             stats: delta.stats,
             colaboradores: delta.colaboradores,
             ultimaAtualizacao: delta.ultimaAtualizacao,
@@ -85,6 +118,13 @@ export function useTvSocket() {
       }),
       onTvSocketEvent("tv:ordem:nova", (payload) => {
         const { ordem } = payload as { ordem: TvOrdensResponse["ordens"][number] };
+        if (
+          ordem.statusChave != null &&
+          ordem.statusChave !== "" &&
+          !trabalhoVisivelModuloTv(ordem.statusChave)
+        ) {
+          return;
+        }
         marcarOsNova(ordem.id);
         if (sonsRef.current) playTvSound("nova");
         queryClient.setQueryData<TvOrdensResponse>(TV_QUERY_KEYS.ordens, (old) => {
@@ -99,6 +139,16 @@ export function useTvSocket() {
         if (sonsRef.current) playTvSound("movida");
         queryClient.setQueryData<TvOrdensResponse>(TV_QUERY_KEYS.ordens, (old) => {
           if (!old) return old;
+          if (
+            item.statusChave != null &&
+            item.statusChave !== "" &&
+            !trabalhoVisivelModuloTv(item.statusChave)
+          ) {
+            return {
+              ...old,
+              ordens: old.ordens.filter((o) => o.id !== item.id),
+            };
+          }
           return {
             ...old,
             ordens: old.ordens.map((o) => (o.id === item.id ? item : o)),

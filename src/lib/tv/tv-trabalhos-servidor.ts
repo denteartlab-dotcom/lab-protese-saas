@@ -48,7 +48,12 @@ import {
   parseChaveEtapasModulo,
   registrarMudancaIndiceEtapa,
 } from "@/lib/historico-etapas";
-import { labelStatusOs, trabalhoVisivelModuloTv } from "@/lib/status-os";
+import {
+  labelStatusOs,
+  normalizarChaveStatusOs,
+  STATUS_DB_MODULO_TV,
+  trabalhoVisivelModuloTv,
+} from "@/lib/status-os";
 import {
   adicionarTrabalhoControleEntregasAutomaticoServidor,
   deveAdicionarControleEntregasPorStatus,
@@ -57,8 +62,6 @@ import {
 } from "@/lib/controle-entregas-automatico";
 import { normalizarColaborador } from "@/lib/utils";
 import { listarUsuariosOnlineEmpresa } from "@/lib/presenca-usuarios";
-
-const STATUS_VISIVEIS_TV = ["producao", "processando"] as const;
 
 type MapaEtapasConcluidas = Record<string, number[]>;
 
@@ -499,6 +502,7 @@ function trabalhoParaOrdem(
     prazo: formatarPrazoBr(trabalho.dataPrevista, trabalho.dataEntrada),
     prazoIso: (trabalho.dataPrevista ?? trabalho.dataEntrada).toISOString(),
     status: statusLabel,
+    statusChave: normalizarChaveStatusOs(trabalho.status),
     coluna,
     atrasada,
     etapaDesde: etapaDesde.toISOString(),
@@ -579,12 +583,12 @@ export async function carregarOrdensTv(
 async function carregarOrdensTvInterno(
   empresaId: string
 ): Promise<TvOrdensResponse> {
-  const [trabalhos, mapaConcluidas, mapaColunasTv, colaboradores] =
+  const [trabalhosBrutos, mapaConcluidas, mapaColunasTv, colaboradores] =
     await Promise.all([
       prisma.trabalho.findMany({
         where: {
           empresaId,
-          status: { in: [...STATUS_VISIVEIS_TV] },
+          status: { in: [...STATUS_DB_MODULO_TV] },
         },
         orderBy: [{ numeroOs: "desc" }, { createdAt: "desc" }],
         include: {
@@ -602,6 +606,11 @@ async function carregarOrdensTvInterno(
         "labProteseColaboradores"
       ),
     ]);
+
+  // Fonte de verdade: só situação Produção (aliases como processando).
+  const trabalhos = trabalhosBrutos.filter((t) =>
+    trabalhoVisivelModuloTv(t.status)
+  );
 
   const mapa = mapaConcluidas ?? {};
   const mapaColunas = mapaColunasTv ?? {};
