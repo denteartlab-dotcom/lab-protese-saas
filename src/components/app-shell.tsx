@@ -39,6 +39,7 @@ import {
 import type { MessageKey } from "@/lib/i18n";
 import { ArmazenamentoLaboratorioProvider } from "@/components/ArmazenamentoLaboratorioProvider";
 import { useSessaoInatividade } from "@/hooks/use-sessao-inatividade";
+import { useTvSessaoKeepAlive } from "@/hooks/use-tv-sessao-keepalive";
 import { usePresencaApp } from "@/hooks/usePresencaApp";
 import { lerUltimoLaboratorioLogin, salvarLogoLaboratorioLogin } from "@/lib/auth-client";
 import { rotuloPapelUsuarioI18n } from "@/lib/i18n/papel-usuario-i18n";
@@ -236,6 +237,7 @@ function AppShellInner({
   const isModuloColaborador = restanteMenuApp === "/producao/modulo";
   const isModuloTv = restanteMenuApp.startsWith("/producao/modulo-tv");
   usePresencaApp(!isPrint && !isModuloTv);
+  useTvSessaoKeepAlive(isModuloTv);
   const isRelatorioImersivo =
     pathname.startsWith("/app/relatorios/clientes-prejuizo") ||
     pathname.startsWith("/app/relatorios/servicos-nao-concluidos");
@@ -421,7 +423,9 @@ function AppShellInner({
     }
   }, []);
 
-  useSessaoInatividade(() => void logoutPorInatividade());
+  useSessaoInatividade(() => void logoutPorInatividade(), {
+    desabilitado: isModuloTv,
+  });
 
   async function logout() {
     setUserMenuOpen(false);

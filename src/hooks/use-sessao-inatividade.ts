@@ -16,15 +16,27 @@ const EVENTOS_ATIVIDADE = [
 
 const INTERVALO_VERIFICACAO_MS = 60_000;
 
+type OpcoesSessaoInatividade = {
+  /** Ex.: Módulo TV — não encerra por inatividade nesta aba. */
+  desabilitado?: boolean;
+};
+
 /**
- * Encerra a sessão após 2h sem interação nesta aba.
- * O tempo de inatividade fica só na sessão da aba (sessionStorage).
+ * Encerra a sessão após 2h sem interação.
+ * O carimbo fica no localStorage: fecha o navegador e o tempo continua contando.
+ * Com Módulo TV aberto (heartbeat), a conta não cai por inatividade.
  */
-export function useSessaoInatividade(onInativo: () => void) {
+export function useSessaoInatividade(
+  onInativo: () => void,
+  opcoes?: OpcoesSessaoInatividade
+) {
   const onInativoRef = useRef(onInativo);
   onInativoRef.current = onInativo;
+  const desabilitado = Boolean(opcoes?.desabilitado);
 
   useEffect(() => {
+    if (desabilitado) return;
+
     const verificarExpiracao = () => {
       if (sessaoExpiradaPorInatividade()) {
         onInativoRef.current();
@@ -69,5 +81,5 @@ export function useSessaoInatividade(onInativo: () => void) {
       window.removeEventListener("pageshow", onPageShow);
       window.clearInterval(intervalo);
     };
-  }, []);
+  }, [desabilitado]);
 }
