@@ -18,7 +18,6 @@ import { dimensoesLogoPx } from "@/lib/lab-logo";
 import {
   navGrupoTemAcesso,
   podeVerHref,
-  primeiroHrefPermitidoNav,
 } from "@/lib/permissoes-acesso";
 import { AppFaixaTopo } from "@/components/AppFaixaTopo";
 import { AssinaturaFaixaRodape } from "@/components/AssinaturaFaixaRodape";
@@ -113,31 +112,28 @@ type LancamentoBuscaOs = {
   trabalho?: { numeroOs?: number | null } | null;
 };
 
-/** Estilo do menu principal — sidebar vertical teal. */
+/** Estilo do menu principal — sidebar vertical teal com accordion. */
 const CLASSE_NAV_MENU =
-  "flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13px] leading-none tracking-tight transition";
+  "flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[13px] leading-none tracking-tight transition";
 const CLASSE_NAV_ATIVO =
   "bg-gradient-to-r from-teal-500 to-cyan-500 font-semibold text-white shadow-nav";
 const CLASSE_NAV_INATIVO =
   "font-medium text-white/75 hover:bg-white/10 hover:text-white";
 const CLASSE_NAV_ICONE = "h-4 w-4 shrink-0";
-const CLASSE_NAV_CHEVRON = "ml-auto h-3.5 w-3.5 shrink-0 opacity-60";
-const CLASSE_NAV_DROPDOWN =
-  "absolute left-full top-0 z-40 ml-1.5 min-w-[13rem] rounded-xl border border-teal-900/10 bg-white/95 py-2 shadow-panel backdrop-blur-md transition dark:border-slate-700 dark:bg-slate-900";
-const CLASSE_NAV_DROPDOWN_LINK =
-  "flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-teal-50 hover:text-primary-700 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-primary-400";
+const CLASSE_NAV_CHEVRON = "ml-auto h-3.5 w-3.5 shrink-0 opacity-60 transition-transform";
+const CLASSE_NAV_SUBMENU =
+  "mt-1 space-y-0.5 rounded-xl border border-white/10 bg-black/20 p-1.5";
+const CLASSE_NAV_SUBMENU_LINK =
+  "flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-white/75 transition hover:bg-white/10 hover:text-white";
+const CLASSE_NAV_SUBMENU_LINK_ATIVO =
+  "bg-white/15 font-semibold text-white";
 
 function classeItemNavPrincipal(ativo: boolean) {
   return cn(CLASSE_NAV_MENU, ativo ? CLASSE_NAV_ATIVO : CLASSE_NAV_INATIVO);
 }
 
-function classeMenuNavDropdown(aberto: boolean) {
-  return cn(
-    CLASSE_NAV_DROPDOWN,
-    aberto
-      ? "visible translate-y-0 opacity-100"
-      : "invisible pointer-events-none opacity-0"
-  );
+function classeLinkSubmenu(ativo: boolean) {
+  return cn(CLASSE_NAV_SUBMENU_LINK, ativo && CLASSE_NAV_SUBMENU_LINK_ATIVO);
 }
 
 export function AppShell({
@@ -329,7 +325,6 @@ function AppShellInner({
 
   useEffect(() => {
     setUserMenuOpen(false);
-    setMenuNavAberto(null);
     setMenuMobileAberto(false);
     if (!ehPaginaInicioApp(pathname)) {
       setBuscaOsAberta(false);
@@ -348,19 +343,43 @@ function AppShellInner({
     return () => document.removeEventListener("mousedown", fecharMenuUsuario);
   }, [userMenuOpen]);
 
-  const abrirMenuNav = useCallback((id: string) => {
+  const alternarMenuNav = useCallback((id: string) => {
     setUserMenuOpen(false);
-    setMenuNavAberto(id);
-  }, []);
-
-  const fecharMenusNav = useCallback(() => {
-    setMenuNavAberto(null);
+    setMenuNavAberto((atual) => (atual === id ? null : id));
   }, []);
 
   const alternarMenuUsuario = useCallback(() => {
     setMenuNavAberto(null);
     setUserMenuOpen((atual) => !atual);
   }, []);
+
+  useEffect(() => {
+    if (menuAppSecaoAtiva(pathname, ["/producao", "/trabalhos"])) {
+      setMenuNavAberto("producao");
+      return;
+    }
+    if (menuAppSecaoAtiva(pathname, "/financeiro")) {
+      setMenuNavAberto("financeiro");
+      return;
+    }
+    if (menuAppSecaoAtiva(pathname, ["/clientes", "/cadastros"])) {
+      setMenuNavAberto("cadastros");
+      return;
+    }
+    if (menuAppSecaoAtiva(pathname, ["/produtos", "/orcamentos"])) {
+      setMenuNavAberto("estoque");
+      return;
+    }
+    if (menuAppSecaoAtiva(pathname, "/relatorios")) {
+      setMenuNavAberto("relatorios");
+      return;
+    }
+    setMenuNavAberto(null);
+  }, [pathname]);
+
+  function submenuLinkAtivo(href: string) {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
 
   useEffect(() => {
     if (!buscaOsAberta) return;
@@ -846,10 +865,7 @@ function AppShellInner({
                 Menu
               </p>
             </div>
-            <nav
-              className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-2.5 py-3 font-sans antialiased"
-              onMouseLeave={fecharMenusNav}
-            >
+            <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-2.5 py-3 font-sans antialiased">
             {podeVerMenu("/app") &&
               appNavPrincipal.filter((item) => item.labelKey === "nav.inicio").map((item) => {
               const active = ehPaginaInicioApp(pathname);
@@ -857,7 +873,6 @@ function AppShellInner({
                 <Link
                   key={`${item.href}-${item.labelKey}`}
                   href={item.href}
-                  onMouseEnter={fecharMenusNav}
                   className={classeItemNavPrincipal(active)}
                 >
                   <item.icon className={CLASSE_NAV_ICONE} strokeWidth={active ? 2.25 : 2} />
@@ -866,12 +881,11 @@ function AppShellInner({
               );
             })}
             {navGrupoTemAcesso(acessoTotal, permissoesModulos, producaoNav) && (
-            <div
-              className="relative"
-              onMouseEnter={() => abrirMenuNav("producao")}
-            >
-              <Link
-                href={primeiroHrefPermitidoNav(acessoTotal, permissoesModulos, producaoNav) || "/app/producao"}
+            <div>
+              <button
+                type="button"
+                onClick={() => alternarMenuNav("producao")}
+                aria-expanded={menuNavAberto === "producao"}
                 className={classeItemNavPrincipal(
                   menuAppSecaoAtiva(pathname, ["/producao", "/trabalhos"])
                 )}
@@ -880,60 +894,66 @@ function AppShellInner({
                   className={CLASSE_NAV_ICONE}
                   strokeWidth={menuAppSecaoAtiva(pathname, ["/producao", "/trabalhos"]) ? 2.25 : 2}
                 />
-                <span>{t("nav.producao")}</span>
-                <ChevronDown className={CLASSE_NAV_CHEVRON} />
-              </Link>
-              <div className={cn(classeMenuNavDropdown(menuNavAberto === "producao"), "w-56")}>
-                {producaoNav.filter((item) => podeVerMenu(item.href)).map((item) => (
+                <span className="min-w-0 flex-1 truncate text-left">{t("nav.producao")}</span>
+                <ChevronDown
+                  className={cn(CLASSE_NAV_CHEVRON, menuNavAberto === "producao" && "rotate-180")}
+                />
+              </button>
+              {menuNavAberto === "producao" && (
+                <div className={CLASSE_NAV_SUBMENU}>
+                  {producaoNav.filter((item) => podeVerMenu(item.href)).map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
-                      className={CLASSE_NAV_DROPDOWN_LINK}
+                      className={classeLinkSubmenu(submenuLinkAtivo(item.href))}
                     >
-                      <item.icon className="h-3.5 w-3.5" />
+                      <item.icon className="h-3.5 w-3.5 shrink-0" />
                       {t(item.labelKey)}
                     </Link>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
             )}
             {navGrupoTemAcesso(acessoTotal, permissoesModulos, financeiroNav) && (
-            <div
-              className="relative"
-              onMouseEnter={() => abrirMenuNav("financeiro")}
-            >
-              <Link
-                href={primeiroHrefPermitidoNav(acessoTotal, permissoesModulos, financeiroNav) || "/app/financeiro"}
+            <div>
+              <button
+                type="button"
+                onClick={() => alternarMenuNav("financeiro")}
+                aria-expanded={menuNavAberto === "financeiro"}
                 className={classeItemNavPrincipal(menuAppSecaoAtiva(pathname, "/financeiro"))}
               >
                 <Wallet
                   className={CLASSE_NAV_ICONE}
                   strokeWidth={menuAppSecaoAtiva(pathname, "/financeiro") ? 2.25 : 2}
                 />
-                <span>{t("nav.financeiro")}</span>
-                <ChevronDown className={CLASSE_NAV_CHEVRON} />
-              </Link>
-              <div className={cn(classeMenuNavDropdown(menuNavAberto === "financeiro"), "w-56")}>
-                {financeiroNav.filter((item) => podeVerMenu(item.href)).map((item) => (
+                <span className="min-w-0 flex-1 truncate text-left">{t("nav.financeiro")}</span>
+                <ChevronDown
+                  className={cn(CLASSE_NAV_CHEVRON, menuNavAberto === "financeiro" && "rotate-180")}
+                />
+              </button>
+              {menuNavAberto === "financeiro" && (
+                <div className={CLASSE_NAV_SUBMENU}>
+                  {financeiroNav.filter((item) => podeVerMenu(item.href)).map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
-                      className={CLASSE_NAV_DROPDOWN_LINK}
+                      className={classeLinkSubmenu(submenuLinkAtivo(item.href))}
                     >
-                      <item.icon className="h-3.5 w-3.5" />
+                      <item.icon className="h-3.5 w-3.5 shrink-0" />
                       {t(item.labelKey)}
                     </Link>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
             )}
             {navGrupoTemAcesso(acessoTotal, permissoesModulos, cadastrosNav) && (
-            <div
-              className="relative"
-              onMouseEnter={() => abrirMenuNav("cadastros")}
-            >
-              <Link
-                href={primeiroHrefPermitidoNav(acessoTotal, permissoesModulos, cadastrosNav) || "/app/clientes"}
+            <div>
+              <button
+                type="button"
+                onClick={() => alternarMenuNav("cadastros")}
+                aria-expanded={menuNavAberto === "cadastros"}
                 className={classeItemNavPrincipal(
                   menuAppSecaoAtiva(pathname, ["/clientes", "/cadastros"])
                 )}
@@ -942,30 +962,33 @@ function AppShellInner({
                   className={CLASSE_NAV_ICONE}
                   strokeWidth={menuAppSecaoAtiva(pathname, ["/clientes", "/cadastros"]) ? 2.25 : 2}
                 />
-                <span>{t("nav.cadastros")}</span>
-                <ChevronDown className={CLASSE_NAV_CHEVRON} />
-              </Link>
-              <div className={cn(classeMenuNavDropdown(menuNavAberto === "cadastros"), "w-64")}>
-                {cadastrosNav.filter((item) => podeVerMenu(item.href)).map((item) => (
+                <span className="min-w-0 flex-1 truncate text-left">{t("nav.cadastros")}</span>
+                <ChevronDown
+                  className={cn(CLASSE_NAV_CHEVRON, menuNavAberto === "cadastros" && "rotate-180")}
+                />
+              </button>
+              {menuNavAberto === "cadastros" && (
+                <div className={CLASSE_NAV_SUBMENU}>
+                  {cadastrosNav.filter((item) => podeVerMenu(item.href)).map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
-                      className={cn(CLASSE_NAV_DROPDOWN_LINK, "gap-1.5 rounded-md")}
+                      className={classeLinkSubmenu(submenuLinkAtivo(item.href))}
                     >
-                      <item.icon className="h-3.5 w-3.5" />
+                      <item.icon className="h-3.5 w-3.5 shrink-0" />
                       {t(item.labelKey)}
                     </Link>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
             )}
             {navGrupoTemAcesso(acessoTotal, permissoesModulos, estoqueNav) && (
-            <div
-              className="relative"
-              onMouseEnter={() => abrirMenuNav("estoque")}
-            >
-              <Link
-                href={primeiroHrefPermitidoNav(acessoTotal, permissoesModulos, estoqueNav) || "/app/produtos"}
+            <div>
+              <button
+                type="button"
+                onClick={() => alternarMenuNav("estoque")}
+                aria-expanded={menuNavAberto === "estoque"}
                 className={classeItemNavPrincipal(
                   menuAppSecaoAtiva(pathname, ["/produtos", "/orcamentos"])
                 )}
@@ -974,63 +997,63 @@ function AppShellInner({
                   className={CLASSE_NAV_ICONE}
                   strokeWidth={menuAppSecaoAtiva(pathname, ["/produtos", "/orcamentos"]) ? 2.25 : 2}
                 />
-                <span>{t("nav.estoque")}</span>
-                <ChevronDown className={CLASSE_NAV_CHEVRON} />
-              </Link>
-              <div className={cn(classeMenuNavDropdown(menuNavAberto === "estoque"), "w-48")}>
-                {estoqueNav.filter((item) => podeVerMenu(item.href)).map((item) => (
+                <span className="min-w-0 flex-1 truncate text-left">{t("nav.estoque")}</span>
+                <ChevronDown
+                  className={cn(CLASSE_NAV_CHEVRON, menuNavAberto === "estoque" && "rotate-180")}
+                />
+              </button>
+              {menuNavAberto === "estoque" && (
+                <div className={CLASSE_NAV_SUBMENU}>
+                  {estoqueNav.filter((item) => podeVerMenu(item.href)).map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
-                      className={CLASSE_NAV_DROPDOWN_LINK}
+                      className={classeLinkSubmenu(submenuLinkAtivo(item.href))}
                     >
-                      <item.icon className="h-3.5 w-3.5" />
+                      <item.icon className="h-3.5 w-3.5 shrink-0" />
                       {t(item.labelKey)}
                     </Link>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
             )}
             {navGrupoTemAcesso(acessoTotal, permissoesModulos, relatoriosNav as typeof producaoNav) && (
-            <div
-              className="relative"
-              onMouseEnter={() => abrirMenuNav("relatorios")}
-            >
-              <Link
-                href={
-                  primeiroHrefPermitidoNav(
-                    acessoTotal,
-                    permissoesModulos,
-                    relatoriosNav as typeof producaoNav
-                  ) || "/app/relatorios/fluxo-de-caixa"
-                }
+            <div>
+              <button
+                type="button"
+                onClick={() => alternarMenuNav("relatorios")}
+                aria-expanded={menuNavAberto === "relatorios"}
                 className={classeItemNavPrincipal(menuAppSecaoAtiva(pathname, "/relatorios"))}
               >
                 <BarChart3
                   className={CLASSE_NAV_ICONE}
                   strokeWidth={menuAppSecaoAtiva(pathname, "/relatorios") ? 2.25 : 2}
                 />
-                <span>{t("nav.relatorios")}</span>
-                <ChevronDown className={CLASSE_NAV_CHEVRON} />
-              </Link>
-              <div className={cn(classeMenuNavDropdown(menuNavAberto === "relatorios"), "w-56")}>
-                {relatoriosNav.filter((item) => podeVerMenu(item.href)).map((item) => (
+                <span className="min-w-0 flex-1 truncate text-left">{t("nav.relatorios")}</span>
+                <ChevronDown
+                  className={cn(CLASSE_NAV_CHEVRON, menuNavAberto === "relatorios" && "rotate-180")}
+                />
+              </button>
+              {menuNavAberto === "relatorios" && (
+                <div className={CLASSE_NAV_SUBMENU}>
+                  {relatoriosNav.filter((item) => podeVerMenu(item.href)).map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
-                      className={CLASSE_NAV_DROPDOWN_LINK}
+                      className={classeLinkSubmenu(submenuLinkAtivo(item.href))}
                     >
-                      <item.icon className="h-3.5 w-3.5" />
+                      <item.icon className="h-3.5 w-3.5 shrink-0" />
                       {t(item.labelKey)}
                     </Link>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
             )}
             {isMasterAdmin && (
               <Link
                 href="/admin-master"
-                onMouseEnter={fecharMenusNav}
                 className={cn(
                   CLASSE_NAV_MENU,
                   pathname.startsWith("/admin-master")
@@ -1053,7 +1076,6 @@ function AppShellInner({
                 <Link
                   key={`${item.href}-${item.labelKey}`}
                   href={item.href}
-                  onMouseEnter={fecharMenusNav}
                   className={classeItemNavPrincipal(active)}
                 >
                   <item.icon className={CLASSE_NAV_ICONE} strokeWidth={2} />
