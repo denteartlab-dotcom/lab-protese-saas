@@ -219,14 +219,14 @@ export function TvDashboard() {
         <div className="flex min-h-0 w-full max-w-none flex-1 gap-2 overflow-hidden tv-hd:gap-2.5 tv:gap-3">
           <TvSidebar stats={stats} colaboradores={colaboradores}>
             <TvLocutorIa ordens={ordensBrutas} dadosCarregados={dadosCarregados} />
+            <TvSetorAbas
+              setores={layout.setores}
+              selecionado={vista}
+              onChange={setVistaSetor}
+              contagens={contagensSetor}
+              total={ordens.length}
+            />
           </TvSidebar>
-          <TvSetorAbas
-            setores={layout.setores}
-            selecionado={vista}
-            onChange={setVistaSetor}
-            contagens={contagensSetor}
-            total={ordens.length}
-          />
           <main className="flex min-h-0 min-w-0 w-full max-w-none flex-1 flex-col gap-1.5 overflow-hidden tv:gap-2">
             <div className="flex shrink-0 items-end justify-between gap-2 px-0.5">
               <div className="min-w-0">
