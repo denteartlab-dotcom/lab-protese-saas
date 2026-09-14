@@ -1,10 +1,6 @@
 import { NextResponse } from "next/server";
 import { executarBackupAutomatico } from "@/lib/backup-automatico";
-import {
-  caminhoRelativoPastaBackupEmpresa,
-  caminhoRelativoUploadsBackupEmpresa,
-} from "@/lib/backup-empresa-pasta";
-import { onedriveBackupSyncHabilitado } from "@/lib/backup-onedrive-sync";
+import { caminhoDriveEmpresa, exigirGoogleDriveBackupPronto } from "@/lib/backup-google-drive";
 import { exigirProprietario } from "@/lib/exigir-proprietario";
 import { criarJob, executarJobEmBackground } from "@/lib/jobs";
 
@@ -14,19 +10,19 @@ function hospedagemVercel() {
   return process.env.VERCEL === "1";
 }
 
-/** Enfileira backup no servidor — resposta imediata com jobId (issue 026). */
+/** Enfileira backup direto no Google Drive — resposta imediata com jobId. */
 export async function POST() {
   const auth = await exigirProprietario();
   if (auth.erro) return auth.erro;
 
-  if (hospedagemVercel()) {
-    return NextResponse.json(
-      {
-        error:
-          "Backup na pasta do servidor não está disponível na Vercel. Use «Baixar backup» para salvar no computador.",
-      },
-      { status: 501 }
-    );
+  try {
+    exigirGoogleDriveBackupPronto();
+  } catch (erro) {
+    const mensagem =
+      erro instanceof Error
+        ? erro.message
+        : "Google Drive não configurado para backup.";
+    return NextResponse.json({ error: mensagem }, { status: 400 });
   }
 
   const { empresaId, empresaSlug, empresaNome } = auth.session!;
@@ -41,14 +37,13 @@ export async function POST() {
     return NextResponse.json({
       jobId: job.id,
       status: job.status,
-      pastaPadrao: caminhoRelativoPastaBackupEmpresa(empresaSlug, empresaNome),
-      pastaUploads: caminhoRelativoUploadsBackupEmpresa(empresaSlug, empresaNome),
-      onedrive: { habilitado: onedriveBackupSyncHabilitado() },
+      pastaPadrao: caminhoDriveEmpresa(empresaSlug, empresaNome),
+      destino: "gdrive",
     });
   } catch (erro) {
     console.error("[backup/executar-agora]", erro);
     return NextResponse.json(
-      { error: "Não foi possível iniciar o backup no servidor." },
+      { error: "Não foi possível iniciar o backup no Google Drive." },
       { status: 500 }
     );
   }
@@ -60,13 +55,19 @@ export async function PUT() {
   if (auth.erro) return auth.erro;
 
   if (hospedagemVercel()) {
-    return NextResponse.json({ error: "Indisponível na Vercel." }, { status: 501 });
+    try {
+      exigirGoogleDriveBackupPronto();
+    } catch (erro) {
+      const mensagem =
+        erro instanceof Error ? erro.message : "Indisponível na Vercel.";
+      return NextResponse.json({ error: mensagem }, { status: 501 });
+    }
   }
 
   const { empresaId, empresaSlug, empresaNome } = auth.session!;
   const resultado = await executarBackupAutomatico(empresaId, empresaSlug, empresaNome);
   if (!resultado) {
-    return NextResponse.json({ error: "Falha ao gerar backup." }, { status: 500 });
+    return NextResponse.json({ error: "Falha ao gerar backup no Google Drive." }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true, ...resultado });

@@ -2,7 +2,6 @@ import {
   executarSemRls,
   runWithTenantContext,
 } from "@/lib/db";
-import { caminhoRelativoPastaBackupEmpresa } from "@/lib/backup-empresa-pasta";
 import { executarBackupNoServidor } from "@/lib/backup-runner-servidor";
 import {
   calcularProximoBackupEm,
@@ -14,10 +13,12 @@ import {
 import {
   backupAutomaticoHabilitadoNoServidor,
   fusoBackupAutomatico,
-  garantirPastaBackup,
   nomeArquivoBackupAutomatico,
 } from "@/lib/backup-automatico-servidor";
-import { sincronizarPastasDriveEmpresasAtivas } from "@/lib/backup-google-drive";
+import {
+  caminhoDriveEmpresa,
+  sincronizarPastasDriveEmpresasAtivas,
+} from "@/lib/backup-google-drive";
 
 type EmpresaAtiva = { id: string; slug: string; nome: string };
 
@@ -42,7 +43,7 @@ function empresasEmExecucao() {
 
 export { BACKUP_ARQUIVO_PADRAO } from "@/lib/backup-automatico-servidor";
 
-/** Gera backup da empresa na pasta `backups/{nome}/`. */
+/** Gera backup da empresa e envia direto ao Google Drive. */
 export async function executarBackupAutomatico(
   empresaId: string,
   slug: string,
@@ -149,14 +150,13 @@ export async function iniciarBackupAutomaticoDiario() {
   }
 
   try {
-    await garantirPastaBackup();
     const empresas = await listarEmpresasAtivas();
     const exemplo = empresas[0];
     const pastaExemplo = exemplo
-      ? caminhoRelativoPastaBackupEmpresa(exemplo.slug, exemplo.nome)
-      : "backups/{empresa}";
+      ? caminhoDriveEmpresa(exemplo.slug, exemplo.nome)
+      : "Lab_Protese_Backups/{empresa}/backups";
     console.log(
-      `[backup-automatico] pastas por empresa: ${pastaExemplo}/${nomeArquivoBackupAutomatico()} fuso=${fusoBackupAutomatico()}`
+      `[backup-automatico] destino Google Drive: ${pastaExemplo}/${nomeArquivoBackupAutomatico()} fuso=${fusoBackupAutomatico()}`
     );
     await sincronizarPastasDriveEmpresasAtivas();
     await reagendarBackupAutomatico();

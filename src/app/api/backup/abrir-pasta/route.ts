@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { caminhoRelativoPastaBackupEmpresa } from "@/lib/backup-empresa-pasta";
-import {
-  listarArquivosPastaBackupEmpresa,
-} from "@/lib/backup-automatico-servidor";
+import { listarArquivosBackupFonte } from "@/lib/backup-arquivos-fonte";
 import { exigirProprietario } from "@/lib/exigir-proprietario";
 import { verificarSenhaProprietario } from "@/lib/seguranca-restaurar-padrao";
 
@@ -46,30 +43,32 @@ export async function POST(request: Request) {
     );
   }
 
-  const { empresaSlug, empresaNome } = auth.session!;
-  const pastaRelativa = caminhoRelativoPastaBackupEmpresa(empresaSlug, empresaNome);
-  let arquivos: Awaited<ReturnType<typeof listarArquivosPastaBackupEmpresa>> = [];
+  const { empresaId, empresaSlug, empresaNome } = auth.session!;
 
   try {
-    arquivos = await listarArquivosPastaBackupEmpresa(empresaSlug, empresaNome);
+    const lista = await listarArquivosBackupFonte({
+      empresaId,
+      slug: empresaSlug,
+      nome: empresaNome,
+    });
+    return NextResponse.json({
+      ok: true,
+      aberto: false,
+      pasta: lista.pasta,
+      origem: lista.origem,
+      empresaSlug,
+      empresaNome,
+      mensagem: null,
+      arquivos: lista.arquivos,
+    });
   } catch (erro) {
     console.error("[backup/abrir-pasta] listar arquivos", erro);
     return NextResponse.json(
       {
         error:
-          "Senha confirmada, mas não foi possível listar os arquivos da pasta no servidor.",
+          "Senha confirmada, mas não foi possível listar os backups no Google Drive.",
       },
       { status: 500 }
     );
   }
-
-  return NextResponse.json({
-    ok: true,
-    aberto: false,
-    pasta: pastaRelativa,
-    empresaSlug,
-    empresaNome,
-    mensagem: null,
-    arquivos,
-  });
 }

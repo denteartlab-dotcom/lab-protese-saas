@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import {
-  lerArquivoBackupPastaEmpresa,
-  nomeArquivoBackupValido,
-} from "@/lib/backup-automatico-servidor";
+import { lerArquivoBackupFonte } from "@/lib/backup-arquivos-fonte";
+import { nomeArquivoBackupValido } from "@/lib/backup-automatico-servidor";
 import { exigirProprietario } from "@/lib/exigir-proprietario";
 
 export const dynamic = "force-dynamic";
@@ -16,14 +14,15 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Arquivo de backup inválido." }, { status: 400 });
   }
 
-  const { empresaSlug, empresaNome } = auth.session!;
+  const { empresaId, empresaSlug, empresaNome } = auth.session!;
 
   try {
-    const conteudo = await lerArquivoBackupPastaEmpresa(
-      empresaSlug,
-      arquivo,
-      empresaNome
-    );
+    const conteudo = await lerArquivoBackupFonte({
+      empresaId,
+      slug: empresaSlug,
+      nome: empresaNome,
+      nomeArquivo: arquivo,
+    });
     return new NextResponse(conteudo, {
       status: 200,
       headers: {
@@ -35,7 +34,7 @@ export async function GET(request: Request) {
   } catch (err) {
     console.error("[backup/baixar-arquivo]", err);
     return NextResponse.json(
-      { error: "Não foi possível baixar o arquivo de backup." },
+      { error: "Não foi possível baixar o arquivo de backup no Google Drive." },
       { status: 500 }
     );
   }

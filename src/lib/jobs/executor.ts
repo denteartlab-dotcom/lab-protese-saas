@@ -99,10 +99,16 @@ export function executarJobEmBackground(jobId: string, empresaId: string) {
   const rodar = () => {
     void executarJob(jobId, empresaId);
   };
-  try {
-    // Next 15+: mantém o trabalho vivo após a resposta da rota.
-    after(rodar);
-  } catch {
-    setImmediate(rodar);
+  // Na Vercel, after() mantém o isolate vivo. Na VPS (server.ts/PM2) o after()
+  // do Next pode registrar e nunca rodar — o job fica pendente e o clique
+  // parece não fazer nada. setImmediate funciona no processo Node longo.
+  if (process.env.VERCEL === "1") {
+    try {
+      after(rodar);
+      return;
+    } catch {
+      /* cai no setImmediate */
+    }
   }
+  setImmediate(rodar);
 }

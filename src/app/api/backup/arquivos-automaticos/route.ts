@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { caminhoRelativoPastaBackupEmpresa } from "@/lib/backup-empresa-pasta";
-import { listarArquivosPastaBackupEmpresa } from "@/lib/backup-automatico-servidor";
+import { listarArquivosBackupFonte } from "@/lib/backup-arquivos-fonte";
 import { requireEmpresaContext } from "@/lib/empresa-context";
 import { exigirGestorUsuarios } from "@/lib/exigir-gestor";
 
@@ -16,13 +15,15 @@ export async function GET() {
   }
 
   try {
-    const arquivos = await listarArquivosPastaBackupEmpresa(
-      ctx.empresaSlug,
-      ctx.empresaNome
-    );
+    const lista = await listarArquivosBackupFonte({
+      empresaId: ctx.empresaId,
+      slug: ctx.empresaSlug,
+      nome: ctx.empresaNome,
+    });
     return NextResponse.json({
-      pasta: caminhoRelativoPastaBackupEmpresa(ctx.empresaSlug, ctx.empresaNome),
-      arquivos,
+      pasta: lista.pasta,
+      origem: lista.origem,
+      arquivos: lista.arquivos,
     });
   } catch (err) {
     console.error("[backup/arquivos-automaticos]", err);

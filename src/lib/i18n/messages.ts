@@ -190,14 +190,14 @@ export const messages = {
       "Uploads: armazenados no banco de dados (PostgreSQL).",
     "settings.backupAutoUploadStorageDisk":
       "Uploads: pasta local na VPS (var/uploads).",
-    "settings.backupServidorGerarAgora": "Gerar backup no servidor agora",
-    "settings.backupServidorGerando": "Gerando backup...",
+    "settings.backupServidorGerarAgora": "Gerar backup no Google Drive agora",
+    "settings.backupServidorGerando": "Enviando backup ao Google Drive...",
     "settings.backupServidorOk":
-      "Backup gravado no servidor. Pasta uploads/ com {n} arquivo(s) de anexos/imagens.",
-    "settings.backupServidorErro": "Não foi possível gerar o backup no servidor.",
+      "Backup enviado ao Google Drive: {caminho}",
+    "settings.backupServidorErro": "Não foi possível gerar o backup no Google Drive.",
     "settings.backupServidorGdriveOk": "Google Drive sincronizado.",
     "settings.backupServidorGdriveErro":
-      "Google Drive não sincronizado — confira GOOGLE_DRIVE_FOLDER_ID / GOOGLE_APPLICATION_CREDENTIALS no .env.",
+      "Falha no Google Drive: {erro}",
     "settings.backupAutoNomeArquivo": "Nome do arquivo de hoje: {nome}",
     "settings.backupAutoUltimoArquivo": "Último arquivo gerado: {nome}",
     "settings.backupAutoUltimoArquivoPendente": "Último arquivo gerado: ainda não gerado",
@@ -223,9 +223,9 @@ export const messages = {
     "settings.backupAutoErro": "Não foi possível salvar o agendamento.",
     "settings.backupAutoAbrirPasta": "Ver backups salvos",
     "settings.backupAutoAbrirPastaTitulo": "Backups automáticos",
-    "settings.backupAutoAbrirPastaTituloConteudo": "Arquivos de backup no servidor",
+    "settings.backupAutoAbrirPastaTituloConteudo": "Arquivos de backup no Google Drive",
     "settings.backupAutoAbrirPastaDesc":
-      "Informe a senha da sua conta para listar os backups gravados no servidor. Use este painel para baixar ou remover arquivos — no Linux o sistema não abre pastas do computador.",
+      "Informe a senha da sua conta para listar os backups gravados no Google Drive. Use este painel para baixar ou remover arquivos.",
     "settings.backupAutoAbrirPastaDescConteudo":
       "Senha confirmada. Baixe os arquivos para o seu PC ou remova os que não precisa mais.",
     "settings.backupAutoAbrirPastaSenhaLogin": "Senha da sua conta",
@@ -1009,14 +1009,14 @@ export const messages = {
       "Uploads: stored in the database (PostgreSQL).",
     "settings.backupAutoUploadStorageDisk":
       "Uploads: local folder on the VPS (var/uploads).",
-    "settings.backupServidorGerarAgora": "Generate server backup now",
-    "settings.backupServidorGerando": "Generating backup...",
+    "settings.backupServidorGerarAgora": "Generate Google Drive backup now",
+    "settings.backupServidorGerando": "Uploading backup to Google Drive...",
     "settings.backupServidorOk":
-      "Backup saved on server. uploads/ folder with {n} attachment/image file(s).",
-    "settings.backupServidorErro": "Could not generate server backup.",
+      "Backup uploaded to Google Drive: {caminho}",
+    "settings.backupServidorErro": "Could not generate the Google Drive backup.",
     "settings.backupServidorGdriveOk": "Google Drive synced.",
     "settings.backupServidorGdriveErro":
-      "Google Drive not synced — check GOOGLE_DRIVE_FOLDER_ID / GOOGLE_APPLICATION_CREDENTIALS in .env.",
+      "Google Drive failed: {erro}",
     "settings.backupAutoNomeArquivo": "Today's file name: {nome}",
     "settings.backupAutoUltimoArquivo": "Last generated file: {nome}",
     "settings.backupAutoUltimoArquivoPendente": "Last generated file: not generated yet",
@@ -1042,9 +1042,9 @@ export const messages = {
     "settings.backupAutoErro": "Could not save the schedule.",
     "settings.backupAutoAbrirPasta": "View saved backups",
     "settings.backupAutoAbrirPastaTitulo": "Automatic backups",
-    "settings.backupAutoAbrirPastaTituloConteudo": "Backup files on server",
+    "settings.backupAutoAbrirPastaTituloConteudo": "Backup files on Google Drive",
     "settings.backupAutoAbrirPastaDesc":
-      "Enter your account password to list backups stored on the server. Use this panel to download or remove files — on Linux the system cannot open folders on your computer.",
+      "Enter your account password to list backups stored on Google Drive. Use this panel to download or remove files.",
     "settings.backupAutoAbrirPastaDescConteudo":
       "Password confirmed. Download files to your PC or remove ones you no longer need.",
     "settings.backupAutoAbrirPastaSenhaLogin": "Your account password",
@@ -1824,14 +1824,14 @@ export const messages = {
       "Uploads: almacenados en la base de datos (PostgreSQL).",
     "settings.backupAutoUploadStorageDisk":
       "Uploads: carpeta local en la VPS (var/uploads).",
-    "settings.backupServidorGerarAgora": "Generar respaldo en el servidor ahora",
-    "settings.backupServidorGerando": "Generando respaldo...",
+    "settings.backupServidorGerarAgora": "Generar respaldo en Google Drive ahora",
+    "settings.backupServidorGerando": "Enviando respaldo a Google Drive...",
     "settings.backupServidorOk":
-      "Respaldo guardado en el servidor. Carpeta uploads/ con {n} archivo(s) de adjuntos/imágenes.",
-    "settings.backupServidorErro": "No se pudo generar el respaldo en el servidor.",
+      "Respaldo enviado a Google Drive: {caminho}",
+    "settings.backupServidorErro": "No se pudo generar el respaldo en Google Drive.",
     "settings.backupServidorGdriveOk": "Google Drive sincronizado.",
     "settings.backupServidorGdriveErro":
-      "Google Drive no sincronizado — revise GOOGLE_DRIVE_FOLDER_ID / GOOGLE_APPLICATION_CREDENTIALS en el .env.",
+      "Fallo en Google Drive: {erro}",
     "settings.backupAutoNomeArquivo": "Nombre del archivo de hoy: {nome}",
     "settings.backupAutoUltimoArquivo": "Último archivo generado: {nome}",
     "settings.backupAutoUltimoArquivoPendente": "Último archivo generado: aún no generado",
@@ -1857,9 +1857,9 @@ export const messages = {
     "settings.backupAutoErro": "No se pudo guardar la programación.",
     "settings.backupAutoAbrirPasta": "Ver respaldos guardados",
     "settings.backupAutoAbrirPastaTitulo": "Respaldos automáticos",
-    "settings.backupAutoAbrirPastaTituloConteudo": "Archivos de respaldo en el servidor",
+    "settings.backupAutoAbrirPastaTituloConteudo": "Archivos de respaldo en Google Drive",
     "settings.backupAutoAbrirPastaDesc":
-      "Ingrese la contraseña de su cuenta para listar los respaldos guardados en el servidor. Use este panel para descargar o eliminar archivos — en Linux el sistema no abre carpetas en su computadora.",
+      "Ingrese la contraseña de su cuenta para listar los respaldos guardados en Google Drive. Use este panel para descargar o eliminar archivos.",
     "settings.backupAutoAbrirPastaDescConteudo":
       "Contraseña confirmada. Descargue los archivos a su PC o elimine los que ya no necesite.",
     "settings.backupAutoAbrirPastaSenhaLogin": "Contraseña de su cuenta",

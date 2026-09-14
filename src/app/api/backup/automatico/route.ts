@@ -1,13 +1,5 @@
-﻿import { access } from "fs/promises";
-import path from "path";
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { z } from "zod";
-import {
-  caminhoRelativoPastaBackupEmpresa,
-  caminhoRelativoUploadsBackupEmpresa,
-} from "@/lib/backup-empresa-pasta";
-import { contarUploadsBackupEmpresa } from "@/lib/backup-uploads-espelho";
-import { onedriveBackupSyncHabilitado } from "@/lib/backup-onedrive-sync";
 import { modoUploadStorage, faltamCredenciaisGoogleDrive } from "@/lib/upload-arquivo-server";
 import {
   googleDriveUploadsRemote,
@@ -18,8 +10,6 @@ import { reagendarBackupAutomaticoEmpresa } from "@/lib/backup-automatico";
 import {
   backupAutomaticoHabilitadoNoServidor,
   fusoBackupAutomatico,
-  garantirPastaBackupEmpresa,
-  listarArquivosPastaBackupEmpresa,
   nomeArquivoBackupAutomatico,
 } from "@/lib/backup-automatico-servidor";
 import {
@@ -97,65 +87,29 @@ async function montarStatus(
   const fuso = fusoBackupAutomatico();
   let config = opcoes?.config ?? (await carregarConfigBackupAutomatico(empresaId));
   const leve = opcoes?.leve === true;
+  const statusDrive = statusGoogleDriveBackup();
+  const caminhoEmpresa = caminhoDriveEmpresa(slug, nome);
 
-  if (!leve) {
-    try {
-      await garantirPastaBackupEmpresa(slug, nome);
-    } catch (erro) {
-      console.warn("[backup/automatico] pasta local indisponível:", erro);
-    }
-  }
-
-  if (config.ativo && !leve && !config.pastaDriveId) {
+  if (!leve && statusDrive.configurado && (config.ativo || !config.pastaDriveId)) {
     const pastaDrive = await garantirPastaDriveEmpresa({
       empresaId,
       slug,
       nome,
     });
-    if (pastaDrive.ok && pastaDrive.criada) {
+    if (pastaDrive.ok) {
       config = await carregarConfigBackupAutomatico(empresaId);
-    } else if (!pastaDrive.ok && pastaDrive.erro && pastaDrive.erro !== "desativado") {
+    } else if (pastaDrive.erro && pastaDrive.erro !== "desativado") {
       console.warn("[backup/automatico] pasta Drive:", pastaDrive.erro);
     }
   }
 
-  const pastaRelativa = caminhoRelativoPastaBackupEmpresa(slug, nome);
   const padraoNomeArquivo = nomeArquivoBackupAutomatico(new Date(), fuso);
-  let arquivoExiste = false;
-  let ultimoArquivoNome: string | null = null;
-
-  const pastaNome = pastaRelativa.split("/").pop() ?? slug;
-  if (
-    config.ultimoArquivo?.includes(path.sep + pastaNome + path.sep) ||
-    config.ultimoArquivo?.includes(`/${pastaNome}/`)
-  ) {
-    try {
-      await access(config.ultimoArquivo);
-      arquivoExiste = true;
-      ultimoArquivoNome = path.basename(config.ultimoArquivo);
-    } catch {
-      arquivoExiste = false;
-    }
-  } else if (config.ultimoArquivo) {
-    ultimoArquivoNome = path.basename(config.ultimoArquivo);
-  }
-
-  if (!arquivoExiste && !leve) {
-    const arquivos = await listarArquivosPastaBackupEmpresa(slug, nome);
-    if (arquivos.length > 0) {
-      arquivoExiste = true;
-      ultimoArquivoNome = arquivos[0].nome;
-    }
-  }
-
-  let uploadsArquivos = 0;
-  if (!leve) {
-    try {
-      uploadsArquivos = await contarUploadsBackupEmpresa(slug, nome);
-    } catch {
-      uploadsArquivos = 0;
-    }
-  }
+  const ultimoCaminho =
+    config.ultimoUploadDriveArquivo || config.ultimoArquivo || null;
+  const ultimoArquivoNome = ultimoCaminho
+    ? ultimoCaminho.split("/").pop() || ultimoCaminho
+    : null;
+  const arquivoExiste = Boolean(ultimoCaminho);
 
   return {
     config,
@@ -164,10 +118,10 @@ async function montarStatus(
     servidorHabilitado: backupAutomaticoHabilitadoNoServidor(),
     hospedagemVercel: hospedagemVercel(),
     agendadorInternoAtivo: !hospedagemVercel() && backupAutomaticoHabilitadoNoServidor(),
-    pastaPadrao: pastaRelativa,
-    pastaUploads: caminhoRelativoUploadsBackupEmpresa(slug, nome),
-    uploadsArquivos,
-    onedriveSyncHabilitado: onedriveBackupSyncHabilitado(),
+    pastaPadrao: caminhoEmpresa,
+    pastaUploads: `${caminhoEmpresa.replace(/\/backups$/, "")}/uploads`,
+    uploadsArquivos: 0,
+    onedriveSyncHabilitado: false,
     uploadStorage: modoUploadStorage(),
     onedriveUploadsAtivo: false,
     gdriveUploadsAtivo: uploadUsaGoogleDrive(),
@@ -181,17 +135,17 @@ async function montarStatus(
       : faltamCredenciaisGoogleDrive(),
     horarioFixo: formatarHorarioFixoBackupAutomatico(),
     padraoNomeArquivo,
-    arquivoPadrao: `${pastaRelativa}/${padraoNomeArquivo}`,
+    arquivoPadrao: `${caminhoEmpresa}/${padraoNomeArquivo}`,
     ultimoArquivoNome,
     arquivoExiste,
     fusoHorario: fuso,
     ultimoBackupFormatado: formatarDataBackup(config.ultimoBackupEm, fuso),
     proximoBackupFormatado: formatarProximoBackup(config, fuso),
     googleDrive: {
-      ...statusGoogleDriveBackup(),
+      ...statusDrive,
       statusUpload: textoStatusUploadDrive(config, fuso),
       pastaEmpresa: config.pastaDriveNome ?? null,
-      caminhoEmpresa: caminhoDriveEmpresa(slug, nome),
+      caminhoEmpresa,
     },
   };
 }

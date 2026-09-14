@@ -4,10 +4,6 @@ import {
   type ProgressoBackupJob,
 } from "@/lib/backup-job-schema";
 import { executarBackupNoServidor } from "@/lib/backup-runner-servidor";
-import {
-  caminhoRelativoPastaBackupEmpresa,
-  caminhoRelativoUploadsBackupEmpresa,
-} from "@/lib/backup-empresa-pasta";
 import type { ContextoExecucaoJob } from "@/lib/jobs/types";
 
 export async function manipularJobBackupServidor(ctx: ContextoExecucaoJob) {
@@ -25,14 +21,16 @@ export async function manipularJobBackupServidor(ctx: ContextoExecucaoJob) {
     reportar
   );
 
+  const pastaDrive = resultado.drive?.caminhoDrive ?? resultado.destino;
+
   return {
     fase: "finalizado" as const,
     percentual: 100,
     destino: resultado.destino,
     exportedAt: resultado.exportedAt,
     uploadsArquivos: resultado.uploadsArquivos,
-    pastaUploads: caminhoRelativoUploadsBackupEmpresa(payload.empresaSlug, payload.empresaNome),
-    pastaPadrao: caminhoRelativoPastaBackupEmpresa(payload.empresaSlug, payload.empresaNome),
+    pastaUploads: pastaDrive,
+    pastaPadrao: pastaDrive,
     onedrive: resultado.onedrive,
     drive: resultado.drive,
   };

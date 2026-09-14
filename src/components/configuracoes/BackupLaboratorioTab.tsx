@@ -221,21 +221,12 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
           setProgressoOperacao(`${rotuloFaseBackup(fase)} (${percentual}%)`),
       });
       await Promise.all([carregarStatusAutomatico(), carregarArquivosPastaAutomatica()]);
-      const uploads = resultado.uploadsArquivos ?? 0;
-      const drive = resultado.drive;
-      if (drive && drive.ok === false && drive.erro && drive.erro !== "desativado") {
-        onMensagem?.(
-          `${t("settings.backupServidorOk").replace("{n}", String(uploads))} ${t(
-            "settings.backupServidorGdriveErro"
-          )}`,
-          "erro"
-        );
-      } else {
-        onMensagem?.(
-          t("settings.backupServidorOk").replace("{n}", String(uploads)),
-          "sucesso"
-        );
-      }
+      const caminho =
+        resultado.drive?.caminhoDrive || resultado.destino || "";
+      onMensagem?.(
+        t("settings.backupServidorOk").replace("{caminho}", caminho),
+        "sucesso"
+      );
     } catch (err) {
       const msg = err instanceof Error ? err.message : t("settings.backupServidorErro");
       onMensagem?.(msg, "erro");
@@ -473,16 +464,24 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                         ? t("settings.backupAutoSalvando")
                         : t("settings.backupAutoSalvar")}
                     </Button>
-                    {!statusAuto?.hospedagemVercel ? (
+                    {!statusAuto?.hospedagemVercel ||
+                    statusAuto.googleDrive?.configurado ? (
                       <Button
                         type="button"
                         variant="outline"
-                        disabled={gerandoBackupServidor || salvandoAuto}
+                        disabled={
+                          gerandoBackupServidor ||
+                          salvandoAuto ||
+                          Boolean(
+                            statusAuto?.googleDrive &&
+                              !statusAuto.googleDrive.configurado
+                          )
+                        }
                         onClick={() => void gerarBackupServidorAgora()}
                         className="inline-flex items-center gap-2 rounded border-emerald-500 bg-white px-4 py-2 text-sm text-emerald-900 hover:bg-emerald-50 dark:border-emerald-600 dark:bg-slate-800 dark:text-emerald-200 dark:hover:bg-emerald-950/50"
                       >
                         {gerandoBackupServidor
-                          ? t("settings.backupServidorGerando")
+                          ? progressoOperacao || t("settings.backupServidorGerando")
                           : t("settings.backupServidorGerarAgora")}
                       </Button>
                     ) : null}

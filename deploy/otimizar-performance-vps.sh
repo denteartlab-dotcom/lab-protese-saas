@@ -59,6 +59,4 @@ pm2 status lab-protese || true
 free -h | head -2 || true
 
 echo ""
-echo "Pronto. Dica: se ainda estiver lento, teste no .env:"
-echo "  GOOGLE_DRIVE_BACKUP_ENABLED=false"
-echo "  ONEDRIVE_BACKUP_SYNC_ENABLED=false"
+echo "Pronto."

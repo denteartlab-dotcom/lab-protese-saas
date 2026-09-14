@@ -1,4 +1,3 @@
-import path from "path";
 import type { drive_v3 } from "googleapis";
 import {
   caminhoRelativoPastaBackupEmpresa,
@@ -29,8 +28,11 @@ import {
   traduzirErroGoogleDrive,
 } from "@/lib/google-drive-shared";
 import {
+  baixarArquivoPorNomeNaPastaGoogleDrive,
+  excluirArquivosPorNomeNaPastaGoogleDrive,
   garantirPastaBackupsEmpresaGoogleDrive,
-  uploadArquivoLocalParaPastaGoogleDrive,
+  listarArquivosJsonNaPastaGoogleDrive,
+  uploadBufferParaPastaGoogleDrive,
 } from "@/lib/google-drive-uploads";
 
 export type StatusGoogleDriveBackup = {
@@ -254,12 +256,23 @@ export type ResultadoUploadGoogleDrive = {
   erro?: string;
 };
 
-/** Envia o JSON de backup local para {Empresa}/backups no Google Drive. */
+function mensagemErroDriveObrigatorio(erro?: string) {
+  if (erro === "desativado") {
+    return "Backup no Google Drive está desligado (GOOGLE_DRIVE_BACKUP_ENABLED=false).";
+  }
+  if (erro === "nao_configurado" || erro === "pasta_indisponivel") {
+    return "Google Drive não configurado. Defina GOOGLE_DRIVE_FOLDER_ID e o OAuth dos anexos.";
+  }
+  return erro || "Falha ao enviar o backup para o Google Drive.";
+}
+
+/** Envia o JSON de backup em memória para {Empresa}/backups no Google Drive. */
 export async function uploadBackupParaGoogleDrive(params: {
   empresaId: string;
   slug: string;
   nome?: string;
-  caminhoArquivoLocal: string;
+  nomeArquivo: string;
+  conteudo: Buffer | string;
 }): Promise<ResultadoUploadGoogleDrive> {
   const pasta = await garantirPastaDriveEmpresa({
     empresaId: params.empresaId,
@@ -268,16 +281,22 @@ export async function uploadBackupParaGoogleDrive(params: {
   });
 
   if (!pasta.ok || !pasta.pastaId) {
-    return { ok: false, erro: pasta.erro ?? "pasta_indisponivel" };
+    return {
+      ok: false,
+      erro: mensagemErroDriveObrigatorio(pasta.erro ?? "pasta_indisponivel"),
+    };
   }
 
-  const nomeArquivo = path.basename(params.caminhoArquivoLocal);
+  const nomeArquivo = params.nomeArquivo.trim();
   const caminhoDrive = `${pasta.caminhoDrive}/${nomeArquivo}`;
+  const bytes = Buffer.isBuffer(params.conteudo)
+    ? params.conteudo
+    : Buffer.from(params.conteudo, "utf8");
 
   try {
-    const arquivoId = await uploadArquivoLocalParaPastaGoogleDrive(
+    const arquivoId = await uploadBufferParaPastaGoogleDrive(
       pasta.pastaId,
-      params.caminhoArquivoLocal,
+      bytes,
       nomeArquivo,
       "application/json"
     );
@@ -318,6 +337,66 @@ export async function uploadBackupParaGoogleDrive(params: {
 
     return { ok: false, erro: mensagem };
   }
+}
+
+export async function listarArquivosBackupEmpresaGoogleDrive(params: {
+  empresaId: string;
+  slug: string;
+  nome?: string;
+}) {
+  const pasta = await garantirPastaDriveEmpresa(params);
+  if (!pasta.ok || !pasta.pastaId) {
+    if (pasta.erro === "desativado" || pasta.erro === "nao_configurado") {
+      return [];
+    }
+    throw new Error(mensagemErroDriveObrigatorio(pasta.erro));
+  }
+  return listarArquivosJsonNaPastaGoogleDrive(pasta.pastaId);
+}
+
+export async function lerArquivoBackupEmpresaGoogleDrive(params: {
+  empresaId: string;
+  slug: string;
+  nome?: string;
+  nomeArquivo: string;
+}) {
+  const pasta = await garantirPastaDriveEmpresa(params);
+  if (!pasta.ok || !pasta.pastaId) {
+    throw new Error(mensagemErroDriveObrigatorio(pasta.erro));
+  }
+  const bytes = await baixarArquivoPorNomeNaPastaGoogleDrive(
+    pasta.pastaId,
+    params.nomeArquivo
+  );
+  return bytes.toString("utf8");
+}
+
+export async function excluirArquivosBackupEmpresaGoogleDrive(params: {
+  empresaId: string;
+  slug: string;
+  nome?: string;
+  nomes: string[];
+}) {
+  const pasta = await garantirPastaDriveEmpresa({
+    empresaId: params.empresaId,
+    slug: params.slug,
+    nome: params.nome,
+  });
+  if (!pasta.ok || !pasta.pastaId) {
+    throw new Error(mensagemErroDriveObrigatorio(pasta.erro));
+  }
+  return excluirArquivosPorNomeNaPastaGoogleDrive(pasta.pastaId, params.nomes);
+}
+
+export function exigirGoogleDriveBackupPronto() {
+  const status = statusGoogleDriveBackup();
+  if (!status.habilitado) {
+    throw new Error(mensagemErroDriveObrigatorio("desativado"));
+  }
+  if (!status.configurado) {
+    throw new Error(mensagemErroDriveObrigatorio("nao_configurado"));
+  }
+  return status;
 }
 
 export type ResultadoExclusaoPastaDrive = {

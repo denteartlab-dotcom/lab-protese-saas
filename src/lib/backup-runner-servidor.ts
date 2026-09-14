@@ -1,4 +1,3 @@
-import { writeFile, access } from "fs/promises";
 import { prisma } from "@/lib/db";
 import { exportarBackupEmpresa } from "@/lib/backup-laboratorio";
 import {
@@ -7,17 +6,16 @@ import {
   extrairConteudoZipBackup,
 } from "@/lib/backup-zip";
 import {
-  caminhoArquivoBackupAutomaticoEmpresa,
   fusoBackupAutomatico,
-  garantirPastaBackup,
-  garantirPastaBackupEmpresa,
+  nomeArquivoBackupAutomatico,
 } from "@/lib/backup-automatico-servidor";
 import {
   registrarExecucaoBackupAutomatico,
 } from "@/lib/backup-automatico-config";
-import { uploadBackupParaGoogleDrive } from "@/lib/backup-google-drive";
-import { sincronizarBackupComOneDrive } from "@/lib/backup-onedrive-sync";
-import { espelharUploadsNoBackupEmpresa } from "@/lib/backup-uploads-espelho";
+import {
+  exigirGoogleDriveBackupPronto,
+  uploadBackupParaGoogleDrive,
+} from "@/lib/backup-google-drive";
 import {
   backupPertenceAEmpresa,
   importarBackupEmpresa,
@@ -59,7 +57,7 @@ export async function gerarZipBackupEmpresa(
   return { zip, nomeArquivo, exportedAt: backup.exportedAt };
 }
 
-/** Grava backup JSON + uploads na pasta do servidor (automático / executar agora). */
+/** Gera o JSON em memória e envia direto para o Google Drive (sem gravar na VPS). */
 export async function executarBackupNoServidor(
   empresaId: string,
   slug: string,
@@ -68,56 +66,45 @@ export async function executarBackupNoServidor(
 ) {
   const fuso = fusoBackupAutomatico();
   const agora = new Date();
+  const nomeArquivo = nomeArquivoBackupAutomatico(agora, fuso);
 
-  await reportar?.({ fase: "iniciando", percentual: 5 });
-  await garantirPastaBackup();
-  await garantirPastaBackupEmpresa(slug, nome);
+  await reportar?.({ fase: "iniciando", percentual: 5, arquivo: nomeArquivo });
+  exigirGoogleDriveBackupPronto();
 
-  const destino = caminhoArquivoBackupAutomaticoEmpresa(slug, nome, agora, fuso);
-  await reportar?.({ fase: "exportando_dados", percentual: 20, arquivo: destino });
-
+  await reportar?.({ fase: "exportando_dados", percentual: 25, arquivo: nomeArquivo });
   const backup = await exportarBackupEmpresa(prisma, empresaId);
-  const conteudo = JSON.stringify(backup, null, 2);
-  await writeFile(destino, conteudo, "utf8");
-  await access(destino);
+  const conteudo = Buffer.from(JSON.stringify(backup, null, 2), "utf8");
 
-  await registrarExecucaoBackupAutomatico(empresaId, backup.exportedAt, destino);
-  await reportar?.({ fase: "gravando", percentual: 55, arquivo: destino });
-
-  const uploads = await espelharUploadsNoBackupEmpresa(empresaId, slug, nome);
-  await reportar?.({ fase: "sincronizando", percentual: 75 });
-
-  // OneDrive desligado — nuvem = Google Drive (JSON + pasta da empresa).
-  const onedrive = await sincronizarBackupComOneDrive({ slug, nome });
+  await reportar?.({ fase: "sincronizando", percentual: 70, arquivo: nomeArquivo });
   const drive = await uploadBackupParaGoogleDrive({
     empresaId,
     slug,
     nome,
-    caminhoArquivoLocal: destino,
+    nomeArquivo,
+    conteudo,
   });
 
-  if (!drive.ok && drive.erro && drive.erro !== "desativado") {
-    console.error(
-      `[backup-runner] Google Drive upload falhou (backup local OK): ${drive.erro}`
+  if (!drive.ok || !drive.caminhoDrive) {
+    throw new Error(
+      drive.erro || "Não foi possível enviar o backup para o Google Drive."
     );
-    const failLoud = process.env.GOOGLE_DRIVE_BACKUP_FAIL_LOUD?.trim();
-    if (failLoud === "1" || failLoud === "true") {
-      throw new Error(
-        `Backup local criado, mas o envio ao Google Drive falhou: ${drive.erro}`
-      );
-    }
   }
 
-  await reportar?.({ fase: "finalizado", percentual: 100, arquivo: destino });
+  await registrarExecucaoBackupAutomatico(empresaId, backup.exportedAt, drive.caminhoDrive);
+  await reportar?.({
+    fase: "finalizado",
+    percentual: 100,
+    arquivo: drive.caminhoDrive,
+  });
 
   return {
-    destino,
+    destino: drive.caminhoDrive,
     exportedAt: backup.exportedAt,
     slug,
     empresaId,
-    uploadsArquivos: uploads.arquivos,
-    uploadsDestino: uploads.destino,
-    onedrive,
+    uploadsArquivos: 0,
+    uploadsDestino: drive.caminhoDrive,
+    onedrive: { ok: false, erro: "desativado" as const },
     drive,
   };
 }

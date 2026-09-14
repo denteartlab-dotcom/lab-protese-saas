@@ -609,4 +609,113 @@ export async function uploadArquivoLocalParaPastaGoogleDrive(
   return criado.data.id;
 }
 
+/** Envia bytes direto para uma pasta do Drive (sem gravar arquivo na VPS). */
+export async function uploadBufferParaPastaGoogleDrive(
+  pastaId: string,
+  bytes: Buffer,
+  nomeArquivo: string,
+  mimeType = "application/octet-stream"
+) {
+  const drive = exigirDrive(await criarClienteGoogleDrive());
+  const existente = await buscarArquivoPorNome(drive, pastaId, nomeArquivo);
+  const media = {
+    mimeType,
+    body: bufferParaStream(bytes),
+  };
+
+  if (existente) {
+    await drive.files.update({
+      fileId: existente,
+      media,
+      supportsAllDrives: true,
+    });
+    return existente;
+  }
+
+  const criado = await drive.files.create({
+    requestBody: {
+      name: nomeArquivo,
+      parents: [pastaId],
+    },
+    media,
+    fields: "id",
+    supportsAllDrives: true,
+  });
+  if (!criado.data.id) {
+    throw new Error("Falha ao enviar arquivo para o Google Drive.");
+  }
+  return criado.data.id;
+}
+
+export type ArquivoJsonPastaGoogleDrive = {
+  id: string;
+  nome: string;
+  bytes: number;
+  modificadoEm: string;
+};
+
+export async function listarArquivosJsonNaPastaGoogleDrive(pastaId: string) {
+  const drive = exigirDrive(await criarClienteGoogleDrive());
+  const arquivos: ArquivoJsonPastaGoogleDrive[] = [];
+  let pageToken: string | undefined;
+
+  do {
+    const resposta = await drive.files.list({
+      q: [
+        `'${escaparConsultaDrive(pastaId)}' in parents`,
+        "trashed=false",
+        "mimeType!='application/vnd.google-apps.folder'",
+      ].join(" and "),
+      fields: "nextPageToken, files(id,name,size,modifiedTime)",
+      pageSize: 100,
+      pageToken,
+      ...opcoesDriveCompartilhado(),
+    });
+
+    for (const arquivo of resposta.data.files ?? []) {
+      if (!arquivo.id || !arquivo.name?.toLowerCase().endsWith(".json")) continue;
+      arquivos.push({
+        id: arquivo.id,
+        nome: arquivo.name,
+        bytes: Number(arquivo.size || 0),
+        modificadoEm: arquivo.modifiedTime || new Date().toISOString(),
+      });
+    }
+
+    pageToken = resposta.data.nextPageToken ?? undefined;
+  } while (pageToken);
+
+  return arquivos.sort((a, b) => b.modificadoEm.localeCompare(a.modificadoEm));
+}
+
+export async function baixarArquivoPorNomeNaPastaGoogleDrive(
+  pastaId: string,
+  nomeArquivo: string
+) {
+  const drive = exigirDrive(await criarClienteGoogleDrive());
+  const id = await buscarArquivoPorNome(drive, pastaId, nomeArquivo);
+  if (!id) {
+    throw new Error("Arquivo de backup não encontrado no Google Drive.");
+  }
+  return downloadBytesGoogleDrive(id);
+}
+
+export async function excluirArquivosPorNomeNaPastaGoogleDrive(
+  pastaId: string,
+  nomes: string[]
+) {
+  const drive = exigirDrive(await criarClienteGoogleDrive());
+  const excluidos: string[] = [];
+  for (const nome of nomes) {
+    const id = await buscarArquivoPorNome(drive, pastaId, nome);
+    if (!id) continue;
+    await drive.files.delete({
+      fileId: id,
+      supportsAllDrives: true,
+    });
+    excluidos.push(nome);
+  }
+  return excluidos;
+}
+
 export { pastaDriveExiste };

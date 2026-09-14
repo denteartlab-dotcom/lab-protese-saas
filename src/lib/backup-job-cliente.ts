@@ -30,9 +30,9 @@ function rotuloFaseBackup(fase: string): string {
     case "compactando":
       return "Compactando ZIP…";
     case "gravando":
-      return "Gravando no servidor…";
+      return "Enviando ao Google Drive…";
     case "sincronizando":
-      return "Sincronizando nuvem…";
+      return "Enviando ao Google Drive…";
     case "importando":
       return "Restaurando dados…";
     case "finalizado":

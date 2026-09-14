@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import {
-  excluirArquivosPastaBackupEmpresa,
-  listarArquivosPastaBackupEmpresa,
-  nomeArquivoBackupValido,
-} from "@/lib/backup-automatico-servidor";
+  excluirArquivosBackupFonte,
+  listarArquivosBackupFonte,
+} from "@/lib/backup-arquivos-fonte";
+import { nomeArquivoBackupValido } from "@/lib/backup-automatico-servidor";
 import { exigirProprietario } from "@/lib/exigir-proprietario";
 import { verificarSenhaProprietario } from "@/lib/seguranca-restaurar-padrao";
 
@@ -56,20 +56,31 @@ export async function POST(request: Request) {
     );
   }
 
-  const { empresaSlug, empresaNome } = auth.session!;
+  const { empresaId, empresaSlug, empresaNome } = auth.session!;
 
   try {
-    const excluidos = await excluirArquivosPastaBackupEmpresa(
-      empresaSlug,
+    const excluidos = await excluirArquivosBackupFonte({
+      empresaId,
+      slug: empresaSlug,
+      nome: empresaNome,
       nomes,
-      empresaNome
-    );
-    const arquivos = await listarArquivosPastaBackupEmpresa(empresaSlug, empresaNome);
-    return NextResponse.json({ ok: true, excluidos, arquivos });
+    });
+    const lista = await listarArquivosBackupFonte({
+      empresaId,
+      slug: empresaSlug,
+      nome: empresaNome,
+    });
+    return NextResponse.json({
+      ok: true,
+      excluidos,
+      pasta: lista.pasta,
+      origem: lista.origem,
+      arquivos: lista.arquivos,
+    });
   } catch (err) {
     console.error("[backup/excluir-arquivos]", err);
     return NextResponse.json(
-      { error: "Não foi possível excluir os arquivos selecionados." },
+      { error: "Não foi possível excluir os arquivos selecionados no Google Drive." },
       { status: 500 }
     );
   }

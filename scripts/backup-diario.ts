@@ -1,6 +1,6 @@
 /**
  * Gera backup manual ou via cron do sistema operacional.
- * Grava em backups/{slug}/lab-protese-backup-AAAA-MM-DD.json por empresa.
+ * Envia o JSON direto para Lab_Protese_Backups/{Empresa}/backups no Google Drive.
  *
  * Exemplo cron (meia-noite, horário de Brasília):
  * 0 0 * * * cd /caminho/lab-protese-saas && npx tsx scripts/backup-diario.ts

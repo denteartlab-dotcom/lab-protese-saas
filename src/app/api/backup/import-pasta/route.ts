@@ -3,16 +3,13 @@ import { z } from "zod";
 import { requireEmpresaContext } from "@/lib/empresa-context";
 import { exigirGestorUsuarios } from "@/lib/exigir-gestor";
 import { prisma } from "@/lib/db";
-import {
-  lerArquivoBackupPastaEmpresa,
-  nomeArquivoBackupValido,
-} from "@/lib/backup-automatico-servidor";
+import { lerArquivoBackupFonte } from "@/lib/backup-arquivos-fonte";
+import { nomeArquivoBackupValido } from "@/lib/backup-automatico-servidor";
 import {
   backupPertenceAEmpresa,
   importarBackupEmpresa,
   validarBackupLaboratorio,
 } from "@/lib/backup-laboratorio";
-import { mapaUploadsDaPastaBackupEmpresa } from "@/lib/backup-uploads-espelho";
 
 export const dynamic = "force-dynamic";
 
@@ -64,14 +61,15 @@ export async function POST(request: Request) {
 
   let texto: string;
   try {
-    texto = await lerArquivoBackupPastaEmpresa(
-      empresaSlug,
-      parsed.data.arquivo,
-      empresaNome
-    );
+    texto = await lerArquivoBackupFonte({
+      empresaId: ctx.empresaId,
+      slug: empresaSlug,
+      nome: empresaNome,
+      nomeArquivo: parsed.data.arquivo,
+    });
   } catch {
     return NextResponse.json(
-      { error: "Arquivo de backup não encontrado na pasta automática." },
+      { error: "Arquivo de backup não encontrado no Google Drive." },
       { status: 404 }
     );
   }
@@ -104,10 +102,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    const uploadsZip = await mapaUploadsDaPastaBackupEmpresa(empresaSlug, empresaNome);
     const resultado = await importarBackupEmpresa(prisma, backup, ctx.empresaId, {
       excluirDre: parsed.data.excluirDre,
-      uploadsZip,
       empresaSlug,
     });
     return NextResponse.json({
@@ -117,7 +113,7 @@ export async function POST(request: Request) {
       empresaSlug: backup.empresaSlug,
       contagens: resultado.contagens,
       excluirDre: Boolean(parsed.data.excluirDre),
-      uploadsRestaurados: uploadsZip.size,
+      uploadsRestaurados: 0,
     });
   } catch (err) {
     console.error("[backup/import-pasta]", err);
