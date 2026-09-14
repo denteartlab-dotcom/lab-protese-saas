@@ -19,6 +19,7 @@ import {
   opcoesDriveCompartilhado,
   pastaDriveExiste,
   resolverPastaRaizGoogleDrive,
+  traduzirErroGoogleDrive,
 } from "@/lib/google-drive-shared";
 
 const MODULOS_UPLOAD = [
@@ -170,6 +171,30 @@ function bufferParaStream(bytes: Buffer) {
  * `caminhoLogico` é só para log / criar pastas (ex.: .../uploads/os/arquivo.png).
  */
 export async function uploadBytesGoogleDrive(
+  caminhoLogico: string,
+  bytes: Buffer,
+  mimeType?: string,
+  opcoes?: {
+    empresaSlug?: string;
+    nomeEmpresa?: string;
+    modulo?: string;
+    subpastas?: string[];
+    nomeArquivo?: string;
+  }
+): Promise<{ remotePath: string; fileId: string; webViewLink?: string }> {
+  try {
+    return await uploadBytesGoogleDriveInterno(
+      caminhoLogico,
+      bytes,
+      mimeType,
+      opcoes
+    );
+  } catch (err) {
+    throw traduzirErroGoogleDrive(err);
+  }
+}
+
+async function uploadBytesGoogleDriveInterno(
   caminhoLogico: string,
   bytes: Buffer,
   mimeType?: string,

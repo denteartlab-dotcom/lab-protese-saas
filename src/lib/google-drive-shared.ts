@@ -178,6 +178,8 @@ export async function obterOuCriarPastaDrive(
     },
     fields: "id",
     supportsAllDrives: true,
+  }).catch((err) => {
+    throw traduzirErroGoogleDrive(err);
   });
 
   const id = criada.data.id;
@@ -231,6 +233,40 @@ export function nomePastaEmpresaDrive(slug: string, nomeEmpresa?: string) {
 
 export function limparCachePastasGoogleDrive() {
   cachePastasDrive.clear();
+}
+
+/** Mensagens amigáveis para erros comuns da API Drive + service account. */
+export function traduzirErroGoogleDrive(err: unknown): Error {
+  const msg = err instanceof Error ? err.message : String(err);
+  const extra =
+    typeof err === "object" && err && "response" in err
+      ? JSON.stringify(
+          (err as { response?: { data?: unknown } }).response?.data ?? {}
+        )
+      : "";
+  const texto = `${msg} ${extra}`;
+
+  if (
+    /Service Accounts do not have storage quota|storageQuotaExceeded|does not have storage quota/i.test(
+      texto
+    )
+  ) {
+    return new Error(
+      'Google Drive: a conta de serviço não tem espaço no "Meu Drive". ' +
+        "Use um Shared Drive (Drive compartilhado do Google Workspace): " +
+        "adicione a service account como Gerenciador de conteúdo, " +
+        "coloque GOOGLE_DRIVE_FOLDER_ID com o ID de uma pasta DENTRO desse Shared Drive e reinicie o PM2. " +
+        "Veja deploy/GOOGLE-DRIVE-UPLOADS.md"
+    );
+  }
+
+  if (/insufficientPermissions|The user does not have sufficient permissions/i.test(texto)) {
+    return new Error(
+      "Google Drive: sem permissão. Adicione a service account no Shared Drive (Gerenciador de conteúdo) ou como Editor da pasta."
+    );
+  }
+
+  return err instanceof Error ? err : new Error(msg);
 }
 
 /** Prefixo persistido em ArquivoUpload.remotePath. */
