@@ -167,6 +167,7 @@ import {
   parsePrioridadeOsInstrucoes,
   type PrioridadeOsForm,
 } from "@/lib/prioridade-os";
+import { parseSetorOsInstrucoes, setorResponsavelDasEtapas, setorResponsavelOs } from "@/lib/setor-os";
 import { notificarTrabalhosAtualizados } from "@/lib/trabalhos-events";
 import { notificarFinanceiroAtualizado } from "@/lib/financeiro-events";
 import {
@@ -324,6 +325,7 @@ type EditForm = {
   caixa: string;
   casoUrgente: string;
   prioridadeOs: PrioridadeOsForm;
+  setorOs: string;
   dentista: string;
   categoria: string;
   tipoProtese: string;
@@ -1603,6 +1605,9 @@ export default function ControlePage() {
         linhaInstrucaoOs(instrucoesTexto, "Caso odontológico:") ||
         linhaInstrucaoOs(instrucoesTexto, "Caso clínico:"),
       prioridadeOs: parsePrioridadeOsInstrucoes(instrucoesTexto) || "media",
+      setorOs:
+        parseSetorOsInstrucoes(instrucoesTexto) ||
+        setorResponsavelDasEtapas(complementos.etapas, carregarEtapasCadastro()),
       dentista:
         linhaInstrucaoOs(instrucoesTexto, "Dentista:") ||
         linhaInstrucaoOs(instrucoesTexto, "Dentista convidado:"),
@@ -1700,6 +1705,18 @@ export default function ControlePage() {
     }
 
     const prazos = prazosDoServicoEdicao(servico.nome);
+    const etapasIniciais = servicoTemEtapasNaTabela(servico)
+      ? etapasIniciaisFormParaOsServico(
+          servico,
+          modelosEtapasOs,
+          form.dataLancamento,
+          form.horaLaboratorio
+        ).map((etapa) => ({
+          ...etapa,
+          setor: etapa.setor || modelosEtapasOs.find((m) => m.nome === etapa.nome)?.setor || "",
+        }))
+      : [];
+    const setorServico = setorResponsavelDasEtapas(etapasIniciais, modelosEtapasOs);
     setForm((atual) =>
       atual
         ? {
@@ -1709,19 +1726,11 @@ export default function ControlePage() {
             dataLaboratorio: prazos.dataLaboratorio,
             dataDentista: prazos.dataDentista,
             dataPrevista: brShortToIso(prazos.dataLaboratorio) || atual.dataPrevista,
+            ...(setorServico ? { setorOs: setorServico } : {}),
           }
         : atual
     );
-    if (servicoTemEtapasNaTabela(servico)) {
-      const etapasIniciais = etapasIniciaisFormParaOsServico(
-        servico,
-        modelosEtapasOs,
-        form.dataLancamento,
-        form.horaLaboratorio
-      ).map((etapa) => ({
-        ...etapa,
-        setor: etapa.setor || modelosEtapasOs.find((m) => m.nome === etapa.nome)?.setor || "",
-      }));
+    if (etapasIniciais.length) {
       const cliente = clientesCatalogo.find((item) => item.id === form.clienteId);
       const nomeRep = nomeRepresentanteColaboradorCliente(cliente, colaboradoresOpcoes);
       setEtapasEdicao(
@@ -2132,14 +2141,14 @@ export default function ControlePage() {
 
   function carregarEtapasDoItemServico(item: EditItem, trabalhoRef?: Trabalho) {
     const base = trabalhoRef ?? editando;
-    if (!base) return;
+    if (!base) return [];
     const dataLanc = form?.dataLancamento || formatDate(base.dataEntrada);
     const horaLab = form?.horaLaboratorio || "";
     const servicoItem = buscarServicoNaTabela(categoriasTabelaPreco, item.servico);
     if (!servicoItem || !servicoTemEtapasNaTabela(servicoItem)) {
       setEtapasEdicao([]);
       sincronizarIndiceEtapaAtualEdicao(base, 0, item.id);
-      return;
+      return [];
     }
     const grupo = trabalhosDoMesmoGrupoOsId(base, trabalhos);
     const etapasDoItem = item.etapasServico?.length
@@ -2163,6 +2172,7 @@ export default function ControlePage() {
           );
     setEtapasEdicao(etapasCarregadas);
     sincronizarIndiceEtapaAtualEdicao(base, etapasCarregadas.length, item.id);
+    return etapasCarregadas;
   }
 
   function persistirEtapasNoItemAtual() {
@@ -2366,7 +2376,8 @@ export default function ControlePage() {
 
     setAbaServicoEdicao("etapas");
     setProdutosOs([]);
-    carregarEtapasDoItemServico(item);
+    const etapasCarregadas = carregarEtapasDoItemServico(item);
+    const setorItem = setorResponsavelDasEtapas(etapasCarregadas, modelosEtapasOs);
     const servicoItem = buscarServicoNaTabela(categoriasTabelaPreco, item.servico);
     if (servicoItem) {
       setColaboradoresEdicao((atuais) =>
@@ -2424,6 +2435,7 @@ export default function ControlePage() {
       urgente: Boolean(item.urgente),
       repeticao: Boolean(item.repeticao),
       observacaoServico: item.observacao || "",
+      ...(setorItem ? { setorOs: setorItem } : {}),
     }));
   }
 
@@ -2868,6 +2880,7 @@ export default function ControlePage() {
         casoUrgente: form.casoUrgente,
         material: form.material,
         prioridadeOs: form.prioridadeOs,
+        setorOs: form.setorOs,
       },
       anexosParaLinhasInstrucoes(anexosUnicos)
     );
@@ -3557,6 +3570,7 @@ export default function ControlePage() {
                 <th className="px-2 py-2 text-left font-semibold uppercase">{t("producao.controle.tabela.origemEntrada")}</th>
                 <th className="px-2 py-2 text-left font-semibold uppercase">{t("producao.controle.tabela.colaborador")}</th>
                 <th className="px-2 py-2 text-left font-semibold uppercase">{t("producao.controle.tabela.etapas")}</th>
+                <th className="px-2 py-2 text-left font-semibold uppercase">{t("producao.controle.tabela.setor")}</th>
                 <th className="px-2 py-2 text-left font-semibold uppercase">{t("producao.controle.tabela.situacao")}</th>
                 <th className="px-2 py-2 text-center font-semibold uppercase">{t("common.opcoes")}</th>
               </tr>
@@ -3647,6 +3661,17 @@ export default function ControlePage() {
                         itemId={contextoEtapas.itemId}
                       />
                     </td>
+                    <td className="px-2 py-2 text-slate-600">
+                      {setorResponsavelOs(
+                        grupoOs
+                          .map(
+                            (registro) =>
+                              `${registro.instrucoes || ""}\n${registro.observacoes || ""}`
+                          )
+                          .join("\n"),
+                        modelosEtapasOs
+                      ) || "—"}
+                    </td>
                     <td className="px-2 py-2">
                       <CelulaSituacaoControle
                         trabalho={trabalho}
@@ -3702,7 +3727,7 @@ export default function ControlePage() {
                   </tr>
                   {osAberta === trabalho.id && (
                     <tr>
-                      <td colSpan={13} className="bg-slate-50 p-0">
+                      <td colSpan={14} className="bg-slate-50 p-0">
                         <AgendaOsDetalheExpandido
                           linha={linhaAgendaGrupoDeTrabalhos(trabalho, trabalhos)}
                           anexoAberto={anexoAberto}
@@ -3717,7 +3742,7 @@ export default function ControlePage() {
               })}
               {listagem.totalItens === 0 && (
                 <tr>
-                  <td colSpan={13} className="px-4 py-8 text-center text-slate-400">
+                  <td colSpan={14} className="px-4 py-8 text-center text-slate-400">
                     {t("producao.controle.vazioNenhumaOs")}
                   </td>
                 </tr>
@@ -3872,6 +3897,7 @@ export default function ControlePage() {
                   pacienteNome: form.pacienteNome,
                   clienteId: form.clienteId,
                   prioridadeOs: form.prioridadeOs,
+                  setorOs: form.setorOs,
                   dentista: form.dentista,
                   material: form.material,
                   observacoes: form.observacoes,

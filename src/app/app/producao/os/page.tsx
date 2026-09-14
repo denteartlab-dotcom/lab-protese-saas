@@ -60,6 +60,11 @@ import {
   type PrioridadeOsForm,
 } from "@/lib/prioridade-os";
 import {
+  linhaSetorOs,
+  parseSetorOsInstrucoes,
+  setorResponsavelDasEtapas,
+} from "@/lib/setor-os";
+import {
   anexosParaLinhasInstrucoes,
   clienteDescontoGeralDeObservacoes,
   clienteDescontoGeralTipoDeObservacoes,
@@ -550,6 +555,7 @@ export default function OrdemServicoPage() {
     clienteId: "",
     pacienteNome: "",
     prioridadeOs: "media" as PrioridadeOsForm,
+    setorOs: "",
     casoUrgente: "",
     caixa: "",
     dentista: "",
@@ -1062,6 +1068,9 @@ export default function OrdemServicoPage() {
           parsePrioridadeOsInstrucoes(textosInstrucoesGrupo.join("\n")) ||
           normalizarPrioridadeOsForm(valorLinha("Prioridade:")) ||
           "media",
+        setorOs:
+          parseSetorOsInstrucoes(textosInstrucoesGrupo.join("\n")) ||
+          setorResponsavelDasEtapas(complementos.etapas, modelosEtapas),
         caixa: valorLinha("Caixa:"),
         dentista: valorLinha("Dentista:") || valorLinha("Dentista convidado:"),
         tipoProtese: "",
@@ -1674,6 +1683,12 @@ export default function OrdemServicoPage() {
     );
     setEtapas(comRepresentante.etapas);
     setColaboradores(comRepresentante.colaboradores);
+    const setorServico = setorResponsavelDasEtapas(comRepresentante.etapas, modelosEtapas);
+    if (setorServico) {
+      setForm((current) =>
+        current.setorOs === setorServico ? current : { ...current, setorOs: setorServico }
+      );
+    }
     setAvisoAdicionarServico("");
   }
 
@@ -2390,6 +2405,18 @@ export default function OrdemServicoPage() {
         return sincronizarComissaoEtapa(base);
       })
     );
+    const setorItem = setorResponsavelDasEtapas(
+      etapasDoItem.map((etapa) => ({
+        nome: etapa.nome,
+        setor: etapa.setor || modeloEtapa(etapa.nome)?.setor || "",
+      })),
+      modelosEtapas
+    );
+    if (setorItem) {
+      setForm((current) =>
+        current.setorOs === setorItem ? current : { ...current, setorOs: setorItem }
+      );
+    }
 
     if (servicoItem) {
       setColaboradores((atuais) =>
@@ -2946,6 +2973,7 @@ export default function OrdemServicoPage() {
       clienteId: "",
       pacienteNome: "",
       prioridadeOs: "media" as PrioridadeOsForm,
+      setorOs: "",
       casoUrgente: "",
       dentista: "",
       caixa: "",
@@ -3096,6 +3124,7 @@ export default function OrdemServicoPage() {
       form.caixa ? `Caixa: ${form.caixa}` : "",
       form.dentista ? `Dentista: ${form.dentista}` : "",
       form.prioridadeOs ? linhaPrioridadeOs(form.prioridadeOs) : "",
+      form.setorOs ? linhaSetorOs(form.setorOs) : "",
       form.casoUrgente ? `Caso odontológico: ${form.casoUrgente}` : "",
       form.dataLaboratorio ? `Data laboratório: ${form.dataLaboratorio} ${form.horaLaboratorio}`.trim() : "",
       form.dataDentista ? `Data dentista: ${form.dataDentista} ${form.horaDentista}`.trim() : "",
@@ -3835,6 +3864,22 @@ export default function OrdemServicoPage() {
               <option value="alta">{t("producao.os.prioridade.alta")}</option>
               <option value="media">{t("producao.os.prioridade.media")}</option>
               <option value="baixa">{t("producao.os.prioridade.baixa")}</option>
+            </Select>
+            <Select
+              label={t("producao.os.campo.setor")}
+              value={form.setorOs}
+              onChange={(e) => setForm({ ...form, setorOs: e.target.value })}
+            >
+              <option value="">{t("producao.os.campo.setorPlaceholder")}</option>
+              {setoresCadastrados.map((setor) => (
+                <option key={setor.id || setor.nome} value={setor.nome}>
+                  {setor.nome}
+                </option>
+              ))}
+              {form.setorOs &&
+              !setoresCadastrados.some((setor) => setor.nome === form.setorOs) ? (
+                <option value={form.setorOs}>{form.setorOs}</option>
+              ) : null}
             </Select>
             {form.clienteId ? (
               <p className="text-[12px] font-medium leading-snug text-[#4a90d9]">

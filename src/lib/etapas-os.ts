@@ -260,6 +260,7 @@ const linhaEstruturadaOs = (line: string) => {
     /^Dentista(\s+convidado)?:/i.test(t) ||
     /^Caso odontológico:/i.test(t) ||
     /^Prioridade:/i.test(t) ||
+    /^Setor:/i.test(t) ||
     /^Data laboratório:/i.test(t) ||
     /^Data dentista:/i.test(t) ||
     /^Item adicionado:/i.test(t) ||

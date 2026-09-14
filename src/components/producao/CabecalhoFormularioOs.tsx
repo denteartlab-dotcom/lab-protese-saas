@@ -25,6 +25,7 @@ import {
   parseMateriaisEnviadosTexto,
   type CabecalhoOsCampos,
 } from "@/lib/cabecalho-os-form";
+import { carregarSetoresCadastro, type SetorCadastro } from "@/lib/setores-cadastro";
 
 type ClienteOpcao = {
   id: string;
@@ -75,6 +76,7 @@ export function CabecalhoFormularioOs({
   const [materiaisSelecionados, setMateriaisSelecionados] = useState<string[]>([]);
   const [materialQuantidades, setMaterialQuantidades] = useState<Record<string, number>>({});
   const [erroLimiteMb, setErroLimiteMb] = useState<string | null>(null);
+  const [setoresCadastrados, setSetoresCadastrados] = useState<SetorCadastro[]>([]);
   const { esgotado: galeriaEsgotada, mensagemBloqueioUpload, podeEnviarArquivos } =
     useArmazenamentoGaleria();
 
@@ -85,6 +87,14 @@ export function CabecalhoFormularioOs({
       setMateriais([]);
     }
     setMateriaisCarregados(true);
+  }, []);
+
+  useEffect(() => {
+    try {
+      setSetoresCadastrados(carregarSetoresCadastro());
+    } catch {
+      setSetoresCadastrados([]);
+    }
   }, []);
 
   useEffect(() => {
@@ -276,6 +286,23 @@ export function CabecalhoFormularioOs({
           <option value="alta">{t("producao.os.prioridade.alta")}</option>
           <option value="media">{t("producao.os.prioridade.media")}</option>
           <option value="baixa">{t("producao.os.prioridade.baixa")}</option>
+        </Select>
+        <Select
+          label={t("producao.os.campo.setor")}
+          value={value.setorOs || ""}
+          onChange={(e) => onChange({ setorOs: e.target.value })}
+          disabled={desabilitado}
+        >
+          <option value="">{t("producao.os.campo.setorPlaceholder")}</option>
+          {setoresCadastrados.map((setor) => (
+            <option key={setor.id || setor.nome} value={setor.nome}>
+              {setor.nome}
+            </option>
+          ))}
+          {value.setorOs &&
+          !setoresCadastrados.some((setor) => setor.nome === value.setorOs) ? (
+            <option value={value.setorOs}>{value.setorOs}</option>
+          ) : null}
         </Select>
         {value.clienteId ? (
           <p className="text-[12px] font-medium leading-snug text-[#4a90d9]">
