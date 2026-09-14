@@ -25,6 +25,7 @@ import {
   parseMateriaisEnviadosTexto,
   type CabecalhoOsCampos,
 } from "@/lib/cabecalho-os-form";
+import { ARMAZENAMENTO_LAB_PRONTO_EVENT } from "@/lib/armazenamento-laboratorio";
 import { carregarSetoresCadastro, type SetorCadastro } from "@/lib/setores-cadastro";
 
 type ClienteOpcao = {
@@ -90,11 +91,22 @@ export function CabecalhoFormularioOs({
   }, []);
 
   useEffect(() => {
-    try {
-      setSetoresCadastrados(carregarSetoresCadastro());
-    } catch {
-      setSetoresCadastrados([]);
+    function carregarSetores() {
+      try {
+        setSetoresCadastrados(carregarSetoresCadastro());
+      } catch {
+        setSetoresCadastrados([]);
+      }
     }
+    carregarSetores();
+    window.addEventListener("storage", carregarSetores);
+    window.addEventListener("focus", carregarSetores);
+    window.addEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, carregarSetores);
+    return () => {
+      window.removeEventListener("storage", carregarSetores);
+      window.removeEventListener("focus", carregarSetores);
+      window.removeEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, carregarSetores);
+    };
   }, []);
 
   useEffect(() => {
@@ -273,37 +285,6 @@ export function CabecalhoFormularioOs({
             label: cliente.nome,
           }))}
         />
-        <Select
-          label={t("producao.os.campo.prioridade")}
-          value={value.prioridadeOs || "media"}
-          onChange={(e) =>
-            onChange({
-              prioridadeOs: (e.target.value || "media") as PrioridadeOsForm,
-            })
-          }
-          disabled={desabilitado}
-        >
-          <option value="alta">{t("producao.os.prioridade.alta")}</option>
-          <option value="media">{t("producao.os.prioridade.media")}</option>
-          <option value="baixa">{t("producao.os.prioridade.baixa")}</option>
-        </Select>
-        <Select
-          label={t("producao.os.campo.setor")}
-          value={value.setorOs || ""}
-          onChange={(e) => onChange({ setorOs: e.target.value })}
-          disabled={desabilitado}
-        >
-          <option value="">{t("producao.os.campo.setorPlaceholder")}</option>
-          {setoresCadastrados.map((setor) => (
-            <option key={setor.id || setor.nome} value={setor.nome}>
-              {setor.nome}
-            </option>
-          ))}
-          {value.setorOs &&
-          !setoresCadastrados.some((setor) => setor.nome === value.setorOs) ? (
-            <option value={value.setorOs}>{value.setorOs}</option>
-          ) : null}
-        </Select>
         {value.clienteId ? (
           <p className="text-[12px] font-medium leading-snug text-[#4a90d9]">
             {t("producao.os.campo.tabelaUtilizada")}{" "}
@@ -427,6 +408,38 @@ export function CabecalhoFormularioOs({
           </div>
         )}
       </div>
+
+      <Select
+        label={t("producao.os.campo.prioridade")}
+        value={value.prioridadeOs || "media"}
+        onChange={(e) =>
+          onChange({
+            prioridadeOs: (e.target.value || "media") as PrioridadeOsForm,
+          })
+        }
+        disabled={desabilitado}
+      >
+        <option value="alta">{t("producao.os.prioridade.alta")}</option>
+        <option value="media">{t("producao.os.prioridade.media")}</option>
+        <option value="baixa">{t("producao.os.prioridade.baixa")}</option>
+      </Select>
+      <Select
+        label={t("producao.os.campo.setor")}
+        value={value.setorOs || ""}
+        onChange={(e) => onChange({ setorOs: e.target.value })}
+        disabled={desabilitado}
+      >
+        <option value="">{t("producao.os.campo.setorPlaceholder")}</option>
+        {setoresCadastrados.map((setor) => (
+          <option key={setor.id || setor.nome} value={setor.nome}>
+            {setor.nome}
+          </option>
+        ))}
+        {value.setorOs &&
+        !setoresCadastrados.some((setor) => setor.nome === value.setorOs) ? (
+          <option value={value.setorOs}>{value.setorOs}</option>
+        ) : null}
+      </Select>
 
       <div className="flex flex-col gap-3 md:col-span-5 lg:flex-row lg:items-end">
         <input

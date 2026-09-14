@@ -19,7 +19,7 @@ import {
   type EtapaCadastro,
   type EtapaOsLinha,
 } from "@/lib/etapas-os";
-import { carregarSetoresCadastro, type SetorCadastro } from "@/lib/setores-cadastro";
+import { carregarSetoresCadastro, estiloBadgeSetor, type SetorCadastro } from "@/lib/setores-cadastro";
 import {
   situacaoEtapaServico,
   podeAlterarSituacaoEtapaServico,
@@ -369,7 +369,13 @@ export function EtapasOsEditor({
                     </span>
                     <Info className="h-4 w-4 shrink-0 text-primary-600" aria-hidden />
                   </div>
-                  <span className="text-xs font-medium text-primary-600">{setorRotulo}</span>
+                  <span
+                    className="inline-flex max-w-[160px] truncate rounded px-2 py-0.5 text-[10px] font-medium leading-tight"
+                    style={estiloBadgeSetor(setorRotulo, setoresCadastrados)}
+                    title={setorRotulo}
+                  >
+                    {setorRotulo}
+                  </span>
                 </div>
 
                 <div className="grid items-end gap-3 md:grid-cols-[minmax(9.5rem,1.1fr)_minmax(9rem,1fr)_minmax(6rem,0.75fr)_minmax(12rem,1.6fr)_minmax(9rem,1.1fr)_auto]">

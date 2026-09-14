@@ -1,5 +1,6 @@
 import { readStorage } from "@/lib/persisted-storage";
 import { calcularDataVencimentoPorDias } from "@/lib/prazos-servico";
+import { corSetorPorNome } from "@/lib/setores-cadastro";
 
 function isLinhaAuditoriaUrgenciaCliente(linha: string) {
   return linha.includes("Urgência solicitada pelo cliente");
@@ -192,18 +193,6 @@ export function resumoEtapasControle(etapas: EtapaOsLinha[]) {
   return nomes.join(", ");
 }
 
-const SETORES_STORAGE_KEY = "labProteseSetores";
-
-function corSetorCadastro(nomeSetor?: string) {
-  if (!nomeSetor?.trim() || typeof window === "undefined") return undefined;
-  try {
-    const setores = readStorage<{ nome?: string; cor?: string }[]>(SETORES_STORAGE_KEY, []);
-    return setores.find((s) => s.nome === nomeSetor)?.cor;
-  } catch {
-    return undefined;
-  }
-}
-
 export type EtapaControleBadge = {
   nome: string;
   cor: string;
@@ -229,7 +218,9 @@ export function etapasUnicasComCor(
     const modelo = modelos.find((m) => m.nome.trim().toLowerCase() === chave);
     const fundo = corFundoEtapa(
       modelo ?? { id: "", nome },
-      modelo?.setor ? corSetorCadastro(modelo.setor) : undefined
+      modelo?.setor
+        ? corSetorPorNome(modelo.setor, undefined, "") || undefined
+        : undefined
     );
     resultado.push({
       nome,

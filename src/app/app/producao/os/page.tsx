@@ -149,7 +149,12 @@ import {
   MATERIAIS_DENTISTA_ATUALIZADA_EVENT,
   salvarMateriaisDentistaCadastro,
 } from "@/lib/materiais-dentista-cadastro";
-import { carregarSetoresCadastro, type SetorCadastro } from "@/lib/setores-cadastro";
+import {
+  carregarSetoresCadastro,
+  corSetorPorNome,
+  setorCadastroPorNome,
+  type SetorCadastro,
+} from "@/lib/setores-cadastro";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
 import { cn, exibirTexto, STATUS_TRABALHO } from "@/lib/utils";
 import { labelStatusTrabalho } from "@/lib/i18n/status-trabalho-i18n";
@@ -2064,8 +2069,22 @@ export default function OrdemServicoPage() {
   function setorDaEtapa(nome: string) {
     const modelo = modeloEtapa(nome);
     if (!modelo?.setor) return null;
-    const setor = setoresCadastrados.find((item) => item.nome === modelo.setor);
-    return { nome: modelo.setor, cor: setor?.cor || "#ef4444" };
+    const setor = setorCadastroPorNome(modelo.setor, setoresCadastrados);
+    return {
+      nome: setor?.nome || modelo.setor,
+      cor: corSetorPorNome(modelo.setor, setoresCadastrados),
+    };
+  }
+
+  function aplicarSetorOs(setor: string) {
+    const nome = setor.trim();
+    setForm((current) =>
+      current.setorOs === nome ? current : { ...current, setorOs: nome }
+    );
+    if (!nome) return;
+    setEtapas((atuais) =>
+      atuais.map((etapa) => (etapa.setor === nome ? etapa : { ...etapa, setor: nome }))
+    );
   }
 
   function prazoCalculadoEtapa(nome: string) {
@@ -3851,36 +3870,6 @@ export default function OrdemServicoPage() {
                 label: cliente.nome,
               }))}
             />
-            <Select
-              label={t("producao.os.campo.prioridade")}
-              value={form.prioridadeOs}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  prioridadeOs: (e.target.value || "media") as PrioridadeOsForm,
-                })
-              }
-            >
-              <option value="alta">{t("producao.os.prioridade.alta")}</option>
-              <option value="media">{t("producao.os.prioridade.media")}</option>
-              <option value="baixa">{t("producao.os.prioridade.baixa")}</option>
-            </Select>
-            <Select
-              label={t("producao.os.campo.setor")}
-              value={form.setorOs}
-              onChange={(e) => setForm({ ...form, setorOs: e.target.value })}
-            >
-              <option value="">{t("producao.os.campo.setorPlaceholder")}</option>
-              {setoresCadastrados.map((setor) => (
-                <option key={setor.id || setor.nome} value={setor.nome}>
-                  {setor.nome}
-                </option>
-              ))}
-              {form.setorOs &&
-              !setoresCadastrados.some((setor) => setor.nome === form.setorOs) ? (
-                <option value={form.setorOs}>{form.setorOs}</option>
-              ) : null}
-            </Select>
             {form.clienteId ? (
               <p className="text-[12px] font-medium leading-snug text-[#4a90d9]">
                 {t("producao.os.campo.tabelaUtilizada")}{" "}
@@ -4004,6 +3993,37 @@ export default function OrdemServicoPage() {
               </div>
             )}
           </div>
+
+          <Select
+            label={t("producao.os.campo.prioridade")}
+            value={form.prioridadeOs}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                prioridadeOs: (e.target.value || "media") as PrioridadeOsForm,
+              })
+            }
+          >
+            <option value="alta">{t("producao.os.prioridade.alta")}</option>
+            <option value="media">{t("producao.os.prioridade.media")}</option>
+            <option value="baixa">{t("producao.os.prioridade.baixa")}</option>
+          </Select>
+          <Select
+            label={t("producao.os.campo.setor")}
+            value={form.setorOs}
+            onChange={(e) => aplicarSetorOs(e.target.value)}
+          >
+            <option value="">{t("producao.os.campo.setorPlaceholder")}</option>
+            {setoresCadastrados.map((setor) => (
+              <option key={setor.id || setor.nome} value={setor.nome}>
+                {setor.nome}
+              </option>
+            ))}
+            {form.setorOs &&
+            !setoresCadastrados.some((setor) => setor.nome === form.setorOs) ? (
+              <option value={form.setorOs}>{form.setorOs}</option>
+            ) : null}
+          </Select>
 
           <div className="flex flex-col gap-3 md:col-span-5 lg:flex-row lg:items-end">
             <input

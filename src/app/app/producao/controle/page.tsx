@@ -168,6 +168,12 @@ import {
   type PrioridadeOsForm,
 } from "@/lib/prioridade-os";
 import { parseSetorOsInstrucoes, setorResponsavelDasEtapas, setorResponsavelOs } from "@/lib/setor-os";
+import {
+  carregarSetoresCadastro,
+  estiloBadgeSetor,
+  type SetorCadastro,
+} from "@/lib/setores-cadastro";
+import { ARMAZENAMENTO_LAB_PRONTO_EVENT } from "@/lib/armazenamento-laboratorio";
 import { notificarTrabalhosAtualizados } from "@/lib/trabalhos-events";
 import { notificarFinanceiroAtualizado } from "@/lib/financeiro-events";
 import {
@@ -1097,6 +1103,27 @@ export default function ControlePage() {
 
   const painelEdicaoVisivel = Boolean(itemSelecionadoId || adicionandoServico);
   const modelosEtapasOs = useMemo(() => carregarEtapasCadastro(), [editando]);
+  const [setoresCadastrados, setSetoresCadastrados] = useState<SetorCadastro[]>([]);
+
+  useEffect(() => {
+    function carregarSetores() {
+      try {
+        setSetoresCadastrados(carregarSetoresCadastro());
+      } catch {
+        setSetoresCadastrados([]);
+      }
+    }
+    carregarSetores();
+    window.addEventListener("storage", carregarSetores);
+    window.addEventListener("focus", carregarSetores);
+    window.addEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, carregarSetores);
+    return () => {
+      window.removeEventListener("storage", carregarSetores);
+      window.removeEventListener("focus", carregarSetores);
+      window.removeEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, carregarSetores);
+    };
+  }, []);
+
   const linhasComplementosEdicao = useMemo(
     () => montarLinhasComplementosOs(colaboradoresEdicao, terceirizadosEdicao),
     [colaboradoresEdicao, terceirizadosEdicao]
@@ -3661,16 +3688,28 @@ export default function ControlePage() {
                         itemId={contextoEtapas.itemId}
                       />
                     </td>
-                    <td className="px-2 py-2 text-slate-600">
-                      {setorResponsavelOs(
-                        grupoOs
-                          .map(
-                            (registro) =>
-                              `${registro.instrucoes || ""}\n${registro.observacoes || ""}`
-                          )
-                          .join("\n"),
-                        modelosEtapasOs
-                      ) || "—"}
+                    <td className="px-2 py-2">
+                      {(() => {
+                        const nomeSetor = setorResponsavelOs(
+                          grupoOs
+                            .map(
+                              (registro) =>
+                                `${registro.instrucoes || ""}\n${registro.observacoes || ""}`
+                            )
+                            .join("\n"),
+                          modelosEtapasOs
+                        );
+                        if (!nomeSetor) return "—";
+                        return (
+                          <span
+                            className="inline-flex max-w-full truncate rounded px-2 py-0.5 text-[10px] font-medium leading-tight"
+                            style={estiloBadgeSetor(nomeSetor, setoresCadastrados)}
+                            title={nomeSetor}
+                          >
+                            {nomeSetor}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="px-2 py-2">
                       <CelulaSituacaoControle
@@ -3902,7 +3941,15 @@ export default function ControlePage() {
                   material: form.material,
                   observacoes: form.observacoes,
                 }}
-                onChange={(patch) =>
+                onChange={(patch) => {
+                  if (patch.setorOs !== undefined) {
+                    const setor = (patch.setorOs || "").trim();
+                    setEtapasEdicao((prev) =>
+                      prev.map((etapa) =>
+                        etapa.setor === setor ? etapa : { ...etapa, setor }
+                      )
+                    );
+                  }
                   setForm((atual) => {
                     if (!atual) return atual;
                     const next = { ...atual, ...patch };
@@ -3933,8 +3980,8 @@ export default function ControlePage() {
                       }
                     }
                     return next;
-                  })
-                }
+                  });
+                }}
                 clientes={clientesCatalogo}
                 anexosExistentes={anexosEdicao}
                 onRemoverAnexoExistente={(anexo) => {
@@ -4537,7 +4584,19 @@ export default function ControlePage() {
                         {abaServicoEdicao === "etapas" && (
                           <EtapasOsEditor
                             etapas={etapasEdicao}
-                            onChange={setEtapasEdicao}
+                            onChange={(etapas) => {
+                              setEtapasEdicao(etapas);
+                              const setor = setorResponsavelDasEtapas(
+                                etapas,
+                                modelosEtapasOs
+                              );
+                              if (!setor) return;
+                              setForm((atual) =>
+                                atual && atual.setorOs !== setor
+                                  ? { ...atual, setorOs: setor }
+                                  : atual
+                              );
+                            }}
                             quantidadeDentes={dentesEdicao.length || 1}
                             dataLancamento={editando ? formatDate(editando.dataEntrada) : ""}
                             horaLaboratorio={form?.horaLaboratorio || ""}
