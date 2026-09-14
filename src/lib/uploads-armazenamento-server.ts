@@ -89,6 +89,7 @@ export async function listarArquivosGaleria(
       const { prisma } = await import("@/lib/db");
       const odFiles = await listarArquivosUploadsEmpresaGoogleDrive(slugNorm, {
         force: true,
+        empresaId,
       });
       const dbRows = empresaId
         ? await prisma.arquivoUpload.findMany({
@@ -261,12 +262,23 @@ export async function excluirArquivoGaleria(
     const slug = empresaSlug ? normalizarSlugPastaUploads(empresaSlug) : "";
     if (!slug || !remotePath) throw new Error("Caminho inválido");
 
+    const { prisma } = await import("@/lib/db");
+    const { removerAnexosOsPorArquivoIds } = await import(
+      "@/lib/limpar-anexos-os-servidor"
+    );
     const { excluirArquivoGoogleDrive } = await import(
       "@/lib/upload-google-drive-storage"
     );
     await excluirArquivoGoogleDrive(remotePath);
     if (empresaId) {
-      const { prisma } = await import("@/lib/db");
+      const rows = await prisma.arquivoUpload.findMany({
+        where: { empresaId, remotePath },
+        select: { id: true },
+      });
+      await removerAnexosOsPorArquivoIds(
+        empresaId,
+        rows.map((r) => r.id)
+      );
       await prisma.arquivoUpload.deleteMany({
         where: { empresaId, remotePath },
       });
@@ -379,7 +391,7 @@ export async function calcularArmazenamentoGaleria(
       const force = Boolean(opcoes?.forceCota);
       const arquivos = await listarArquivosUploadsEmpresaGoogleDrive(
         empresaSlug,
-        { force, nomeEmpresa: empresaNome }
+        { force, nomeEmpresa: empresaNome, empresaId }
       );
       const soma = arquivos.reduce((s, a) => s + (a.bytes || 0), 0);
       bytesUsados = soma > 0 ? soma : bytesBanco;

@@ -18,6 +18,10 @@ import {
 import { carregarEnvArquivoRuntime, envRuntime } from "@/lib/env-runtime";
 import { googleDriveUploadsConfigurado } from "@/lib/google-drive-uploads";
 import {
+  ehErroArquivoDriveAusente,
+  removerAnexosOsPorArquivoIds,
+} from "@/lib/limpar-anexos-os-servidor";
+import {
   extrairFileIdGdrive,
   googleDriveOAuthConfigurado,
   googleDriveCredenciaisServiceAccountPresentes,
@@ -673,14 +677,25 @@ export async function obterConteudoArquivoUpload(id: string): Promise<{
     if (!googleDriveUploadsConfigurado() && arquivo.storage === "gdrive") {
       throw new Error("Google Drive não configurado para ler este arquivo.");
     }
-    const bytes = await baixarArquivoGoogleDrive(arquivo.remotePath);
-    return {
-      empresaId: arquivo.empresaId,
-      nome: arquivo.nome,
-      mimeType: arquivo.mimeType,
-      tamanho: bytes.length || arquivo.tamanho,
-      bytes,
-    };
+    try {
+      const bytes = await baixarArquivoGoogleDrive(arquivo.remotePath);
+      return {
+        empresaId: arquivo.empresaId,
+        nome: arquivo.nome,
+        mimeType: arquivo.mimeType,
+        tamanho: bytes.length || arquivo.tamanho,
+        bytes,
+      };
+    } catch (err) {
+      if (ehErroArquivoDriveAusente(err)) {
+        await removerAnexosOsPorArquivoIds(arquivo.empresaId, [arquivo.id]);
+        await prisma.arquivoUpload.deleteMany({
+          where: { id: arquivo.id, empresaId: arquivo.empresaId },
+        });
+        return null;
+      }
+      throw err;
+    }
   }
 
   const dadosDb = arquivo.dados;
@@ -785,9 +800,11 @@ export async function listarArquivosBanco(empresaId?: string) {
 export async function excluirArquivoBancoPorId(id: string, empresaId?: string) {
   const row = await prisma.arquivoUpload.findFirst({
     where: empresaId ? { id, empresaId } : { id },
-    select: { id: true, storage: true, remotePath: true, tamanho: true },
+    select: { id: true, storage: true, remotePath: true, tamanho: true, empresaId: true },
   });
   if (!row) return;
+
+  await removerAnexosOsPorArquivoIds(empresaId || row.empresaId, [row.id]);
 
   if (
     (row.storage === "gdrive" || row.storage === "onedrive") &&

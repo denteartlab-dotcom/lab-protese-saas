@@ -270,20 +270,34 @@ export async function downloadBytesGoogleDrive(
     throw new Error("Identificador do arquivo Google Drive inválido.");
   }
 
-  const res = await drive.files.get(
-    {
-      fileId,
-      alt: "media",
-      supportsAllDrives: true,
-    },
-    { responseType: "arraybuffer" }
-  );
+  try {
+    const res = await drive.files.get(
+      {
+        fileId,
+        alt: "media",
+        supportsAllDrives: true,
+      },
+      { responseType: "arraybuffer" }
+    );
 
-  const data = res.data as ArrayBuffer | Buffer | string;
-  if (Buffer.isBuffer(data)) return data;
-  if (data instanceof ArrayBuffer) return Buffer.from(data);
-  if (typeof data === "string") return Buffer.from(data);
-  return Buffer.from(data as ArrayBuffer);
+    const data = res.data as ArrayBuffer | Buffer | string;
+    if (Buffer.isBuffer(data)) return data;
+    if (data instanceof ArrayBuffer) return Buffer.from(data);
+    if (typeof data === "string") return Buffer.from(data);
+    return Buffer.from(data as ArrayBuffer);
+  } catch (err) {
+    const status = Number(
+      (err as { code?: number; response?: { status?: number } })?.code ??
+        (err as { response?: { status?: number } })?.response?.status ??
+        0
+    );
+    if (status === 404) {
+      const ausente = new Error("File not found");
+      (ausente as Error & { code: number }).code = 404;
+      throw ausente;
+    }
+    throw err;
+  }
 }
 
 export async function deleteItemGoogleDrive(remotePathOuId: string) {
@@ -373,7 +387,7 @@ async function listarRecursivoUploads(
 
 export async function listarArquivosUploadsEmpresaGoogleDrive(
   empresaSlug: string,
-  opcoes?: { force?: boolean; nomeEmpresa?: string }
+  opcoes?: { force?: boolean; nomeEmpresa?: string; empresaId?: string }
 ): Promise<ArquivoUploadsEmpresaGdrive[]> {
   const slug = normalizarSlugEmpresaDrive(empresaSlug);
   if (!globalGdrive.__gdriveListaUploads) {
@@ -410,6 +424,12 @@ export async function listarArquivosUploadsEmpresaGoogleDrive(
     atMs: Date.now(),
     arquivos,
   });
+  if (opcoes?.empresaId) {
+    const { reconciliarUploadsGdriveAusentes } = await import(
+      "@/lib/limpar-anexos-os-servidor"
+    );
+    await reconciliarUploadsGdriveAusentes(opcoes.empresaId, arquivos);
+  }
   return arquivos;
 }
 
