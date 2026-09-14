@@ -238,7 +238,9 @@ export async function montarDashboard(params: ParametrosDashboard) {
       : Promise.resolve([]),
     calcularResumoEstoqueDashboardServer(empresaId),
     incluirSecundario
-      ? calcularArmazenamentoGaleria(empresaId, empresaSlug, empresaNome)
+      ? calcularArmazenamentoGaleria(empresaId, empresaSlug, empresaNome, {
+          rapido: true,
+        })
       : Promise.resolve(null),
   ]);
 
@@ -404,7 +406,8 @@ async function montarDashboardSecundario(params: ParametrosDashboard) {
       ? calcularArmazenamentoGaleria(
           params.empresaId,
           params.empresaSlug,
-          params.empresaNome
+          params.empresaNome,
+          { rapido: true }
         )
       : Promise.resolve(null),
   ]);

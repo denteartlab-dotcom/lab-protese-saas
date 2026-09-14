@@ -33,7 +33,7 @@ export async function GET(request: Request) {
     ctx.empresaId,
     ctx.empresaSlug,
     ctx.empresaNome,
-    { forceCota: force }
+    { forceCota: force, rapido: !force }
   );
   return NextResponse.json(resumo);
 }

@@ -179,6 +179,7 @@ export async function uploadBytesGoogleDrive(
     modulo?: string;
     subpastas?: string[];
     nomeArquivo?: string;
+    parentId?: string;
   }
 ): Promise<{ remotePath: string; fileId: string; webViewLink?: string }> {
   try {
@@ -203,6 +204,7 @@ async function uploadBytesGoogleDriveInterno(
     modulo?: string;
     subpastas?: string[];
     nomeArquivo?: string;
+    parentId?: string;
   }
 ): Promise<{ remotePath: string; fileId: string; webViewLink?: string }> {
   const drive = exigirDrive(await criarClienteGoogleDrive());
@@ -215,7 +217,9 @@ async function uploadBytesGoogleDriveInterno(
     opcoes?.nomeArquivo?.trim() || segmentos[segmentos.length - 1] || "arquivo";
 
   let parentId: string;
-  if (opcoes?.empresaSlug && opcoes.modulo) {
+  if (opcoes?.parentId?.trim()) {
+    parentId = opcoes.parentId.trim();
+  } else if (opcoes?.empresaSlug && opcoes.modulo) {
     parentId = await garantirPastaModuloUploadGoogleDrive(
       opcoes.empresaSlug,
       opcoes.modulo,
@@ -245,18 +249,16 @@ async function uploadBytesGoogleDriveInterno(
       mimeType: mime,
       body: bufferParaStream(bytes),
     },
-    fields: "id,webViewLink",
+    fields: "id",
     supportsAllDrives: true,
   });
   if (!criado.data.id) {
     throw new Error("Upload no Google Drive não retornou ID.");
   }
 
-  limparCacheListaUploads();
   return {
     fileId: criado.data.id,
     remotePath: montarRemotePathGdrive(criado.data.id),
-    webViewLink: criado.data.webViewLink ?? undefined,
   };
 }
 
@@ -471,17 +473,23 @@ export function ajustarCotaGoogleDriveAposExclusao(bytes: number) {
   q.remaining = Math.max(0, q.total - q.used);
 }
 
-/**
- * Cota da conta Drive. Service account em pasta compartilhada
- * muitas vezes não expõe quota útil — o caller deve usar fallback DB.
- */
-export async function obterCotaGoogleDrive(): Promise<CotaGoogleDrive | null> {
+export function cotaGoogleDriveEmCache(): CotaGoogleDrive | null {
   if (
     globalGdrive.__gdriveQuota &&
     Date.now() - globalGdrive.__gdriveQuota.atMs < CACHE_COTA_MS
   ) {
     return globalGdrive.__gdriveQuota.data;
   }
+  return null;
+}
+
+/**
+ * Cota da conta Drive. Service account em pasta compartilhada
+ * muitas vezes não expõe quota útil — o caller deve usar fallback DB.
+ */
+export async function obterCotaGoogleDrive(): Promise<CotaGoogleDrive | null> {
+  const cache = cotaGoogleDriveEmCache();
+  if (cache) return cache;
 
   try {
     const drive = await criarClienteGoogleDrive();

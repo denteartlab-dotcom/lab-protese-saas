@@ -410,8 +410,15 @@ export async function calcularArmazenamentoGaleria(
 
   if (gdrive) {
     try {
-      const { obterCotaGoogleDrive } = await import("@/lib/google-drive-uploads");
-      const cota = await obterCotaGoogleDrive();
+      const { obterCotaGoogleDrive, cotaGoogleDriveEmCache } = await import(
+        "@/lib/google-drive-uploads"
+      );
+      const cota = opcoes?.rapido
+        ? cotaGoogleDriveEmCache()
+        : await obterCotaGoogleDrive();
+      if (opcoes?.rapido && !cota) {
+        void obterCotaGoogleDrive();
+      }
       if (cota && cota.total > 0) {
         livresPool = cota.remaining;
         nuvemPool = {

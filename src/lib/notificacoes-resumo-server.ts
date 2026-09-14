@@ -427,7 +427,8 @@ export async function montarNotificacoesEmpresa(
     const armazenamento = await calcularArmazenamentoGaleria(
       empresaId,
       opts.empresaSlug,
-      opts.empresaNome
+      opts.empresaNome,
+      { rapido: true }
     );
     if (
       armazenamento.nuvemPool?.esgotada ||

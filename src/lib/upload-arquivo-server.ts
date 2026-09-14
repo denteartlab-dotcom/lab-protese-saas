@@ -497,6 +497,14 @@ export async function salvarArquivosUpload(
     const empresaIdUpload = empresaId;
     const slug = normalizarSlugPastaUploads(empresaSlug);
     const subpastas = subpasta ? [subpasta] : [];
+    const { garantirPastaModuloUploadGoogleDrive } = await import(
+      "@/lib/google-drive-uploads"
+    );
+    const parentId = await garantirPastaModuloUploadGoogleDrive(
+      slug,
+      pasta,
+      subpastas
+    );
 
     const preparados = await Promise.all(
       files.map(async (file, index) => {
@@ -532,12 +540,13 @@ export async function salvarArquivosUpload(
           item.filename,
           item.mimeType,
           {
-            garantirPastas: Boolean(subpasta),
+            garantirPastas: false,
             atualizarCota: false,
             empresaSlug: slug,
             modulo: pasta,
             subpastas,
             nomeArquivo: item.filename,
+            parentId,
           }
         );
         remotePaths[index] = enviado.remotePath;

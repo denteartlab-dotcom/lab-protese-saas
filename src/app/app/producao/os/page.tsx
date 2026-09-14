@@ -12,13 +12,13 @@ import {
 } from "@/components/ImprimirOsModal";
 import { Button, CampoDataBr, CampoHoraBr, Input, Modal, Select, SelectPesquisavel, Textarea } from "@/components/ui";
 import { EscalaCorCamposOs } from "@/components/producao/EscalaCorCamposOs";
-import { notificarUploadsAtualizados } from "@/lib/uploads-armazenamento";
 import { formatDateBr, parseBrDate, dateToBrShort } from "@/lib/datas-br";
 import { dataEntradaParaApi } from "@/lib/os-data-criacao";
 import { corrigirMojibakeUtf8 } from "@/lib/corrigir-mojibake-utf8";
 import { propsInputComSelecaoAoFocar } from "@/lib/input-selecao";
 import { usePageReady } from "@/hooks/use-page-ready";
 import { useArmazenamentoGaleria } from "@/hooks/use-armazenamento-galeria";
+import { useUploadAnexosOs } from "@/hooks/use-upload-anexos-os";
 import {
   getProdutosEstoqueExtras,
   parseQuantidadeEstoque,
@@ -484,9 +484,19 @@ export default function OrdemServicoPage() {
   const [modalMaterialAberto, setModalMaterialAberto] = useState(false);
   const [tipoDenticao, setTipoDenticao] = useState<TipoDenticao>("permanente");
   const [dentes, setDentes] = useState<string[]>([]);
-  const [arquivos, setArquivos] = useState<File[]>([]);
   const [erroLimiteMbAnexos, setErroLimiteMbAnexos] = useState<string | null>(null);
   const [anexosExistentes, setAnexosExistentes] = useState<ArquivoOs[]>([]);
+  const anexosUpload = useUploadAnexosOs((novos) => {
+    setAnexosExistentes((atuais) => {
+      const urls = new Set(atuais.map((anexo) => anexo.url));
+      const merged = [...atuais];
+      for (const anexo of novos) {
+        if (!urls.has(anexo.url)) merged.push(anexo);
+      }
+      return merged;
+    });
+  });
+  const arquivos = anexosUpload.pendentes;
   const [nomeUsuarioSessao, setNomeUsuarioSessao] = useState("");
   const { esgotado: galeriaEsgotada, mensagemBloqueioUpload, podeEnviarArquivos } =
     useArmazenamentoGaleria();
@@ -2812,57 +2822,23 @@ export default function OrdemServicoPage() {
   }
 
   async function uploadArquivosSelecionados(): Promise<ArquivoOs[]> {
-    if (!arquivos.length) return [];
     const bloqueio = mensagemBloqueioUpload();
-    if (bloqueio) {
+    if (bloqueio && (arquivos.length > 0 || anexosUpload.enviando)) {
       const { notificarArmazenamentoCheio } = await import(
         "@/lib/uploads-erro-armazenamento"
       );
       notificarArmazenamentoCheio();
-      setArquivos([]);
+      anexosUpload.limpar();
       if (fileInputRef.current) fileInputRef.current.value = "";
       throw new Error(bloqueio);
     }
-    if (!podeEnviarArquivos(arquivos)) {
-      const { notificarArmazenamentoCheio } = await import(
-        "@/lib/uploads-erro-armazenamento"
-      );
-      notificarArmazenamentoCheio();
-      setArquivos([]);
+    try {
+      return await anexosUpload.aguardar();
+    } catch (err) {
+      anexosUpload.limpar();
       if (fileInputRef.current) fileInputRef.current.value = "";
-      throw new Error(
-        "Espaço insuficiente na galeria para estes arquivos. Libere espaço em Início → Uploads."
-      );
+      throw err;
     }
-    const formData = new FormData();
-    arquivos.forEach((arquivo) => formData.append("files", arquivo));
-
-    const response = await fetch("/api/uploads?pasta=os", {
-      method: "POST",
-      body: formData,
-      credentials: "same-origin",
-    });
-
-    if (!response.ok) {
-      const { lerErroUploadResponse, tratarErroUploadArmazenamento } = await import(
-        "@/lib/uploads-erro-armazenamento"
-      );
-      const err = await lerErroUploadResponse(response);
-      if (tratarErroUploadArmazenamento(err)) {
-        setArquivos([]);
-        if (fileInputRef.current) fileInputRef.current.value = "";
-      }
-      throw new Error(err.message);
-    }
-    const uploaded = await response.json();
-    const storage = response.headers.get("X-Upload-Storage") || "";
-    if (storage && storage !== "gdrive" && storage !== "onedrive") {
-      console.warn(
-        `[uploads] armazenamento=${storage}. Esperado gdrive na VPS. Veja deploy/GOOGLE-DRIVE-UPLOADS.md`
-      );
-    }
-    notificarUploadsAtualizados();
-    return Array.isArray(uploaded) ? uploaded : [];
   }
 
   function adicionarArquivosSelecionados(event: React.ChangeEvent<HTMLInputElement>) {
@@ -2879,34 +2855,36 @@ export default function OrdemServicoPage() {
       return;
     }
 
-    setArquivos((atuais) => {
-      const existentes = new Set(
-        atuais.map((arquivo) => `${arquivo.name}-${arquivo.size}-${arquivo.lastModified}`)
-      );
-      const novos = selecionados.filter(
-        (arquivo) => !existentes.has(`${arquivo.name}-${arquivo.size}-${arquivo.lastModified}`)
-      );
-      const paraAdicionar: File[] = [];
-      let bytesAcumulados = bytesArquivosOs(atuais);
-      for (const arquivo of novos) {
-        if (bytesAcumulados + arquivo.size > LIMITE_BYTES_TOTAL_ANEXOS_OS) {
-          setErroLimiteMbAnexos(
-            t("producao.os.campo.erroLimiteMb", { limiteMb: LIMITE_MB_TOTAL_ANEXOS_OS })
-          );
-          break;
-        }
-        paraAdicionar.push(arquivo);
-        bytesAcumulados += arquivo.size;
-      }
-      if (!paraAdicionar.length) return atuais;
-      if (!podeEnviarArquivos(paraAdicionar)) {
-        void import("@/lib/uploads-erro-armazenamento").then(({ notificarArmazenamentoCheio }) =>
-          notificarArmazenamentoCheio()
+    const existentes = new Set(
+      arquivos.map((arquivo) => `${arquivo.name}-${arquivo.size}-${arquivo.lastModified}`)
+    );
+    const novos = selecionados.filter(
+      (arquivo) => !existentes.has(`${arquivo.name}-${arquivo.size}-${arquivo.lastModified}`)
+    );
+    const paraAdicionar: File[] = [];
+    let bytesAcumulados = bytesArquivosOs(arquivos);
+    for (const arquivo of novos) {
+      if (bytesAcumulados + arquivo.size > LIMITE_BYTES_TOTAL_ANEXOS_OS) {
+        setErroLimiteMbAnexos(
+          t("producao.os.campo.erroLimiteMb", { limiteMb: LIMITE_MB_TOTAL_ANEXOS_OS })
         );
-        return atuais;
+        break;
       }
-      return [...atuais, ...paraAdicionar];
-    });
+      paraAdicionar.push(arquivo);
+      bytesAcumulados += arquivo.size;
+    }
+    if (!paraAdicionar.length) {
+      event.target.value = "";
+      return;
+    }
+    if (!podeEnviarArquivos(paraAdicionar)) {
+      void import("@/lib/uploads-erro-armazenamento").then(({ notificarArmazenamentoCheio }) =>
+        notificarArmazenamentoCheio()
+      );
+      event.target.value = "";
+      return;
+    }
+    anexosUpload.adicionar(paraAdicionar);
     event.target.value = "";
   }
 
@@ -2946,7 +2924,7 @@ export default function OrdemServicoPage() {
       .catch(() => null);
 
     setDentes([]);
-    setArquivos([]);
+    anexosUpload.limpar();
     setAnexosExistentes([]);
     setMateriaisSelecionados([]);
     setMaterialQuantidades({});
@@ -3250,22 +3228,15 @@ export default function OrdemServicoPage() {
       const { tratarErroUploadArmazenamento } = await import(
         "@/lib/uploads-erro-armazenamento"
       );
-      setArquivos([]);
+      anexosUpload.limpar();
       if (fileInputRef.current) fileInputRef.current.value = "";
       if (!tratarErroUploadArmazenamento(err)) {
         alert(err instanceof Error ? err.message : "Não foi possível enviar os arquivos.");
       }
       return;
     }
-    if (arquivos.length > 0 && arquivosEnviados.length === 0) {
-      setSalvando(false);
-      setArquivos([]);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      alert("Não foi possível enviar os arquivos. Tente novamente.");
-      return;
-    }
     if (arquivosEnviados.length > 0) {
-      setArquivos([]);
+      anexosUpload.limpar();
       if (fileInputRef.current) fileInputRef.current.value = "";
       setAnexosExistentes((atuais) => {
         const urls = new Set(atuais.map((anexo) => anexo.url));
@@ -4054,9 +4025,7 @@ export default function OrdemServicoPage() {
                   >
                     <button
                       type="button"
-                      onClick={() =>
-                        setArquivos((atuais) => atuais.filter((_, i) => i !== index))
-                      }
+                      onClick={() => anexosUpload.removerIndice(index)}
                       className="absolute right-2 top-2 z-10 inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-red-600 shadow hover:bg-red-50"
                       title="Excluir imagem ou vídeo"
                     >
@@ -4086,6 +4055,7 @@ export default function OrdemServicoPage() {
                     )}
                     <div className="truncate px-2 py-1 text-[11px] text-slate-600">
                       {preview.file.name}
+                      {anexosUpload.enviando ? " · enviando…" : ""}
                     </div>
                   </div>
                 ))}

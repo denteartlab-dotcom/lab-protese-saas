@@ -25,7 +25,16 @@ type CredenciaisServiceAccount = {
   [key: string]: unknown;
 };
 
-const cachePastasDrive = new Map<string, string>();
+const globalPastasDrive = globalThis as typeof globalThis & {
+  __gdrivePastas?: Map<string, string>;
+};
+
+function cachePastasDrive() {
+  if (!globalPastasDrive.__gdrivePastas) {
+    globalPastasDrive.__gdrivePastas = new Map();
+  }
+  return globalPastasDrive.__gdrivePastas;
+}
 
 export function flagEnvAtiva(valor?: string | null) {
   const flag = valor?.trim().toLowerCase();
@@ -268,12 +277,12 @@ export async function obterOuCriarPastaDrive(
   nome: string
 ) {
   const chaveCache = `${parentId}:${nome}`;
-  const emCache = cachePastasDrive.get(chaveCache);
+  const emCache = cachePastasDrive().get(chaveCache);
   if (emCache) return emCache;
 
   const existente = await buscarPastaPorNome(drive, parentId, nome);
   if (existente) {
-    cachePastasDrive.set(chaveCache, existente);
+    cachePastasDrive().set(chaveCache, existente);
     return existente;
   }
 
@@ -294,7 +303,7 @@ export async function obterOuCriarPastaDrive(
   const id = criada.data.id;
   if (!id) throw new Error("Não foi possível criar a pasta no Google Drive.");
 
-  cachePastasDrive.set(chaveCache, id);
+  cachePastasDrive().set(chaveCache, id);
   return id;
 }
 
@@ -304,7 +313,7 @@ export async function resolverPastaRaizGoogleDrive(drive: drive_v3.Drive) {
 
   const nomeRaiz = nomePastaRaizGoogleDrive();
   const chaveCache = `root:${parentCompartilhado}:${nomeRaiz}`;
-  const emCache = cachePastasDrive.get(chaveCache);
+  const emCache = cachePastasDrive().get(chaveCache);
   if (emCache) return emCache;
 
   const existenteNaRaiz = await buscarPastaPorNome(
@@ -313,7 +322,7 @@ export async function resolverPastaRaizGoogleDrive(drive: drive_v3.Drive) {
     nomeRaiz
   );
   if (existenteNaRaiz) {
-    cachePastasDrive.set(chaveCache, existenteNaRaiz);
+    cachePastasDrive().set(chaveCache, existenteNaRaiz);
     return existenteNaRaiz;
   }
 
@@ -322,7 +331,7 @@ export async function resolverPastaRaizGoogleDrive(drive: drive_v3.Drive) {
     parentCompartilhado,
     nomeRaiz
   );
-  cachePastasDrive.set(chaveCache, criada);
+  cachePastasDrive().set(chaveCache, criada);
   return criada;
 }
 
@@ -339,7 +348,7 @@ export function nomePastaEmpresaDrive(slug: string, nomeEmpresa?: string) {
 }
 
 export function limparCachePastasGoogleDrive() {
-  cachePastasDrive.clear();
+  cachePastasDrive().clear();
 }
 
 /** Mensagens amigáveis para erros comuns da API Drive. */

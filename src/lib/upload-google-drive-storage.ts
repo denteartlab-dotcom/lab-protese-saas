@@ -90,6 +90,7 @@ export async function enviarBufferParaGoogleDrive(
     modulo?: string;
     subpastas?: string[];
     nomeArquivo?: string;
+    parentId?: string;
   }
 ): Promise<{ remotePath: string; fileId: string }> {
   if (!googleDriveUploadsConfigurado()) {
@@ -108,6 +109,7 @@ export async function enviarBufferParaGoogleDrive(
       modulo: opcoes?.modulo,
       subpastas: opcoes?.subpastas,
       nomeArquivo: opcoes?.nomeArquivo,
+      parentId: opcoes?.parentId,
     }
   );
 

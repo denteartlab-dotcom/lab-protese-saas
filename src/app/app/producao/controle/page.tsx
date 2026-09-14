@@ -171,9 +171,9 @@ import { notificarTrabalhosAtualizados } from "@/lib/trabalhos-events";
 import { notificarFinanceiroAtualizado } from "@/lib/financeiro-events";
 import {
   excluirUploadPorUrl,
-  notificarUploadsAtualizados,
 } from "@/lib/uploads-armazenamento";
 import { useArmazenamentoGaleria } from "@/hooks/use-armazenamento-galeria";
+import { useUploadAnexosOs } from "@/hooks/use-upload-anexos-os";
 import {
   DENTES_DECIDUOS_INFERIORES,
   DENTES_DECIDUOS_SUPERIORES,
@@ -1156,7 +1156,18 @@ export default function ControlePage() {
   const [avisoConfirmarItem, setAvisoConfirmarItem] = useState("");
   const [erroModalEdicao, setErroModalEdicao] = useState("");
   const [clientesCatalogo, setClientesCatalogo] = useState<ClienteCatalogo[]>([]);
-  const [arquivosEdicao, setArquivosEdicao] = useState<File[]>([]);
+  const [anexosEdicao, setAnexosEdicao] = useState<AnexoOs[]>([]);
+  const anexosUploadEdicao = useUploadAnexosOs((novos) => {
+    setAnexosEdicao((atuais) => {
+      const urls = new Set(atuais.map((anexo) => anexo.url));
+      const merged = [...atuais];
+      for (const anexo of novos) {
+        if (!urls.has(anexo.url)) merged.push(anexo);
+      }
+      return merged;
+    });
+  });
+  const arquivosEdicao = anexosUploadEdicao.pendentes;
 
   function dadosControleEntrega(
     trabalho: Trabalho,
@@ -1177,8 +1188,7 @@ export default function ControlePage() {
       },
     };
   }
-  const [anexosEdicao, setAnexosEdicao] = useState<AnexoOs[]>([]);
-  const { mensagemBloqueioUpload, podeEnviarArquivos } = useArmazenamentoGaleria();
+  const { mensagemBloqueioUpload } = useArmazenamentoGaleria();
   const editarUrlAbertoRef = useRef(false);
 
   async function load() {
@@ -1771,7 +1781,7 @@ export default function ControlePage() {
     setTipoDenticao("permanente");
     setDentesEdicao([]);
     setLancamentosFatura([]);
-    setArquivosEdicao([]);
+    anexosUploadEdicao.limpar();
     setAnexosEdicao([]);
     if (embedAgenda && typeof window !== "undefined") {
       window.parent.postMessage({ type: "agenda-os-edit-close" }, "*");
@@ -2278,7 +2288,7 @@ export default function ControlePage() {
       desconto,
     });
     setAnexosEdicao(anexosFromGrupoTrabalhos(grupo));
-    setArquivosEdicao([]);
+    anexosUploadEdicao.limpar();
     const primeiroServico = itens.find((item) => classificarItemOs(item) === "servico");
     carregarComplementosNaEdicao(alvo);
     if (primeiroServico) {
@@ -2771,53 +2781,16 @@ export default function ControlePage() {
   }
 
   async function uploadArquivosEdicaoSelecionados(): Promise<AnexoOs[]> {
-    if (arquivosEdicao.length === 0) return [];
     const bloqueio = mensagemBloqueioUpload();
-    if (bloqueio) {
+    if (bloqueio && (arquivosEdicao.length > 0 || anexosUploadEdicao.enviando)) {
       const { notificarArmazenamentoCheio } = await import(
         "@/lib/uploads-erro-armazenamento"
       );
       notificarArmazenamentoCheio();
-      setArquivosEdicao([]);
+      anexosUploadEdicao.limpar();
       throw new Error(bloqueio);
     }
-    if (!podeEnviarArquivos(arquivosEdicao)) {
-      const { notificarArmazenamentoCheio } = await import(
-        "@/lib/uploads-erro-armazenamento"
-      );
-      notificarArmazenamentoCheio();
-      setArquivosEdicao([]);
-      throw new Error(
-        "Espaço insuficiente na galeria para estes arquivos. Libere espaço em Início → Uploads."
-      );
-    }
-    const formData = new FormData();
-    arquivosEdicao.forEach((arquivo) => formData.append("files", arquivo));
-    const response = await fetch("/api/uploads?pasta=os", {
-      method: "POST",
-      body: formData,
-      credentials: "same-origin",
-    });
-    if (!response.ok) {
-      const { lerErroUploadResponse, tratarErroUploadArmazenamento } = await import(
-        "@/lib/uploads-erro-armazenamento"
-      );
-      const err = await lerErroUploadResponse(response);
-      if (tratarErroUploadArmazenamento(err)) {
-        setArquivosEdicao([]);
-      }
-      throw new Error(err.message);
-    }
-    const uploaded = await response.json();
-    const lista = Array.isArray(uploaded) ? uploaded : [];
-    const storage = response.headers.get("X-Upload-Storage") || "";
-    if (storage && storage !== "gdrive" && storage !== "onedrive") {
-      console.warn(
-        `[uploads] armazenamento=${storage}. Esperado gdrive na VPS. Veja deploy/GOOGLE-DRIVE-UPLOADS.md`
-      );
-    }
-    notificarUploadsAtualizados();
-    return lista;
+    return anexosUploadEdicao.aguardar();
   }
 
   async function sincronizarCabecalhoMetaEdicao() {
@@ -2881,6 +2854,12 @@ export default function ControlePage() {
   function corpoCabecalhoEdicaoAtual(anexosExtras: AnexoOs[] = []) {
     if (!form) return "";
     const todosAnexos = [...anexosEdicao, ...anexosExtras];
+    const vistos = new Set<string>();
+    const anexosUnicos = todosAnexos.filter((anexo) => {
+      if (!anexo.url || vistos.has(anexo.url)) return false;
+      vistos.add(anexo.url);
+      return true;
+    });
     const corpo = montarCorpoCabecalhoInstrucoes(
       form.instrucoesCorpo,
       {
@@ -2890,7 +2869,7 @@ export default function ControlePage() {
         material: form.material,
         prioridadeOs: form.prioridadeOs,
       },
-      anexosParaLinhasInstrucoes(todosAnexos)
+      anexosParaLinhasInstrucoes(anexosUnicos)
     );
     if (/origem entrada:/i.test(corpo)) return corpo;
     const rotuloExistente = extrairRotuloOrigemEntradaLinha(
@@ -2933,14 +2912,14 @@ export default function ControlePage() {
 
     setSalvandoEdicao(true);
     try {
-    let anexosUpload: AnexoOs[] = [];
+    let anexosNovos: AnexoOs[] = [];
     try {
-      anexosUpload = await uploadArquivosEdicaoSelecionados();
+      anexosNovos = await uploadArquivosEdicaoSelecionados();
     } catch (err) {
       const { tratarErroUploadArmazenamento } = await import(
         "@/lib/uploads-erro-armazenamento"
       );
-      setArquivosEdicao([]);
+      anexosUploadEdicao.limpar();
       if (!tratarErroUploadArmazenamento(err)) {
         setErroModalEdicao(
           err instanceof Error ? err.message : "Não foi possível enviar os arquivos."
@@ -2949,15 +2928,9 @@ export default function ControlePage() {
       setSalvandoEdicao(false);
       return;
     }
-    if (arquivosEdicao.length > 0 && anexosUpload.length === 0) {
-      setArquivosEdicao([]);
-      setErroModalEdicao("Não foi possível enviar os arquivos. Tente novamente.");
-      setSalvandoEdicao(false);
-      return;
-    }
-    setArquivosEdicao([]);
+    anexosUploadEdicao.limpar();
     await sincronizarCabecalhoMetaEdicao();
-    const corpoCabecalho = corpoCabecalhoEdicaoAtual(anexosUpload);
+    const corpoCabecalho = corpoCabecalhoEdicaoAtual(anexosNovos);
 
     if (osFaturada) {
       const registros =
@@ -3947,7 +3920,7 @@ export default function ControlePage() {
                   if (anexo.url) void excluirUploadPorUrl(anexo.url);
                 }}
                 arquivosNovos={arquivosEdicao}
-                onArquivosNovosChange={setArquivosEdicao}
+                onArquivosNovosChange={anexosUploadEdicao.definirPendentes}
                 desabilitado={osFaturada}
                 observacaoEditavel
               />

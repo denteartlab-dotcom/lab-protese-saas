@@ -518,7 +518,7 @@ export function CabecalhoFormularioOs({
                   </div>
                 )}
                 <div className="truncate px-2 py-1 text-[11px] text-slate-600">
-                  {preview.file.name}
+                  {preview.file.name} · enviando…
                 </div>
               </div>
             ))}

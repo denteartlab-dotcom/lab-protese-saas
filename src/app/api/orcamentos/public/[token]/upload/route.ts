@@ -72,7 +72,8 @@ export async function POST(request: Request, { params }: Params) {
       calcularArmazenamentoGaleria(
         row.empresa.id,
         row.empresa.slug,
-        row.empresa.nome
+        row.empresa.nome,
+        { rapido: true }
       )
     );
     const novosBytes = files.reduce((s, f) => s + f.size, 0);
