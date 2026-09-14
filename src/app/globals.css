@@ -18,6 +18,14 @@ html.modo-tv-producao {
   zoom: 1 !important;
 }
 
+/* Overlay de OS: nova camada de composição evita letras duplicadas no Chrome
+   quando html { zoom } encontra position:fixed (piora depois de window.alert). */
+.modal-fixed-os {
+  isolation: isolate;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
 @layer base {
   body {
     @apply bg-slate-50 text-slate-900 antialiased;

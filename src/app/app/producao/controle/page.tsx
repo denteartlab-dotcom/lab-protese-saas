@@ -59,6 +59,7 @@ import {
   type SegmentoFaturamento,
 } from "@/lib/trabalho-os-segmento";
 import { bodyTrabalhoSemNull } from "@/lib/trabalho-api-body";
+import { corrigirMojibakeUtf8 } from "@/lib/corrigir-mojibake-utf8";
 import { ConfiguracaoListaGear } from "@/components/listagem/ConfiguracaoListaGear";
 import { Button, CampoDataBr, Input, Select, SelectPesquisavel, Textarea } from "@/components/ui";
 import { parseCurrencyBr } from "@/lib/cliente-financeiro";
@@ -341,13 +342,13 @@ type EditForm = {
   dataDentista: string;
   horaDentista: string;
   observacoes: string;
-  /** Texto digitado sÃ³ para o serviÃ§o em ediÃ§Ã£o (vai em ` - obs ` na linha do item). */
+  /** Texto digitado só para o serviço em edição (vai em ` - obs ` na linha do item). */
   observacaoServico: string;
-  /** Corpo das instruÃ§Ãµes da OS sem linhas de itens (preservado ao gravar). */
+  /** Corpo das instruções da OS sem linhas de itens (preservado ao gravar). */
   instrucoesCorpo: string;
   urgente: boolean;
   repeticao: boolean;
-  /** MarcaÃ§Ã£o manual de repetiÃ§Ã£o para relatÃ³rio de prejuÃ­zo (registrada ao salvar). */
+  /** Marcação manual de repetição para relatório de prejuízo (registrada ao salvar). */
   tipoRepeticaoOs: TipoRepeticaoOs;
 };
 
@@ -469,7 +470,7 @@ function montarLinhasComplementosOs(
     .filter((terceiro) => terceiro.nome.trim() || terceiro.servico.trim() || terceiro.custo.trim())
     .map(
       (terceiro) =>
-        `Terceirizado ${terceiro.nome || "-"}: ${terceiro.servico || "serviÃ§o"}${
+        `Terceirizado ${terceiro.nome || "-"}: ${terceiro.servico || "serviço"}${
           terceiro.custo ? ` - custo ${terceiro.custo}` : ""
         }`
     );
@@ -502,7 +503,7 @@ function parsePercentualControle(value = "") {
 }
 
 function CampoValorComissaoReadonly({
-  label = "Valor da ComissÃ£o",
+  label = "Valor da Comissão",
   tipo,
   valor,
 }: {
@@ -577,7 +578,7 @@ type EditItem = {
   repeticao?: boolean;
   produtoId?: string;
   observacao?: string;
-  /** Etapas preenchidas para este serviÃ§o (uma OS com vÃ¡rios serviÃ§os). */
+  /** Etapas preenchidas para este serviço (uma OS com vários serviços). */
   etapasServico?: EtapaOsItemEdicao[];
 };
 
@@ -656,10 +657,10 @@ function formatarLinhaItemEdicao(item: EditItem) {
     style: "currency",
     currency: "BRL",
   })}${incluirCategoria ? ` - categoria ${item.categoria}` : ""}${trechoDescontoLinhaItemOs(item)}${
-    itemUsaCamposOdontologicos(item) && item.situacao ? ` - situaÃ§Ã£o ${item.situacao}` : ""
+    itemUsaCamposOdontologicos(item) && item.situacao ? ` - situação ${item.situacao}` : ""
   }${
     item.produtoId ? ` - produtoId ${item.produtoId}` : ""
-  }${item.urgente ? " - urgente" : ""}${item.repeticao ? " - repetiÃ§Ã£o" : ""}${
+  }${item.urgente ? " - urgente" : ""}${item.repeticao ? " - repetição" : ""}${
     item.observacao ? ` - obs ${item.observacao}` : ""
   }`;
 }
@@ -812,7 +813,8 @@ function parseMoney(value: string) {
 function parseItens(trabalho: Trabalho): EditItem[] {
   const lines = (trabalho.instrucoes || "").split("\n");
   const itens = lines
-    .map((line, index) => {
+    .map((rawLine, index) => {
+      const line = corrigirMojibakeUtf8(rawLine);
       const match = line.match(
         /^Item adicionado:\s*(.*?)\s*-\s*dentes\s*(.*?)\s*-\s*cor\s*(.*?)\s*-\s*qtd\s*(.*?)\s*-\s*valor\s*(.*)$/i
       );
@@ -821,33 +823,33 @@ function parseItens(trabalho: Trabalho): EditItem[] {
         id: `${trabalho.id}-item-${index}`,
         servico: match[1]?.trim() || trabalho.tipoProtese,
         categoria:
-          line.match(/ - categoria (.*?)(?: - desc| - situaÃ§Ã£o| - produtoId| - urgente| - repetiÃ§Ã£o| - repeticao| - obs|$)/i)?.[1]?.trim() ||
+          line.match(/ - categoria (.*?)(?: - desc| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i)?.[1]?.trim() ||
           trabalho.escala ||
           "",
         numeroDente: match[2]?.trim() || trabalho.dentes || "-",
         corDente: match[3]?.trim() || trabalho.cor || "-",
         quantidade: match[4]?.trim() || "1",
         valor: parseMoney(
-          line.match(/ - valor (.*?)(?: - categoria| - desc| - situaÃ§Ã£o| - produtoId| - urgente| - repetiÃ§Ã£o| - repeticao| - obs|$)/i)?.[1] ||
+          line.match(/ - valor (.*?)(?: - categoria| - desc| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i)?.[1] ||
             match[5] ||
             ""
         ),
         desconto:
           line.match(
-            / - desc (.*?)(?: - descTipo| - categoria| - situaÃ§Ã£o| - produtoId| - urgente| - repetiÃ§Ã£o| - repeticao| - obs|$)/i
+            / - desc (.*?)(?: - descTipo| - categoria| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i
           )?.[1]?.trim() || "0,00",
         descontoTipo: parseDescontoTipoLinhaItem(
           line,
           line.match(
-            / - desc (.*?)(?: - descTipo| - categoria| - situaÃ§Ã£o| - produtoId| - urgente| - repetiÃ§Ã£o| - repeticao| - obs|$)/i
+            / - desc (.*?)(?: - descTipo| - categoria| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i
           )?.[1]?.trim() || "0,00"
         ),
         situacao:
-          line.match(/ - situaÃ§Ã£o (.*?)(?: - produtoId| - urgente| - repetiÃ§Ã£o| - repeticao| - obs|$)/i)?.[1]?.trim() ||
+          line.match(/ - situação (.*?)(?: - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i)?.[1]?.trim() ||
           trabalho.status,
         observacao: line.match(/ - obs (.*)$/i)?.[1]?.trim() || "",
         urgente: / - urgente(?: -|$)/i.test(line),
-        repeticao: / - repetiÃ§Ã£o(?: -|$)| - repeticao(?: -|$)/i.test(line),
+        repeticao: / - repetição(?: -|$)| - repeticao(?: -|$)/i.test(line),
       };
     })
     .filter(Boolean) as EditItem[];
@@ -1152,6 +1154,7 @@ export default function ControlePage() {
   const [imprimirOs, setImprimirOs] = useState<Trabalho | null>(null);
   const [salvandoEdicao, setSalvandoEdicao] = useState(false);
   const [avisoConfirmarItem, setAvisoConfirmarItem] = useState("");
+  const [erroModalEdicao, setErroModalEdicao] = useState("");
   const [clientesCatalogo, setClientesCatalogo] = useState<ClienteCatalogo[]>([]);
   const [arquivosEdicao, setArquivosEdicao] = useState<File[]>([]);
 
@@ -1194,6 +1197,13 @@ export default function ControlePage() {
     const timer = window.setTimeout(load, 250);
     return () => window.clearTimeout(timer);
   }, [busca, status, dataEntrada, embedAgenda]);
+
+  useEffect(() => {
+    if (!editando) return;
+    const html = document.documentElement;
+    html.classList.add("site-zoom-full");
+    return () => html.classList.remove("site-zoom-full");
+  }, [editando]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1431,7 +1441,7 @@ export default function ControlePage() {
     if (tipoRepeticaoIncluiEtapa(tipo)) {
       const nome = etapasEdicao[indiceEtapaAtualEdicao]?.nome;
       partes.push(
-        `Etapa repetida: ${nomeEtapaSemSetor(nome || "") || "â€”"}`
+        `Etapa repetida: ${nomeEtapaSemSetor(nome || "") || "—"}`
       );
     }
     if (tipoRepeticaoIncluiProduto(tipo)) {
@@ -1442,7 +1452,7 @@ export default function ControlePage() {
             sum + valorComDescontoControle(item.valor, item.descontoTipo, item.desconto),
           0
         );
-      partes.push(`PrejuÃ­zo de produtos: ${formatCurrency(valor)}`);
+      partes.push(`Prejuízo de produtos: ${formatCurrency(valor)}`);
     }
     if (tipoRepeticaoIncluiServico(tipo)) {
       const valor = editItems
@@ -1452,9 +1462,9 @@ export default function ControlePage() {
             sum + valorComDescontoControle(item.valor, item.descontoTipo, item.desconto),
           0
         );
-      partes.push(`PrejuÃ­zo do serviÃ§o: ${formatCurrency(valor)}`);
+      partes.push(`Prejuízo do serviço: ${formatCurrency(valor)}`);
     }
-    return partes.join(" Â· ");
+    return partes.join(" · ");
   }, [form?.tipoRepeticaoOs, etapasEdicao, indiceEtapaAtualEdicao, editItems]);
 
   useEffect(() => {
@@ -1580,8 +1590,8 @@ export default function ControlePage() {
       dataLancamento: formatDate(trabalho.dataEntrada),
       caixa: caixaOs(trabalho) || linhaInstrucaoOs(instrucoesTexto, "Caixa:"),
       casoUrgente:
-        linhaInstrucaoOs(instrucoesTexto, "Caso odontolÃ³gico:") ||
-        linhaInstrucaoOs(instrucoesTexto, "Caso clÃ­nico:"),
+        linhaInstrucaoOs(instrucoesTexto, "Caso odontológico:") ||
+        linhaInstrucaoOs(instrucoesTexto, "Caso clínico:"),
       prioridadeOs: parsePrioridadeOsInstrucoes(instrucoesTexto) || "media",
       dentista:
         linhaInstrucaoOs(instrucoesTexto, "Dentista:") ||
@@ -1742,6 +1752,7 @@ export default function ControlePage() {
 
   function fecharEdicaoOs() {
     setAvisoConfirmarItem("");
+    setErroModalEdicao("");
     setEditando(null);
     setForm(null);
     setEditItems([]);
@@ -1870,7 +1881,7 @@ export default function ControlePage() {
     });
 
     if (!res.ok) {
-      console.error("[controle] registrar repetiÃ§Ã£o manual");
+      console.error("[controle] registrar repetição manual");
     }
   }
 
@@ -1909,7 +1920,7 @@ export default function ControlePage() {
     return formatarComissaoComTipo(tipo, bruto);
   }
 
-  /** Base da comissÃ£o: sÃ³ o serviÃ§o atual (nunca produto nem transporte). */
+  /** Base da comissão: só o serviço atual (nunca produto nem transporte). */
   function valorBaseComissaoColaboradorEdicao() {
     if (painelEdicaoItem === "servico" && form) {
       const subtotal =
@@ -2574,7 +2585,7 @@ export default function ControlePage() {
         ? classificarItemOs(itemSelecionado) === "servico"
         : false;
 
-      // Fluxo pedido: com serviÃ§o selecionado, lanÃ§ar produto cria NOVO item.
+      // Fluxo pedido: com serviço selecionado, lançar produto cria NOVO item.
       if (selecionadoEhServico && abaServicoEdicao === "produtos") {
         const novoProduto = novoItemProdutoEdicao();
         if (!novoProduto) return;
@@ -2584,7 +2595,7 @@ export default function ControlePage() {
         return;
       }
 
-      // Fluxo pedido: com serviÃ§o selecionado, lanÃ§ar transporte cria NOVO item.
+      // Fluxo pedido: com serviço selecionado, lançar transporte cria NOVO item.
       const transporteNoFormulario =
         painelEdicaoItem === "transporte" ||
         (form ? /^(transporte|frete)\s*:/i.test(form.tipoProtese.trim()) : false);
@@ -2624,7 +2635,7 @@ export default function ControlePage() {
         form.desconto,
         descontoCliente.desconto
       );
-      const nomeServico = form.tipoProtese.trim() || "Novo serviÃ§o";
+      const nomeServico = form.tipoProtese.trim() || "Novo serviço";
       const novo: EditItem = {
         id: `${Date.now()}`,
         servico: nomeServico,
@@ -2777,7 +2788,7 @@ export default function ControlePage() {
       notificarArmazenamentoCheio();
       setArquivosEdicao([]);
       throw new Error(
-        "EspaÃ§o insuficiente na galeria para estes arquivos. Libere espaÃ§o em InÃ­cio â†’ Uploads."
+        "Espaço insuficiente na galeria para estes arquivos. Libere espaço em Início → Uploads."
       );
     }
     const formData = new FormData();
@@ -2909,7 +2920,7 @@ export default function ControlePage() {
 
     if (!osFaturada) {
       if (formularioNovoServicoPendente()) {
-        setAvisoConfirmarItem("Clique em + Adicionar ServiÃ§o antes de gravar.");
+        setAvisoConfirmarItem("Clique em + Adicionar Serviço antes de gravar.");
         return;
       }
       if (temAlteracoesPendentesItemEdicao()) {
@@ -2918,6 +2929,7 @@ export default function ControlePage() {
       }
     }
     setAvisoConfirmarItem("");
+    setErroModalEdicao("");
 
     setSalvandoEdicao(true);
     try {
@@ -2930,14 +2942,16 @@ export default function ControlePage() {
       );
       setArquivosEdicao([]);
       if (!tratarErroUploadArmazenamento(err)) {
-        alert(err instanceof Error ? err.message : "NÃ£o foi possÃ­vel enviar os arquivos.");
+        setErroModalEdicao(
+          err instanceof Error ? err.message : "Não foi possível enviar os arquivos."
+        );
       }
       setSalvandoEdicao(false);
       return;
     }
     if (arquivosEdicao.length > 0 && anexosUpload.length === 0) {
       setArquivosEdicao([]);
-      alert("NÃ£o foi possÃ­vel enviar os arquivos. Tente novamente.");
+      setErroModalEdicao("Não foi possível enviar os arquivos. Tente novamente.");
       setSalvandoEdicao(false);
       return;
     }
@@ -2990,7 +3004,7 @@ export default function ControlePage() {
         }),
       });
       if (!res.ok) {
-        alert("NÃ£o foi possÃ­vel gravar observaÃ§Ã£o e comissÃµes.");
+        setErroModalEdicao("Não foi possível gravar observação e comissões.");
         return;
       }
       fecharEdicaoOs();
@@ -3000,7 +3014,7 @@ export default function ControlePage() {
 
     const itensSalvar = prepararItensParaSalvarControle([...editItems]);
     if (itensSalvar.length === 0) {
-      alert("Adicione ao menos um serviÃ§o, produto ou transporte antes de gravar.");
+      setErroModalEdicao("Adicione ao menos um serviço, produto ou transporte antes de gravar.");
       return;
     }
 
@@ -3212,11 +3226,11 @@ export default function ControlePage() {
     const respostas = await Promise.all(promessas);
     const falha = respostas.find((res) => !res.ok);
     if (falha) {
-      alert("NÃ£o foi possÃ­vel salvar a OS. Verifique os dados e tente novamente.");
+      setErroModalEdicao("Não foi possível salvar a OS. Verifique os dados e tente novamente.");
       return;
     }
 
-    // Remove segmentos Ã³rfÃ£os (serviÃ§o/produto/transporte removidos na ediÃ§Ã£o).
+    // Remove segmentos órfãos (serviço/produto/transporte removidos na edição).
     const idsOrfaos = registros
       .map((r) => r.id)
       .filter((id) => id && !idsUsados.has(id));
@@ -3227,8 +3241,8 @@ export default function ControlePage() {
         )
       );
       if (exclusoes.some((res) => !res.ok)) {
-        alert(
-          "A OS foi gravada, mas um item removido nÃ£o pÃ´de ser excluÃ­do. Atualize a lista e tente novamente."
+        setErroModalEdicao(
+          "A OS foi gravada, mas um item removido não pôde ser excluído. Atualize a lista e tente novamente."
         );
         void load();
         return;
@@ -3396,7 +3410,7 @@ export default function ControlePage() {
       notificarTrabalhosAtualizados({ trabalhoId: id });
       notificarFinanceiroAtualizado();
     } catch {
-      setAvisoExclusaoOs("NÃ£o foi possÃ­vel excluir a ordem de serviÃ§o.");
+      setAvisoExclusaoOs("Não foi possível excluir a ordem de serviço.");
       void load();
     }
   }
@@ -3592,7 +3606,7 @@ export default function ControlePage() {
                   dataPrevista: registro.dataPrevista,
                   segmentoFaturamento: registro.segmentoFaturamento,
                 }));
-                // Mesma chave/etapas do MÃ³dulo TV (arrastar coluna atualiza este progresso).
+                // Mesma chave/etapas do Módulo TV (arrastar coluna atualiza este progresso).
                 const contextoEtapas = contextoEtapasModuloOsGrupo(grupoModulo);
                 const complementosOs = parseComplementosInstrucoesGrupo(
                   grupoOs.map((registro) => registro.instrucoes || "")
@@ -3840,8 +3854,8 @@ export default function ControlePage() {
         <div
           className={
             embedAgenda
-              ? "fixed inset-0 z-50 flex flex-col bg-white"
-              : "fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-2 md:p-4"
+              ? "modal-fixed-os fixed inset-0 z-50 flex flex-col bg-white"
+              : "modal-fixed-os fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-2 md:p-4"
           }
         >
           <div
@@ -3855,7 +3869,7 @@ export default function ControlePage() {
               <h1 className="text-sm font-medium text-slate-900">
                 {embedAgenda
                   ? "Editar Agenda"
-                  : `Editar Ordem de ServiÃ§o ${editando.numeroOs}`}
+                  : `Editar Ordem de Serviço ${editando.numeroOs}`}
               </h1>
               <button
                 type="button"
@@ -3863,9 +3877,17 @@ export default function ControlePage() {
                 className="absolute right-4 top-1/2 -translate-y-1/2 text-lg text-slate-400 hover:text-slate-700"
                 aria-label="Fechar"
               >
-                Ã—
+                ×
               </button>
             </div>
+            {erroModalEdicao ? (
+              <div
+                role="alert"
+                className="shrink-0 border-b border-red-200 bg-red-50 px-4 py-2 text-xs leading-relaxed text-red-800"
+              >
+                {erroModalEdicao}
+              </div>
+            ) : null}
 
             <div className="min-h-0 flex-1 overflow-y-auto text-xs text-slate-700">
               <CabecalhoFormularioOs
@@ -3932,7 +3954,7 @@ export default function ControlePage() {
 
               <section className="grid gap-2 border-t border-slate-100 px-4 py-3 md:grid-cols-2">
                 <Select
-                  label="RepetiÃ§Ã£o (etapa / produto / serviÃ§o)"
+                  label="Repetição (etapa / produto / serviço)"
                   value={form.tipoRepeticaoOs}
                   onChange={(e) => {
                     const tipoRepeticaoOs = e.target.value as TipoRepeticaoOs;
@@ -3961,7 +3983,7 @@ export default function ControlePage() {
                   </p>
                 ) : (
                   <p className="self-end text-[11px] text-slate-400">
-                    Selecione o tipo de repetiÃ§Ã£o para registrar no relatÃ³rio de prejuÃ­zo.
+                    Selecione o tipo de repetição para registrar no relatório de prejuízo.
                   </p>
                 )}
               </section>
@@ -3977,10 +3999,10 @@ export default function ControlePage() {
                     <span className="mr-2 inline-flex rounded bg-red-600 px-2 py-0.5 text-[10px] font-bold uppercase text-white">
                       Faturado
                     </span>
-                    Esta ordem de serviÃ§o jÃ¡ foi faturada em{" "}
-                    <strong>Contas a Receber</strong>. Os serviÃ§os estÃ£o bloqueados para ediÃ§Ã£o,
-                    mas vocÃª ainda pode alterar <strong>observaÃ§Ã£o interna</strong> e{" "}
-                    <strong>comissÃµes</strong> (colaboradores e terceirizados).
+                    Esta ordem de serviço já foi faturada em{" "}
+                    <strong>Contas a Receber</strong>. Os serviços estão bloqueados para edição,
+                    mas você ainda pode alterar <strong>observação interna</strong> e{" "}
+                    <strong>comissões</strong> (colaboradores e terceirizados).
               </div>
                 )}
                 <div
@@ -3990,7 +4012,7 @@ export default function ControlePage() {
                   )}
                 >
                   <p className="mb-3 text-center text-sm font-medium text-slate-600">
-                    ServiÃ§os/Produtos Adicionados
+                    Serviços/Produtos Adicionados
                   </p>
                   <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                     <button
@@ -4000,10 +4022,10 @@ export default function ControlePage() {
                       className="inline-flex items-center gap-1 rounded border border-primary-400 bg-white px-3 py-1.5 text-xs font-medium text-primary-700 hover:bg-primary-50 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <Plus className="h-3.5 w-3.5" />
-                      Adicionar ServiÃ§o
+                      Adicionar Serviço
               </button>
                     <span className="text-[11px] text-slate-600">
-                      Total ServiÃ§os: {formatCurrency(totalItensEdicao)}
+                      Total Serviços: {formatCurrency(totalItensEdicao)}
                     </span>
                   </div>
                   <div className="overflow-x-auto">
@@ -4011,19 +4033,19 @@ export default function ControlePage() {
                       <thead>
                         <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
                           <th className="px-3 py-2 text-left font-semibold uppercase">Selecionado</th>
-                          <th className="px-3 py-2 text-left font-semibold uppercase">ServiÃ§o/Produto</th>
-                          <th className="px-3 py-2 text-left font-semibold uppercase">NÃºmero Dente</th>
+                          <th className="px-3 py-2 text-left font-semibold uppercase">Serviço/Produto</th>
+                          <th className="px-3 py-2 text-left font-semibold uppercase">Número Dente</th>
                           <th className="px-3 py-2 text-left font-semibold uppercase">Cor Dente</th>
                           <th className="px-3 py-2 text-left font-semibold uppercase">Quantidade</th>
                           <th className="px-3 py-2 text-left font-semibold uppercase">Valor</th>
-                          <th className="px-3 py-2 text-center font-semibold uppercase">OpÃ§Ãµes</th>
+                          <th className="px-3 py-2 text-center font-semibold uppercase">Opções</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {editItems.length === 0 && (
                           <tr>
                             <td colSpan={7} className="px-3 py-5 text-center text-slate-400">
-                              Nenhum serviÃ§o adicionado. Clique em Adicionar ServiÃ§o ou selecione uma linha.
+                              Nenhum serviço adicionado. Clique em Adicionar Serviço ou selecione uma linha.
                             </td>
                           </tr>
                         )}
@@ -4037,7 +4059,7 @@ export default function ControlePage() {
                           >
                             <td className="px-3 py-2 text-center">
                               {itemSelecionadoId === item.id ? (
-                                <span className="text-sm font-semibold text-slate-600">âœ“</span>
+                                <span className="text-sm font-semibold text-slate-600">✓</span>
                               ) : null}
                             </td>
                             <td className="px-3 py-2 text-slate-700">
@@ -4061,7 +4083,7 @@ export default function ControlePage() {
                                   removerItemEdicao(item.id);
                                 }}
                                 className="rounded p-1 text-red-500 hover:bg-red-50"
-                                title="Excluir serviÃ§o"
+                                title="Excluir serviço"
                               >
                                 <Trash2 className="h-4 w-4" />
               </button>
@@ -4089,7 +4111,7 @@ export default function ControlePage() {
                     >
                     <div className="mb-3 flex flex-wrap items-center gap-3">
                       <span className="text-[11px] text-slate-500">
-                        Data LanÃ§amento:{" "}
+                        Data Lançamento:{" "}
                         <span className="font-medium text-slate-700">
                           {formatDate(editando.dataEntrada)}
                         </span>
@@ -4100,7 +4122,7 @@ export default function ControlePage() {
                         </span>
                       )}
               </div>
-                    <h3 className="mb-4 text-center text-base font-medium text-slate-700">ServiÃ§o</h3>
+                    <h3 className="mb-4 text-center text-base font-medium text-slate-700">Serviço</h3>
                     <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                       <div className="flex gap-5">
                         <label className="flex cursor-pointer flex-col items-start gap-1 text-[10px] font-medium text-slate-500">
@@ -4124,7 +4146,7 @@ export default function ControlePage() {
                           </span>
                         </label>
                         <label className="flex cursor-pointer flex-col items-start gap-1 text-[10px] font-medium text-slate-500">
-                          <span>RepetiÃ§Ã£o</span>
+                          <span>Repetição</span>
                           <span
                             className={`relative inline-flex h-5 w-10 items-center rounded-full transition ${
                               form.repeticao ? "bg-orange-300" : "bg-slate-200"
@@ -4145,7 +4167,7 @@ export default function ControlePage() {
                         </label>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-primary-700">
-                        <span>Total ServiÃ§o:</span>
+                        <span>Total Serviço:</span>
                         <input
                           className="w-40 rounded border border-slate-200 px-3 py-2 text-right text-slate-700"
                           value={formatCurrency(totalServicoEdicao)}
@@ -4163,7 +4185,7 @@ export default function ControlePage() {
                       >
                         <option value="">
                           {categoriasTabelaPreco.length === 0
-                            ? "Cadastre categorias na Tabela de PreÃ§os"
+                            ? "Cadastre categorias na Tabela de Preços"
                             : "Selecione uma Categoria"}
                         </option>
                         {categoriasSelecionaveisNaOs(categoriasTabelaPreco).map((categoria) => (
@@ -4177,7 +4199,7 @@ export default function ControlePage() {
                           )}
                 </Select>
                 <Select
-                  label="ServiÃ§o"
+                  label="Serviço"
                         value={valorSelectServicoEdicao()}
                         onChange={(e) => selecionarServicoTabelaEdicao(e.target.value)}
                         disabled={!form.categoria}
@@ -4186,8 +4208,8 @@ export default function ControlePage() {
                           {!form.categoria
                             ? "Selecione uma categoria"
                             : servicosDaCategoriaEdicao.length === 0
-                              ? "Nenhum serviÃ§o nesta categoria"
-                              : "Selecione um ServiÃ§o"}
+                              ? "Nenhum serviço nesta categoria"
+                              : "Selecione um Serviço"}
                         </option>
                         {valorSelectServicoEdicao() &&
                           !servicosDaCategoriaEdicao.some(
@@ -4282,7 +4304,7 @@ export default function ControlePage() {
               </div>
                       </div>
                       <Select
-                        label="SituaÃ§Ã£o"
+                        label="Situação"
                         value={form.status}
                         onChange={(e) => setForm({ ...form, status: e.target.value })}
                       >
@@ -4293,7 +4315,7 @@ export default function ControlePage() {
                   ))}
                 </Select>
                       <CampoDataBr
-                        label="Prazo LaboratÃ³rio"
+                        label="Prazo Laboratório"
                         value={form.dataLaboratorio}
                         onChange={(value) =>
                           setForm({
@@ -4304,7 +4326,7 @@ export default function ControlePage() {
                         }
                       />
                 <Input
-                        label="Hora LaboratÃ³rio"
+                        label="Hora Laboratório"
                         type="time"
                         value={form.horaLaboratorio}
                         onChange={(e) => setForm({ ...form, horaLaboratorio: e.target.value })}
@@ -4352,7 +4374,7 @@ export default function ControlePage() {
                             onChange={() => trocarTipoDenticaoEdicao("deciduos")}
                             className="h-3.5 w-3.5 accent-blue-500"
                           />
-                          DecÃ­duos
+                          Decíduos
                         </label>
                       </div>
                 <div className="mx-auto max-w-3xl rounded bg-white px-3 py-2">
@@ -4459,7 +4481,7 @@ export default function ControlePage() {
                 </div>
                       <div className="mb-5">
                         <Textarea
-                          label="ObservaÃ§Ã£o ServiÃ§o"
+                          label="Observação Serviço"
                           value={form.observacaoServico}
                           onChange={(e) =>
                             setForm({ ...form, observacaoServico: e.target.value })
@@ -4493,14 +4515,14 @@ export default function ControlePage() {
                           onClick={() => abrirAbaComissoesEdicao("colaboradores")}
                           className={classeAbaEdicao("colaboradores")}
                         >
-                  Colaboradores / ComissÃµes
+                  Colaboradores / Comissões
                 </button>
                         <button
                           type="button"
                           onClick={() => abrirAbaComissoesEdicao("terceiros")}
                           className={classeAbaEdicao("terceiros")}
                         >
-                  ServiÃ§os Terceirizados / ComissÃµes
+                  Serviços Terceirizados / Comissões
                 </button>
               </div>
                       <div
@@ -4589,7 +4611,7 @@ export default function ControlePage() {
                                   }
                                 />
                                 <Input
-                                  label="ObservaÃ§Ã£o"
+                                  label="Observação"
                                   value={produtoOs.observacao}
                                   onChange={(e) =>
                                     setProdutosOs((atuais) =>
@@ -4626,7 +4648,7 @@ export default function ControlePage() {
                         {abaServicoEdicao === "colaboradores" && (
                           <div className="space-y-3">
                             <span className="text-sm font-semibold text-slate-800">
-                              Colaboradores / ComissÃµes
+                              Colaboradores / Comissões
                             </span>
                             {colaboradoresEdicao.map((colaborador, index) => (
                               <div
@@ -4668,7 +4690,7 @@ export default function ControlePage() {
                                   {...exibicaoComissaoColaboradorCalculada(colaborador)}
                                 />
                                   <Input
-                                    label="ObservaÃ§Ã£o"
+                                    label="Observação"
                                     value={colaborador.etapa}
                                     onChange={(e) =>
                                       setColaboradoresEdicao((atuais) =>
@@ -4677,7 +4699,7 @@ export default function ControlePage() {
                                         )
                                       )
                                     }
-                                    placeholder="ObservaÃ§Ã£o"
+                                    placeholder="Observação"
                                   />
                                 <button
                                   type="button"
@@ -4707,7 +4729,7 @@ export default function ControlePage() {
                         {abaServicoEdicao === "terceiros" && (
                           <div className="space-y-3">
                             <span className="text-sm font-semibold text-slate-800">
-                              ServiÃ§os Terceirizados / ComissÃµes
+                              Serviços Terceirizados / Comissões
                             </span>
                             {terceirizadosEdicao.map((terceiro, index) => (
                               <div
@@ -4747,7 +4769,7 @@ export default function ControlePage() {
                                   />
                                 )}
                                 <Input
-                                  label="ServiÃ§o"
+                                  label="Serviço"
                                   value={terceiro.servico}
                                   onChange={(e) =>
                                     setTerceirizadosEdicao((atuais) =>
@@ -4756,7 +4778,7 @@ export default function ControlePage() {
                                       )
                                     )
                                   }
-                                  placeholder="ServiÃ§o terceirizado"
+                                  placeholder="Serviço terceirizado"
                                 />
                                 <CampoValorComissaoReadonly
                                   {...exibicaoComissaoDeTexto(terceiro.custo)}
@@ -4769,7 +4791,7 @@ export default function ControlePage() {
                                     )
                                   }
                                   className="mt-6 inline-flex h-10 items-center justify-center rounded border border-red-200 px-3 text-red-600 hover:bg-red-50"
-                                  title="Excluir serviÃ§o terceirizado"
+                                  title="Excluir serviço terceirizado"
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </button>
@@ -4857,7 +4879,7 @@ export default function ControlePage() {
                             }
                           />
                           <Input
-                            label="ObservaÃ§Ã£o"
+                            label="Observação"
                             value={produtoOs.observacao}
                             onChange={(e) =>
                               setProdutosOs((atuais) =>
@@ -4910,7 +4932,7 @@ export default function ControlePage() {
                         }
                       />
                       <Select
-                        label="SituaÃ§Ã£o"
+                        label="Situação"
                         value={form.status}
                         onChange={(e) => setForm({ ...form, status: e.target.value })}
                       >
@@ -4951,7 +4973,7 @@ export default function ControlePage() {
                             ? "+ Adicionar Produto"
                             : painelEdicaoItem === "transporte"
                               ? "+ Adicionar Transporte"
-                              : "+ Adicionar ServiÃ§o")}
+                              : "+ Adicionar Serviço")}
                   </button>
             </div>
             </section>
@@ -4977,8 +4999,8 @@ export default function ControlePage() {
                 {salvandoEdicao
                   ? "Salvando..."
                   : osFaturada
-                    ? "Gravar observaÃ§Ã£o e comissÃµes"
-                    : "Gravar AlteraÃ§Ãµes Ordem de ServiÃ§o"}
+                    ? "Gravar observação e comissões"
+                    : "Gravar Alterações Ordem de Serviço"}
               </Button>
             </div>
           </div>
