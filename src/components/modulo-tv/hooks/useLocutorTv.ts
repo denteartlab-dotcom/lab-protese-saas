@@ -4,10 +4,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "@/components/i18n-provider";
 import {
   carregarVozesLocutorTv,
+  chaveHoraCheiaLocutor,
+  desbloquearAudioLocutorTv,
   falarTextoLocutorTv,
   INTERVALO_LOCUTOR_TV_MS,
   locutorDentroDoHorarioAviso,
+  locutorDeveAnunciarHora,
+  montarFalaHoraAtual,
   montarFalaLocutorTv,
+  msAteProximaHoraCheia,
   pararFalaLocutorTv,
   resumoEntregasLocutorTv,
   ttsDisponivelLocutorTv,
@@ -21,6 +26,7 @@ export function useLocutorTv(ordens: OrdemServicoTv[], dadosCarregados: boolean)
   const [falando, setFalando] = useState(false);
   const [precisaToque, setPrecisaToque] = useState(false);
   const chaveFaladaRef = useRef("");
+  const horaFaladaRef = useRef("");
   const falandoRef = useRef(false);
 
   const resumo = useMemo(
@@ -28,12 +34,12 @@ export function useLocutorTv(ordens: OrdemServicoTv[], dadosCarregados: boolean)
     [ordens, locale]
   );
 
-  const falar = useCallback(
+  const falarTrabalhos = useCallback(
     async (forcar = false) => {
       if (!locutorIaAtivo && !forcar) return;
       if (!ttsDisponivelLocutorTv()) return;
+      if (!locutorDentroDoHorarioAviso()) return;
       if (falandoRef.current) return;
-      if (!forcar && !locutorDentroDoHorarioAviso()) return;
       if (!forcar && chaveFaladaRef.current === resumo.chave) return;
 
       falandoRef.current = true;
@@ -48,6 +54,36 @@ export function useLocutorTv(ordens: OrdemServicoTv[], dadosCarregados: boolean)
       }
     },
     [locale, locutorIaAtivo, resumo]
+  );
+
+  const falarHora = useCallback(
+    async (tentativa = 0) => {
+      if (!locutorIaAtivo) return;
+      if (!ttsDisponivelLocutorTv()) return;
+      const agora = new Date();
+      if (!locutorDeveAnunciarHora(agora)) return;
+
+      const chave = chaveHoraCheiaLocutor(agora);
+      if (horaFaladaRef.current === chave) return;
+
+      if (falandoRef.current) {
+        if (tentativa >= 8) return;
+        window.setTimeout(() => void falarHora(tentativa + 1), 2000);
+        return;
+      }
+
+      horaFaladaRef.current = chave;
+      falandoRef.current = true;
+      setFalando(true);
+      setPrecisaToque(false);
+      try {
+        await falarTextoLocutorTv(montarFalaHoraAtual(agora, locale), locale, "movida");
+      } finally {
+        falandoRef.current = false;
+        setFalando(false);
+      }
+    },
+    [locale, locutorIaAtivo]
   );
 
   useEffect(() => {
@@ -69,19 +105,51 @@ export function useLocutorTv(ordens: OrdemServicoTv[], dadosCarregados: boolean)
     if (!locutorIaAtivo || !dadosCarregados) return;
     const timer = window.setInterval(() => {
       chaveFaladaRef.current = "";
-      void falar();
+      void falarTrabalhos();
     }, INTERVALO_LOCUTOR_TV_MS);
     return () => window.clearInterval(timer);
-  }, [dadosCarregados, falar, locutorIaAtivo]);
+  }, [dadosCarregados, falarTrabalhos, locutorIaAtivo]);
 
   useEffect(() => {
     if (!locutorIaAtivo || !dadosCarregados || precisaToque) return;
     if (!resumo.chave || resumo.chave === chaveFaladaRef.current) return;
     const timer = window.setTimeout(() => {
-      void falar();
+      void falarTrabalhos();
     }, 1200);
     return () => window.clearTimeout(timer);
-  }, [dadosCarregados, falar, locutorIaAtivo, precisaToque, resumo.chave]);
+  }, [dadosCarregados, falarTrabalhos, locutorIaAtivo, precisaToque, resumo.chave]);
+
+  useEffect(() => {
+    if (!locutorIaAtivo) return;
+
+    let timeoutId = 0;
+    let cancelled = false;
+
+    const agendarProximaHora = () => {
+      timeoutId = window.setTimeout(() => {
+        if (cancelled) return;
+        void falarHora();
+        if (!cancelled) agendarProximaHora();
+      }, msAteProximaHoraCheia());
+    };
+
+    const agora = new Date();
+    if (agora.getMinutes() === 0 && locutorDeveAnunciarHora(agora)) {
+      void falarHora();
+    }
+    agendarProximaHora();
+
+    const pollId = window.setInterval(() => {
+      const atual = new Date();
+      if (atual.getMinutes() === 0) void falarHora();
+    }, 20_000);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+      window.clearInterval(pollId);
+    };
+  }, [falarHora, locutorIaAtivo]);
 
   useEffect(() => () => pararFalaLocutorTv(), []);
 
@@ -91,7 +159,11 @@ export function useLocutorTv(ordens: OrdemServicoTv[], dadosCarregados: boolean)
     ttsDisponivel: ttsDisponivelLocutorTv(),
     falarAgora: () => {
       chaveFaladaRef.current = "";
-      return falar(true);
+      if (!locutorDentroDoHorarioAviso()) {
+        desbloquearAudioLocutorTv();
+        return Promise.resolve();
+      }
+      return falarTrabalhos(true);
     },
   };
 }

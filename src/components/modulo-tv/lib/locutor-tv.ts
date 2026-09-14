@@ -1,7 +1,7 @@
 "use client";
 
 import { classificarPrazoTv } from "@/components/modulo-tv/lib/prazo-categoria";
-import { playTvSound } from "@/components/modulo-tv/lib/tv-sounds";
+import { playTvSound, type TvSoundType } from "@/components/modulo-tv/lib/tv-sounds";
 import type { OrdemServicoTv } from "@/components/modulo-tv/types";
 import type { Locale } from "@/lib/i18n";
 
@@ -299,12 +299,61 @@ function escolherVoz(locale: Locale) {
   return ordenadas[0] ?? null;
 }
 
-const INICIO_AVISO_MINUTOS = 8 * 60 + 30;
+const INICIO_AVISO_TRABALHO_MINUTOS = 8 * 60 + 30;
 const FIM_AVISO_MINUTOS = 18 * 60;
+const INICIO_RELOGIO_HORA = 8;
+const FIM_RELOGIO_HORA = 18;
 
 export function locutorDentroDoHorarioAviso(agora = new Date()) {
   const minutos = agora.getHours() * 60 + agora.getMinutes();
-  return minutos >= INICIO_AVISO_MINUTOS && minutos <= FIM_AVISO_MINUTOS;
+  return minutos >= INICIO_AVISO_TRABALHO_MINUTOS && minutos <= FIM_AVISO_MINUTOS;
+}
+
+export function locutorDeveAnunciarHora(agora = new Date()) {
+  const hora = agora.getHours();
+  return hora >= INICIO_RELOGIO_HORA && hora <= FIM_RELOGIO_HORA;
+}
+
+export function chaveHoraCheiaLocutor(agora = new Date()) {
+  return `${agora.getFullYear()}-${agora.getMonth()}-${agora.getDate()}-${agora.getHours()}`;
+}
+
+export function msAteProximaHoraCheia(agora = new Date()) {
+  const proxima = new Date(agora.getTime());
+  proxima.setSeconds(0, 0);
+  proxima.setMinutes(0);
+  proxima.setHours(proxima.getHours() + 1);
+  return Math.max(proxima.getTime() - agora.getTime(), 250);
+}
+
+export function montarFalaHoraAtual(agora = new Date(), locale: Locale = "pt") {
+  const hora = agora.getHours();
+
+  if (locale === "en") {
+    if (hora === 12) return escolher(["It's noon.", "12 o'clock."]);
+    return escolher([`It's ${hora} o'clock.`, `The time is ${hora}.`]);
+  }
+
+  if (locale === "es") {
+    if (hora === 1) return escolher(["Es la 1.", "La 1 en punto."]);
+    if (hora === 12) return escolher(["Es mediodía.", "Las 12 en punto."]);
+    return escolher([`Son las ${hora}.`, `Marca las ${hora} horas.`]);
+  }
+
+  if (hora === 12) {
+    return escolher(["São meio-dia.", "Meio-dia em ponto.", "Pessoal, meio-dia."]);
+  }
+  if (hora === 18) {
+    return escolher(["São 18 horas.", "18 horas em ponto.", "Pessoal, 18 horas."]);
+  }
+
+  const periodo = hora < 12 ? "da manhã" : "da tarde";
+  return escolher([
+    `São ${hora} horas.`,
+    `Agora são ${hora} ${periodo}.`,
+    `Pessoal, ${hora} horas.`,
+    `${hora} horas em ponto.`,
+  ]);
 }
 
 export function ttsDisponivelLocutorTv() {
@@ -321,7 +370,21 @@ export function carregarVozesLocutorTv() {
   window.speechSynthesis.getVoices();
 }
 
-export function falarTextoLocutorTv(texto: string, locale: Locale = "pt"): Promise<void> {
+export function desbloquearAudioLocutorTv() {
+  if (typeof window === "undefined") return;
+  playTvSound("movida");
+  if (!ttsDisponivelLocutorTv()) return;
+  const utt = new SpeechSynthesisUtterance(".");
+  utt.volume = 0;
+  utt.rate = 2;
+  window.speechSynthesis.speak(utt);
+}
+
+export function falarTextoLocutorTv(
+  texto: string,
+  locale: Locale = "pt",
+  som: TvSoundType | false = "alerta"
+): Promise<void> {
   return new Promise((resolve) => {
     if (!ttsDisponivelLocutorTv() || !texto.trim()) {
       resolve();
@@ -330,7 +393,7 @@ export function falarTextoLocutorTv(texto: string, locale: Locale = "pt"): Promi
 
     const synth = window.speechSynthesis;
     synth.cancel();
-    playTvSound("alerta");
+    if (som) playTvSound(som);
 
     const iniciar = () => {
       const utt = new SpeechSynthesisUtterance(texto);
