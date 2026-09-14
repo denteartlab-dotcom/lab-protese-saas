@@ -105,7 +105,7 @@ O app envia `Cache-Control: no-store` em páginas dinâmicas. Configure no Cloud
 
 **Regra 4 — Webhooks (POST)**
 
-- When: URI Path is `/api/mercadopago/webhook` OR `/api/asaas/webhook` OR `/api/whatsapp/webhook`
+- When: URI Path is `/api/mercadopago/webhook` OR `/api/asaas/webhook` OR `/api/whatsapp/webhook` OR `/api/google-drive/webhook`
 - Then: **Bypass cache**
 
 ### 7. Atualizar `.env` na VPS

@@ -119,6 +119,7 @@ function origemApiPermitida(request: NextRequest): boolean {
     pathname === "/api/mercadopago/webhook" ||
     pathname === "/api/asaas/webhook" ||
     pathname === "/api/whatsapp/webhook" ||
+    pathname === "/api/google-drive/webhook" ||
     pathname === "/api/asaas/autorizacao-saque"
   ) {
     return true;
@@ -357,7 +358,8 @@ export async function middleware(request: NextRequest) {
     pathname === "/api/mercadopago/webhook" ||
     pathname === "/api/asaas/webhook" ||
     pathname === "/api/asaas/autorizacao-saque" ||
-    pathname === "/api/whatsapp/webhook"
+    pathname === "/api/whatsapp/webhook" ||
+    pathname === "/api/google-drive/webhook"
   ) {
     return nextComCsp(request, nonce);
   }

@@ -85,6 +85,22 @@ O servidor ainda está usando só a service account. Confira:
 
 Shared Drive + service account como Gerenciador de conteúdo — ver histórico do guia. Sem Workspace, use OAuth acima.
 
+## Aviso automático (apagar no Drive → some da OS)
+
+O servidor registra um webhook no Drive (`/api/google-drive/webhook`). Quando o arquivo é excluído ou vai para a lixeira, o Google avisa e a linha some da OS.
+
+O canal do Drive dura menos de 1 dia e o sistema **renova sozinho**. Se o Google recusar o webhook, o sistema **consulta a pasta a cada 1 minuto** e limpa a OS mesmo assim.
+
+### Para o aviso em tempo real funcionar
+
+1. `URL_PUBLICA_DO_APP=https://www.denteartlab.com.br` (HTTPS público).
+2. Google Cloud Console → **APIs e serviços** → **Verificação de domínio** → adicione `denteartlab.com.br` (o mesmo domínio do site).
+3. Reinicie o PM2. Confira: `curl -s https://www.denteartlab.com.br/api/google-drive/webhook`
+
+`watchAtivo: true` = o Drive está avisando. `false` = só a consulta a cada 1 min (ainda automático).
+
+Para desligar o webhook (mantém a consulta): `GOOGLE_DRIVE_WATCH_ENABLED=false`.
+
 ## Segurança
 
 Não compartilhe o JSON da service account nem o refresh token. Se vazou, revogue em  

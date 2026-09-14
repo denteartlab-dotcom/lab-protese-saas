@@ -28,6 +28,7 @@ import {
 import { iniciarLimpezaSuporteInativo } from "./src/lib/suporte/suporte-limpeza";
 import { notificarPresencaTv } from "./src/lib/tv/notificar-presenca-tv";
 import { iniciarBackupAutomaticoDiario } from "./src/lib/backup-automatico";
+import { iniciarSincronizacaoMudancasGoogleDrive } from "./src/lib/google-drive-changes";
 import { iniciarLimpezaContasInativasDiaria } from "./src/lib/exclusao-empresa";
 import { backupAutomaticoHabilitadoNoServidor } from "./src/lib/backup-automatico-servidor";
 import {
@@ -451,6 +452,7 @@ app
           iniciarLimpezaContasInativasDiaria();
           iniciarLimpezaSuporteInativo();
           void retomarCampanhasPendentesServidor();
+          void iniciarSincronizacaoMudancasGoogleDrive();
         }, delayJobsMs);
       });
     };
