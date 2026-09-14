@@ -172,7 +172,7 @@ const pt = {
   "producao.tv.setores.inicioTitulo": "Trabalhos por setor",
   "producao.tv.setores.etapasDe": "Etapas",
   "producao.tv.setores.selectDica":
-    "Escolha o setor para ver as etapas daquele quadro.",
+    "Selecione Gesso, CAD/CAM, Resina ou Cerâmica para ver as etapas daquele setor.",
   "producao.tv.setores.semEtapas":
     "Cadastre etapas neste setor em Cadastros → Etapas.",
   "producao.tv.setores.outras": "Fora do fluxo",
@@ -407,7 +407,7 @@ const en: Record<keyof typeof pt, string> = {
   "producao.tv.setores.inicioTitulo": "Jobs by sector",
   "producao.tv.setores.etapasDe": "Stages",
   "producao.tv.setores.selectDica":
-    "Choose a sector to see that board's stages.",
+    "Select Gesso, CAD/CAM, Resin or Ceramic to see that sector's stages.",
   "producao.tv.setores.semEtapas":
     "Register stages for this sector in Records → Stages.",
   "producao.tv.setores.outras": "Off flow",
@@ -642,7 +642,7 @@ const es: Record<keyof typeof pt, string> = {
   "producao.tv.setores.inicioTitulo": "Trabajos por sector",
   "producao.tv.setores.etapasDe": "Etapas",
   "producao.tv.setores.selectDica":
-    "Elija el sector para ver las etapas de ese tablero.",
+    "Elija Yeso, CAD/CAM, Resina o Cerámica para ver las etapas de ese sector.",
   "producao.tv.setores.semEtapas":
     "Registre etapas de este sector en Registros → Etapas.",
   "producao.tv.setores.outras": "Fuera del flujo",

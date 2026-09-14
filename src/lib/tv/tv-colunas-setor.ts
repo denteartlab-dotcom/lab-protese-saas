@@ -5,6 +5,10 @@ import {
   corSetorPorNome,
   type SetorCadastro,
 } from "@/lib/setores-cadastro";
+import {
+  etapasPadraoDoSetor,
+  SETORES_PADRAO_TV,
+} from "@/lib/tv/tv-setores-padrao";
 
 export const VISTA_TV_TODOS = "todos";
 export const ID_COLUNA_OUTRAS_SETOR = "__setor_outras__";
@@ -38,6 +42,33 @@ export function etapasCadastroDoSetor(
     resultado.push(etapa);
   }
   return resultado;
+}
+
+/** Completa setores/etapas do cadastro com Gesso, CAD/CAM, Resina e Cerâmica. */
+export function mesclarLayoutTvComPadroes(
+  layout: TvLayoutSetores
+): TvLayoutSetores {
+  const setores: SetorCadastro[] = [...layout.setores];
+  for (const padrao of SETORES_PADRAO_TV) {
+    if (setores.some((item) => chaveNomeTv(item.nome) === chaveNomeTv(padrao.nome))) {
+      continue;
+    }
+    setores.push(padrao);
+  }
+
+  const etapas: EtapaCadastro[] = [...layout.etapas];
+  for (const setor of setores) {
+    if (etapasCadastroDoSetor(setor.nome, etapas).length > 0) continue;
+    etapas.push(...etapasPadraoDoSetor(setor.nome, chaveNomeTv(setor.nome)));
+  }
+
+  return { setores, etapas };
+}
+
+export function etapaAtualDaOrdemTv(ordem: OrdemServicoTv) {
+  if (ordem.etapaNome?.trim()) return nomeEtapaSemSetor(ordem.etapaNome);
+  const status = (ordem.status || "").split(" · ")[0] || "";
+  return nomeEtapaSemSetor(status);
 }
 
 export function idColunaEtapaSetor(etapa: EtapaCadastro) {
@@ -77,7 +108,7 @@ export function setorNomeDaOrdemTv(
     if (setor) return setor.nome;
   }
 
-  const chaveEtapa = chaveNomeTv(ordem.etapaNome || "");
+  const chaveEtapa = chaveNomeTv(etapaAtualDaOrdemTv(ordem));
   if (!chaveEtapa) return "";
   const etapa = layout.etapas.find((item) => {
     if (!item.setor?.trim()) return false;
@@ -175,7 +206,10 @@ export function ordemVisivelNoSetorTv(
       chaveNomeTv(etapa.nome)
     )
   );
-  return Boolean(ordem.etapaNome && nomes.has(chaveNomeTv(ordem.etapaNome)));
+  return Boolean(
+    chaveNomeTv(etapaAtualDaOrdemTv(ordem)) &&
+      nomes.has(chaveNomeTv(etapaAtualDaOrdemTv(ordem)))
+  );
 }
 
 export function colunaIdOrdemNoSetorTv(
@@ -184,7 +218,7 @@ export function colunaIdOrdemNoSetorTv(
   layout: TvLayoutSetores
 ) {
   const etapas = etapasCadastroDoSetor(setorNome, layout.etapas);
-  const chaveEtapa = chaveNomeTv(ordem.etapaNome || "");
+  const chaveEtapa = chaveNomeTv(etapaAtualDaOrdemTv(ordem));
   if (chaveEtapa) {
     const etapa = etapas.find((item) => chaveNomeTv(item.nome) === chaveEtapa);
     if (etapa) return idColunaEtapaSetor(etapa);
@@ -210,7 +244,6 @@ export function idColunaDaOrdemNaVista(
   if (vista !== VISTA_TV_TODOS) {
     return colunaIdOrdemNoSetorTv(ordem, vista, layout);
   }
-  if (layout.setores.length === 0) return ordem.coluna;
   return colunaIdDaOrdemVisaoGeral(ordem, layout);
 }
 
@@ -221,7 +254,6 @@ export function colunasKanbanDaVista(
   ordensVista: OrdemServicoTv[] = []
 ): ColunaKanbanConfig[] {
   if (vista === VISTA_TV_TODOS) {
-    if (layout.setores.length === 0) return COLUNAS_KANBAN;
     return montarColunasVisaoGeralTv(layout, rotulos.semSetor, ordensVista);
   }
   const colunas = montarColunasDoSetorTv(vista, layout, rotulos.outras);

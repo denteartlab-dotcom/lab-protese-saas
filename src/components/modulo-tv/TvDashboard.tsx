@@ -16,9 +16,9 @@ import {
   chaveNomeTv,
   colunasKanbanDaVista,
   colunaIdDaOrdemVisaoGeral,
-  etapasCadastroDoSetor,
   idColunaDaOrdemNaVista,
   idColunaSetorVista,
+  mesclarLayoutTvComPadroes,
   ordemVisivelNoSetorTv,
   resolverSetorVistaTv,
   VISTA_TV_TODOS,
@@ -53,10 +53,11 @@ export function TvDashboard() {
   } = useTvDashboard();
 
   const layout = useMemo<TvLayoutSetores>(
-    () => ({
-      setores: layoutSetores.setores ?? [],
-      etapas: layoutSetores.etapas ?? [],
-    }),
+    () =>
+      mesclarLayoutTvComPadroes({
+        setores: layoutSetores.setores ?? [],
+        etapas: layoutSetores.etapas ?? [],
+      }),
     [layoutSetores]
   );
 
@@ -105,12 +106,7 @@ export function TvDashboard() {
     return mapa;
   }, [layout, ordens]);
 
-  const fluxoClassico = layout.setores.length === 0;
-  const permitirArrastar = vista === VISTA_TV_TODOS && fluxoClassico;
-
-  const semEtapasSetor =
-    vista !== VISTA_TV_TODOS &&
-    etapasCadastroDoSetor(vista, layout.etapas).length === 0;
+  const permitirArrastar = false;
 
   const [socketServidorAtivo, setSocketServidorAtivo] = useState<boolean | null>(null);
 
@@ -245,27 +241,19 @@ export function TvDashboard() {
                 {ordensVista.length} {t("producao.tv.osAtivas")}
               </p>
             </div>
-            {semEtapasSetor && !carregando ? (
-              <div className="flex min-h-0 flex-1 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] px-6 text-center text-sm text-slate-400">
-                {t("producao.tv.setores.semEtapas")}
-              </div>
-            ) : (
-              <div className="min-h-0 flex-1 overflow-hidden">
-                <TvKanbanBoard
-                  ordens={ordensVista}
-                  colunas={colunas}
-                  colunaIdPorOrdem={colunaIdPorOrdem}
-                  permitirArrastar={permitirArrastar}
-                  carregando={carregando}
-                  onMoverOrdem={moverOrdem}
-                  onAbrirSetor={
-                    vista === VISTA_TV_TODOS && !fluxoClassico
-                      ? setVistaSetor
-                      : undefined
-                  }
-                />
-              </div>
-            )}
+            <div className="min-h-0 flex-1 overflow-hidden">
+              <TvKanbanBoard
+                ordens={ordensVista}
+                colunas={colunas}
+                colunaIdPorOrdem={colunaIdPorOrdem}
+                permitirArrastar={permitirArrastar}
+                carregando={carregando}
+                onMoverOrdem={moverOrdem}
+                onAbrirSetor={
+                  vista === VISTA_TV_TODOS ? setVistaSetor : undefined
+                }
+              />
+            </div>
           </main>
         </div>
 
