@@ -37,7 +37,7 @@ export function PainelUrgenciasClienteDashboard({
   const total = lista.length;
 
   return (
-    <section className="rounded-lg border border-red-200 bg-white shadow-sm">
+    <section className="ui-panel border-red-200">
       <button
         type="button"
         onClick={() => setAberto((v) => !v)}

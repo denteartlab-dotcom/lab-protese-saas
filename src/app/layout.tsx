@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import Script from "next/script";
 import { headers } from "next/headers";
 import { LabConfigProvider } from "@/components/LabConfigProvider";
@@ -13,6 +14,13 @@ import { getSession } from "@/lib/auth";
 import { carregarConfigLaboratorioServidor } from "@/lib/lab-config-servidor";
 import { configParaLabImpressao } from "@/lib/lab-logo";
 import "./globals.css";
+
+const fonteApp = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-sans",
+  weight: ["400", "500", "600", "700", "800"],
+});
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +47,7 @@ export default async function RootLayout({
   const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   return (
-    <html lang="pt-BR" suppressHydrationWarning>
+    <html lang="pt-BR" className={fonteApp.variable} suppressHydrationWarning>
       <head>
         <Script
           id="aplicar-tema-inicial"
@@ -174,7 +182,7 @@ export default async function RootLayout({
           }}
         />
       </head>
-      <body>
+      <body className={fonteApp.className}>
         <LabConfigProvider lab={lab} configLaboratorio={configLaboratorio}>
           <I18nRoot>
             <LabDocumentHead />

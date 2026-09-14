@@ -5,7 +5,7 @@ function Bloco({ className = "" }: { className?: string }) {
 function PainelSkeleton({ alto = "min-h-[118px]" }: { alto?: string }) {
   return (
     <div
-      className={`rounded border border-slate-200 bg-white px-4 pb-3 pt-3 shadow-sm ${alto}`}
+      className={`rounded-2xl border border-teal-900/10 bg-white shadow-panel px-4 pb-3 pt-3 shadow-sm ${alto}`}
     >
       <Bloco className="mb-4 h-4 w-32" />
       <div className="flex justify-center gap-6">
@@ -18,7 +18,7 @@ function PainelSkeleton({ alto = "min-h-[118px]" }: { alto?: string }) {
 
 function PainelEstoqueSkeleton() {
   return (
-    <div className="relative min-h-[118px] rounded border border-slate-200 bg-white px-4 pb-3 pt-3 shadow-sm">
+    <div className="relative min-h-[118px] rounded-2xl border border-teal-900/10 bg-white shadow-panel px-4 pb-3 pt-3 shadow-sm">
       <div className="flex items-start justify-between gap-2">
         <Bloco className="h-4 w-16" />
         <Bloco className="h-6 w-28 rounded" />
@@ -46,7 +46,7 @@ function PainelEstoqueSkeleton() {
 export function DashboardWidgetSkeleton({ alto = "min-h-[180px]" }: { alto?: string }) {
   return (
     <div
-      className={`rounded border border-slate-200 bg-white px-4 pb-3 pt-3 shadow-sm ${alto}`}
+      className={`rounded-2xl border border-teal-900/10 bg-white shadow-panel px-4 pb-3 pt-3 shadow-sm ${alto}`}
       aria-busy="true"
     >
       <Bloco className="mb-4 h-4 w-32" />
@@ -68,7 +68,7 @@ export function DashboardInicioSkeleton() {
         <Bloco className="h-4 w-16" />
       </div>
 
-      <Bloco className="h-16 w-full rounded border border-slate-200 bg-white" />
+      <Bloco className="h-16 w-full rounded-2xl border border-teal-900/10 bg-white shadow-panel" />
 
       <div className="grid gap-4 lg:grid-cols-3">
         <PainelSkeleton />

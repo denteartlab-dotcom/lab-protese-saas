@@ -81,7 +81,7 @@ export function PainelAnotacoesDashboard({
   }
 
   return (
-    <section className="rounded border border-slate-200 bg-white shadow-sm dark:border-slate-700">
+    <section className="ui-panel dark:border-slate-700">
       <div className="flex min-h-10 items-center justify-between border-b border-slate-100 px-4 py-2 dark:border-slate-700">
         <h2 className="text-sm font-medium text-slate-700">{titulo}</h2>
       </div>

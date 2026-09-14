@@ -56,8 +56,8 @@ export function PainelUploadsDashboard({
   return (
     <section
       className={cn(
-        "rounded border bg-white shadow-sm",
-        galeriaEmAlerta ? "border-red-200" : "border-slate-200"
+        "ui-panel",
+        galeriaEmAlerta ? "border-red-200" : ""
       )}
     >
       <div className="flex min-h-10 items-center justify-between border-b border-slate-100 px-4 py-2">

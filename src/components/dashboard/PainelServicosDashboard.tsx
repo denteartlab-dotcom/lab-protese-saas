@@ -105,7 +105,7 @@ export function PainelServicosDashboard({
 
   return (
     <div
-      className={`relative rounded border border-slate-200 bg-white shadow-sm ${
+      className={`ui-panel relative ${
         expandido ? "min-h-[360px]" : "min-h-[118px]"
       }`}
     >

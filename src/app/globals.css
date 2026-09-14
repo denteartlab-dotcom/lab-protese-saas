@@ -28,9 +28,13 @@ html.modo-tv-producao {
 
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-900 antialiased;
+    @apply bg-[#e8f2f3] font-sans text-slate-800 antialiased;
     min-height: calc(100vh / var(--site-zoom));
     min-height: calc(100dvh / var(--site-zoom));
+    background-image:
+      radial-gradient(1200px 520px at 110% -8%, rgba(20, 184, 166, 0.18), transparent 58%),
+      radial-gradient(900px 420px at -12% 0%, rgba(14, 165, 233, 0.12), transparent 52%);
+    background-attachment: fixed;
   }
 
   body.site-editor-tela-cheia {
@@ -40,6 +44,9 @@ html.modo-tv-producao {
 
   .dark body {
     @apply bg-slate-950 text-slate-100;
+    background-image:
+      radial-gradient(900px 400px at 100% 0%, rgba(20, 184, 166, 0.12), transparent 50%),
+      radial-gradient(700px 360px at 0% 0%, rgba(56, 189, 248, 0.08), transparent 48%);
   }
 
   /* Evita arrastar texto de um input e soltar em outro campo */
@@ -52,28 +59,31 @@ html.modo-tv-producao {
 }
 
 @layer utilities {
+  .ui-panel {
+    @apply rounded-2xl border border-teal-900/[0.08] bg-white shadow-panel dark:border-slate-700 dark:bg-slate-900;
+  }
+
   .gradient-hero {
-    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 50%, #0ea5e9 100%);
+    background: linear-gradient(135deg, #134e4a 0%, #0d9488 48%, #22d3ee 100%);
   }
 
   .landing-gradient-hero {
     background: linear-gradient(
       145deg,
-      #312e81 0%,
-      #4338ca 28%,
-      #4f46e5 48%,
-      #2563eb 72%,
-      #0ea5e9 100%
+      #042f2e 0%,
+      #0f766e 28%,
+      #14b8a6 52%,
+      #0891b2 78%,
+      #67e8f9 100%
     );
   }
 
   .landing-gradient-band {
     background: linear-gradient(
       120deg,
-      #3730a3 0%,
-      #4f46e5 35%,
-      #6366f1 55%,
-      #2563eb 100%
+      #115e59 0%,
+      #0d9488 38%,
+      #22d3ee 100%
     );
   }
 
@@ -136,26 +146,28 @@ html.modo-tv-producao {
 
 /* Login: cobre a tela sem distorcer; usa o PNG original de /public */
 @layer components {
-  /* Barra superior full-width — estreita, fundo cinza (Smart Prótese) */
+  /* Barra superior — fundo claro com brilho teal para o logo escuro continuar legível */
   .site-topo-marca {
     width: 100%;
     background: linear-gradient(
       90deg,
-      #e8eaed 0%,
-      #f2f4f6 45%,
-      #eef2f6 100%
+      #d7ecee 0%,
+      #eef6f7 42%,
+      #e4eef6 100%
     );
+    box-shadow: inset 0 -1px 0 rgba(13, 148, 136, 0.12);
     line-height: normal;
   }
 
-  /* Mesmo tom do menu abaixo (slate-900) — evita “caixa” clara no logo */
   .dark .site-topo-marca {
-    background: #0f172a;
+    background: linear-gradient(90deg, #07161c 0%, #0b1f26 50%, #0a2428 100%);
+    box-shadow: inset 0 -1px 0 rgba(45, 212, 191, 0.12);
   }
 
   .dark .site-topo-marca .site-topo-marca__logo {
     background: transparent;
-    mix-blend-mode: multiply;
+    mix-blend-mode: normal;
+    filter: brightness(1.08);
   }
 
   .login-hero-shell {

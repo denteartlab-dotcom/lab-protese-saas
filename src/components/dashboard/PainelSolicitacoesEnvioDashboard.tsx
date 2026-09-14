@@ -239,7 +239,7 @@ export function PainelSolicitacoesEnvioDashboard({
 
   return (
     <>
-      <section className="rounded-lg border border-emerald-200 bg-white shadow-sm">
+      <section className="ui-panel border-emerald-200">
         <button
           type="button"
           onClick={() => setAberto((v) => !v)}

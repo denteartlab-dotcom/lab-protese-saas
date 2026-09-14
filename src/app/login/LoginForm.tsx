@@ -506,19 +506,20 @@ export function LoginForm({
     : logoLab || (!labIdentificado ? brandingInicial.lab.logoDataUrl : "");
 
   const inputCls =
-    "h-8 w-full rounded border border-slate-200 bg-white px-3 text-xs text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15";
+    "h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20";
 
   return (
-    <div className="login-hero relative flex flex-1 flex-col items-center justify-center overflow-hidden bg-[#0a2f6e] px-4 py-8">
+    <div className="login-hero relative flex flex-1 flex-col items-center justify-center overflow-hidden bg-[#062226] px-4 py-8">
       <img
         src="/images/login-background.png"
         alt=""
         fetchPriority="high"
         decoding="async"
-        className="login-hero__bg pointer-events-none select-none"
+        className="login-hero__bg pointer-events-none select-none opacity-80"
       />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-teal-950/70 via-cyan-900/35 to-slate-950/55" />
 
-      <div className="relative z-10 w-full max-w-[300px] rounded-xl bg-white p-6 shadow-2xl">
+      <div className="relative z-10 w-full max-w-[320px] rounded-2xl border border-white/40 bg-white/95 p-6 shadow-[0_30px_80px_-20px_rgba(6,34,38,0.65)] backdrop-blur-sm">
         <div className="mb-5 flex flex-col items-center gap-1.5 text-center">
           {logoSrc ? (
             <img
@@ -533,7 +534,7 @@ export function LoginForm({
             />
           ) : labIdentificado && nomeLaboratorio ? (
             <div
-              className="flex items-center justify-center rounded-xl bg-blue-50 font-bold text-blue-600"
+              className="flex items-center justify-center rounded-xl bg-teal-50 font-bold text-teal-700"
               style={{
                 width: logoLogin.largura,
                 height: logoLogin.altura,
@@ -638,7 +639,7 @@ export function LoginForm({
             <div className="flex justify-end">
               <a
                 href="/recuperar-senha"
-                className="text-[10px] font-medium text-blue-600 hover:underline"
+                className="text-[10px] font-medium text-primary-700 hover:underline"
               >
                 Esqueceu sua senha?
               </a>
@@ -654,7 +655,7 @@ export function LoginForm({
                 setLembrarSenha(marcado);
                 if (!marcado) limparLembrarLogin();
               }}
-              className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              className="h-3.5 w-3.5 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
               disabled={loading}
             />
             {t("login.lembrarSenha")}
@@ -668,7 +669,7 @@ export function LoginForm({
           ) : null}
 
           {empresasDisponiveis.length > 1 ? (
-            <div className="space-y-1 rounded border border-blue-100 bg-blue-50/80 p-3">
+            <div className="space-y-1 rounded-lg border border-primary-100 bg-primary-50/80 p-3">
               <p className="text-[10px] font-medium text-slate-700">Laboratório</p>
               <select
                 value={empresaSlugSelecionado}
@@ -692,7 +693,7 @@ export function LoginForm({
           <button
             type="submit"
             disabled={loading}
-            className="h-8 w-full rounded bg-blue-600 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="h-9 w-full rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 text-xs font-semibold text-white shadow-nav transition hover:from-teal-600 hover:to-cyan-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading ? t("login.entrando") : t("login.entrar")}
           </button>

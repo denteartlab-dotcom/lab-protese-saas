@@ -113,19 +113,19 @@ type LancamentoBuscaOs = {
   trabalho?: { numeroOs?: number | null } | null;
 };
 
-/** Estilo do menu principal (referência Smart Prótese). */
+/** Estilo do menu principal — pílula teal no item ativo. */
 const CLASSE_NAV_MENU =
-  "flex items-center gap-2 rounded px-3 py-2 text-[14px] leading-none transition";
+  "flex items-center gap-2 rounded-full px-3.5 py-2 text-[13px] leading-none tracking-tight transition";
 const CLASSE_NAV_ATIVO =
-  "bg-[#5c85d6] font-bold text-white shadow-[0_2px_4px_rgba(0,0,0,0.1)]";
+  "bg-gradient-to-r from-teal-500 to-cyan-500 font-semibold text-white shadow-nav";
 const CLASSE_NAV_INATIVO =
-  "font-normal text-[#555566] hover:bg-black/[0.04] hover:text-[#444455] dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-slate-100";
+  "font-medium text-slate-600 hover:bg-teal-50 hover:text-teal-800 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-teal-100";
 const CLASSE_NAV_ICONE = "h-4 w-4 shrink-0";
 const CLASSE_NAV_CHEVRON = "ml-0.5 h-3 w-3 shrink-0 opacity-75";
 const CLASSE_NAV_DROPDOWN =
-  "absolute left-0 top-full z-40 rounded-md border border-slate-200 bg-white py-2 shadow-xl transition dark:border-slate-700 dark:bg-slate-900";
+  "absolute left-0 top-full z-40 rounded-xl border border-teal-900/10 bg-white/95 py-2 shadow-panel backdrop-blur-md transition dark:border-slate-700 dark:bg-slate-900";
 const CLASSE_NAV_DROPDOWN_LINK =
-  "flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-primary-700 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-primary-400";
+  "flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-teal-50 hover:text-primary-700 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-primary-400";
 
 function classeItemNavPrincipal(ativo: boolean) {
   return cn(CLASSE_NAV_MENU, ativo ? CLASSE_NAV_ATIVO : CLASSE_NAV_INATIVO);
@@ -678,10 +678,10 @@ function AppShellInner({
           : isModuloTv
           ? "h-[100vh] w-[100vw] max-w-none overflow-hidden bg-[#070b12]"
           : isRelatorioImersivo
-            ? "min-h-[100vh] w-full bg-[#f4f6f8] dark:bg-slate-950"
+            ? "min-h-[100vh] w-full bg-[#e8f2f3] dark:bg-slate-950"
             : isModuloColaborador
               ? "bg-white dark:bg-slate-950"
-              : "bg-[#f4f6f8] dark:bg-slate-950"
+              : "bg-[#e8f2f3] dark:bg-slate-950"
       )}
     >
       {!isPrint && !isModuloImersivo && (
@@ -716,7 +716,7 @@ function AppShellInner({
                   onClick={toggleTheme}
                   className={cn(
                     "inline-flex h-7 w-7 items-center justify-center rounded-full transition hover:bg-black/5 dark:hover:bg-white/10",
-                    darkMode ? "text-sky-400" : "text-[#3b6ea8]"
+                    darkMode ? "text-teal-300" : "text-teal-700"
                   )}
                   title={darkMode ? t("theme.claro") : t("theme.escuro")}
                   aria-label={darkMode ? t("theme.ativarClaro") : t("theme.ativarEscuro")}
@@ -734,7 +734,7 @@ function AppShellInner({
                   className={cn(
                     "inline-flex h-7 w-7 items-center justify-center rounded-full transition",
                     isDashboard
-                      ? "text-emerald-500 hover:bg-black/5"
+                      ? "text-teal-500 hover:bg-black/5"
                       : "cursor-not-allowed text-slate-300"
                   )}
                   title={isDashboard ? t("barcode.titulo") : t("barcode.somenteInicio")}
@@ -778,7 +778,7 @@ function AppShellInner({
                     <div
                       className={cn(
                         "relative inline-flex h-[57px] w-[57px] shrink-0 items-center justify-center overflow-hidden rounded-full",
-                        temLogoPerfil ? "bg-white ring-1 ring-slate-200/80" : "bg-[#dbeafe] text-[#3b6ea8]"
+                        temLogoPerfil ? "bg-white ring-1 ring-teal-900/10" : "bg-teal-100 text-teal-700"
                       )}
                     >
                       {temLogoPerfil ? (
@@ -792,12 +792,12 @@ function AppShellInner({
                       ) : (
                         <User className="h-6 w-6" />
                       )}
-                      <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[#f2f4f6] bg-emerald-500" />
+                      <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[#eef6f7] bg-teal-400" />
                     </div>
                   </button>
 
                   {userMenuOpen && (
-                    <div className="absolute right-0 top-full z-50 mt-2 w-52 overflow-hidden rounded-lg border border-slate-200 bg-white py-2 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+                    <div className="absolute right-0 top-full z-50 mt-2 w-52 overflow-hidden rounded-2xl border border-teal-900/10 bg-white py-2 shadow-panel dark:border-slate-700 dark:bg-slate-900">
                       <div className="border-b border-slate-100 px-4 pb-3 pt-2 dark:border-slate-800">
                         <p
                           suppressHydrationWarning
@@ -839,7 +839,7 @@ function AppShellInner({
             }
           />
 
-          <header className="hidden border-b border-[#e8eaed] bg-[#f8f9fa] dark:border-slate-700 dark:bg-slate-900 lg:block">
+          <header className="hidden border-b border-teal-900/10 bg-white/80 backdrop-blur-md dark:border-slate-700 dark:bg-slate-900/90 lg:block">
             <nav
               className="flex min-h-[44px] items-center justify-start gap-8 px-5 font-sans antialiased"
               onMouseLeave={fecharMenusNav}

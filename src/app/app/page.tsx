@@ -606,12 +606,12 @@ function PainelEstoque({
   labelOrcamento: string;
 }) {
   return (
-    <div className="relative min-h-[118px] rounded border border-slate-200 bg-white px-4 pb-3 pt-3 shadow-sm">
+    <div className="ui-panel relative min-h-[118px] px-4 pb-3 pt-3">
       <div className="flex items-start justify-between gap-2">
         <p className="text-[13px] font-medium text-slate-700">{titulo}</p>
         <Link
           href="/app/orcamentos"
-          className="shrink-0 rounded border border-[#4a90d9] px-2 py-0.5 text-[10px] font-medium text-[#4a90d9] hover:bg-blue-50"
+          className="shrink-0 rounded-full border border-primary-300 px-2 py-0.5 text-[10px] font-medium text-primary-700 hover:bg-primary-50"
         >
           {labelOrcamento}
         </Link>
@@ -681,7 +681,7 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded border border-slate-200 bg-white shadow-sm">
+    <section className="ui-panel">
       <div className="flex min-h-10 items-center justify-between border-b border-slate-100 px-4 py-2">
         <h2 className="text-sm font-medium text-slate-700">{title}</h2>
         {toolbar && <div className="flex items-center gap-2">{toolbar}</div>}

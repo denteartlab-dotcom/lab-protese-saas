@@ -27,13 +27,15 @@ export function ModuloCabecalho({
   const { t } = useI18n();
 
   return (
-    <div className={`mb-3 flex flex-wrap items-center justify-between gap-3 ${className}`}>
-      <div className="flex flex-wrap items-center gap-1.5 text-slate-500">
-        <Home className="h-3.5 w-3.5 shrink-0" aria-hidden />
+    <div className={`mb-4 flex flex-wrap items-center justify-between gap-3 ${className}`}>
+      <div className="flex flex-wrap items-center gap-1.5 text-[12px] text-slate-500">
+        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white text-teal-700 shadow-sm ring-1 ring-teal-900/10">
+          <Home className="h-3.5 w-3.5 shrink-0" aria-hidden />
+        </span>
         <Link href="/app" className="hover:text-primary-700">
           {t("nav.inicio")}
         </Link>
-        <span>/</span>
+        <span className="text-teal-400/70">/</span>
         {hrefModulo ? (
           <Link href={hrefModulo} className="font-medium text-slate-700 hover:text-primary-700">
             {t(moduloKey)}
@@ -41,8 +43,10 @@ export function ModuloCabecalho({
         ) : (
           <span className="font-medium text-slate-700">{t(moduloKey)}</span>
         )}
-        <span>/</span>
-        <span className="font-medium text-slate-800">{t(tituloKey)}</span>
+        <span className="text-teal-400/70">/</span>
+        <span className="rounded-full bg-white px-2.5 py-0.5 font-semibold text-teal-800 shadow-sm ring-1 ring-teal-900/10">
+          {t(tituloKey)}
+        </span>
       </div>
       {acoes}
     </div>

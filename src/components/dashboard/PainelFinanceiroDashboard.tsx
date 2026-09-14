@@ -38,7 +38,7 @@ export function PainelFinanceiroDashboard({
   const anos = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i);
 
   return (
-    <section className="rounded border border-slate-200 bg-white shadow-sm">
+    <section className="ui-panel">
       <div className="flex min-h-10 items-center justify-between border-b border-slate-100 px-4 py-2">
         <h2 className="text-sm font-medium text-slate-700">{titulo}</h2>
         <div className="flex items-center gap-2">
