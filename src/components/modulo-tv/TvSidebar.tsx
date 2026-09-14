@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { motion } from "framer-motion";
 import { Calendar, Users } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
@@ -12,6 +13,7 @@ import { cn } from "@/lib/utils";
 type Props = {
   stats: TvDashboardStats;
   colaboradores: ColaboradorTv[];
+  children?: ReactNode;
 };
 
 const DONUT_CORES = [
@@ -25,7 +27,7 @@ const DONUT_CORES = [
   },
 ] as const;
 
-export function TvSidebar({ stats, colaboradores }: Props) {
+export function TvSidebar({ stats, colaboradores, children }: Props) {
   const { t } = useI18n();
   const colaboradoresOnline = colaboradores.filter((c) => c.online);
   const donutData = DONUT_CORES.map((d) => ({
@@ -164,6 +166,7 @@ export function TvSidebar({ stats, colaboradores }: Props) {
           </p>
         )}
       </motion.div>
+      {children}
     </aside>
   );
 }

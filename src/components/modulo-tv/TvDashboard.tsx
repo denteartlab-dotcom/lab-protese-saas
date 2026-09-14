@@ -10,6 +10,7 @@ import { useLabConfigClient } from "@/lib/use-lab-config-client";
 import { TvFooter } from "@/components/modulo-tv/TvFooter";
 import { TvHeader } from "@/components/modulo-tv/TvHeader";
 import { TvKanbanBoard } from "@/components/modulo-tv/TvKanbanBoard";
+import { TvLocutorIa } from "@/components/modulo-tv/TvLocutorIa";
 import { TvSidebar } from "@/components/modulo-tv/TvSidebar";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +25,7 @@ export function TvDashboard() {
     relogio,
     dataAtual,
     ordens,
+    ordensBrutas,
     stats,
     colaboradores,
     carregando,
@@ -34,6 +36,7 @@ export function TvDashboard() {
     maioresAtrasos,
     moverOrdem,
     recarregar,
+    dadosCarregados,
   } = useTvDashboard();
 
   const [socketServidorAtivo, setSocketServidorAtivo] = useState<boolean | null>(null);
@@ -151,7 +154,9 @@ export function TvDashboard() {
         ) : null}
 
         <div className="flex min-h-0 w-full max-w-none flex-1 gap-2 overflow-hidden tv-hd:gap-2.5 tv:gap-3">
-          <TvSidebar stats={stats} colaboradores={colaboradores} />
+          <TvSidebar stats={stats} colaboradores={colaboradores}>
+            <TvLocutorIa ordens={ordensBrutas} dadosCarregados={dadosCarregados} />
+          </TvSidebar>
           <main className="min-h-0 min-w-0 w-full max-w-none flex-1 overflow-hidden">
             <TvKanbanBoard
               ordens={ordens}

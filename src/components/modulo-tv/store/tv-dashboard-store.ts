@@ -10,6 +10,7 @@ type TvDashboardState = {
   filtroColaborador: string | null;
   filtroPrioridade: FiltroPrioridade;
   sonsAtivos: boolean;
+  locutorIaAtivo: boolean;
   modoKiosk: boolean;
   fullscreenAuto: boolean;
   novasOsIds: string[];
@@ -17,6 +18,7 @@ type TvDashboardState = {
   setFiltroColaborador: (id: string | null) => void;
   setFiltroPrioridade: (p: FiltroPrioridade) => void;
   setSonsAtivos: (v: boolean) => void;
+  setLocutorIaAtivo: (v: boolean) => void;
   setModoKiosk: (v: boolean) => void;
   setFullscreenAuto: (v: boolean) => void;
   setWsConectado: (v: boolean) => void;
@@ -31,6 +33,7 @@ export const useTvDashboardStore = create<TvDashboardState>()(
       filtroColaborador: null,
       filtroPrioridade: "todas",
       sonsAtivos: false,
+      locutorIaAtivo: false,
       modoKiosk: false,
       fullscreenAuto: true,
       novasOsIds: [],
@@ -39,6 +42,7 @@ export const useTvDashboardStore = create<TvDashboardState>()(
       setFiltroColaborador: (id) => set({ filtroColaborador: id }),
       setFiltroPrioridade: (p) => set({ filtroPrioridade: p }),
       setSonsAtivos: (v) => set({ sonsAtivos: v }),
+      setLocutorIaAtivo: (v) => set({ locutorIaAtivo: v }),
       setModoKiosk: (v) => set({ modoKiosk: v }),
       setFullscreenAuto: (v) => set({ fullscreenAuto: v }),
       setWsConectado: (v) => set({ wsConectado: v }),
@@ -56,7 +60,12 @@ export const useTvDashboardStore = create<TvDashboardState>()(
         if (typeof window === "undefined") return;
         const params = new URLSearchParams(window.location.search);
         if (params.get("kiosk") === "1") {
-          set({ modoKiosk: true, fullscreenAuto: true, sonsAtivos: true });
+          set({
+            modoKiosk: true,
+            fullscreenAuto: true,
+            sonsAtivos: true,
+            locutorIaAtivo: true,
+          });
         }
       },
     }),
@@ -64,6 +73,7 @@ export const useTvDashboardStore = create<TvDashboardState>()(
       name: "tv-dashboard-prefs",
       partialize: (s) => ({
         sonsAtivos: s.sonsAtivos,
+        locutorIaAtivo: s.locutorIaAtivo,
         modoKiosk: s.modoKiosk,
         fullscreenAuto: s.fullscreenAuto,
         filtroColaborador: s.filtroColaborador,
