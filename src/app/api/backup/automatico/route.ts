@@ -16,6 +16,7 @@ import {
 import { googleDriveUploadsConfigurado } from "@/lib/google-drive-uploads";
 import { reagendarBackupAutomaticoEmpresa } from "@/lib/backup-automatico";
 import {
+  backupAutomaticoHabilitadoNoServidor,
   fusoBackupAutomatico,
   garantirPastaBackupEmpresa,
   listarArquivosPastaBackupEmpresa,
@@ -31,6 +32,7 @@ import {
 } from "@/lib/backup-automatico-config";
 import {
   caminhoDriveEmpresa,
+  garantirPastaDriveEmpresa,
   statusGoogleDriveBackup,
   textoStatusUploadDrive,
 } from "@/lib/backup-google-drive";
@@ -42,11 +44,6 @@ const schemaSalvar = z.object({
   ativo: z.boolean(),
   diaSemana: z.number().int().min(0).max(6).nullable(),
 });
-
-function servidorBackupHabilitado() {
-  const flag = process.env.BACKUP_AUTOMATICO_ENABLED;
-  return flag !== "0" && flag !== "false";
-}
 
 function hospedagemVercel() {
   return process.env.VERCEL === "1";
@@ -98,8 +95,7 @@ async function montarStatus(
   opcoes?: MontarStatusOpcoes
 ) {
   const fuso = fusoBackupAutomatico();
-  const config =
-    opcoes?.config ?? (await carregarConfigBackupAutomatico(empresaId));
+  let config = opcoes?.config ?? (await carregarConfigBackupAutomatico(empresaId));
   const leve = opcoes?.leve === true;
 
   if (!leve) {
@@ -107,6 +103,19 @@ async function montarStatus(
       await garantirPastaBackupEmpresa(slug, nome);
     } catch (erro) {
       console.warn("[backup/automatico] pasta local indisponível:", erro);
+    }
+  }
+
+  if (config.ativo && !leve && !config.pastaDriveId) {
+    const pastaDrive = await garantirPastaDriveEmpresa({
+      empresaId,
+      slug,
+      nome,
+    });
+    if (pastaDrive.ok && pastaDrive.criada) {
+      config = await carregarConfigBackupAutomatico(empresaId);
+    } else if (!pastaDrive.ok && pastaDrive.erro && pastaDrive.erro !== "desativado") {
+      console.warn("[backup/automatico] pasta Drive:", pastaDrive.erro);
     }
   }
 
@@ -152,9 +161,9 @@ async function montarStatus(
     config,
     empresaSlug: slug,
     empresaNome: nome,
-    servidorHabilitado: servidorBackupHabilitado(),
+    servidorHabilitado: backupAutomaticoHabilitadoNoServidor(),
     hospedagemVercel: hospedagemVercel(),
-    agendadorInternoAtivo: !hospedagemVercel() && servidorBackupHabilitado(),
+    agendadorInternoAtivo: !hospedagemVercel() && backupAutomaticoHabilitadoNoServidor(),
     pastaPadrao: pastaRelativa,
     pastaUploads: caminhoRelativoUploadsBackupEmpresa(slug, nome),
     uploadsArquivos,
@@ -228,15 +237,30 @@ export async function PUT(request: Request) {
     const empresaId = auth.session!.empresaId;
     const slug = auth.session!.empresaSlug;
     const nome = auth.session!.empresaNome;
-    const config = await salvarConfigBackupAutomatico(empresaId, parsed.data);
+    let config = await salvarConfigBackupAutomatico(empresaId, parsed.data);
     // Só esta empresa — reagendar todas as ativas deixava o botão Salvar lento.
     await reagendarBackupAutomaticoEmpresa(
       { id: empresaId, slug, nome },
       config
     );
-    return NextResponse.json(
-      await montarStatus(empresaId, slug, nome, { config, leve: true })
-    );
+
+    let pastaDrive: Awaited<ReturnType<typeof garantirPastaDriveEmpresa>> | null =
+      null;
+    if (config.ativo) {
+      pastaDrive = await garantirPastaDriveEmpresa({
+        empresaId,
+        slug,
+        nome,
+      });
+      if (pastaDrive.ok) {
+        config = await carregarConfigBackupAutomatico(empresaId);
+      }
+    }
+
+    return NextResponse.json({
+      ...(await montarStatus(empresaId, slug, nome, { config, leve: true })),
+      pastaDrive,
+    });
   } catch (erro) {
     console.error("[backup/automatico PUT]", erro);
     return NextResponse.json(

@@ -68,6 +68,14 @@ type StatusBackupAutomatico = {
       pastaEmpresa?: string | null;
     };
   };
+  pastaDrive?: {
+    ok: boolean;
+    pastaId?: string;
+    pastaNome?: string;
+    caminhoDrive?: string;
+    criada?: boolean;
+    erro?: string;
+  } | null;
 };
 
 const DIAS_SEMANA_KEYS = [
@@ -176,7 +184,27 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
         return;
       }
       setStatusAuto(data as StatusBackupAutomatico);
-      onMensagem?.(t("settings.backupAutoSalvo"), "sucesso");
+      setAutoAtivo(data.config.ativo);
+      setAutoDia(
+        data.config.diaSemana === null ? "todos" : String(data.config.diaSemana)
+      );
+      const pastaDrive = (data as StatusBackupAutomatico).pastaDrive;
+      if (pastaDrive && pastaDrive.ok === false && pastaDrive.erro && pastaDrive.erro !== "desativado") {
+        onMensagem?.(
+          t("settings.backupAutoGdrivePastaErro").replace("{erro}", pastaDrive.erro),
+          "erro"
+        );
+      } else if (pastaDrive?.ok && pastaDrive.criada && pastaDrive.caminhoDrive) {
+        onMensagem?.(
+          t("settings.backupAutoGdrivePastaCriada").replace(
+            "{caminho}",
+            pastaDrive.caminhoDrive
+          ),
+          "sucesso"
+        );
+      } else {
+        onMensagem?.(t("settings.backupAutoSalvo"), "sucesso");
+      }
     } catch {
       onMensagem?.(t("settings.backupAutoErro"), "erro");
     } finally {
@@ -354,6 +382,47 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                         : statusAuto.proximoBackupFormatado ||
                           t("settings.backupAutoProximoPendente")}
                     </p>
+                    {statusAuto?.googleDrive ? (
+                      <div className="mt-2 border-t border-emerald-100 pt-2 dark:border-emerald-800">
+                        {!statusAuto.googleDrive.habilitado ? (
+                          <p className="text-emerald-800 dark:text-emerald-300">
+                            {t("settings.backupAutoGdriveDesligado")}
+                          </p>
+                        ) : !statusAuto.googleDrive.configurado ? (
+                          <p className="text-amber-800 dark:text-amber-300">
+                            {t("settings.backupAutoGdriveNaoConfigurado")}
+                          </p>
+                        ) : (
+                          <>
+                            <p>
+                              <span className="font-semibold">
+                                {t("settings.backupAutoGdrivePastaLabel")}
+                              </span>{" "}
+                              {statusAuto.googleDrive.caminhoEmpresa}
+                            </p>
+                            {statusAuto.googleDrive.statusUpload.tipo === "erro" ? (
+                              <p className="mt-1 text-red-700 dark:text-red-300">
+                                {t("settings.backupAutoGdriveErro").replace(
+                                  "{erro}",
+                                  statusAuto.googleDrive.statusUpload.mensagem
+                                )}
+                              </p>
+                            ) : statusAuto.googleDrive.statusUpload.tipo === "ok" ? (
+                              <p className="mt-1">
+                                {t("settings.backupAutoGdriveUltimo").replace(
+                                  "{quando}",
+                                  statusAuto.googleDrive.statusUpload.mensagem
+                                )}
+                              </p>
+                            ) : (
+                              <p className="mt-1 text-emerald-800 dark:text-emerald-300">
+                                {statusAuto.googleDrive.statusUpload.mensagem}
+                              </p>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    ) : null}
                   </div>
 
                   <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-emerald-950 dark:text-emerald-100">

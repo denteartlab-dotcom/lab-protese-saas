@@ -1,7 +1,4 @@
-import { createReadStream } from "fs";
-import { readFile } from "fs/promises";
 import path from "path";
-import { google } from "googleapis";
 import type { drive_v3 } from "googleapis";
 import {
   caminhoRelativoPastaBackupEmpresa,
@@ -18,22 +15,23 @@ import {
   prisma,
   runWithTenantContext,
 } from "@/lib/db";
+import { carregarEnvArquivoRuntime, envRuntime } from "@/lib/env-runtime";
 import {
-  googleDriveCredenciaisServiceAccountPresentes,
-  googleDriveOAuthConfigurado,
+  buscarPastaPorNome,
+  criarClienteGoogleDrive,
+  escaparConsultaDrive,
+  googleDriveStorageConfigurado,
+  nomePastaRaizGoogleDrive,
+  opcoesDriveCompartilhado,
+  pastaDriveExiste,
+  pastaRaizGoogleDriveId,
+  resolverPastaRaizGoogleDrive,
+  traduzirErroGoogleDrive,
 } from "@/lib/google-drive-shared";
-
-const SCOPES = ["https://www.googleapis.com/auth/drive"];
-const MIME_JSON = "application/json";
-const PASTA_RAIZ_PADRAO = "Lab_Protese_Backups";
-
-const cachePastasDrive = new Map<string, string>();
-
-type CredenciaisServiceAccount = {
-  client_email: string;
-  private_key: string;
-  [key: string]: unknown;
-};
+import {
+  garantirPastaBackupsEmpresaGoogleDrive,
+  uploadArquivoLocalParaPastaGoogleDrive,
+} from "@/lib/google-drive-uploads";
 
 export type StatusGoogleDriveBackup = {
   habilitado: boolean;
@@ -43,238 +41,76 @@ export type StatusGoogleDriveBackup = {
   retencaoDias: number | null;
 };
 
-function flagAtiva(valor?: string | null) {
-  const flag = valor?.trim().toLowerCase();
-  if (!flag) return false;
-  return flag === "1" || flag === "true" || flag === "yes" || flag === "on";
+function flagEnvBackup(valor?: string | null) {
+  return (valor || "").trim().toLowerCase();
 }
 
+function flagDesligaBackup(valor: string) {
+  return valor === "0" || valor === "false" || valor === "no" || valor === "off";
+}
+
+function flagLigaBackup(valor: string) {
+  return valor === "1" || valor === "true" || valor === "yes" || valor === "on";
+}
+
+/** Réplica no Drive: desliga só com false explícito; se a flag faltar, usa as mesmas credenciais dos anexos. */
 export function googleDriveBackupHabilitado() {
-  return flagAtiva(process.env.GOOGLE_DRIVE_BACKUP_ENABLED);
+  carregarEnvArquivoRuntime();
+  const bruto = flagEnvBackup(
+    envRuntime("GOOGLE_DRIVE_BACKUP_ENABLED") ||
+      process.env.GOOGLE_DRIVE_BACKUP_ENABLED
+  );
+  if (flagDesligaBackup(bruto)) return false;
+  if (flagLigaBackup(bruto)) return true;
+  return googleDriveStorageConfigurado();
 }
 
 export function pastaRaizGoogleDriveBackup() {
-  return process.env.GOOGLE_DRIVE_FOLDER_ID?.trim() || null;
+  return pastaRaizGoogleDriveId();
 }
 
 export function nomePastaRaizGoogleDriveBackup() {
-  return process.env.GOOGLE_DRIVE_ROOT_FOLDER_NAME?.trim() || PASTA_RAIZ_PADRAO;
+  return nomePastaRaizGoogleDrive();
 }
 
 export function retencaoGoogleDriveBackupDias() {
-  const bruto = process.env.GOOGLE_DRIVE_RETENTION_DAYS?.trim();
+  carregarEnvArquivoRuntime();
+  const bruto =
+    envRuntime("GOOGLE_DRIVE_RETENTION_DAYS") ||
+    process.env.GOOGLE_DRIVE_RETENTION_DAYS?.trim() ||
+    "";
   if (!bruto) return null;
   const dias = Number.parseInt(bruto, 10);
   return Number.isFinite(dias) && dias > 0 ? dias : null;
 }
 
 export function statusGoogleDriveBackup(): StatusGoogleDriveBackup {
-  const pastaRaizId = pastaRaizGoogleDriveBackup();
   const habilitado = googleDriveBackupHabilitado();
-  const temCredencial =
-    googleDriveOAuthConfigurado() ||
-    googleDriveCredenciaisServiceAccountPresentes();
-
   return {
     habilitado,
-    configurado: habilitado && Boolean(pastaRaizId) && temCredencial,
-    pastaRaizId,
+    configurado: habilitado && googleDriveStorageConfigurado(),
+    pastaRaizId: pastaRaizGoogleDriveBackup(),
     pastaRaizNome: nomePastaRaizGoogleDriveBackup(),
     retencaoDias: retencaoGoogleDriveBackupDias(),
   };
 }
 
-async function lerCredenciaisServiceAccount(): Promise<CredenciaisServiceAccount | null> {
-  const inline = process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON?.trim();
-  if (inline) {
-    try {
-      return JSON.parse(inline) as CredenciaisServiceAccount;
-    } catch {
-      try {
-        const decodificado = Buffer.from(inline, "base64").toString("utf8");
-        return JSON.parse(decodificado) as CredenciaisServiceAccount;
-      } catch {
-        console.error("[backup-drive] GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON inválido.");
-        return null;
-      }
-    }
-  }
-
-  const arquivo = process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim();
-  if (!arquivo) return null;
-
-  try {
-    const conteudo = await readFile(arquivo, "utf8");
-    return JSON.parse(conteudo) as CredenciaisServiceAccount;
-  } catch (erro) {
-    console.error("[backup-drive] falha ao ler GOOGLE_APPLICATION_CREDENTIALS:", erro);
-    return null;
-  }
+export function caminhoDriveEmpresa(slug: string, nome?: string) {
+  const status = statusGoogleDriveBackup();
+  const pastaLocal = caminhoRelativoPastaBackupEmpresa(slug, nome);
+  const pastaEmpresa =
+    pastaLocal.split("/").pop() ?? nomePastaBackupEmpresa(slug, nome);
+  return `${status.pastaRaizNome}/${pastaEmpresa}/backups`;
 }
 
-async function criarClienteDrive() {
-  const { criarClienteGoogleDrive } = await import("@/lib/google-drive-shared");
-  return criarClienteGoogleDrive();
-}
-
-function escaparConsultaDrive(valor: string) {
-  return valor.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-}
-
-function opcoesDriveCompartilhado() {
-  return {
-    supportsAllDrives: true,
-    includeItemsFromAllDrives: true,
-  } as const;
-}
-
-async function pastaDriveExiste(drive: drive_v3.Drive, pastaId: string) {
-  try {
-    await drive.files.get({
-      fileId: pastaId,
-      fields: "id,trashed",
-      supportsAllDrives: true,
-    });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-async function buscarPastaPorNome(
-  drive: drive_v3.Drive,
-  parentId: string,
-  nome: string
-) {
-  const consulta = [
-    `'${escaparConsultaDrive(parentId)}' in parents`,
-    `name='${escaparConsultaDrive(nome)}'`,
-    "mimeType='application/vnd.google-apps.folder'",
-    "trashed=false",
-  ].join(" and ");
-
-  const resposta = await drive.files.list({
-    q: consulta,
-    fields: "files(id,name)",
-    pageSize: 5,
-    ...opcoesDriveCompartilhado(),
+async function nomeEmpresaBackup(empresaId: string, slug: string, nome?: string) {
+  const direto = nome?.trim();
+  if (direto) return direto;
+  const empresa = await prisma.empresa.findUnique({
+    where: { id: empresaId },
+    select: { nome: true },
   });
-
-  return resposta.data.files?.[0]?.id ?? null;
-}
-
-async function obterOuCriarPastaDrive(
-  drive: drive_v3.Drive,
-  parentId: string,
-  nome: string
-) {
-  const chaveCache = `${parentId}:${nome}`;
-  const emCache = cachePastasDrive.get(chaveCache);
-  if (emCache && (await pastaDriveExiste(drive, emCache))) {
-    return emCache;
-  }
-
-  const existente = await buscarPastaPorNome(drive, parentId, nome);
-  if (existente) {
-    cachePastasDrive.set(chaveCache, existente);
-    return existente;
-  }
-
-  const criada = await drive.files.create({
-    requestBody: {
-      name: nome,
-      mimeType: "application/vnd.google-apps.folder",
-      parents: [parentId],
-    },
-    fields: "id",
-    supportsAllDrives: true,
-  });
-
-  const id = criada.data.id;
-  if (!id) throw new Error("Não foi possível criar a pasta no Google Drive.");
-
-  cachePastasDrive.set(chaveCache, id);
-  console.log(`[backup-drive] pasta criada: ${nome} (${id})`);
-  return id;
-}
-
-async function resolverPastaRaizDrive(drive: drive_v3.Drive) {
-  const parentCompartilhado = pastaRaizGoogleDriveBackup();
-  if (!parentCompartilhado) return null;
-
-  const nomeRaiz = nomePastaRaizGoogleDriveBackup();
-  const chaveCache = `root:${parentCompartilhado}:${nomeRaiz}`;
-  const emCache = cachePastasDrive.get(chaveCache);
-  if (emCache && (await pastaDriveExiste(drive, emCache))) {
-    return emCache;
-  }
-
-  const existenteNaRaiz = await buscarPastaPorNome(drive, parentCompartilhado, nomeRaiz);
-  if (existenteNaRaiz) {
-    cachePastasDrive.set(chaveCache, existenteNaRaiz);
-    return existenteNaRaiz;
-  }
-
-  const criada = await obterOuCriarPastaDrive(drive, parentCompartilhado, nomeRaiz);
-  cachePastasDrive.set(chaveCache, criada);
-  return criada;
-}
-
-async function buscarArquivoPorNome(
-  drive: drive_v3.Drive,
-  parentId: string,
-  nomeArquivo: string
-) {
-  const consulta = [
-    `'${escaparConsultaDrive(parentId)}' in parents`,
-    `name='${escaparConsultaDrive(nomeArquivo)}'`,
-    "trashed=false",
-  ].join(" and ");
-
-  const resposta = await drive.files.list({
-    q: consulta,
-    fields: "files(id,name)",
-    pageSize: 1,
-    ...opcoesDriveCompartilhado(),
-  });
-
-  return resposta.data.files?.[0]?.id ?? null;
-}
-
-async function enviarArquivoDrive(
-  drive: drive_v3.Drive,
-  parentId: string,
-  caminhoArquivo: string,
-  nomeArquivo: string
-) {
-  const existente = await buscarArquivoPorNome(drive, parentId, nomeArquivo);
-  const media = {
-    mimeType: MIME_JSON,
-    body: createReadStream(caminhoArquivo),
-  };
-
-  if (existente) {
-    await drive.files.update({
-      fileId: existente,
-      media,
-      supportsAllDrives: true,
-    });
-    return existente;
-  }
-
-  const criado = await drive.files.create({
-    requestBody: {
-      name: nomeArquivo,
-      parents: [parentId],
-    },
-    media,
-    fields: "id",
-    supportsAllDrives: true,
-  });
-
-  const id = criado.data.id;
-  if (!id) throw new Error("Upload no Google Drive não retornou ID do arquivo.");
-  return id;
+  return empresa?.nome?.trim() || slug;
 }
 
 async function limparArquivosAntigosDrive(
@@ -329,7 +165,7 @@ export type ResultadoPastaDriveEmpresa = {
   erro?: string;
 };
 
-/** Garante pasta da empresa no Drive (mesmo nome usado na VPS: backups/{Empresa}/). */
+/** Garante Lab_Protese_Backups/{Empresa}/backups no Drive. */
 export async function garantirPastaDriveEmpresa(params: {
   empresaId: string;
   slug: string;
@@ -343,67 +179,37 @@ export async function garantirPastaDriveEmpresa(params: {
     return { ok: false, erro: "nao_configurado" };
   }
 
-  const drive = await criarClienteDrive();
-  if (!drive) {
-    return { ok: false, erro: "credenciais_invalidas" };
-  }
-
-  let nomeEmpresa = params.nome?.trim();
-  if (!nomeEmpresa) {
-    const empresa = await prisma.empresa.findUnique({
-      where: { id: params.empresaId },
-      select: { nome: true },
-    });
-    nomeEmpresa = empresa?.nome?.trim() || params.slug;
-  }
-
+  const nomeEmpresa = await nomeEmpresaBackup(params.empresaId, params.slug, params.nome);
   const pastaEmpresaNome = nomePastaBackupEmpresa(params.slug, nomeEmpresa);
-  const caminhoDrive = `${status.pastaRaizNome}/${pastaEmpresaNome}`;
+  const caminhoDrive = caminhoDriveEmpresa(params.slug, nomeEmpresa);
 
   try {
     const config = await carregarConfigBackupAutomatico(params.empresaId);
-    if (
-      config.pastaDriveId &&
-      config.pastaDriveNome === pastaEmpresaNome &&
-      (await pastaDriveExiste(drive, config.pastaDriveId))
-    ) {
-      return {
-        ok: true,
-        pastaId: config.pastaDriveId,
-        pastaNome: pastaEmpresaNome,
-        caminhoDrive,
-        criada: false,
-      };
-    }
-
-    const pastaRaizId = await resolverPastaRaizDrive(drive);
-    if (!pastaRaizId) {
-      return { ok: false, erro: "pasta_raiz_indisponivel" };
-    }
-
-    const antes = await buscarPastaPorNome(drive, pastaRaizId, pastaEmpresaNome);
-    const pastaEmpresaId = await obterOuCriarPastaDrive(
-      drive,
-      pastaRaizId,
-      pastaEmpresaNome
+    const pastaBackupsId = await garantirPastaBackupsEmpresaGoogleDrive(
+      params.slug,
+      nomeEmpresa
     );
+    const criada = config.pastaDriveId !== pastaBackupsId;
 
-    await registrarPastaDriveEmpresa(
-      params.empresaId,
-      pastaEmpresaId,
-      pastaEmpresaNome
-    );
+    if (criada) {
+      await registrarPastaDriveEmpresa(
+        params.empresaId,
+        pastaBackupsId,
+        pastaEmpresaNome
+      );
+      console.log(`[backup-drive] pasta criada: ${caminhoDrive} (${pastaBackupsId})`);
+    }
 
     return {
       ok: true,
-      pastaId: pastaEmpresaId,
+      pastaId: pastaBackupsId,
       pastaNome: pastaEmpresaNome,
       caminhoDrive,
-      criada: !antes,
+      criada,
     };
   } catch (erro) {
-    const mensagem =
-      erro instanceof Error ? erro.message : "Falha ao criar pasta no Google Drive.";
+    const traduzido = traduzirErroGoogleDrive(erro);
+    const mensagem = traduzido.message || "Falha ao criar pasta no Google Drive.";
     console.error(`[backup-drive] ${params.slug}: pasta`, erro);
     return { ok: false, erro: mensagem };
   }
@@ -429,7 +235,9 @@ export async function sincronizarPastasDriveEmpresasAtivas() {
         nome: empresa.nome,
       })
     );
-    if (resultado.ok && resultado.criada) {
+    if (!resultado.ok && resultado.erro && resultado.erro !== "desativado") {
+      console.error(`[backup-drive] ${empresa.slug}: pasta ${resultado.erro}`);
+    } else if (resultado.ok && resultado.criada) {
       console.log(
         `[backup-drive] ${empresa.slug}: pasta pronta em ${resultado.caminhoDrive}`
       );
@@ -446,7 +254,7 @@ export type ResultadoUploadGoogleDrive = {
   erro?: string;
 };
 
-/** Envia o JSON de backup local para a pasta da empresa no Google Drive. */
+/** Envia o JSON de backup local para {Empresa}/backups no Google Drive. */
 export async function uploadBackupParaGoogleDrive(params: {
   empresaId: string;
   slug: string;
@@ -463,25 +271,23 @@ export async function uploadBackupParaGoogleDrive(params: {
     return { ok: false, erro: pasta.erro ?? "pasta_indisponivel" };
   }
 
-  const drive = await criarClienteDrive();
-  if (!drive) {
-    return { ok: false, erro: "credenciais_invalidas" };
-  }
-
   const nomeArquivo = path.basename(params.caminhoArquivoLocal);
   const caminhoDrive = `${pasta.caminhoDrive}/${nomeArquivo}`;
 
   try {
-    const arquivoId = await enviarArquivoDrive(
-      drive,
+    const arquivoId = await uploadArquivoLocalParaPastaGoogleDrive(
       pasta.pastaId,
       params.caminhoArquivoLocal,
-      nomeArquivo
+      nomeArquivo,
+      "application/json"
     );
 
     const retencao = retencaoGoogleDriveBackupDias();
     if (retencao) {
-      await limparArquivosAntigosDrive(drive, pasta.pastaId, retencao);
+      const drive = await criarClienteGoogleDrive();
+      if (drive) {
+        await limparArquivosAntigosDrive(drive, pasta.pastaId, retencao);
+      }
     }
 
     await registrarUploadDriveBackupAutomatico(params.empresaId, {
@@ -502,8 +308,8 @@ export async function uploadBackupParaGoogleDrive(params: {
       caminhoDrive,
     };
   } catch (erro) {
-    const mensagem =
-      erro instanceof Error ? erro.message : "Falha ao enviar para o Google Drive.";
+    const traduzido = traduzirErroGoogleDrive(erro);
+    const mensagem = traduzido.message || "Falha ao enviar para o Google Drive.";
     console.error(`[backup-drive] ${params.slug}:`, erro);
 
     await registrarUploadDriveBackupAutomatico(params.empresaId, {
@@ -534,62 +340,54 @@ export async function excluirPastaDriveEmpresa(params: {
     return { ok: false, erro: "nao_configurado" };
   }
 
-  const drive = await criarClienteDrive();
+  const drive = await criarClienteGoogleDrive();
   if (!drive) {
     return { ok: false, erro: "credenciais_invalidas" };
   }
 
-  let nomeEmpresa = params.nome?.trim();
-  if (!nomeEmpresa) {
-    const empresa = await prisma.empresa.findUnique({
-      where: { id: params.empresaId },
-      select: { nome: true },
-    });
-    nomeEmpresa = empresa?.nome?.trim() || params.slug;
-  }
-
+  const nomeEmpresa = await nomeEmpresaBackup(params.empresaId, params.slug, params.nome);
   const pastaEmpresaNome = nomePastaBackupEmpresa(params.slug, nomeEmpresa);
 
   try {
+    const pastaRaizId = await resolverPastaRaizGoogleDrive(drive);
+    if (!pastaRaizId) {
+      return { ok: false, erro: "pasta_raiz_indisponivel" };
+    }
+
+    const pastaEmpresaId =
+      (await buscarPastaPorNome(drive, pastaRaizId, pastaEmpresaNome)) ?? null;
+
     const config = await carregarConfigBackupAutomatico(params.empresaId);
-    let pastaId = config.pastaDriveId;
-
-    if (pastaId && !(await pastaDriveExiste(drive, pastaId))) {
-      pastaId = null;
-    }
-
-    if (!pastaId) {
-      const pastaRaizId = await resolverPastaRaizDrive(drive);
-      if (!pastaRaizId) {
-        return { ok: false, erro: "pasta_raiz_indisponivel" };
+    if (config.pastaDriveId && config.pastaDriveId !== pastaEmpresaId) {
+      try {
+        if (await pastaDriveExiste(drive, config.pastaDriveId)) {
+          await drive.files.delete({
+            fileId: config.pastaDriveId,
+            supportsAllDrives: true,
+          });
+        }
+      } catch {
+        /* pasta backups/ some junto da empresa */
       }
-      pastaId = (await buscarPastaPorNome(drive, pastaRaizId, pastaEmpresaNome)) ?? null;
     }
 
-    if (!pastaId) {
+    if (!pastaEmpresaId) {
       return { ok: true };
     }
 
     await drive.files.delete({
-      fileId: pastaId,
+      fileId: pastaEmpresaId,
       supportsAllDrives: true,
     });
 
-    console.log(`[backup-drive] pasta removida: ${pastaEmpresaNome} (${pastaId})`);
-    return { ok: true, pastaId };
+    console.log(`[backup-drive] pasta removida: ${pastaEmpresaNome} (${pastaEmpresaId})`);
+    return { ok: true, pastaId: pastaEmpresaId };
   } catch (erro) {
-    const mensagem =
-      erro instanceof Error ? erro.message : "Falha ao excluir pasta no Google Drive.";
+    const traduzido = traduzirErroGoogleDrive(erro);
+    const mensagem = traduzido.message || "Falha ao excluir pasta no Google Drive.";
     console.error(`[backup-drive] excluir ${params.slug}:`, erro);
     return { ok: false, erro: mensagem };
   }
-}
-
-export function caminhoDriveEmpresa(slug: string, nome?: string) {
-  const status = statusGoogleDriveBackup();
-  const pastaLocal = caminhoRelativoPastaBackupEmpresa(slug, nome);
-  const pastaEmpresa = pastaLocal.split("/").pop() ?? nomePastaBackupEmpresa(slug, nome);
-  return `${status.pastaRaizNome}/${pastaEmpresa}`;
 }
 
 export function textoStatusUploadDrive(

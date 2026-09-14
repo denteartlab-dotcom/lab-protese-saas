@@ -3,6 +3,7 @@ import { mkdir, readFile, readdir, stat, unlink } from "fs/promises";
 import path from "path";
 import { promisify } from "util";
 import { pastaBackupEmpresa } from "@/lib/backup-empresa-pasta";
+import { carregarEnvArquivoRuntime, envRuntime } from "@/lib/env-runtime";
 
 const execAsync = promisify(exec);
 
@@ -13,11 +14,20 @@ export const PREFIXO_ARQUIVO_BACKUP = "lab-protese-backup";
 export const BACKUP_ARQUIVO_PADRAO = `${PASTA_BACKUP_PADRAO}/${PREFIXO_ARQUIVO_BACKUP}-AAAA-MM-DD.json`;
 
 export function fusoBackupAutomatico() {
-  return process.env.BACKUP_AUTOMATICO_TZ || "America/Sao_Paulo";
+  carregarEnvArquivoRuntime();
+  return (
+    envRuntime("BACKUP_AUTOMATICO_TZ") ||
+    process.env.BACKUP_AUTOMATICO_TZ ||
+    "America/Sao_Paulo"
+  );
 }
 
 function resolverCaminhoBackupEnv() {
-  const env = process.env.BACKUP_AUTOMATICO_PATH?.trim();
+  carregarEnvArquivoRuntime();
+  const env =
+    envRuntime("BACKUP_AUTOMATICO_PATH") ||
+    process.env.BACKUP_AUTOMATICO_PATH?.trim() ||
+    "";
   if (!env) return null;
   return path.resolve(process.cwd(), env);
 }
@@ -250,6 +260,9 @@ export async function abrirPastaBackupsNoSistema() {
 }
 
 export function backupAutomaticoHabilitadoNoServidor() {
-  const flag = process.env.BACKUP_AUTOMATICO_ENABLED;
+  carregarEnvArquivoRuntime();
+  const flag =
+    envRuntime("BACKUP_AUTOMATICO_ENABLED") ||
+    process.env.BACKUP_AUTOMATICO_ENABLED;
   return flag !== "0" && flag !== "false";
 }

@@ -173,7 +173,17 @@ export const messages = {
     "settings.backupAutoPastaUploads": "Anexos e imagens: {caminho}/",
     "settings.backupAutoUploadsArquivos": "{n} arquivo(s) espelhado(s)",
 "settings.backupAutoGdriveAtivo":
-            "Google Drive: após cada backup, os arquivos são enviados direto via service account.",
+            "Google Drive: após cada backup, o JSON vai para a pasta backups/ da empresa.",
+    "settings.backupAutoGdrivePastaLabel": "Pasta no Google Drive:",
+    "settings.backupAutoGdrivePastaCriada": "Pasta criada no Google Drive: {caminho}",
+    "settings.backupAutoGdrivePastaErro":
+      "Não foi possível criar a pasta no Google Drive: {erro}",
+    "settings.backupAutoGdriveDesligado":
+      "Réplica no Google Drive desligada no servidor (GOOGLE_DRIVE_BACKUP_ENABLED=false).",
+    "settings.backupAutoGdriveNaoConfigurado":
+      "Google Drive dos backups não configurado. Use GOOGLE_DRIVE_FOLDER_ID e o OAuth dos anexos.",
+    "settings.backupAutoGdriveUltimo": "Último envio ao Drive: {quando}",
+    "settings.backupAutoGdriveErro": "Falha no Google Drive: {erro}",
     "settings.backupAutoGdriveUploads":
       "Uploads diretos no Google Drive (sem disco na VPS): {remote}",
     "settings.backupAutoUploadStorageDatabase":
@@ -982,7 +992,17 @@ export const messages = {
     "settings.backupAutoPastaUploads": "Attachments and images: {caminho}/",
     "settings.backupAutoUploadsArquivos": "{n} mirrored file(s)",
 "settings.backupAutoGdriveAtivo":
-            "Google Drive: after each backup, files are uploaded directly via service account.",
+            "Google Drive: after each backup, the JSON is uploaded to the company's backups/ folder.",
+    "settings.backupAutoGdrivePastaLabel": "Google Drive folder:",
+    "settings.backupAutoGdrivePastaCriada": "Google Drive folder created: {caminho}",
+    "settings.backupAutoGdrivePastaErro":
+      "Could not create the Google Drive folder: {erro}",
+    "settings.backupAutoGdriveDesligado":
+      "Google Drive replica is off on the server (GOOGLE_DRIVE_BACKUP_ENABLED=false).",
+    "settings.backupAutoGdriveNaoConfigurado":
+      "Google Drive backups are not configured. Set GOOGLE_DRIVE_FOLDER_ID and the same OAuth used for attachments.",
+    "settings.backupAutoGdriveUltimo": "Last Drive upload: {quando}",
+    "settings.backupAutoGdriveErro": "Google Drive failed: {erro}",
     "settings.backupAutoGdriveUploads":
       "Direct uploads to Google Drive (not stored on the VPS): {remote}",
     "settings.backupAutoUploadStorageDatabase":
@@ -1787,7 +1807,17 @@ export const messages = {
     "settings.backupAutoPastaUploads": "Adjuntos e imágenes: {caminho}/",
     "settings.backupAutoUploadsArquivos": "{n} archivo(s) espejado(s)",
 "settings.backupAutoGdriveAtivo":
-            "Google Drive: tras cada respaldo, los archivos se envían directo vía service account.",
+            "Google Drive: tras cada respaldo, el JSON va a la carpeta backups/ de la empresa.",
+    "settings.backupAutoGdrivePastaLabel": "Carpeta en Google Drive:",
+    "settings.backupAutoGdrivePastaCriada": "Carpeta creada en Google Drive: {caminho}",
+    "settings.backupAutoGdrivePastaErro":
+      "No fue posible crear la carpeta en Google Drive: {erro}",
+    "settings.backupAutoGdriveDesligado":
+      "Réplica en Google Drive desactivada en el servidor (GOOGLE_DRIVE_BACKUP_ENABLED=false).",
+    "settings.backupAutoGdriveNaoConfigurado":
+      "Google Drive de respaldos no configurado. Use GOOGLE_DRIVE_FOLDER_ID y el OAuth de los adjuntos.",
+    "settings.backupAutoGdriveUltimo": "Último envío a Drive: {quando}",
+    "settings.backupAutoGdriveErro": "Fallo en Google Drive: {erro}",
     "settings.backupAutoGdriveUploads":
       "Uploads directos en Google Drive (sin disco en la VPS): {remote}",
     "settings.backupAutoUploadStorageDatabase":
