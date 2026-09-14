@@ -48,6 +48,9 @@ export type ColunaKanbanConfig = {
   badge: string;
   ring: string;
   corHex?: string;
+  /** Nome do setor quando a coluna representa um setor na visão inicial. */
+  setorNome?: string;
+  variante?: "outras";
 };
 
 export type TvDashboardStats = {

@@ -1,7 +1,8 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Activity, Maximize2, Minimize2, Wifi } from "lucide-react";
+import { Activity, ArrowLeft, Maximize2, Minimize2, Wifi } from "lucide-react";
+import Link from "next/link";
 import { useI18n } from "@/components/i18n-provider";
 import { TV_GLASS_PANEL } from "@/components/modulo-tv/tv-styles";
 import { cn } from "@/lib/utils";
@@ -45,6 +46,15 @@ export function TvHeader({
       <div className="flex items-center justify-between gap-4">
         {/* Esquerda */}
         <div className="flex min-w-0 items-center gap-3 tv:gap-4">
+          {!modoKiosk ? (
+            <Link
+              href="/app"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-700/50 bg-slate-800/60 px-2 py-1.5 text-[10px] text-slate-400 transition hover:text-white tv-hd:text-[11px] tv:px-2.5 tv:text-xs"
+            >
+              <ArrowLeft className="h-3 w-3 tv-hd:h-3.5 tv-hd:w-3.5" />
+              {t("producao.tv.sairPainel")}
+            </Link>
+          ) : null}
           <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg shadow-[0_0_20px_rgba(59,130,246,0.25)] tv:h-12 tv:w-12 tv-4k:h-14 tv-4k:w-14">
             <img
               src="/favicon.svg"

@@ -123,8 +123,8 @@ export function TvOsCard({
         ) : null}
       </div>
 
-      <p className="mt-2.5 truncate rounded-md bg-slate-800/60 px-2 py-1 text-[10px] text-slate-400 tv:text-[11px]">
-        {ordem.status}
+      <p className="mt-2.5 truncate rounded-md bg-slate-800/60 px-2 py-1 text-[10px] text-slate-300 tv:text-[11px]">
+        {ordem.etapaNome || ordem.status}
       </p>
     </motion.article>
   );

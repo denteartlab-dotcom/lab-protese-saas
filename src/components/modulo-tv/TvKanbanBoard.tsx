@@ -36,6 +36,7 @@ type Props = {
   colunas?: ColunaKanbanConfig[];
   permitirArrastar?: boolean;
   colunaIdPorOrdem?: (ordem: OrdemServicoTv) => string;
+  onAbrirSetor?: (setorNome: string) => void;
 };
 
 function criarDeteccaoColisao(idsColuna: Set<string>): CollisionDetection {
@@ -112,6 +113,7 @@ export function TvKanbanBoard({
   colunas = COLUNAS_KANBAN,
   permitirArrastar = true,
   colunaIdPorOrdem = (ordem) => ordem.coluna,
+  onAbrirSetor,
 }: Props) {
   const [ordemAtiva, setOrdemAtiva] = useState<OrdemServicoTv | null>(null);
   const [ordemResumo, setOrdemResumo] = useState<OrdemServicoTv | null>(null);
@@ -191,6 +193,7 @@ export function TvKanbanBoard({
             carregando={carregando}
             arrastar={permitirArrastar}
             onAbrirResumo={setOrdemResumo}
+            onAbrirSetor={onAbrirSetor}
           />
         ))}
       </div>

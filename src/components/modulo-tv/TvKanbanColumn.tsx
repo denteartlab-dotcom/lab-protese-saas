@@ -14,6 +14,7 @@ type Props = {
   carregando: boolean;
   arrastar?: boolean;
   onAbrirResumo?: (ordem: OrdemServicoTv) => void;
+  onAbrirSetor?: (setorNome: string) => void;
 };
 
 export function TvKanbanColumn({
@@ -22,6 +23,7 @@ export function TvKanbanColumn({
   carregando,
   arrastar = true,
   onAbrirResumo,
+  onAbrirSetor,
 }: Props) {
   const { setNodeRef, isOver } = useDroppable({
     id: coluna.id,
@@ -36,6 +38,7 @@ export function TvKanbanColumn({
         TV_COLUMN,
         coluna.border,
         coluna.glow,
+        coluna.variante === "outras" && "bg-slate-950/40",
         isOver && "ring-1 ring-blue-400/40"
       )}
     >
@@ -48,22 +51,46 @@ export function TvKanbanColumn({
       />
 
       <header className="mb-2 flex shrink-0 items-center justify-between gap-2 px-0.5">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <span
-            className={cn("h-1.5 w-1.5 shrink-0 rounded-full", !coluna.corHex && coluna.dot)}
-            style={
-              coluna.corHex
-                ? {
-                    backgroundColor: coluna.corHex,
-                    boxShadow: `0 0 10px ${coluna.corHex}99`,
-                  }
-                : undefined
-            }
-          />
-          <h3 className="truncate text-[10px] font-bold uppercase tracking-[0.1em] text-slate-200 tv:text-[11px] tv-4k:text-xs">
-            {coluna.label}
-          </h3>
-        </div>
+        {coluna.setorNome && onAbrirSetor ? (
+          <button
+            type="button"
+            onClick={() => onAbrirSetor(coluna.setorNome!)}
+            title={coluna.setorNome}
+            className="flex min-w-0 items-center gap-1.5 rounded-md text-left hover:bg-white/5"
+          >
+            <span
+              className={cn("h-1.5 w-1.5 shrink-0 rounded-full", !coluna.corHex && coluna.dot)}
+              style={
+                coluna.corHex
+                  ? {
+                      backgroundColor: coluna.corHex,
+                      boxShadow: `0 0 10px ${coluna.corHex}99`,
+                    }
+                  : undefined
+              }
+            />
+            <h3 className="truncate text-[10px] font-bold uppercase tracking-[0.1em] text-slate-200 tv:text-[11px] tv-4k:text-xs">
+              {coluna.label}
+            </h3>
+          </button>
+        ) : (
+          <div className="flex min-w-0 items-center gap-1.5">
+            <span
+              className={cn("h-1.5 w-1.5 shrink-0 rounded-full", !coluna.corHex && coluna.dot)}
+              style={
+                coluna.corHex
+                  ? {
+                      backgroundColor: coluna.corHex,
+                      boxShadow: `0 0 10px ${coluna.corHex}99`,
+                    }
+                  : undefined
+              }
+            />
+            <h3 className="truncate text-[10px] font-bold uppercase tracking-[0.1em] text-slate-200 tv:text-[11px] tv-4k:text-xs">
+              {coluna.label}
+            </h3>
+          </div>
+        )}
         <span
           className={cn(
             "inline-flex min-w-[1.75rem] items-center justify-center rounded-md px-2 py-0.5 font-tv-mono text-xs font-bold tabular-nums tv:text-sm",

@@ -48,6 +48,86 @@ export function idColunaEtapaSetor(etapa: EtapaCadastro) {
   return `setor-etapa-${base}`;
 }
 
+export function idColunaSetorVista(setorNome: string) {
+  return `setor-vista-${chaveNomeTv(setorNome) || "setor"}`;
+}
+
+function estiloColunaOutras(): Omit<ColunaKanbanConfig, "id" | "label"> {
+  return {
+    dot: "bg-slate-500",
+    bar: "from-slate-500 to-slate-800",
+    accent: "from-slate-600/[0.08] to-transparent",
+    glow: "",
+    border: "border-dashed border-slate-500/35",
+    badge: "bg-slate-500/15 text-slate-300 ring-1 ring-slate-400/25",
+    ring: "ring-slate-500/8",
+    variante: "outras",
+  };
+}
+
+export function setorNomeDaOrdemTv(
+  ordem: OrdemServicoTv,
+  layout: TvLayoutSetores
+) {
+  const chaveSetor = chaveNomeTv(ordem.setor || "");
+  if (chaveSetor) {
+    const setor = layout.setores.find(
+      (item) => chaveNomeTv(item.nome) === chaveSetor
+    );
+    if (setor) return setor.nome;
+  }
+
+  const chaveEtapa = chaveNomeTv(ordem.etapaNome || "");
+  if (!chaveEtapa) return "";
+  const etapa = layout.etapas.find((item) => {
+    if (!item.setor?.trim()) return false;
+    return chaveNomeTv(item.nome) === chaveEtapa;
+  });
+  if (!etapa?.setor) return "";
+  const setor = layout.setores.find(
+    (item) => chaveNomeTv(item.nome) === chaveNomeTv(etapa.setor || "")
+  );
+  return setor?.nome ?? "";
+}
+
+export function colunaIdDaOrdemVisaoGeral(
+  ordem: OrdemServicoTv,
+  layout: TvLayoutSetores
+) {
+  const setor = setorNomeDaOrdemTv(ordem, layout);
+  if (!setor) return ID_COLUNA_OUTRAS_SETOR;
+  return idColunaSetorVista(setor);
+}
+
+export function montarColunasVisaoGeralTv(
+  layout: TvLayoutSetores,
+  labelSemSetor: string,
+  ordens: OrdemServicoTv[] = []
+): ColunaKanbanConfig[] {
+  const colunas: ColunaKanbanConfig[] = layout.setores.map((setor, indice) => {
+    const estilo = estiloColunaCiclo(indice);
+    return {
+      ...estilo,
+      id: idColunaSetorVista(setor.nome),
+      label: setor.nome.toUpperCase(),
+      corHex: setor.cor || undefined,
+      setorNome: setor.nome,
+    };
+  });
+
+  const temSemSetor = ordens.some(
+    (ordem) => colunaIdDaOrdemVisaoGeral(ordem, layout) === ID_COLUNA_OUTRAS_SETOR
+  );
+  if (temSemSetor || colunas.length === 0) {
+    colunas.push({
+      ...estiloColunaOutras(),
+      id: ID_COLUNA_OUTRAS_SETOR,
+      label: labelSemSetor.toUpperCase(),
+    });
+  }
+  return colunas;
+}
+
 function estiloColunaCiclo(indice: number): Omit<ColunaKanbanConfig, "id" | "label"> {
   const base = COLUNAS_KANBAN[indice % COLUNAS_KANBAN.length]!;
   const { id: _id, label: _label, ...resto } = base;
@@ -73,7 +153,7 @@ export function montarColunasDoSetorTv(
   });
 
   colunas.push({
-    ...estiloColunaCiclo(colunas.length),
+    ...estiloColunaOutras(),
     id: ID_COLUNA_OUTRAS_SETOR,
     label: labelOutras.toUpperCase(),
   });
@@ -127,18 +207,24 @@ export function idColunaDaOrdemNaVista(
   vista: string,
   layout: TvLayoutSetores
 ) {
-  if (vista === VISTA_TV_TODOS) return ordem.coluna;
-  return colunaIdOrdemNoSetorTv(ordem, vista, layout);
+  if (vista !== VISTA_TV_TODOS) {
+    return colunaIdOrdemNoSetorTv(ordem, vista, layout);
+  }
+  if (layout.setores.length === 0) return ordem.coluna;
+  return colunaIdDaOrdemVisaoGeral(ordem, layout);
 }
 
 export function colunasKanbanDaVista(
   vista: string,
   layout: TvLayoutSetores,
-  labelOutras: string,
+  rotulos: { outras: string; semSetor: string },
   ordensVista: OrdemServicoTv[] = []
 ): ColunaKanbanConfig[] {
-  if (vista === VISTA_TV_TODOS) return COLUNAS_KANBAN;
-  const colunas = montarColunasDoSetorTv(vista, layout, labelOutras);
+  if (vista === VISTA_TV_TODOS) {
+    if (layout.setores.length === 0) return COLUNAS_KANBAN;
+    return montarColunasVisaoGeralTv(layout, rotulos.semSetor, ordensVista);
+  }
+  const colunas = montarColunasDoSetorTv(vista, layout, rotulos.outras);
   const temOutras = ordensVista.some(
     (ordem) => colunaIdOrdemNoSetorTv(ordem, vista, layout) === ID_COLUNA_OUTRAS_SETOR
   );

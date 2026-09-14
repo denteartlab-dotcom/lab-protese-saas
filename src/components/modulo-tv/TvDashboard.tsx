@@ -1,8 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
 import { useTvDashboard } from "@/components/modulo-tv/hooks/useTvDashboard";
 import { useTvDashboardStore } from "@/components/modulo-tv/store/tv-dashboard-store";
@@ -15,9 +13,12 @@ import { TvSetorAbas } from "@/components/modulo-tv/TvSetorAbas";
 import { TvSidebar } from "@/components/modulo-tv/TvSidebar";
 import type { OrdemServicoTv } from "@/components/modulo-tv/types";
 import {
+  chaveNomeTv,
   colunasKanbanDaVista,
+  colunaIdDaOrdemVisaoGeral,
   etapasCadastroDoSetor,
   idColunaDaOrdemNaVista,
+  idColunaSetorVista,
   ordemVisivelNoSetorTv,
   resolverSetorVistaTv,
   VISTA_TV_TODOS,
@@ -79,7 +80,10 @@ export function TvDashboard() {
       colunasKanbanDaVista(
         vista,
         layout,
-        t("producao.tv.setores.outras"),
+        {
+          outras: t("producao.tv.setores.outras"),
+          semSetor: t("producao.tv.setores.semSetor"),
+        },
         ordensVista
       ),
     [layout, ordensVista, t, vista]
@@ -89,6 +93,20 @@ export function TvDashboard() {
     (ordem: OrdemServicoTv) => idColunaDaOrdemNaVista(ordem, vista, layout),
     [layout, vista]
   );
+
+  const contagensSetor = useMemo(() => {
+    const mapa: Record<string, number> = {};
+    for (const setor of layout.setores) {
+      const id = idColunaSetorVista(setor.nome);
+      mapa[chaveNomeTv(setor.nome)] = ordens.filter(
+        (ordem) => colunaIdDaOrdemVisaoGeral(ordem, layout) === id
+      ).length;
+    }
+    return mapa;
+  }, [layout, ordens]);
+
+  const fluxoClassico = layout.setores.length === 0;
+  const permitirArrastar = vista === VISTA_TV_TODOS && fluxoClassico;
 
   const semEtapasSetor =
     vista !== VISTA_TV_TODOS &&
@@ -168,16 +186,6 @@ export function TvDashboard() {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(88,28,135,0.08),transparent_50%)]" />
 
       <div className="relative z-10 flex h-full min-h-0 w-full max-w-none flex-1 flex-col gap-2 p-2 tv-hd:gap-2.5 tv-hd:p-2.5 tv:gap-3 tv:p-3">
-        {!modoKiosk ? (
-          <Link
-            href="/app"
-            className="absolute left-2 top-2 z-20 inline-flex w-fit items-center gap-1.5 rounded-lg border border-slate-700/50 bg-slate-900/80 px-2.5 py-1 text-[10px] text-slate-400 backdrop-blur-sm transition hover:text-white tv-hd:text-[11px] tv:text-xs"
-          >
-            <ArrowLeft className="h-3 w-3 tv-hd:h-3.5 tv-hd:w-3.5" />
-            {t("producao.tv.sairPainel")}
-          </Link>
-        ) : null}
-
         <TvHeader
           nomeLaboratorio={nomeLaboratorio}
           relogio={relogio}
@@ -212,34 +220,51 @@ export function TvDashboard() {
           <TvSidebar stats={stats} colaboradores={colaboradores}>
             <TvLocutorIa ordens={ordensBrutas} dadosCarregados={dadosCarregados} />
           </TvSidebar>
+          <TvSetorAbas
+            setores={layout.setores}
+            selecionado={vista}
+            onChange={setVistaSetor}
+            contagens={contagensSetor}
+            total={ordens.length}
+          />
           <main className="flex min-h-0 min-w-0 w-full max-w-none flex-1 flex-col gap-1.5 overflow-hidden tv:gap-2">
-            <TvSetorAbas
-              setores={layout.setores}
-              selecionado={vista}
-              onChange={setVistaSetor}
-            />
+            <div className="flex shrink-0 items-end justify-between gap-2 px-0.5">
+              <div className="min-w-0">
+                <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500 tv:text-[10px]">
+                  {vista === VISTA_TV_TODOS
+                    ? t("producao.tv.setores.inicioKicker")
+                    : t("producao.tv.setores.etapasDe")}
+                </p>
+                <h2 className="truncate text-sm font-bold text-white tv:text-base">
+                  {vista === VISTA_TV_TODOS
+                    ? t("producao.tv.setores.inicioTitulo")
+                    : vista}
+                </h2>
+              </div>
+              <p className="font-tv-mono shrink-0 text-xs tabular-nums text-slate-400 tv:text-sm">
+                {ordensVista.length} {t("producao.tv.osAtivas")}
+              </p>
+            </div>
             {semEtapasSetor && !carregando ? (
               <div className="flex min-h-0 flex-1 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] px-6 text-center text-sm text-slate-400">
                 {t("producao.tv.setores.semEtapas")}
               </div>
             ) : (
-              <>
-                {vista !== VISTA_TV_TODOS ? (
-                  <p className="shrink-0 text-[9px] text-slate-500 tv:text-[10px]">
-                    {t("producao.tv.setores.somenteLeitura")}
-                  </p>
-                ) : null}
-                <div className="min-h-0 flex-1 overflow-hidden">
-                  <TvKanbanBoard
-                    ordens={ordensVista}
-                    colunas={colunas}
-                    colunaIdPorOrdem={colunaIdPorOrdem}
-                    permitirArrastar={vista === VISTA_TV_TODOS}
-                    carregando={carregando}
-                    onMoverOrdem={moverOrdem}
-                  />
-                </div>
-              </>
+              <div className="min-h-0 flex-1 overflow-hidden">
+                <TvKanbanBoard
+                  ordens={ordensVista}
+                  colunas={colunas}
+                  colunaIdPorOrdem={colunaIdPorOrdem}
+                  permitirArrastar={permitirArrastar}
+                  carregando={carregando}
+                  onMoverOrdem={moverOrdem}
+                  onAbrirSetor={
+                    vista === VISTA_TV_TODOS && !fluxoClassico
+                      ? setVistaSetor
+                      : undefined
+                  }
+                />
+              </div>
             )}
           </main>
         </div>
