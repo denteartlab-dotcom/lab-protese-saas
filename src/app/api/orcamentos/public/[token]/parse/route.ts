@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { executarSemRls } from "@/lib/db";
 import { mapOrcamento } from "@/lib/orcamentos-db";
 import { linkOrcamentoAtivo, type ItemOrcamento } from "@/lib/orcamentos-types";
+import { whereOrcamentoPublicoPorToken } from "@/lib/tenant-db";
 import {
   lerArquivoEPreencherItens,
   lerPayloadOrcamento,
@@ -45,7 +46,7 @@ export async function POST(request: Request, { params }: Params) {
   const { token } = await params;
   const row = await executarSemRls((tx) =>
     tx.orcamento.findFirst({
-      where: { token, linkAtivo: true },
+      where: whereOrcamentoPublicoPorToken(token),
     })
   );
 

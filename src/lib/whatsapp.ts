@@ -70,12 +70,16 @@ export function mensagemAprovacaoOrcamento(
   numeroPedido: number,
   fornecedorNome: string,
   totalFormatado: string,
-  pagamentoDescricao?: string
+  pagamentoDescricao?: string,
+  publicUrl?: string
 ) {
   const pagamento = pagamentoDescricao?.trim()
     ? `\nPagamento: ${pagamentoDescricao.trim()}`
     : "";
-  return `Olá! O orçamento do pedido #${numeroPedido} foi APROVADO.\n\nFornecedor: ${fornecedorNome}\nValor total: ${totalFormatado}${pagamento}\n\nObrigado pela cotação!`;
+  const conferencia = publicUrl?.trim()
+    ? `\n\nConfira os produtos no link (somente visualização):\n\n${publicUrl.trim()}`
+    : "";
+  return `Olá! O orçamento do pedido #${numeroPedido} foi APROVADO.\n\nFornecedor: ${fornecedorNome}\nValor total: ${totalFormatado}${pagamento}\n\nObrigado pela cotação!${conferencia}`;
 }
 
 function buildWhatsAppSendUrl(phone: string, text: string) {
@@ -99,7 +103,8 @@ export function buildAprovacaoWhatsAppUrl(
   numeroPedido: number,
   fornecedorNome: string,
   totalFormatado: string,
-  pagamentoDescricao?: string
+  pagamentoDescricao?: string,
+  publicUrl?: string
 ) {
   return buildWhatsAppSendUrl(
     phone,
@@ -107,7 +112,8 @@ export function buildAprovacaoWhatsAppUrl(
       numeroPedido,
       fornecedorNome,
       totalFormatado,
-      pagamentoDescricao
+      pagamentoDescricao,
+      publicUrl
     )
   );
 }

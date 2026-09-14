@@ -112,10 +112,14 @@ export async function buscarClientePublicoPorToken(token: string) {
   return { cliente, trabalhos, labNome, mapaEtapas };
 }
 
+export function whereOrcamentoPublicoPorToken(token: string) {
+  return { token, status: { not: "excluido" } };
+}
+
 export async function buscarOrcamentoPublicoPorToken(token: string) {
   const orcamento = await executarSemRls((tx) =>
     tx.orcamento.findFirst({
-      where: { token, linkAtivo: true },
+      where: whereOrcamentoPublicoPorToken(token),
     })
   );
   if (!orcamento) return null;

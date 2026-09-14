@@ -481,7 +481,8 @@ export default function OrcamentosPage() {
       formatCurrency(totalLiquido(orcamento)),
       rotuloCondicoesPagamento(
         parseCondicoesPagamento(orcamento.condicoesPagamento)
-      )
+      ),
+      orcamentoPublicUrl(orcamento.token)
     );
     const resultado = await dispararOuAbrirWhatsapp(telefone, texto);
     if (resultado.modo === "erro") {
@@ -691,7 +692,10 @@ export default function OrcamentosPage() {
                       </td>
                       <td className="px-3 py-2">
                         <div className="flex items-center justify-center gap-2">
-                          {linkAtivo && orcamento.status === "aguardando_resposta" && (
+                          {linkAtivo &&
+                            (orcamento.status === "aguardando_resposta" ||
+                              orcamento.status === "enviado" ||
+                              orcamento.status === "aprovado") && (
                             <button
                               type="button"
                               onClick={() => copiarLink(orcamento)}

@@ -1672,7 +1672,13 @@ export default function OrcamentoPublicoPage() {
             </div>
           )}
 
-          {somenteLeitura && (
+          {somenteLeitura && orcamento.status === "aprovado" && (
+            <div className="border-t border-emerald-100 bg-emerald-50 px-5 py-3 text-center text-[11px] font-medium text-emerald-700">
+              Orçamento aceito. Esta página é só para conferência dos produtos —
+              não é mais possível editar.
+            </div>
+          )}
+          {somenteLeitura && orcamento.status !== "aprovado" && (
             <div className="border-t border-emerald-100 bg-emerald-50 px-5 py-3 text-center text-[11px] font-medium text-emerald-700">
               Orçamento enviado com sucesso em{" "}
               {formatDate(orcamento.dataResposta)}. O laboratório já pode visualizar sua

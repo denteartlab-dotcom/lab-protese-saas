@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { executarSemRls } from "@/lib/db";
 import { mapOrcamento } from "@/lib/orcamentos-db";
 import { linkOrcamentoAtivo } from "@/lib/orcamentos-types";
+import { whereOrcamentoPublicoPorToken } from "@/lib/tenant-db";
 import { normalizarSlugPastaUploads } from "@/lib/uploads-armazenamento-server";
 import {
   contentDispositionUpload,
@@ -25,7 +26,7 @@ export async function GET(request: Request, { params }: Params) {
 
   const row = await executarSemRls((tx) =>
     tx.orcamento.findFirst({
-      where: { token, linkAtivo: true },
+      where: whereOrcamentoPublicoPorToken(token),
       include: { empresa: { select: { id: true, slug: true } } },
     })
   );

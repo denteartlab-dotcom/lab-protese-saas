@@ -71,13 +71,14 @@ export const STATUS_ORCAMENTO: Record<
 };
 
 export const STATUS_INATIVA_LINK: StatusOrcamento[] = [
-  "aprovado",
   "cancelado",
   "excluido",
 ];
 
 export function linkOrcamentoAtivo(status: StatusOrcamento, linkAtivo = true) {
-  return linkAtivo && !STATUS_INATIVA_LINK.includes(status);
+  if (STATUS_INATIVA_LINK.includes(status)) return false;
+  if (status === "aprovado") return true;
+  return linkAtivo;
 }
 
 export function calcularTotaisItens(itens: ItemOrcamento[]) {

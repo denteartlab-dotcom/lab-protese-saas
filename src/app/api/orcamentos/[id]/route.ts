@@ -126,7 +126,7 @@ export async function PATCH(request: Request, { params }: Params) {
         ? atual.totalLiquido
         : totalLiquidoOrcamento(subtotal, desconto, descontoPercentual, frete);
   const linkAtivo =
-    body.reabrirParaEdicao || reabrindoComItens
+    body.reabrirParaEdicao || reabrindoComItens || status === "aprovado"
       ? true
       : statusInvalidaLink(status)
         ? false
