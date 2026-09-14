@@ -33,7 +33,6 @@ const MODULOS_UPLOAD = [
 
 const CACHE_COTA_MS = 5 * 60_000;
 const CACHE_LISTA_MS = 5 * 60_000;
-const LIMITE_UPLOAD_SIMPLES = 5 * 1024 * 1024;
 
 export type CotaGoogleDrive = {
   total: number;
@@ -237,65 +236,27 @@ async function uploadBytesGoogleDriveInterno(
   }
 
   const mime = mimeType || "application/octet-stream";
-  const existente = await buscarArquivoPorNome(drive, parentId, nomeArquivo);
-  const media = {
-    mimeType: mime,
-    body: bufferParaStream(bytes),
-  };
-
-  let fileId: string;
-  let webViewLink: string | undefined;
-
-  if (existente) {
-    const atualizado = await drive.files.update({
-      fileId: existente,
-      media,
-      fields: "id,webViewLink",
-      supportsAllDrives: true,
-    });
-    fileId = atualizado.data.id || existente;
-    webViewLink = atualizado.data.webViewLink ?? undefined;
-  } else if (bytes.length <= LIMITE_UPLOAD_SIMPLES) {
-    const criado = await drive.files.create({
-      requestBody: {
-        name: nomeArquivo,
-        parents: [parentId],
-      },
-      media,
-      fields: "id,webViewLink",
-      supportsAllDrives: true,
-    });
-    if (!criado.data.id) {
-      throw new Error("Upload no Google Drive não retornou ID.");
-    }
-    fileId = criado.data.id;
-    webViewLink = criado.data.webViewLink ?? undefined;
-  } else {
-    // Resumable via googleapis (mesmo create com stream grande).
-    const criado = await drive.files.create({
-      requestBody: {
-        name: nomeArquivo,
-        parents: [parentId],
-      },
-      media: {
-        mimeType: mime,
-        body: bufferParaStream(bytes),
-      },
-      fields: "id,webViewLink",
-      supportsAllDrives: true,
-    });
-    if (!criado.data.id) {
-      throw new Error("Upload resumable no Google Drive não retornou ID.");
-    }
-    fileId = criado.data.id;
-    webViewLink = criado.data.webViewLink ?? undefined;
+  const criado = await drive.files.create({
+    requestBody: {
+      name: nomeArquivo,
+      parents: [parentId],
+    },
+    media: {
+      mimeType: mime,
+      body: bufferParaStream(bytes),
+    },
+    fields: "id,webViewLink",
+    supportsAllDrives: true,
+  });
+  if (!criado.data.id) {
+    throw new Error("Upload no Google Drive não retornou ID.");
   }
 
   limparCacheListaUploads();
   return {
-    fileId,
-    remotePath: montarRemotePathGdrive(fileId),
-    webViewLink,
+    fileId: criado.data.id,
+    remotePath: montarRemotePathGdrive(criado.data.id),
+    webViewLink: criado.data.webViewLink ?? undefined,
   };
 }
 

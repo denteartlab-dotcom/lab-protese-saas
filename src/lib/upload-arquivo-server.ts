@@ -491,12 +491,8 @@ export async function salvarArquivosUpload(
       throw new Error("empresaSlug obrigatório para upload no Google Drive.");
     }
     const empresaIdUpload = empresaId;
-    const { garantirPastaModuloUploadGoogleDrive } = await import(
-      "@/lib/google-drive-uploads"
-    );
     const slug = normalizarSlugPastaUploads(empresaSlug);
     const subpastas = subpasta ? [subpasta] : [];
-    await garantirPastaModuloUploadGoogleDrive(slug, pasta, subpastas);
 
     const preparados = await Promise.all(
       files.map(async (file, index) => {

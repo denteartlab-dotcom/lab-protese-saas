@@ -269,9 +269,7 @@ export async function obterOuCriarPastaDrive(
 ) {
   const chaveCache = `${parentId}:${nome}`;
   const emCache = cachePastasDrive.get(chaveCache);
-  if (emCache && (await pastaDriveExiste(drive, emCache))) {
-    return emCache;
-  }
+  if (emCache) return emCache;
 
   const existente = await buscarPastaPorNome(drive, parentId, nome);
   if (existente) {
@@ -307,9 +305,7 @@ export async function resolverPastaRaizGoogleDrive(drive: drive_v3.Drive) {
   const nomeRaiz = nomePastaRaizGoogleDrive();
   const chaveCache = `root:${parentCompartilhado}:${nomeRaiz}`;
   const emCache = cachePastasDrive.get(chaveCache);
-  if (emCache && (await pastaDriveExiste(drive, emCache))) {
-    return emCache;
-  }
+  if (emCache) return emCache;
 
   const existenteNaRaiz = await buscarPastaPorNome(
     drive,

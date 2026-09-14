@@ -349,7 +349,7 @@ export async function calcularArmazenamentoGaleria(
   empresaId?: string,
   empresaSlug?: string,
   empresaNome?: string,
-  opcoes?: { forceCota?: boolean }
+  opcoes?: { forceCota?: boolean; rapido?: boolean }
 ): Promise<UploadsResumoArmazenamento> {
   const gdrive = uploadUsaGoogleDrive();
   const plano = await resolverLimiteArmazenamentoEmpresa(empresaId);
@@ -371,7 +371,7 @@ export async function calcularArmazenamentoGaleria(
       : 0;
 
   let bytesUsados = bytesDisco + bytesBanco + bytesBackup;
-  if (gdrive && empresaSlug?.trim()) {
+  if (gdrive && empresaSlug?.trim() && !opcoes?.rapido) {
     try {
       const { listarArquivosUploadsEmpresaGoogleDrive } = await import(
         "@/lib/google-drive-uploads"

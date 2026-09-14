@@ -35,7 +35,7 @@ export function useArmazenamentoGaleria() {
 
   useEffect(() => {
     void recarregar(false);
-    const onAtualizado = () => void recarregar(true);
+    const onAtualizado = () => void recarregar(false);
     const onVisivel = () => {
       if (document.visibilityState === "visible") void recarregar(true);
     };

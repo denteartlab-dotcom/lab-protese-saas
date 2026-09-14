@@ -56,7 +56,8 @@ export async function POST(request: Request) {
     const resumo = await calcularArmazenamentoGaleria(
       ctx.empresaId,
       ctx.empresaSlug,
-      ctx.empresaNome
+      ctx.empresaNome,
+      { rapido: true }
     );
     const novosBytes = files.reduce((s, f) => s + f.size, 0);
     const limiteBytes = resumo.limiteBytes || 0;
