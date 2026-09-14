@@ -155,7 +155,7 @@ const pt = {
   "producao.tv.locutor.titulo": "Locutor IA",
   "producao.tv.locutor.descricao":
     "Avisa em voz alta os trabalhos do dia e os pacientes atrasados, com o horário.",
-  "producao.tv.locutor.ativar": "Ativar",
+  "producao.tv.locutor.ativar": "Ligar",
   "producao.tv.locutor.ativo": "Ligado",
   "producao.tv.locutor.falarAgora": "Falar agora",
   "producao.tv.locutor.falando": "Falando…",

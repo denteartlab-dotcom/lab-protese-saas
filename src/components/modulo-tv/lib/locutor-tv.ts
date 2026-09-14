@@ -14,15 +14,28 @@ export type PacienteAtrasadoFala = {
   paciente: string;
   horario: string;
   horarioFala: string;
+  prazoIso: string;
 };
 
 export type ResumoLocutorTv = {
   total: number;
   noPrazo: number;
   atrasados: PacienteAtrasadoFala[];
-  texto: string;
   chave: string;
 };
+
+function embaralhar<T>(itens: T[]): T[] {
+  const copia = [...itens];
+  for (let i = copia.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copia[i], copia[j]] = [copia[j], copia[i]];
+  }
+  return copia;
+}
+
+function escolher<T>(itens: T[]): T {
+  return itens[Math.floor(Math.random() * itens.length)]!;
+}
 
 export function formatarHorarioLocutor(prazoIso: string, locale: Locale = "pt") {
   const data = new Date(prazoIso);
@@ -40,13 +53,19 @@ export function formatarHorarioLocutor(prazoIso: string, locale: Locale = "pt") 
     return `prazo ${dia}`;
   }
 
-  const horaTxt = data.toLocaleTimeString(loc, {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  if (locale === "en") return `at ${horaTxt}`;
-  if (locale === "es") return `horario ${horaTxt}`;
-  return `horário ${horaTxt}`;
+  if (locale === "en") {
+    if (minuto === 0) return `at ${hora}`;
+    if (minuto === 30) return `at ${hora}:30`;
+    return `at ${hora}:${String(minuto).padStart(2, "0")}`;
+  }
+  if (locale === "es") {
+    if (minuto === 0) return `a las ${hora}`;
+    if (minuto === 30) return `a las ${hora} y media`;
+    return `a las ${hora} y ${minuto}`;
+  }
+  if (minuto === 0) return `às ${hora} horas`;
+  if (minuto === 30) return `às ${hora} e meia`;
+  return `às ${hora} e ${minuto}`;
 }
 
 function nomePaciente(ordem: OrdemServicoTv) {
@@ -75,75 +94,161 @@ export function resumoEntregasLocutorTv(
         { hour: "2-digit", minute: "2-digit" }
       ),
       horarioFala: formatarHorarioLocutor(ordem.prazoIso, locale),
+      prazoIso: ordem.prazoIso,
     }));
 
   const idsAtrasados = new Set(atrasados.map((item) => item.id));
   const noPrazo = relevantes.filter((ordem) => !idsAtrasados.has(ordem.id)).length;
   const total = noPrazo + atrasados.length;
-  const texto = montarTextoLocutorTv({ total, noPrazo, atrasados, locale });
   const chave = `${total}|${noPrazo}|${atrasados.map((item) => item.id).join(",")}`;
 
-  return { total, noPrazo, atrasados, texto, chave };
+  return { total, noPrazo, atrasados, chave };
 }
 
 function q(n: number, um: string, varios: string) {
   return n === 1 ? um : varios;
 }
 
-function montarTextoLocutorTv(params: {
-  total: number;
-  noPrazo: number;
-  atrasados: PacienteAtrasadoFala[];
-  locale: Locale;
-}) {
-  const { total, noPrazo, atrasados, locale } = params;
+export function montarFalaLocutorTv(
+  resumo: ResumoLocutorTv,
+  locale: Locale = "pt"
+): string {
+  const { total, noPrazo, atrasados } = resumo;
   const nAtrasados = atrasados.length;
 
   if (locale === "en") {
-    if (total === 0) return "Today there are no jobs to deliver.";
-    let texto = `Today we have ${total} ${q(total, "job", "jobs")} to deliver. `;
-    texto += `We have ${noPrazo} on time and ${nAtrasados} overdue.`;
-    texto += listarAtrasadosFala(atrasados, "en");
-    return texto;
+    if (total === 0) {
+      return escolher([
+        "Nothing to deliver today.",
+        "No jobs due today.",
+        "The delivery list is empty for today.",
+      ]);
+    }
+    const blocos = [
+      escolher([
+        `Heads up: ${total} ${q(total, "job", "jobs")} to deliver today.`,
+        `Today we have ${total} ${q(total, "delivery", "deliveries")}.`,
+        `${total} ${q(total, "job is", "jobs are")} on today's list.`,
+      ]),
+      escolher([
+        `${noPrazo} on time, ${nAtrasados} overdue.`,
+        `${noPrazo} still on time. ${nAtrasados} already late.`,
+      ]),
+      listarAtrasadosFala(atrasados, "en"),
+    ].filter(Boolean);
+    return embaralhar(blocos).join(" ");
   }
 
   if (locale === "es") {
-    if (total === 0) return "Hoy no hay trabajos para entregar.";
-    let texto = `Hoy tenemos ${total} ${q(total, "trabajo", "trabajos")} para entregar. `;
-    texto += `Tenemos ${noPrazo} en plazo y ${nAtrasados} atrasados.`;
-    texto += listarAtrasadosFala(atrasados, "es");
-    return texto;
+    if (total === 0) {
+      return escolher([
+        "Hoy no hay trabajos para entregar.",
+        "La lista de entregas de hoy está vacía.",
+        "Por hoy, no hay nada para salir.",
+      ]);
+    }
+    const blocos = [
+      escolher([
+        `Atención: hoy hay ${total} ${q(total, "trabajo", "trabajos")} para entregar.`,
+        `Hoy salen ${total} ${q(total, "entrega", "entregas")}.`,
+        `En la lista de hoy hay ${total} ${q(total, "trabajo", "trabajos")}.`,
+      ]),
+      escolher([
+        `${noPrazo} en plazo y ${nAtrasados} atrasados.`,
+        `En plazo: ${noPrazo}. Atrasados: ${nAtrasados}.`,
+      ]),
+      listarAtrasadosFala(atrasados, "es"),
+    ].filter(Boolean);
+    return embaralhar(blocos).join(" ");
   }
 
-  if (total === 0) return "Hoje não há trabalhos para entregar.";
-  let texto = `Hoje temos ${total} ${q(total, "trabalho", "trabalhos")} para entregar. `;
-  texto += `Temos ${noPrazo} ${q(noPrazo, "no prazo", "no prazo")} e ${nAtrasados} ${q(
-    nAtrasados,
-    "atrasado",
-    "atrasados"
-  )}.`;
-  texto += listarAtrasadosFala(atrasados, "pt");
-  return texto;
+  if (total === 0) {
+    return escolher([
+      "Por hoje, não tem nenhum trabalho para entregar.",
+      "Hoje a lista de entregas está vazia.",
+      "Nada para sair hoje.",
+    ]);
+  }
+
+  const blocoTotal = escolher([
+    `Pessoal, hoje são ${total} ${q(total, "trabalho", "trabalhos")} para entregar.`,
+    `Atenção, laboratório: ${total} ${q(total, "entrega", "entregas")} na lista de hoje.`,
+    `Passando o recado: temos ${total} ${q(total, "trabalho", "trabalhos")} para sair hoje.`,
+    `Hoje a produção tem ${total} ${q(total, "trabalho", "trabalhos")} na entrega.`,
+    `Gente, ${total} ${q(total, "peça", "peças")} para entregar ainda hoje.`,
+  ]);
+
+  const blocoPrazo = escolher([
+    nAtrasados === 0
+      ? `Todos os ${total} estão no prazo.`
+      : noPrazo === 0
+        ? `Os ${nAtrasados} já passaram da hora.`
+        : `Desses, ${noPrazo} ${q(noPrazo, "ainda está", "ainda estão")} no prazo e ${nAtrasados} ${q(
+            nAtrasados,
+            "atrasado",
+            "atrasados"
+          )}.`,
+    nAtrasados === 0
+      ? "Nenhum atraso por agora."
+      : `No prazo: ${noPrazo}. Atrasados: ${nAtrasados}.`,
+    nAtrasados === 0
+      ? "Tudo dentro do horário combinado."
+      : `${noPrazo} no prazo. ${nAtrasados} ${q(nAtrasados, "já atrasou", "já atrasaram")}.`,
+  ]);
+
+  const blocoAtrasados = listarAtrasadosFala(atrasados, "pt");
+  let blocos = [blocoTotal, blocoPrazo, blocoAtrasados].filter((bloco) => bloco.trim());
+  if (blocos.length > 2 && Math.random() < 0.4) {
+    blocos.splice(Math.random() < 0.5 ? 0 : 1, 1);
+  }
+  return embaralhar(blocos).join(" ");
 }
 
 function listarAtrasadosFala(atrasados: PacienteAtrasadoFala[], locale: Locale) {
   if (atrasados.length === 0) return "";
-  const lista = atrasados.slice(0, LIMITE_PACIENTES_FALA);
+  const lista = embaralhar(atrasados).slice(0, LIMITE_PACIENTES_FALA);
   const resto = atrasados.length - lista.length;
+
   const partes = lista.map((item) => {
+    const quando = formatarHorarioLocutor(item.prazoIso, locale);
     if (locale === "en") {
-      return ` Overdue patient ${item.paciente}, ${item.horarioFala}, work order ${item.numeroOs}.`;
+      return escolher([
+        `${item.paciente} is overdue, ${quando}, work order ${item.numeroOs}.`,
+        `Overdue: ${item.paciente}, ${quando}.`,
+        `Please check ${item.paciente}, due ${quando}.`,
+      ]);
     }
     if (locale === "es") {
-      return ` Paciente atrasado ${item.paciente}, ${item.horarioFala}, OS ${item.numeroOs}.`;
+      return escolher([
+        `${item.paciente} está atrasado, ${quando}, OS ${item.numeroOs}.`,
+        `Atrasado: ${item.paciente}, ${quando}.`,
+        `Revisen a ${item.paciente}, era ${quando}.`,
+      ]);
     }
-    return ` Paciente atrasado ${item.paciente}, ${item.horarioFala}, ordem ${item.numeroOs}.`;
+    return escolher([
+      `${item.paciente} ficou atrasada, combinado ${quando}.`,
+      `${item.paciente} já passou da hora, era ${quando}.`,
+      `Dá uma olhada em ${item.paciente}, ordem ${item.numeroOs}, ${quando}.`,
+      `${item.paciente} ainda não saiu, era para ${quando}.`,
+    ]);
   });
-  let texto = partes.join("");
+
+  const intro =
+    locale === "en"
+      ? escolher(["Late jobs:", "These are overdue:", "Please check:"])
+      : locale === "es"
+        ? escolher(["Los atrasados:", "Ojo con estos atrasos:", "Revisen:"])
+        : escolher([
+            "Os atrasados agora:",
+            "Olha só quem já passou da hora:",
+            "Vamos aos atrasados:",
+          ]);
+
+  let texto = `${intro} ${partes.join(" ")}`;
   if (resto > 0) {
     if (locale === "en") texto += ` And ${resto} more overdue.`;
     else if (locale === "es") texto += ` Y ${resto} atrasados más.`;
-    else texto += ` E mais ${resto} atrasados.`;
+    else texto += ` E mais ${resto} ${q(resto, "atrasado", "atrasados")}.`;
   }
   return texto;
 }
@@ -154,17 +259,52 @@ function langLocutor(locale: Locale) {
   return "pt-BR";
 }
 
+function vozPareceMasculina(nome: string) {
+  return /male|masculin|\bman\b|daniel|antonio|antônio|felipe|ricardo|rafael|bruno|google uk english male|microsoft david|microsoft george/i.test(
+    nome
+  );
+}
+
+function vozPareceFeminina(nome: string) {
+  return /female|feminina|woman|girl|maria|francisca|luciana|heloisa|heloísa|helena|elvira|paulina|sabina|thalita|camila|vitória|vitoria|zira|samantha|karen|moira|tessa|fiona|veena|lekha|microsoft maria|microsoft francisca|google português|google portugues|português do brasil|portugues do brasil/i.test(
+    nome
+  );
+}
+
+function pontuarVozFeminina(voz: SpeechSynthesisVoice, locale: Locale) {
+  const nome = voz.name.toLowerCase();
+  const lang = voz.lang.toLowerCase();
+  const alvo = langLocutor(locale).toLowerCase();
+  let pontos = 0;
+  if (lang === alvo) pontos += 8;
+  else if (lang.startsWith(alvo.slice(0, 2))) pontos += 5;
+  if (vozPareceFeminina(nome)) pontos += 12;
+  if (vozPareceMasculina(nome) && !vozPareceFeminina(nome)) pontos -= 20;
+  if (/natural|online|neural|wavenet|studio/.test(nome)) pontos += 4;
+  if (voz.localService) pontos += 1;
+  return pontos;
+}
+
 function escolherVoz(locale: Locale) {
   if (typeof window === "undefined" || !window.speechSynthesis) return null;
   const vozes = window.speechSynthesis.getVoices();
-  const lang = langLocutor(locale).toLowerCase();
-  const prefixo = lang.slice(0, 2);
-  return (
-    vozes.find((v) => v.lang.toLowerCase() === lang) ||
-    vozes.find((v) => v.lang.toLowerCase().startsWith(prefixo)) ||
-    vozes.find((v) => /brazil|portugu|spanish|español|english/i.test(v.name)) ||
-    null
+  if (!vozes.length) return null;
+  const femininas = vozes.filter(
+    (voz) => vozPareceFeminina(voz.name) || !vozPareceMasculina(voz.name)
   );
+  const pool = femininas.length > 0 ? femininas : vozes;
+  const ordenadas = [...pool].sort(
+    (a, b) => pontuarVozFeminina(b, locale) - pontuarVozFeminina(a, locale)
+  );
+  return ordenadas[0] ?? null;
+}
+
+const INICIO_AVISO_MINUTOS = 8 * 60 + 30;
+const FIM_AVISO_MINUTOS = 18 * 60;
+
+export function locutorDentroDoHorarioAviso(agora = new Date()) {
+  const minutos = agora.getHours() * 60 + agora.getMinutes();
+  return minutos >= INICIO_AVISO_MINUTOS && minutos <= FIM_AVISO_MINUTOS;
 }
 
 export function ttsDisponivelLocutorTv() {
@@ -195,14 +335,14 @@ export function falarTextoLocutorTv(texto: string, locale: Locale = "pt"): Promi
     const iniciar = () => {
       const utt = new SpeechSynthesisUtterance(texto);
       utt.lang = langLocutor(locale);
-      utt.rate = 0.94;
-      utt.pitch = 1;
+      utt.rate = 1.42;
+      utt.pitch = 1.08;
       utt.volume = 1;
       const voz = escolherVoz(locale);
       if (voz) utt.voice = voz;
       utt.onend = () => resolve();
       utt.onerror = () => resolve();
-      window.setTimeout(() => synth.speak(utt), 280);
+      window.setTimeout(() => synth.speak(utt), 180);
     };
 
     const vozes = synth.getVoices();

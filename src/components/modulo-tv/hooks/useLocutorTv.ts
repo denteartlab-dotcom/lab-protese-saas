@@ -6,6 +6,8 @@ import {
   carregarVozesLocutorTv,
   falarTextoLocutorTv,
   INTERVALO_LOCUTOR_TV_MS,
+  locutorDentroDoHorarioAviso,
+  montarFalaLocutorTv,
   pararFalaLocutorTv,
   resumoEntregasLocutorTv,
   ttsDisponivelLocutorTv,
@@ -17,7 +19,6 @@ export function useLocutorTv(ordens: OrdemServicoTv[], dadosCarregados: boolean)
   const { locale } = useI18n();
   const locutorIaAtivo = useTvDashboardStore((s) => s.locutorIaAtivo);
   const [falando, setFalando] = useState(false);
-  const [ultimaFala, setUltimaFala] = useState("");
   const [precisaToque, setPrecisaToque] = useState(false);
   const chaveFaladaRef = useRef("");
   const falandoRef = useRef(false);
@@ -32,21 +33,21 @@ export function useLocutorTv(ordens: OrdemServicoTv[], dadosCarregados: boolean)
       if (!locutorIaAtivo && !forcar) return;
       if (!ttsDisponivelLocutorTv()) return;
       if (falandoRef.current) return;
+      if (!forcar && !locutorDentroDoHorarioAviso()) return;
       if (!forcar && chaveFaladaRef.current === resumo.chave) return;
 
       falandoRef.current = true;
       setFalando(true);
       setPrecisaToque(false);
-      setUltimaFala(resumo.texto);
       chaveFaladaRef.current = resumo.chave;
       try {
-        await falarTextoLocutorTv(resumo.texto, locale);
+        await falarTextoLocutorTv(montarFalaLocutorTv(resumo, locale), locale);
       } finally {
         falandoRef.current = false;
         setFalando(false);
       }
     },
-    [locale, locutorIaAtivo, resumo.chave, resumo.texto]
+    [locale, locutorIaAtivo, resumo]
   );
 
   useEffect(() => {
@@ -85,9 +86,7 @@ export function useLocutorTv(ordens: OrdemServicoTv[], dadosCarregados: boolean)
   useEffect(() => () => pararFalaLocutorTv(), []);
 
   return {
-    resumo,
     falando,
-    ultimaFala,
     precisaToque,
     ttsDisponivel: ttsDisponivelLocutorTv(),
     falarAgora: () => {
