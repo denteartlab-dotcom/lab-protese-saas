@@ -619,6 +619,8 @@ export const messages = {
     "cadastro.senhaErroNumero": "Inclua um número.",
     "dashboard.home": "Home",
     "dashboard.inicio": "Início",
+    "dashboard.heroSub":
+      "Acompanhe atrasos, produção, estoque e financeiro do laboratório em um só lugar.",
     "dashboard.servicosVencendo": "Serviços Vencendo",
     "dashboard.servicosAtrasados": "Serviços Atrasados",
     "dashboard.urgentesCliente": "Urgentes sinalizados pelo cliente",
@@ -1434,6 +1436,8 @@ export const messages = {
     "cadastro.senhaErroNumero": "Include a number.",
     "dashboard.home": "Home",
     "dashboard.inicio": "Home",
+    "dashboard.heroSub":
+      "Track overdue work, production, inventory and finances for your lab in one place.",
     "dashboard.servicosVencendo": "Due Services",
     "dashboard.servicosAtrasados": "Overdue Services",
     "dashboard.urgentesCliente": "Client-marked urgent work orders",
@@ -2250,6 +2254,8 @@ export const messages = {
     "cadastro.senhaErroNumero": "Incluya un número.",
     "dashboard.home": "Inicio",
     "dashboard.inicio": "Inicio",
+    "dashboard.heroSub":
+      "Siga atrasos, producción, stock y finanzas del laboratorio en un solo lugar.",
     "dashboard.servicosVencendo": "Servicios por Vencer",
     "dashboard.servicosAtrasados": "Servicios Atrasados",
     "dashboard.urgentesCliente": "Urgentes señalados por el cliente",

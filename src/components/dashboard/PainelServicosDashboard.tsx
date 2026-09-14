@@ -109,9 +109,16 @@ export function PainelServicosDashboard({
         expandido ? "min-h-[360px]" : "min-h-[118px]"
       }`}
     >
+      <div
+        className={`absolute inset-x-0 top-0 h-1 ${
+          tom === "warning"
+            ? "bg-gradient-to-r from-amber-400 to-yellow-500"
+            : "bg-gradient-to-r from-rose-500 to-red-600"
+        }`}
+      />
       <div className="px-4 pb-3 pt-3">
         <div className="flex items-start justify-between gap-2">
-          <p className="text-[13px] font-medium text-slate-700">{titulo}</p>
+          <p className="ui-panel-title">{titulo}</p>
           <div className="flex shrink-0 items-center gap-1.5">{filtros}</div>
         </div>
         <p className="mt-2 text-[42px] font-semibold leading-none text-slate-800">{valor}</p>

@@ -88,8 +88,8 @@ export function PainelClientesServicosDashboard({
 
   return (
     <section className="ui-panel">
-      <div className="flex min-h-10 items-center justify-between border-b border-slate-100 px-4 py-2">
-        <h2 className="text-sm font-medium text-slate-700">{titulo}</h2>
+      <div className="ui-panel-header">
+        <h2 className="ui-panel-title">{titulo}</h2>
         <select
           value={String(diasMinimos)}
           onChange={(e) => onDiasChange(Number(e.target.value))}

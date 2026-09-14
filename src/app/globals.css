@@ -28,12 +28,13 @@ html.modo-tv-producao {
 
 @layer base {
   body {
-    @apply bg-[#e8f2f3] font-sans text-slate-800 antialiased;
+    @apply bg-[#edf5f6] font-sans text-slate-800 antialiased;
     min-height: calc(100vh / var(--site-zoom));
     min-height: calc(100dvh / var(--site-zoom));
     background-image:
-      radial-gradient(1200px 520px at 110% -8%, rgba(20, 184, 166, 0.18), transparent 58%),
-      radial-gradient(900px 420px at -12% 0%, rgba(14, 165, 233, 0.12), transparent 52%);
+      radial-gradient(1100px 480px at 100% -12%, rgba(13, 148, 136, 0.22), transparent 55%),
+      radial-gradient(800px 420px at -8% 8%, rgba(8, 145, 178, 0.14), transparent 50%),
+      linear-gradient(180deg, #e7f3f4 0%, #edf5f6 40%, #f3f8f8 100%);
     background-attachment: fixed;
   }
 
@@ -60,7 +61,15 @@ html.modo-tv-producao {
 
 @layer utilities {
   .ui-panel {
-    @apply rounded-2xl border border-teal-900/[0.08] bg-white shadow-panel dark:border-slate-700 dark:bg-slate-900;
+    @apply overflow-hidden rounded-2xl border border-teal-900/[0.07] bg-white/90 shadow-panel backdrop-blur-[2px] dark:border-slate-700 dark:bg-slate-900/95;
+  }
+
+  .ui-panel-header {
+    @apply flex min-h-11 items-center justify-between gap-2 border-b border-teal-900/[0.06] bg-gradient-to-r from-teal-50/90 to-transparent px-4 py-2.5 dark:border-slate-800 dark:from-teal-950/40;
+  }
+
+  .ui-panel-title {
+    @apply text-sm font-semibold tracking-tight text-slate-800 dark:text-slate-100;
   }
 
   .gradient-hero {
@@ -151,11 +160,13 @@ html.modo-tv-producao {
     width: 100%;
     background: linear-gradient(
       90deg,
-      #d7ecee 0%,
-      #eef6f7 42%,
-      #e4eef6 100%
+      #c5e8ea 0%,
+      #e8f6f7 40%,
+      #d5eef5 100%
     );
-    box-shadow: inset 0 -1px 0 rgba(13, 148, 136, 0.12);
+    box-shadow:
+      inset 0 -1px 0 rgba(13, 148, 136, 0.18),
+      0 8px 24px rgba(13, 148, 136, 0.08);
     line-height: normal;
   }
 

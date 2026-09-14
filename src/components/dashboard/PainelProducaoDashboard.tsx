@@ -47,13 +47,13 @@ export function PainelProducaoDashboard({
 
   return (
     <section className="ui-panel">
-      <div className="flex min-h-10 items-center justify-between border-b border-slate-100 px-4 py-2">
-        <h2 className="text-sm font-medium text-slate-700">{titulo}</h2>
+      <div className="ui-panel-header">
+        <h2 className="ui-panel-title">{titulo}</h2>
         <div className="flex items-center gap-2">
           <select
             value={mes}
             onChange={(e) => onMesChange(Number(e.target.value))}
-            className="rounded border border-slate-200 bg-white px-2 py-1 text-[10px] text-slate-600"
+            className="rounded-lg border border-teal-900/10 bg-white px-2 py-1 text-[10px] text-slate-600"
           >
             {meses.map((nome, index) => (
               <option key={nome} value={index}>
@@ -64,7 +64,7 @@ export function PainelProducaoDashboard({
           <select
             value={ano}
             onChange={(e) => onAnoChange(Number(e.target.value))}
-            className="rounded border border-slate-200 bg-white px-2 py-1 text-[10px] text-slate-600"
+            className="rounded-lg border border-teal-900/10 bg-white px-2 py-1 text-[10px] text-slate-600"
           >
             {anos.map((a) => (
               <option key={a} value={a}>
@@ -171,10 +171,10 @@ function ProgressRing({ percent }: { percent: number }) {
     <div
       className="mt-1 flex h-[120px] w-[120px] items-center justify-center rounded-full"
       style={{
-        background: `conic-gradient(#22c55e ${angle}deg, #e8ecf1 ${angle}deg)`,
+        background: `conic-gradient(#14b8a6 ${angle}deg, #e6f4f4 ${angle}deg)`,
       }}
     >
-      <div className="flex h-[100px] w-[100px] items-center justify-center rounded-full bg-white text-[26px] font-semibold text-slate-600">
+      <div className="flex h-[100px] w-[100px] items-center justify-center rounded-full bg-white text-[26px] font-semibold text-teal-800">
         {percent}%
       </div>
     </div>

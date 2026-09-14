@@ -360,12 +360,32 @@ export default function DashboardPage() {
   const podeClientes = podeVer("/app/clientes");
 
   return (
-    <div className="space-y-4 text-[13px] text-slate-700">
-      <div className="flex items-center gap-2 text-sm text-slate-500">
-        <span>{t("dashboard.home")}</span>
-        <span>/</span>
-        <span className="font-medium text-slate-700">{t("dashboard.inicio")}</span>
-      </div>
+    <div className="space-y-5 text-[13px] text-slate-700">
+      <section className="relative overflow-hidden rounded-3xl border border-teal-900/10 bg-[#0b3d3a] px-5 py-6 text-white shadow-panel sm:px-7 sm:py-7">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(700px_240px_at_90%_-20%,rgba(34,211,238,0.35),transparent_55%)]" />
+        <div className="pointer-events-none absolute -left-10 bottom-0 h-40 w-40 rounded-full bg-teal-400/10 blur-2xl" />
+        <div className="relative flex flex-wrap items-end justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-teal-200/80">
+              {t("dashboard.home")}
+            </p>
+            <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
+              {t("dashboard.inicio")}
+            </h1>
+            <p className="mt-2 max-w-xl text-sm text-teal-50/80">
+              {t("dashboard.heroSub")}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 text-[11px]">
+            <span className="rounded-full bg-white/10 px-3 py-1.5 font-semibold text-teal-50 ring-1 ring-white/15">
+              {t("dashboard.servicosAtrasados")}: {atrasados}
+            </span>
+            <span className="rounded-full bg-white/10 px-3 py-1.5 font-semibold text-teal-50 ring-1 ring-white/15">
+              {t("dashboard.servicosVencendo")}: {vencendo}
+            </span>
+          </div>
+        </div>
+      </section>
 
       <PainelUrgenciasClienteDashboard
         titulo={t("dashboard.urgentesCliente")}
@@ -607,11 +627,12 @@ function PainelEstoque({
 }) {
   return (
     <div className="ui-panel relative min-h-[118px] px-4 pb-3 pt-3">
+      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-amber-400 to-orange-500" />
       <div className="flex items-start justify-between gap-2">
-        <p className="text-[13px] font-medium text-slate-700">{titulo}</p>
+        <p className="ui-panel-title">{titulo}</p>
         <Link
           href="/app/orcamentos"
-          className="shrink-0 rounded-full border border-primary-300 px-2 py-0.5 text-[10px] font-medium text-primary-700 hover:bg-primary-50"
+          className="shrink-0 rounded-full border border-primary-300 bg-primary-50 px-2.5 py-0.5 text-[10px] font-semibold text-primary-700 hover:bg-primary-100"
         >
           {labelOrcamento}
         </Link>
@@ -682,8 +703,8 @@ function Panel({
 }) {
   return (
     <section className="ui-panel">
-      <div className="flex min-h-10 items-center justify-between border-b border-slate-100 px-4 py-2">
-        <h2 className="text-sm font-medium text-slate-700">{title}</h2>
+      <div className="ui-panel-header">
+        <h2 className="ui-panel-title">{title}</h2>
         {toolbar && <div className="flex items-center gap-2">{toolbar}</div>}
       </div>
       <div className="p-4">{children}</div>

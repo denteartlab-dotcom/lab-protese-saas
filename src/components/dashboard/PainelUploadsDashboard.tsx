@@ -60,7 +60,7 @@ export function PainelUploadsDashboard({
         galeriaEmAlerta ? "border-red-200" : ""
       )}
     >
-      <div className="flex min-h-10 items-center justify-between border-b border-slate-100 px-4 py-2">
+      <div className="ui-panel-header">
         <h2 className="text-sm font-medium text-slate-700">{tituloCard}</h2>
         <span className="text-[11px] font-semibold text-slate-600">
           {resumo.limiteGb} GB
@@ -84,7 +84,7 @@ export function PainelUploadsDashboard({
           </span>
           <Link
             href="/app/liberar-espaco"
-            className="shrink-0 font-medium text-[#4a90d9] hover:underline"
+            className="shrink-0 font-medium text-primary-600 hover:underline"
           >
             {t("dashboard.liberarEspaco")}
           </Link>
@@ -145,7 +145,7 @@ export function PainelUploadsDashboard({
         ) : galeriaEsgotada ? (
           <p className="mt-2 text-[11px] font-medium text-red-600">
             {t("dashboard.espacoEsgotado")}{" "}
-            <Link href="/app/liberar-espaco" className="text-[#4a90d9] hover:underline">
+            <Link href="/app/liberar-espaco" className="text-primary-600 hover:underline">
               {t("dashboard.liberarEspaco")}
             </Link>{" "}
             {t("dashboard.paraExcluirArquivos")}
@@ -153,7 +153,7 @@ export function PainelUploadsDashboard({
         ) : galeriaEmAlerta ? (
           <p className="mt-2 text-[11px] font-medium text-red-500">
             {t("dashboard.espacoQuaseCheio")}{" "}
-            <Link href="/app/liberar-espaco" className="text-[#4a90d9] hover:underline">
+            <Link href="/app/liberar-espaco" className="text-primary-600 hover:underline">
               {t("dashboard.liberarEspaco")}
             </Link>{" "}
             {t("dashboard.paraExcluirArquivos")}

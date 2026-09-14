@@ -82,11 +82,11 @@ export function PainelAnotacoesDashboard({
 
   return (
     <section className="ui-panel dark:border-slate-700">
-      <div className="flex min-h-10 items-center justify-between border-b border-slate-100 px-4 py-2 dark:border-slate-700">
-        <h2 className="text-sm font-medium text-slate-700">{titulo}</h2>
+      <div className="ui-panel-header">
+        <h2 className="ui-panel-title">{titulo}</h2>
       </div>
       <div className="flex h-56 flex-col p-3">
-        <div className="min-h-0 flex-1 overflow-y-auto rounded border border-slate-100 bg-slate-50/50 dark:border-slate-700 dark:bg-slate-800/60">
+        <div className="min-h-0 flex-1 overflow-y-auto rounded-xl border border-teal-900/10 bg-teal-50/40 dark:border-slate-700 dark:bg-slate-800/60">
           {lista.length === 0 ? (
             <p className="px-3 py-6 text-center text-[11px] text-slate-400">
               {t("dashboard.semAnotacoes")}
@@ -102,7 +102,7 @@ export function PainelAnotacoesDashboard({
                     <p className="mt-1 text-[10px] text-slate-400">
                       {a.autor ? (
                         <>
-                          <span className="font-medium text-blue-600">{a.autor}</span>
+                          <span className="font-medium text-primary-700">{a.autor}</span>
                           <span className="mx-1">·</span>
                         </>
                       ) : null}
