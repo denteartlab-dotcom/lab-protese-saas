@@ -38,7 +38,7 @@ export function useLocutorTv(ordens: OrdemServicoTv[], dadosCarregados: boolean)
     async (forcar = false) => {
       if (!locutorIaAtivo && !forcar) return;
       if (!ttsDisponivelLocutorTv()) return;
-      if (!locutorDentroDoHorarioAviso()) return;
+      if (!forcar && !locutorDentroDoHorarioAviso()) return;
       if (falandoRef.current) return;
       if (!forcar && chaveFaladaRef.current === resumo.chave) return;
 
@@ -157,12 +157,14 @@ export function useLocutorTv(ordens: OrdemServicoTv[], dadosCarregados: boolean)
     falando,
     precisaToque,
     ttsDisponivel: ttsDisponivelLocutorTv(),
+    aoLigar: () => {
+      desbloquearAudioLocutorTv();
+      if (!locutorDentroDoHorarioAviso()) return Promise.resolve();
+      chaveFaladaRef.current = "";
+      return falarTrabalhos(true);
+    },
     falarAgora: () => {
       chaveFaladaRef.current = "";
-      if (!locutorDentroDoHorarioAviso()) {
-        desbloquearAudioLocutorTv();
-        return Promise.resolve();
-      }
       return falarTrabalhos(true);
     },
   };

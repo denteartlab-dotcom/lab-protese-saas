@@ -18,7 +18,10 @@ export function TvLocutorIa({ ordens, dadosCarregados }: Props) {
   const { t } = useI18n();
   const locutorIaAtivo = useTvDashboardStore((s) => s.locutorIaAtivo);
   const setLocutorIaAtivo = useTvDashboardStore((s) => s.setLocutorIaAtivo);
-  const { falando, ttsDisponivel, falarAgora } = useLocutorTv(ordens, dadosCarregados);
+  const { falando, ttsDisponivel, aoLigar, falarAgora } = useLocutorTv(
+    ordens,
+    dadosCarregados
+  );
 
   return (
     <motion.div
@@ -37,7 +40,7 @@ export function TvLocutorIa({ ordens, dadosCarregados }: Props) {
               return;
             }
             setLocutorIaAtivo(true);
-            void falarAgora();
+            void aoLigar();
           }}
           className={cn(
             "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition tv:text-xs",
