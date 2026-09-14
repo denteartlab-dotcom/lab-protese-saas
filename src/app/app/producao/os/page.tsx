@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
@@ -260,7 +260,7 @@ type ItemAdicionado = {
   observacao?: string;
   urgente?: boolean;
   repeticao?: boolean;
-  /** Etapas preenchidas para este serviço (uma OS com vários serviços). */
+  /** Etapas preenchidas para este serviÃ§o (uma OS com vÃ¡rios serviÃ§os). */
   etapasServico?: EtapaOsItemServico[];
 };
 type CampoData = "dataLancamento" | "dataLaboratorio" | "dataDentista";
@@ -283,7 +283,7 @@ const dentesDeciduosInferiores = [...DENTES_DECIDUOS_INFERIORES];
 function requiredLabel(label: string, show = false) {
   return (
     <span>
-      {label} {show && <span className="text-red-600">(*) Campo Obrigatório</span>}
+      {label} {show && <span className="text-red-600">(*) Campo ObrigatÃ³rio</span>}
     </span>
   );
 }
@@ -297,7 +297,7 @@ function parseMoney(value: string) {
 }
 
 function CampoValorComissaoReadonly({
-  label = "Valor da Comissão",
+  label = "Valor da ComissÃ£o",
   tipo,
   valor,
 }: {
@@ -413,28 +413,28 @@ function itensFromTrabalho(trabalho: TrabalhoEdicao): ItemAdicionado[] {
         id: `${trabalho.id}-${index}`,
         servico: match[1]?.trim() || trabalho.tipoProtese,
         categoria:
-          line.match(/ - categoria (.*?)(?: - desc| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i)?.[1]?.trim() ||
+          line.match(/ - categoria (.*?)(?: - desc| - situaÃ§Ã£o| - produtoId| - urgente| - repetiÃ§Ã£o| - repeticao| - obs|$)/i)?.[1]?.trim() ||
           trabalho.escala ||
           "",
         numeroDente: match[2]?.trim() || trabalho.dentes || "-",
         corDente: match[3]?.trim() || trabalho.cor || "-",
         quantidade: match[4]?.trim() || "1",
-        valor: parseMoney(line.match(/ - valor (.*?)(?: - categoria| - desc| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i)?.[1] || match[5] || ""),
+        valor: parseMoney(line.match(/ - valor (.*?)(?: - categoria| - desc| - situaÃ§Ã£o| - produtoId| - urgente| - repetiÃ§Ã£o| - repeticao| - obs|$)/i)?.[1] || match[5] || ""),
         desconto:
           line.match(
-            / - desc (.*?)(?: - descTipo| - categoria| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i
+            / - desc (.*?)(?: - descTipo| - categoria| - situaÃ§Ã£o| - produtoId| - urgente| - repetiÃ§Ã£o| - repeticao| - obs|$)/i
           )?.[1]?.trim() || "0,00",
         descontoTipo: parseDescontoTipoLinhaItem(
           line,
           line.match(
-            / - desc (.*?)(?: - descTipo| - categoria| - situação| - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i
+            / - desc (.*?)(?: - descTipo| - categoria| - situaÃ§Ã£o| - produtoId| - urgente| - repetiÃ§Ã£o| - repeticao| - obs|$)/i
           )?.[1]?.trim() || "0,00"
         ),
-        situacao: line.match(/ - situação (.*?)(?: - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i)?.[1]?.trim() || trabalho.status,
-        produtoId: line.match(/ - produtoId (.*?)(?: - urgente| - repetição| - repeticao| - obs|$)/i)?.[1]?.trim() || "",
+        situacao: line.match(/ - situaÃ§Ã£o (.*?)(?: - produtoId| - urgente| - repetiÃ§Ã£o| - repeticao| - obs|$)/i)?.[1]?.trim() || trabalho.status,
+        produtoId: line.match(/ - produtoId (.*?)(?: - urgente| - repetiÃ§Ã£o| - repeticao| - obs|$)/i)?.[1]?.trim() || "",
         observacao: line.match(/ - obs (.*)$/i)?.[1]?.trim() || "",
         urgente: / - urgente(?: -|$)/i.test(line),
-        repeticao: / - repetição(?: -|$)| - repeticao(?: -|$)/i.test(line),
+        repeticao: / - repetiÃ§Ã£o(?: -|$)| - repeticao(?: -|$)/i.test(line),
       };
     })
     .filter(Boolean) as ItemAdicionado[];
@@ -633,7 +633,7 @@ export default function OrdemServicoPage() {
         ...produto,
         ...extras[produto.id],
         estoque: Number(extras[produto.id]?.estoque ?? produto.estoque ?? 0),
-        unidadeMedida: String(extras[produto.id]?.unidadeMedida ?? produto.unidadeMedida ?? "un (Unitário)"),
+        unidadeMedida: String(extras[produto.id]?.unidadeMedida ?? produto.unidadeMedida ?? "un (UnitÃ¡rio)"),
       }));
     }
 
@@ -911,7 +911,7 @@ export default function OrdemServicoPage() {
           ...produto,
           ...extras[produto.id],
           estoque: Number(extras[produto.id]?.estoque ?? 0),
-          unidadeMedida: String(extras[produto.id]?.unidadeMedida ?? "un (Unitário)"),
+          unidadeMedida: String(extras[produto.id]?.unidadeMedida ?? "un (UnitÃ¡rio)"),
         }))
       );
     }
@@ -1121,7 +1121,7 @@ export default function OrdemServicoPage() {
         .trim() || "";
 
     return {
-      tabelaPreco: value("Tabela de Preço:"),
+      tabelaPreco: value("Tabela de PreÃ§o:"),
       descontoGeral: clienteDescontoGeralDeObservacoes(observacoes),
       descontoGeralTipo: clienteDescontoGeralTipoDeObservacoes(observacoes),
       limiteSaldoDevedor: value("Limite Saldo Devedor:"),
@@ -1217,7 +1217,7 @@ export default function OrdemServicoPage() {
     return formatarComissaoComTipo(tipo, bruto);
   }
 
-  /** Base da comissão: só o serviço atual (nunca produto nem transporte). */
+  /** Base da comissÃ£o: sÃ³ o serviÃ§o atual (nunca produto nem transporte). */
   function valorBaseComissaoColaboradorOs() {
     if (servicoOsAtual) {
       const subtotal = servicoOsAtual.valor * Number(form.quantidade || 1);
@@ -1505,7 +1505,7 @@ export default function OrdemServicoPage() {
     return servico ? calcularDatasPrazoServico(servico, basePrazo) : { dataLaboratorio: "", dataDentista: "" };
   }
 
-  /** Valor do select principal (opções usam só o nome; produto/transporte gravam com prefixo). */
+  /** Valor do select principal (opÃ§Ãµes usam sÃ³ o nome; produto/transporte gravam com prefixo). */
   function valorSelectServico() {
     const texto = form.tipoProtese.trim();
     if (/^(transporte|frete)\s*:/i.test(texto)) {
@@ -1674,7 +1674,7 @@ export default function OrdemServicoPage() {
       exigeAnteriorFinalizada,
     });
     if (!validacao.permitido) {
-      setAvisoEtapa(validacao.motivo || "Não é possível alterar esta etapa agora.");
+      setAvisoEtapa(validacao.motivo || "NÃ£o Ã© possÃ­vel alterar esta etapa agora.");
       return;
     }
     setAvisoEtapa("");
@@ -1802,7 +1802,7 @@ export default function OrdemServicoPage() {
     try {
       await salvarMateriaisDentistaCadastro(atualizados);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Não foi possível salvar o material.");
+      alert(err instanceof Error ? err.message : "NÃ£o foi possÃ­vel salvar o material.");
       return;
     }
     setNovoMaterial("");
@@ -2200,7 +2200,7 @@ export default function OrdemServicoPage() {
   }, [form.repeticao, servicoOsAtual]);
 
   function rotuloSetorEtapa(etapa: { nome: string; setor: string }) {
-    return etapa.setor.trim() || setorDaEtapa(etapa.nome)?.nome || "Setor não informado";
+    return etapa.setor.trim() || setorDaEtapa(etapa.nome)?.nome || "Setor nÃ£o informado";
   }
 
   function dentesSelecionadosResumo() {
@@ -2797,7 +2797,7 @@ export default function OrdemServicoPage() {
         pacienteNome: form.pacienteNome.trim() || undefined,
         clienteNome: cliente?.nome || undefined,
         responsavel: `OS ${form.numeroOs || osId}`,
-        setor: "Produção",
+        setor: "ProduÃ§Ã£o",
         observacao: item.servico,
         data: new Date().toISOString(),
       }))
@@ -2829,7 +2829,7 @@ export default function OrdemServicoPage() {
       setArquivos([]);
       if (fileInputRef.current) fileInputRef.current.value = "";
       throw new Error(
-        "Espaço insuficiente na galeria para estes arquivos. Libere espaço em Início → Uploads."
+        "EspaÃ§o insuficiente na galeria para estes arquivos. Libere espaÃ§o em InÃ­cio â†’ Uploads."
       );
     }
     const formData = new FormData();
@@ -2854,9 +2854,9 @@ export default function OrdemServicoPage() {
     }
     const uploaded = await response.json();
     const storage = response.headers.get("X-Upload-Storage") || "";
-    if (storage && storage !== "onedrive") {
+    if (storage && storage !== "gdrive" && storage !== "onedrive") {
       console.warn(
-        `[uploads] armazenamento=${storage}. Esperado onedrive na VPS. Rode: bash scripts/corrigir-env-onedrive-vps.sh`
+        `[uploads] armazenamento=${storage}. Esperado gdrive na VPS. Veja deploy/GOOGLE-DRIVE-UPLOADS.md`
       );
     }
     notificarUploadsAtualizados();
@@ -2999,7 +2999,7 @@ export default function OrdemServicoPage() {
     ].filter(Boolean);
 
     if (!temConteudoParaAdicionar()) {
-      pendentes.push("serviço, produto, etapa, colaborador ou terceirizado");
+      pendentes.push("serviÃ§o, produto, etapa, colaborador ou terceirizado");
     }
 
     const adicionaServicoPelaCategoria =
@@ -3009,7 +3009,7 @@ export default function OrdemServicoPage() {
     }
 
     if (pendentes.length) {
-      setAvisoAdicionarServico(`Preencha os campos obrigatórios: ${pendentes.join(", ")}.`);
+      setAvisoAdicionarServico(`Preencha os campos obrigatÃ³rios: ${pendentes.join(", ")}.`);
       return;
     }
 
@@ -3058,8 +3058,8 @@ export default function OrdemServicoPage() {
       style: "currency",
       currency: "BRL",
     })}${incluirCategoria ? ` - categoria ${item.categoria}` : ""}${trechoDescontoLinhaItemOs(item)}${
-      itemUsaCamposOdontologicos(item) && item.situacao ? ` - situação ${item.situacao}` : ""
-    }${item.produtoId ? ` - produtoId ${item.produtoId}` : ""}${item.urgente ? " - urgente" : ""}${item.repeticao ? " - repetição" : ""}${item.observacao ? ` - obs ${item.observacao}` : ""}`;
+      itemUsaCamposOdontologicos(item) && item.situacao ? ` - situaÃ§Ã£o ${item.situacao}` : ""
+    }${item.produtoId ? ` - produtoId ${item.produtoId}` : ""}${item.urgente ? " - urgente" : ""}${item.repeticao ? " - repetiÃ§Ã£o" : ""}${item.observacao ? ` - obs ${item.observacao}` : ""}`;
   }
 
   function valorItens(itens: ItemAdicionado[]) {
@@ -3074,7 +3074,7 @@ export default function OrdemServicoPage() {
       const data = await res.json();
       if (typeof data?.error === "string" && data.error.trim()) return data.error;
     } catch {
-      /* resposta não-JSON */
+      /* resposta nÃ£o-JSON */
     }
     return padrao;
   }
@@ -3116,8 +3116,8 @@ export default function OrdemServicoPage() {
       form.caixa ? `Caixa: ${form.caixa}` : "",
       form.dentista ? `Dentista: ${form.dentista}` : "",
       form.prioridadeOs ? linhaPrioridadeOs(form.prioridadeOs) : "",
-      form.casoUrgente ? `Caso odontológico: ${form.casoUrgente}` : "",
-      form.dataLaboratorio ? `Data laboratório: ${form.dataLaboratorio} ${form.horaLaboratorio}`.trim() : "",
+      form.casoUrgente ? `Caso odontolÃ³gico: ${form.casoUrgente}` : "",
+      form.dataLaboratorio ? `Data laboratÃ³rio: ${form.dataLaboratorio} ${form.horaLaboratorio}`.trim() : "",
       form.dataDentista ? `Data dentista: ${form.dataDentista} ${form.horaDentista}`.trim() : "",
       etapasParaInstrucoes(),
       deduplicarColaboradores(colaboradores)
@@ -3129,7 +3129,7 @@ export default function OrdemServicoPage() {
         .filter((terceiro) => terceiro.nome || terceiro.servico || terceiro.custo)
         .map(
           (terceiro) =>
-            `Terceirizado ${terceiro.nome || "-"}: ${terceiro.servico || "serviço"}${
+            `Terceirizado ${terceiro.nome || "-"}: ${terceiro.servico || "serviÃ§o"}${
               terceiro.custo ? ` - custo ${terceiro.custo}` : ""
             }`
         )
@@ -3218,8 +3218,8 @@ export default function OrdemServicoPage() {
     if (!editId && itensAdicionados.length === 0) {
       setAvisoAdicionarServico(
         temConteudoParaAdicionar()
-          ? "Clique em + Adicionar Serviço para incluir o serviço na lista antes de salvar."
-          : "Adicione ao menos um serviço ou produto clicando em + Adicionar Serviço."
+          ? "Clique em + Adicionar ServiÃ§o para incluir o serviÃ§o na lista antes de salvar."
+          : "Adicione ao menos um serviÃ§o ou produto clicando em + Adicionar ServiÃ§o."
       );
       return;
     }
@@ -3232,8 +3232,8 @@ export default function OrdemServicoPage() {
     if (!itemSelecionadoId && temConteudoParaAdicionar()) {
       setAvisoAdicionarServico(
         editId
-          ? "Clique em + Adicionar Serviço antes de salvar."
-          : "Clique em + Adicionar Serviço para incluir o serviço na lista antes de salvar."
+          ? "Clique em + Adicionar ServiÃ§o antes de salvar."
+          : "Clique em + Adicionar ServiÃ§o para incluir o serviÃ§o na lista antes de salvar."
       );
       return;
     }
@@ -3251,7 +3251,7 @@ export default function OrdemServicoPage() {
       setArquivos([]);
       if (fileInputRef.current) fileInputRef.current.value = "";
       if (!tratarErroUploadArmazenamento(err)) {
-        alert(err instanceof Error ? err.message : "Não foi possível enviar os arquivos.");
+        alert(err instanceof Error ? err.message : "NÃ£o foi possÃ­vel enviar os arquivos.");
       }
       return;
     }
@@ -3259,7 +3259,7 @@ export default function OrdemServicoPage() {
       setSalvando(false);
       setArquivos([]);
       if (fileInputRef.current) fileInputRef.current.value = "";
-      alert("Não foi possível enviar os arquivos. Tente novamente.");
+      alert("NÃ£o foi possÃ­vel enviar os arquivos. Tente novamente.");
       return;
     }
     if (arquivosEnviados.length > 0) {
@@ -3278,7 +3278,7 @@ export default function OrdemServicoPage() {
 
     if (itensParaSalvar.length === 0) {
       setSalvando(false);
-      alert("Adicione ao menos um serviço ou produto em Itens Adicionados.");
+      alert("Adicione ao menos um serviÃ§o ou produto em Itens Adicionados.");
       return;
     }
     const corpoComum = montarCorpoInstrucoes(arquivosEnviados);
@@ -3287,7 +3287,7 @@ export default function OrdemServicoPage() {
 
     const dataPrevistaIso = brDateToIso(form.dataLaboratorio || form.dataDentista);
     const dentesResumo = dentesSelecionadosResumo();
-    /** PUT: null limpa campos no banco; POST: omitir vazios (API não aceita null em .optional()). */
+    /** PUT: null limpa campos no banco; POST: omitir vazios (API nÃ£o aceita null em .optional()). */
     const payloadPutCompartilhado = {
       dentes: dentesResumo || null,
       cor: form.cor || null,
@@ -3469,7 +3469,7 @@ export default function OrdemServicoPage() {
             )
           );
         } else {
-          alert(await mensagemErroApi(falha, "Não foi possível salvar a edição da OS."));
+          alert(await mensagemErroApi(falha, "NÃ£o foi possÃ­vel salvar a ediÃ§Ã£o da OS."));
         }
       } else {
         const blocoUnico = blocosSalvar[0];
@@ -3511,7 +3511,7 @@ export default function OrdemServicoPage() {
             false
           );
         } else {
-          alert(await mensagemErroApi(res, "Não foi possível salvar a edição da OS."));
+          alert(await mensagemErroApi(res, "NÃ£o foi possÃ­vel salvar a ediÃ§Ã£o da OS."));
         }
       }
       return;
@@ -3528,7 +3528,7 @@ export default function OrdemServicoPage() {
 
     if (!pacienteRes.ok) {
       setSalvando(false);
-      alert("Não foi possível cadastrar o paciente.");
+      alert("NÃ£o foi possÃ­vel cadastrar o paciente.");
       return;
     }
 
@@ -3594,8 +3594,8 @@ export default function OrdemServicoPage() {
           const rotulo =
             bloco.segmento === "servico"
               ? bloco.itens.length > 1
-                ? "serviços"
-                : "serviço"
+                ? "serviÃ§os"
+                : "serviÃ§o"
               : bloco.segmento === "produto"
                 ? "produtos"
                 : "transporte";
@@ -3603,8 +3603,8 @@ export default function OrdemServicoPage() {
             await mensagemErroApi(
               res,
               trabalhoPrincipal
-                ? `A OS principal foi criada, mas não foi possível criar a parte de ${rotulo}.`
-                : `Não foi possível criar a OS de ${rotulo}.`
+                ? `A OS principal foi criada, mas nÃ£o foi possÃ­vel criar a parte de ${rotulo}.`
+                : `NÃ£o foi possÃ­vel criar a OS de ${rotulo}.`
             )
           );
           return;
@@ -3627,7 +3627,7 @@ export default function OrdemServicoPage() {
       });
       if (!res.ok) {
         setSalvando(false);
-        alert(await mensagemErroApi(res, "Não foi possível criar a OS."));
+        alert(await mensagemErroApi(res, "NÃ£o foi possÃ­vel criar a OS."));
         return;
       }
       trabalhoPrincipal = await res.json();
@@ -3906,7 +3906,7 @@ export default function OrdemServicoPage() {
               >
                 <Tag className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
                 {t("producao.os.campo.selecioneMateriais")}
-                <span className="text-slate-400">⌄</span>
+                <span className="text-slate-400">âŒ„</span>
               </button>
             </div>
             {materialAberto && (
@@ -4056,7 +4056,7 @@ export default function OrdemServicoPage() {
                         setArquivos((atuais) => atuais.filter((_, i) => i !== index))
                       }
                       className="absolute right-2 top-2 z-10 inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-red-600 shadow hover:bg-red-50"
-                      title="Excluir imagem ou vídeo"
+                      title="Excluir imagem ou vÃ­deo"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -4099,13 +4099,13 @@ export default function OrdemServicoPage() {
           <div className="rounded border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
             {itemSelecionadoId && (
               <div className="mb-3 flex items-center justify-between rounded border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
-                <span>Item selecionado para edição. Altere os campos abaixo e clique em Atualizar Item Selecionado.</span>
+                <span>Item selecionado para ediÃ§Ã£o. Altere os campos abaixo e clique em Atualizar Item Selecionado.</span>
                 <button
                   type="button"
                   onClick={limparSelecaoItem}
                   className="rounded border border-blue-200 bg-white px-2 py-1 text-blue-700 hover:bg-blue-100 dark:border-blue-700 dark:bg-slate-900 dark:text-blue-200 dark:hover:bg-blue-950/50"
                 >
-                  Cancelar edição
+                  Cancelar ediÃ§Ã£o
                 </button>
               </div>
             )}
@@ -4132,7 +4132,7 @@ export default function OrdemServicoPage() {
                   </span>
                 </label>
                 <label className="flex cursor-pointer flex-col items-start gap-1 text-[10px] font-medium text-slate-500 dark:text-slate-400">
-                  <span>Repetição</span>
+                  <span>RepetiÃ§Ã£o</span>
                   <span
                     className={`relative inline-flex h-5 w-10 items-center rounded-full transition ${
                       form.repeticao ? "bg-orange-300" : "bg-slate-200 dark:bg-slate-600"
@@ -4153,7 +4153,7 @@ export default function OrdemServicoPage() {
                 </label>
               </div>
               <div className="flex items-center gap-2 text-sm text-primary-700 dark:text-primary-300">
-                <span>{form.categoria ? rotulosItemOs.total : "Total Serviço"}:</span>
+                <span>{form.categoria ? rotulosItemOs.total : "Total ServiÃ§o"}:</span>
               <input
                 className="w-40 rounded border border-slate-200 bg-white px-3 py-2 text-right text-slate-700 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100"
                 value={totalLinhaServico.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
@@ -4173,7 +4173,7 @@ export default function OrdemServicoPage() {
                 >
                   <option value="">
                     {categoriasTabelaPreco.length === 0
-                      ? "Cadastre categorias na Tabela de Preços"
+                      ? "Cadastre categorias na Tabela de PreÃ§os"
                       : "Selecione uma Categoria"}
                   </option>
                   {categoriasTabelaPreco.map((categoria) => (
@@ -4185,7 +4185,7 @@ export default function OrdemServicoPage() {
               </div>
               <Select
                 label={requiredLabel(
-                  form.categoria ? rotulosItemOs.item : "Serviço",
+                  form.categoria ? rotulosItemOs.item : "ServiÃ§o",
                   exigeCamposServicoForm && Boolean(avisoAdicionarServico)
                 )}
                 value={valorSelectServico()}
@@ -4312,7 +4312,7 @@ export default function OrdemServicoPage() {
                     onChange={() => trocarTipoDenticao("deciduos")}
                     className="h-3.5 w-3.5 accent-blue-500"
                   />
-                  Decíduos
+                  DecÃ­duos
                 </label>
               </div>
               <div className="mx-auto max-w-3xl rounded bg-white px-3 py-2 dark:bg-slate-950">
@@ -4355,7 +4355,7 @@ export default function OrdemServicoPage() {
               )}
               <div className="mb-5">
                 <Textarea
-                  label="Observações / Instruções técnicas"
+                  label="ObservaÃ§Ãµes / InstruÃ§Ãµes tÃ©cnicas"
                   value={form.instrucoes}
                   onChange={(e) => setForm({ ...form, instrucoes: e.target.value })}
                   placeholder="Descreva todos os detalhes do trabalho, ajustes, material, cor, acabamento, prova, entrega..."
@@ -4407,9 +4407,9 @@ export default function OrdemServicoPage() {
                         <button
                           type="button"
                           className="rounded bg-emerald-600 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-emerald-700"
-                          title="Recurso em teste no Smart Prótese"
+                          title="Recurso em teste no Smart PrÃ³tese"
                         >
-                          Buscar Melhor data e horário com IA (em teste)
+                          Buscar Melhor data e horÃ¡rio com IA (em teste)
                         </button>
                       )}
                     </div>
@@ -4417,8 +4417,8 @@ export default function OrdemServicoPage() {
                     {!servicoTemEtapasNaTabela(servicoOsAtual) ? (
                       <p className="text-[11px] text-slate-500">
                         {servicoOsAtual
-                          ? `Nenhuma etapa cadastrada na tabela de preços do serviço ${servicoOsAtual.nome}.`
-                          : "Selecione um serviço com etapas cadastradas na tabela de preços."}
+                          ? `Nenhuma etapa cadastrada na tabela de preÃ§os do serviÃ§o ${servicoOsAtual.nome}.`
+                          : "Selecione um serviÃ§o com etapas cadastradas na tabela de preÃ§os."}
                       </p>
                     ) : exibeLinhasEtapasOs ? (
                     <div className="max-h-[min(420px,52vh)] space-y-3 overflow-y-auto overflow-x-hidden pr-1">
@@ -4457,7 +4457,7 @@ export default function OrdemServicoPage() {
 
                             <div className="grid items-end gap-3 md:grid-cols-[minmax(9.5rem,1.1fr)_minmax(9rem,1fr)_minmax(6rem,0.75fr)_minmax(12rem,1.6fr)_minmax(9rem,1.1fr)_auto]">
                               <Select
-                                label="Etapa do serviço"
+                                label="Etapa do serviÃ§o"
                                 value={situacao}
                                 onChange={(e) =>
                                   atualizarSituacaoEtapaOs(
@@ -4466,7 +4466,7 @@ export default function OrdemServicoPage() {
                                   )
                                 }
                               >
-                                <option value="concluida">Concluída</option>
+                                <option value="concluida">ConcluÃ­da</option>
                                 <option value="atual">Etapa atual</option>
                                 <option value="aguardando">Aguardando</option>
                               </Select>
@@ -4540,7 +4540,7 @@ export default function OrdemServicoPage() {
 
                               <div className="space-y-1">
                                 <label className="block text-[11px] font-medium text-slate-600">
-                                  Valor Comissão
+                                  Valor ComissÃ£o
                                 </label>
                                 <div className="flex h-10 overflow-hidden rounded-lg border border-slate-300 bg-white shadow-sm">
                                   <span className="flex w-10 shrink-0 items-center justify-center border-r border-slate-200 bg-slate-50 text-xs font-semibold text-slate-600">
@@ -4667,7 +4667,7 @@ export default function OrdemServicoPage() {
                           }}
                         />
                         <Input
-                          label="Observação"
+                          label="ObservaÃ§Ã£o"
                           value={produtoOs.observacao}
                           onChange={(e) =>
                             setProdutosOs((atuais) =>
@@ -4712,7 +4712,7 @@ export default function OrdemServicoPage() {
                 {abaServico === "colaboradores" && (
                   <div className="space-y-3">
                     <span className="text-sm font-semibold text-slate-800">
-                      Colaboradores / Comissões
+                      Colaboradores / ComissÃµes
                     </span>
                     {colaboradores.map((colaborador, index) => (
                       <div
@@ -4740,7 +4740,7 @@ export default function OrdemServicoPage() {
                           {...exibicaoComissaoColaboradorCalculadaOs(colaborador)}
                         />
                           <Input
-                            label="Observação"
+                            label="ObservaÃ§Ã£o"
                             value={colaborador.etapa}
                             onChange={(e) =>
                               setColaboradores((atuais) =>
@@ -4749,7 +4749,7 @@ export default function OrdemServicoPage() {
                                 )
                               )
                             }
-                            placeholder="Observação"
+                            placeholder="ObservaÃ§Ã£o"
                           />
                         <button
                           type="button"
@@ -4779,7 +4779,7 @@ export default function OrdemServicoPage() {
                 {abaServico === "terceirizados" && (
                   <div className="space-y-3">
                     <span className="text-sm font-semibold text-slate-800">
-                      Serviços Terceirizados / Comissões
+                      ServiÃ§os Terceirizados / ComissÃµes
                     </span>
                     {terceirizados.map((terceiro, index) => (
                       <div
@@ -4804,7 +4804,7 @@ export default function OrdemServicoPage() {
                           ))}
                         </Select>
                         <Input
-                          label="Serviço"
+                          label="ServiÃ§o"
                           value={terceiro.servico}
                           onChange={(e) =>
                             setTerceirizados((atuais) =>
@@ -4813,7 +4813,7 @@ export default function OrdemServicoPage() {
                               )
                             )
                           }
-                          placeholder="Serviço terceirizado"
+                          placeholder="ServiÃ§o terceirizado"
                         />
                         <CampoValorComissaoReadonly
                           {...exibicaoComissaoDeTexto(terceiro.custo)}
@@ -4825,7 +4825,7 @@ export default function OrdemServicoPage() {
                             setTerceirizados(proximos);
                           }}
                           className="mt-6 inline-flex h-10 items-center justify-center rounded border border-red-200 px-3 text-red-600 hover:bg-red-50"
-                          title="Excluir serviço terceirizado"
+                          title="Excluir serviÃ§o terceirizado"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>

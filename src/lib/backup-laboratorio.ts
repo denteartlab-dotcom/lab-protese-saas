@@ -165,7 +165,7 @@ export async function exportarBackupEmpresa(
     ArquivoUpload: uploads.map((a) => ({
       ...a,
       dados: a.dados && a.dados.length > 0 ? Buffer.from(a.dados).toString("base64") : "",
-      storage: a.storage || (a.dados?.length ? "database" : "onedrive"),
+      storage: a.storage || (a.dados?.length ? "database" : "gdrive"),
       remotePath: a.remotePath ?? null,
     })),
     ContaBancaria: contas,
@@ -355,7 +355,7 @@ async function inserirLinhas(
             ? String(resto.storage)
             : dados && dados.length > 0
               ? "database"
-              : "onedrive";
+              : "gdrive";
         await prisma.arquivoUpload.create({
           data: {
             ...resto,

@@ -495,11 +495,11 @@ model ArquivoUpload {
   nome       String
   mimeType   String   @default("application/octet-stream")
   tamanho    Int
-  /** Conteúdo binário quando storage=database; null no OneDrive. */
+  /** Conteúdo binário quando storage=database; null no Google Drive. */
   dados      Bytes?
-  /** database | onedrive */
+  /** database | gdrive | onedrive (legado) */
   storage    String   @default("database")
-  /** Caminho relativo no remote OneDrive: {slug}/{pasta}/{arquivo} */
+  /** gdrive:{fileId} ou caminho legado OneDrive */
   remotePath String?
   criadoEm   DateTime @default(now())
 

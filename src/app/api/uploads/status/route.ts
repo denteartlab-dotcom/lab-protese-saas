@@ -1,16 +1,16 @@
 import { NextResponse } from "next/server";
 import { requireEmpresaContext } from "@/lib/empresa-context";
 import {
-  faltamCredenciaisOneDriveGraph,
+  faltamCredenciaisGoogleDrive,
   modoUploadStorage,
-  uploadUsaOneDrive,
+  uploadUsaGoogleDrive,
 } from "@/lib/upload-arquivo-server";
 import {
-  onedriveGraphConfigurado,
-  onedriveGraphRootFolder,
-  quemSouOneDriveGraph,
-} from "@/lib/onedrive-graph";
-import { onedriveUploadsRemote } from "@/lib/upload-onedrive-storage";
+  googleDriveUploadsConfigurado,
+  quemSouGoogleDrive,
+} from "@/lib/google-drive-uploads";
+import { nomePastaRaizGoogleDrive } from "@/lib/google-drive-shared";
+import { googleDriveUploadsRemote } from "@/lib/upload-google-drive-storage";
 import { carregarEnvArquivoRuntime, envRuntime } from "@/lib/env-runtime";
 
 export const dynamic = "force-dynamic";
@@ -22,15 +22,15 @@ export async function GET() {
 
   carregarEnvArquivoRuntime(true);
   const modo = modoUploadStorage();
-  const graph = onedriveGraphConfigurado();
-  const faltando = faltamCredenciaisOneDriveGraph();
+  const configurado = googleDriveUploadsConfigurado();
+  const faltando = faltamCredenciaisGoogleDrive();
   let conta: { email?: string; nome?: string } | null = null;
-  if (graph) {
+  if (configurado) {
     try {
-      const eu = await quemSouOneDriveGraph();
+      const eu = await quemSouGoogleDrive();
       conta = {
-        nome: eu.displayName,
-        email: eu.mail || eu.userPrincipalName,
+        email: eu?.email,
+        nome: "Google Drive (service account)",
       };
     } catch (err) {
       conta = {
@@ -39,21 +39,26 @@ export async function GET() {
     }
   }
 
+  const raiz = nomePastaRaizGoogleDrive();
+
   return NextResponse.json({
     modo,
-    onedriveAtivo: uploadUsaOneDrive(),
-    graphConfigurado: graph,
+    gdriveAtivo: uploadUsaGoogleDrive(),
+    onedriveAtivo: false,
+    graphConfigurado: false,
+    gdriveConfigurado: configurado,
     faltandoCredenciais: faltando,
-    rootFolder: onedriveGraphRootFolder(),
-    remotePadrao: uploadUsaOneDrive() ? onedriveUploadsRemote() : null,
+    rootFolder: raiz,
+    remotePadrao: uploadUsaGoogleDrive() ? googleDriveUploadsRemote() : null,
     envUploadStorage: envRuntime("UPLOAD_STORAGE") || null,
-    contaOneDrive: conta,
+    contaGoogleDrive: conta,
+    contaOneDrive: null,
     empresaSlug: ctx.empresaSlug,
-    ok: uploadUsaOneDrive(),
-    nota: uploadUsaOneDrive()
-      ? `OK — novos uploads vão para ${onedriveGraphRootFolder()}/{slug}/uploads/`
+    ok: uploadUsaGoogleDrive(),
+    nota: uploadUsaGoogleDrive()
+      ? `OK — novos uploads vão para ${raiz}/{empresa}/uploads/`
       : faltando.length
-        ? `OneDrive inativo. Falta no .env: ${faltando.join(", ")}`
-        : "OneDrive inativo. Confira UPLOAD_STORAGE e reinicie com pm2 startOrReload.",
+        ? `Google Drive inativo. Falta no .env: ${faltando.join(", ")}`
+        : "Google Drive inativo. Confira UPLOAD_STORAGE=gdrive e reinicie com pm2 startOrReload.",
   });
 }

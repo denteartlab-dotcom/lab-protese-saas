@@ -1,4 +1,4 @@
-/** Traduções dos módulos Cadastros, Estoque e Relatórios — mescladas em messages.ts */
+﻿/** Traduções dos módulos Cadastros, Estoque e Relatórios — mescladas em messages.ts */
 
 export const messagesModulosPt = {
   "listagem.nome": "Nome",
@@ -1201,9 +1201,9 @@ export const messagesModulosPt = {
   "acompanhamento.pedido.obsServico": "Observação do serviço",
   "acompanhamento.pedido.obsInterna": "Observação interna",
   "acompanhamento.pedido.anexosDesc":
-    "Envie até {imagens} imagens e {arquivos} arquivos (PDF, STL, OBJ e outros 3D). Os uploads vão para o OneDrive na pasta do paciente.",
+    "Envie até {imagens} imagens e {arquivos} arquivos (PDF, STL, OBJ e outros 3D). Os uploads vão para o Google Drive na pasta do paciente.",
   "acompanhamento.pedido.pastaPaciente":
-    "Pasta no OneDrive: uploads/os/{paciente}",
+    "Pasta no Google Drive: uploads/os/{paciente}",
   "acompanhamento.pedido.secaoArquivos": "Arquivos",
   "acompanhamento.pedido.secaoImagens": "Imagens",
   "acompanhamento.pedido.selecionarArquivos": "Selecionar arquivos",
@@ -1248,11 +1248,11 @@ export const messagesModulosPt = {
   "acompanhamento.pedido.sucessoDesc":
     "O laboratório recebeu seu pedido e irá analisar antes de criar a ordem de serviço.",
 
-    "liberarEspaco.titulo": "Liberar Espaço (OneDrive)",
+    "liberarEspaco.titulo": "Liberar Espaço (Google Drive)",
     "liberarEspaco.breadcrumbImagens": "Imagens",
-    "liberarEspaco.galeriaTitulo": "Arquivos na nuvem (OneDrive)",
+    "liberarEspaco.galeriaTitulo": "Arquivos na nuvem (Google Drive)",
     "liberarEspaco.subtituloNuvem":
-      "Lista da pasta deste laboratório no OneDrive. O uso de espaço é o tamanho dessa pasta; ao excluir, remove da nuvem também.",
+      "Lista da pasta deste laboratório no Google Drive. O uso de espaço é o tamanho dessa pasta; ao excluir, remove da nuvem também.",
     "liberarEspaco.desmarcarTodos": "Desmarcar todos",
     "liberarEspaco.marcarTodos": "Marcar Todos",
     "liberarEspaco.excluirMb": "Excluir {mb} MB",
@@ -1262,10 +1262,10 @@ export const messagesModulosPt = {
     "liberarEspaco.mesVigente": "Mês vigente",
     "liberarEspaco.mostrarTodos": "Mostrar todos",
     "liberarEspaco.periodoInvalido": "Período inválido.",
-    "liberarEspaco.confirmarExcluirUm": "Excluir este arquivo do OneDrive e da galeria?",
+    "liberarEspaco.confirmarExcluirUm": "Excluir este arquivo do Google Drive e da galeria?",
     "liberarEspaco.confirmarExcluirVarios":
-      "Excluir {n} arquivos do OneDrive ({mb} MB)?",
-    "liberarEspaco.erroExcluir": "Não foi possível excluir todos os arquivos no OneDrive.",
+      "Excluir {n} arquivos do Google Drive ({mb} MB)?",
+    "liberarEspaco.erroExcluir": "Não foi possível excluir todos os arquivos no Google Drive.",
 
   "suporte.titulo": "Suporte Lab Prótese",
   "suporte.online": "● Online",
@@ -3194,8 +3194,8 @@ export const messagesModulosEn: Record<keyof typeof messagesModulosPt, string> =
   "acompanhamento.pedido.obsServico": "Service notes",
   "acompanhamento.pedido.obsInterna": "Internal notes",
   "acompanhamento.pedido.anexosDesc":
-    "Upload up to {imagens} images and {arquivos} files (PDF, STL, OBJ and other 3D). Uploads go to OneDrive in the patient folder.",
-  "acompanhamento.pedido.pastaPaciente": "OneDrive folder: uploads/os/{paciente}",
+    "Upload up to {imagens} images and {arquivos} files (PDF, STL, OBJ and other 3D). Uploads go to Google Drive in the patient folder.",
+  "acompanhamento.pedido.pastaPaciente": "Google Drive folder: uploads/os/{paciente}",
   "acompanhamento.pedido.secaoArquivos": "Files",
   "acompanhamento.pedido.secaoImagens": "Images",
   "acompanhamento.pedido.selecionarArquivos": "Select files",
@@ -3240,11 +3240,11 @@ export const messagesModulosEn: Record<keyof typeof messagesModulosPt, string> =
   "acompanhamento.pedido.sucessoDesc":
     "The lab received your request and will review it before creating the work order.",
 
-    "liberarEspaco.titulo": "Free Up Space (OneDrive)",
+    "liberarEspaco.titulo": "Free Up Space (Google Drive)",
     "liberarEspaco.breadcrumbImagens": "Images",
-    "liberarEspaco.galeriaTitulo": "Cloud files (OneDrive)",
+    "liberarEspaco.galeriaTitulo": "Cloud files (Google Drive)",
     "liberarEspaco.subtituloNuvem":
-      "Lists this lab's OneDrive folder. Storage usage is that folder's size; deleting here also removes files from the cloud.",
+      "Lists this lab's Google Drive folder. Storage usage is that folder's size; deleting here also removes files from the cloud.",
     "liberarEspaco.desmarcarTodos": "Unselect all",
     "liberarEspaco.marcarTodos": "Select All",
     "liberarEspaco.excluirMb": "Delete {mb} MB",
@@ -3254,9 +3254,9 @@ export const messagesModulosEn: Record<keyof typeof messagesModulosPt, string> =
     "liberarEspaco.mesVigente": "Current month",
     "liberarEspaco.mostrarTodos": "Show all",
     "liberarEspaco.periodoInvalido": "Invalid period.",
-    "liberarEspaco.confirmarExcluirUm": "Delete this file from OneDrive and the gallery?",
-    "liberarEspaco.confirmarExcluirVarios": "Delete {n} files from OneDrive ({mb} MB)?",
-    "liberarEspaco.erroExcluir": "Could not delete all files from OneDrive.",
+    "liberarEspaco.confirmarExcluirUm": "Delete this file from Google Drive and the gallery?",
+    "liberarEspaco.confirmarExcluirVarios": "Delete {n} files from Google Drive ({mb} MB)?",
+    "liberarEspaco.erroExcluir": "Could not delete all files from Google Drive.",
 
   "suporte.titulo": "Lab Prótese Support",
   "suporte.online": "● Online",
@@ -5185,9 +5185,9 @@ export const messagesModulosEs: Record<keyof typeof messagesModulosPt, string> =
   "acompanhamento.pedido.obsServico": "Observación del servicio",
   "acompanhamento.pedido.obsInterna": "Observación interna",
   "acompanhamento.pedido.anexosDesc":
-    "Envíe hasta {imagens} imágenes y {arquivos} archivos (PDF, STL, OBJ y otros 3D). Las subidas van a OneDrive en la carpeta del paciente.",
+    "Envíe hasta {imagens} imágenes y {arquivos} archivos (PDF, STL, OBJ y otros 3D). Las subidas van a Google Drive en la carpeta del paciente.",
   "acompanhamento.pedido.pastaPaciente":
-    "Carpeta en OneDrive: uploads/os/{paciente}",
+    "Carpeta en Google Drive: uploads/os/{paciente}",
   "acompanhamento.pedido.secaoArquivos": "Archivos",
   "acompanhamento.pedido.secaoImagens": "Imágenes",
   "acompanhamento.pedido.selecionarArquivos": "Seleccionar archivos",
@@ -5232,11 +5232,11 @@ export const messagesModulosEs: Record<keyof typeof messagesModulosPt, string> =
   "acompanhamento.pedido.sucessoDesc":
     "El laboratorio recibió su pedido y lo revisará antes de crear la orden de servicio.",
 
-  "liberarEspaco.titulo": "Liberar espacio (OneDrive)",
+  "liberarEspaco.titulo": "Liberar espacio (Google Drive)",
   "liberarEspaco.breadcrumbImagens": "Imágenes",
-  "liberarEspaco.galeriaTitulo": "Archivos en la nube (OneDrive)",
+  "liberarEspaco.galeriaTitulo": "Archivos en la nube (Google Drive)",
   "liberarEspaco.subtituloNuvem":
-    "Lista la carpeta de este laboratorio en OneDrive. El uso es el tamaño de esa carpeta; al eliminar, también se quitan de la nube.",
+    "Lista la carpeta de este laboratorio en Google Drive. El uso es el tamaño de esa carpeta; al eliminar, también se quitan de la nube.",
   "liberarEspaco.desmarcarTodos": "Desmarcar todos",
   "liberarEspaco.marcarTodos": "Marcar todos",
   "liberarEspaco.excluirMb": "Eliminar {mb} MB",
@@ -5246,10 +5246,10 @@ export const messagesModulosEs: Record<keyof typeof messagesModulosPt, string> =
   "liberarEspaco.mesVigente": "Mes vigente",
   "liberarEspaco.mostrarTodos": "Mostrar todos",
   "liberarEspaco.periodoInvalido": "Período inválido.",
-  "liberarEspaco.confirmarExcluirUm": "¿Eliminar este archivo de OneDrive y de la galería?",
+  "liberarEspaco.confirmarExcluirUm": "¿Eliminar este archivo de Google Drive y de la galería?",
   "liberarEspaco.confirmarExcluirVarios":
-    "¿Eliminar {n} archivos de OneDrive ({mb} MB)?",
-  "liberarEspaco.erroExcluir": "No fue posible eliminar todos los archivos en OneDrive.",
+    "¿Eliminar {n} archivos de Google Drive ({mb} MB)?",
+  "liberarEspaco.erroExcluir": "No fue posible eliminar todos los archivos en Google Drive.",
 
   "suporte.titulo": "Soporte Lab Prótese",
   "suporte.online": "● En línea",

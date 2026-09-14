@@ -1,4 +1,4 @@
-import { access } from "fs/promises";
+﻿import { access } from "fs/promises";
 import path from "path";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -8,12 +8,12 @@ import {
 } from "@/lib/backup-empresa-pasta";
 import { contarUploadsBackupEmpresa } from "@/lib/backup-uploads-espelho";
 import { onedriveBackupSyncHabilitado } from "@/lib/backup-onedrive-sync";
-import { modoUploadStorage, faltamCredenciaisOneDriveGraph } from "@/lib/upload-arquivo-server";
+import { modoUploadStorage, faltamCredenciaisGoogleDrive } from "@/lib/upload-arquivo-server";
 import {
-  onedriveUploadsRemote,
-  uploadUsaOneDrive,
-} from "@/lib/upload-onedrive-storage";
-import { onedriveGraphConfigurado } from "@/lib/onedrive-graph";
+  googleDriveUploadsRemote,
+  uploadUsaGoogleDrive,
+} from "@/lib/upload-google-drive-storage";
+import { googleDriveUploadsConfigurado } from "@/lib/google-drive-uploads";
 import { reagendarBackupAutomaticoEmpresa } from "@/lib/backup-automatico";
 import {
   fusoBackupAutomatico,
@@ -160,12 +160,16 @@ async function montarStatus(
     uploadsArquivos,
     onedriveSyncHabilitado: onedriveBackupSyncHabilitado(),
     uploadStorage: modoUploadStorage(),
-    onedriveUploadsAtivo: uploadUsaOneDrive(),
-    onedriveUploadsRemote: uploadUsaOneDrive() ? onedriveUploadsRemote() : null,
-    onedriveGraphConfigurado: onedriveGraphConfigurado(),
-    onedriveFaltandoCredenciais: uploadUsaOneDrive()
+    onedriveUploadsAtivo: false,
+    gdriveUploadsAtivo: uploadUsaGoogleDrive(),
+    onedriveUploadsRemote: null,
+    gdriveUploadsRemote: uploadUsaGoogleDrive() ? googleDriveUploadsRemote() : null,
+    onedriveGraphConfigurado: false,
+    gdriveConfigurado: googleDriveUploadsConfigurado(),
+    onedriveFaltandoCredenciais: [],
+    gdriveFaltandoCredenciais: uploadUsaGoogleDrive()
       ? []
-      : faltamCredenciaisOneDriveGraph(),
+      : faltamCredenciaisGoogleDrive(),
     horarioFixo: formatarHorarioFixoBackupAutomatico(),
     padraoNomeArquivo,
     arquivoPadrao: `${pastaRelativa}/${padraoNomeArquivo}`,

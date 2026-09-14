@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { requireEmpresaContext } from "@/lib/empresa-context";
 import { negarSeSemPermissao } from "@/lib/require-permissao";
 import {
@@ -12,7 +12,7 @@ import {
   pastaUploadValida,
   salvarArquivosUpload,
 } from "@/lib/upload-arquivo-server";
-import { onedriveGraphConfigurado } from "@/lib/onedrive-graph";
+import { googleDriveUploadsConfigurado } from "@/lib/google-drive-uploads";
 import {
   CODIGO_ARMAZENAMENTO_CHEIO,
   CODIGO_NUVEM_POOL_CHEIO,
@@ -105,7 +105,7 @@ export async function POST(request: Request) {
     const pasta = pastaUploadValida(new URL(request.url).searchParams.get("pasta"));
     const modo = modoUploadStorage();
     console.info(
-      `[uploads] POST pasta=${pasta} modo=${modo} envUPLOAD_STORAGE=${process.env.UPLOAD_STORAGE || "(vazio)"} graph=${onedriveGraphConfigurado()} empresa=${ctx.empresaSlug || "?"} tipos=${files.map((f) => `${f.name}:${f.type || "?"}`).join(",")}`
+      `[uploads] POST pasta=${pasta} modo=${modo} envUPLOAD_STORAGE=${process.env.UPLOAD_STORAGE || "(vazio)"} gdrive=${googleDriveUploadsConfigurado()} empresa=${ctx.empresaSlug || "?"} tipos=${files.map((f) => `${f.name}:${f.type || "?"}`).join(",")}`
     );
     const uploaded = await salvarArquivosUpload(
       pasta,

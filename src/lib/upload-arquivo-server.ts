@@ -8,15 +8,18 @@ import {
   resolverArquivoUploadsSeguro,
 } from "@/lib/uploads-armazenamento-server";
 import {
-  baixarArquivoOneDrive,
+  baixarArquivoGoogleDrive,
   caminhoRemotoUpload,
-  enviarBufferParaOneDrive,
-  excluirArquivoOneDrive,
+  enviarBufferParaGoogleDrive,
+  excluirArquivoGoogleDrive,
+  uploadUsaGoogleDrive,
   uploadUsaOneDrive,
-} from "@/lib/upload-onedrive-storage";
+} from "@/lib/upload-google-drive-storage";
 import { carregarEnvArquivoRuntime, envRuntime } from "@/lib/env-runtime";
+import { googleDriveUploadsConfigurado } from "@/lib/google-drive-uploads";
+import { extrairFileIdGdrive } from "@/lib/google-drive-shared";
 
-export { uploadUsaOneDrive } from "@/lib/upload-onedrive-storage";
+export { uploadUsaGoogleDrive, uploadUsaOneDrive } from "@/lib/upload-google-drive-storage";
 
 export type PastaUpload = "os" | "despesas" | "receitas" | "disparos-whatsapp" | "produtos";
 
@@ -116,44 +119,62 @@ export function pastaUploadValida(pasta: string | null): PastaUpload {
   return "os";
 }
 
-export function faltamCredenciaisOneDriveGraph(): string[] {
+export function faltamCredenciaisGoogleDrive(): string[] {
   carregarEnvArquivoRuntime();
   const faltando: string[] = [];
-  if (!envRuntime("ONEDRIVE_GRAPH_CLIENT_ID")) faltando.push("ONEDRIVE_GRAPH_CLIENT_ID");
-  if (!envRuntime("ONEDRIVE_GRAPH_CLIENT_SECRET")) faltando.push("ONEDRIVE_GRAPH_CLIENT_SECRET");
-  if (!envRuntime("ONEDRIVE_GRAPH_REFRESH_TOKEN")) faltando.push("ONEDRIVE_GRAPH_REFRESH_TOKEN");
+  if (
+    !envRuntime("GOOGLE_DRIVE_FOLDER_ID") &&
+    !process.env.GOOGLE_DRIVE_FOLDER_ID?.trim()
+  ) {
+    faltando.push("GOOGLE_DRIVE_FOLDER_ID");
+  }
+  const temCred =
+    Boolean(envRuntime("GOOGLE_APPLICATION_CREDENTIALS")) ||
+    Boolean(process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim()) ||
+    Boolean(envRuntime("GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON")) ||
+    Boolean(process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON?.trim());
+  if (!temCred) {
+    faltando.push("GOOGLE_APPLICATION_CREDENTIALS");
+  }
   return faltando;
+}
+
+/** @deprecated use faltamCredenciaisGoogleDrive */
+export function faltamCredenciaisOneDriveGraph(): string[] {
+  return faltamCredenciaisGoogleDrive();
 }
 
 /** Na Vercel o disco é somente leitura; anexos vão para o PostgreSQL. */
 export function uploadUsaBancoDados() {
   carregarEnvArquivoRuntime();
-  if (uploadUsaOneDrive()) return false;
+  if (uploadUsaGoogleDrive()) return false;
   return envRuntime("VERCEL") === "1" || envRuntime("UPLOAD_STORAGE").toLowerCase() === "database";
 }
 
-export type ModoUploadStorage = "onedrive" | "database" | "disk";
+export type ModoUploadStorage = "gdrive" | "onedrive" | "database" | "disk";
 
 export function modoUploadStorage(): ModoUploadStorage {
-  if (uploadUsaOneDrive()) return "onedrive";
+  if (uploadUsaGoogleDrive()) return "gdrive";
   if (uploadUsaBancoDados()) return "database";
   return "disk";
 }
 
-function exigirOneDriveSeConfiguradoNoEnv() {
+function exigirGoogleDriveSeConfiguradoNoEnv() {
   carregarEnvArquivoRuntime();
   const modo = envRuntime("UPLOAD_STORAGE").toLowerCase();
-  const querOneDrive = modo === "onedrive" || modo === "";
-  if (!querOneDrive && modo !== "") return;
-  if (uploadUsaOneDrive()) return;
+  const querNuvem =
+    modo === "gdrive" ||
+    modo === "onedrive" ||
+    modo === "";
+  if (!querNuvem && modo !== "") return;
+  if (uploadUsaGoogleDrive()) return;
 
-  const faltando = faltamCredenciaisOneDriveGraph();
-  if (modo === "onedrive" || faltando.length < 3) {
-    // Pediu onedrive, ou tem credenciais parciais — não cair no disco em silêncio.
+  const faltando = faltamCredenciaisGoogleDrive();
+  if (modo === "gdrive" || modo === "onedrive" || faltando.length < 2) {
     throw new Error(
       faltando.length
-        ? `OneDrive não configurado. Falta no .env: ${faltando.join(", ")}. Rode: bash scripts/corrigir-env-onedrive-vps.sh`
-        : "OneDrive Graph configurado, mas UPLOAD_STORAGE=disk impede o envio. Remova disk do .env."
+        ? `Google Drive não configurado. Falta no .env: ${faltando.join(", ")}. Veja deploy/GOOGLE-DRIVE-UPLOADS.md`
+        : "Google Drive configurado, mas UPLOAD_STORAGE=disk impede o envio. Remova disk do .env."
     );
   }
 }
@@ -442,21 +463,23 @@ export async function salvarArquivosUpload(
   const pastaRemota = subpasta ? `${pasta}/${subpasta}` : pasta;
 
   carregarEnvArquivoRuntime();
-  exigirOneDriveSeConfiguradoNoEnv();
+  exigirGoogleDriveSeConfiguradoNoEnv();
 
-  // OneDrive primeiro: todos os uploads do sistema vão direto para a nuvem (sem disco na VPS).
-  if (uploadUsaOneDrive()) {
+  // Google Drive: uploads direto na nuvem (sem disco na VPS).
+  if (uploadUsaGoogleDrive()) {
     if (!empresaId) {
-      throw new Error("empresaId obrigatório para upload no OneDrive.");
+      throw new Error("empresaId obrigatório para upload no Google Drive.");
     }
     if (!empresaSlug?.trim()) {
-      throw new Error("empresaSlug obrigatório para upload no OneDrive.");
+      throw new Error("empresaSlug obrigatório para upload no Google Drive.");
     }
     const empresaIdUpload = empresaId;
-    const { garantirPastaModuloUploadOneDrive } = await import("@/lib/onedrive-graph");
+    const { garantirPastaModuloUploadGoogleDrive } = await import(
+      "@/lib/google-drive-uploads"
+    );
     const slug = normalizarSlugPastaUploads(empresaSlug);
-    // Só a pasta do módulo (ex.: uploads/os) — sem .keep nos outros módulos.
-    await garantirPastaModuloUploadOneDrive(slug, pasta);
+    const subpastas = subpasta ? [subpasta] : [];
+    await garantirPastaModuloUploadGoogleDrive(slug, pasta, subpastas);
 
     const preparados = await Promise.all(
       files.map(async (file, index) => {
@@ -472,40 +495,49 @@ export async function salvarArquivosUpload(
           bytes,
           mimeType,
           filename,
-          remotePath: caminhoRemotoUpload(slug, pastaRemota, filename),
+          remotePathLogico: caminhoRemotoUpload(slug, pastaRemota, filename),
         };
       })
     );
 
-    // Mais paralelismo no Graph; Prisma fica numa 2ª fase para não segurar o slot.
     const CONCURRENCY = Math.min(8, preparados.length);
     let cursor = 0;
+    const remotePaths = new Array<string>(preparados.length);
 
     async function workerUpload() {
       while (true) {
         const index = cursor++;
         if (index >= preparados.length) return;
         const item = preparados[index];
-        await enviarBufferParaOneDrive(
-          item.remotePath,
+        const enviado = await enviarBufferParaGoogleDrive(
+          item.remotePathLogico,
           item.bytes,
           item.filename,
           item.mimeType,
-          // Com subpasta (ex.: paciente), cria a cadeia completa no OneDrive.
-          { garantirPastas: Boolean(subpasta), atualizarCota: false }
+          {
+            garantirPastas: Boolean(subpasta),
+            atualizarCota: false,
+            empresaSlug: slug,
+            modulo: pasta,
+            subpastas,
+            nomeArquivo: item.filename,
+          }
         );
-        console.info(`[uploads] OneDrive gravou: ${item.remotePath}`);
+        remotePaths[index] = enviado.remotePath;
+        console.info(`[uploads] Google Drive gravou: ${enviado.remotePath}`);
       }
     }
 
     await Promise.all(Array.from({ length: CONCURRENCY }, () => workerUpload()));
 
     const totalBytes = preparados.reduce((s, p) => s + p.bytes.length, 0);
-    const { ajustarCotaOneDriveAposUpload } = await import("@/lib/onedrive-graph");
-    ajustarCotaOneDriveAposUpload(totalBytes);
+    const { ajustarCotaGoogleDriveAposUpload } = await import(
+      "@/lib/google-drive-uploads"
+    );
+    ajustarCotaGoogleDriveAposUpload(totalBytes);
 
     const uploaded = await Promise.all(
-      preparados.map(async (item) => {
+      preparados.map(async (item, index) => {
         const registro = await prisma.arquivoUpload.create({
           data: {
             empresaId: empresaIdUpload,
@@ -514,8 +546,8 @@ export async function salvarArquivosUpload(
             mimeType: item.mimeType,
             tamanho: item.bytes.length,
             dados: null,
-            storage: "onedrive",
-            remotePath: item.remotePath,
+            storage: "gdrive",
+            remotePath: remotePaths[index] || item.remotePathLogico,
           },
         });
         return {
@@ -593,7 +625,7 @@ export async function lerArquivoUploadPorId(id: string) {
   return prisma.arquivoUpload.findUnique({ where: { id } });
 }
 
-/** Lê bytes do registro (banco ou OneDrive). */
+/** Lê bytes do registro (banco ou Google Drive). */
 export async function obterConteudoArquivoUpload(id: string): Promise<{
   empresaId: string;
   nome: string;
@@ -604,8 +636,31 @@ export async function obterConteudoArquivoUpload(id: string): Promise<{
   const arquivo = await prisma.arquivoUpload.findUnique({ where: { id } });
   if (!arquivo) return null;
 
-  if (arquivo.storage === "onedrive" && arquivo.remotePath) {
-    const bytes = await baixarArquivoOneDrive(arquivo.remotePath);
+  if (
+    (arquivo.storage === "gdrive" || arquivo.storage === "onedrive") &&
+    arquivo.remotePath
+  ) {
+    if (arquivo.storage === "onedrive" && !extrairFileIdGdrive(arquivo.remotePath)) {
+      // OneDrive desligado — só funciona se ainda houver bytes no banco.
+      const dadosLegado = arquivo.dados;
+      if (dadosLegado && dadosLegado.length > 0) {
+        const bytes = Buffer.from(dadosLegado);
+        return {
+          empresaId: arquivo.empresaId,
+          nome: arquivo.nome,
+          mimeType: arquivo.mimeType,
+          tamanho: arquivo.tamanho,
+          bytes,
+        };
+      }
+      throw new Error(
+        "Arquivo estava no OneDrive (nuvem antiga) e não está mais disponível. Faça o upload novamente."
+      );
+    }
+    if (!googleDriveUploadsConfigurado() && arquivo.storage === "gdrive") {
+      throw new Error("Google Drive não configurado para ler este arquivo.");
+    }
+    const bytes = await baixarArquivoGoogleDrive(arquivo.remotePath);
     return {
       empresaId: arquivo.empresaId,
       nome: arquivo.nome,
@@ -635,7 +690,7 @@ export async function lerArquivoDiscoPorCaminhoRelativo(
   try {
     await access(alvo);
   } catch {
-    // URLs antigas /api/uploads/disco/... → OneDrive (estrutura nova ou legada).
+    // URLs antigas /api/uploads/disco/... → Google Drive (estrutura nova).
     const slug = normalizarSlugPastaUploads(empresaSlug);
     const rel = relativePath.replace(/^[/\\]+/, "").replace(/\\/g, "/");
     const candidatos = [
@@ -646,10 +701,11 @@ export async function lerArquivoDiscoPorCaminhoRelativo(
     try {
       const porMeta = await prisma.arquivoUpload.findFirst({
         where: {
-          storage: "onedrive",
+          storage: { in: ["gdrive", "onedrive"] },
           OR: [
             ...candidatos.map((remotePath) => ({ remotePath })),
             { remotePath: { endsWith: `/${rel}` } },
+            { remotePath: { startsWith: "gdrive:" } },
           ],
         },
         select: { id: true },
@@ -666,7 +722,10 @@ export async function lerArquivoDiscoPorCaminhoRelativo(
       }
       for (const remotePath of candidatos) {
         try {
-          const bytes = await baixarArquivoOneDrive(remotePath);
+          if (!extrairFileIdGdrive(remotePath) && !remotePath.startsWith("gdrive:")) {
+            continue;
+          }
+          const bytes = await baixarArquivoGoogleDrive(remotePath);
           const nome = path.basename(relativePath);
           const magic = detectarMimePorMagic(bytes);
           const mimeType = magic || mimePorExtensao(nome) || "application/octet-stream";
@@ -717,8 +776,14 @@ export async function excluirArquivoBancoPorId(id: string, empresaId?: string) {
   });
   if (!row) return;
 
-  if (row.storage === "onedrive" && row.remotePath) {
-    await excluirArquivoOneDrive(row.remotePath, row.tamanho || 0);
+  if (
+    (row.storage === "gdrive" || row.storage === "onedrive") &&
+    row.remotePath
+  ) {
+    if (row.storage === "gdrive" || extrairFileIdGdrive(row.remotePath)) {
+      await excluirArquivoGoogleDrive(row.remotePath, row.tamanho || 0);
+    }
+    // storage onedrive legado sem fileId Drive: só remove o registro no banco.
   }
 
   if (empresaId) {

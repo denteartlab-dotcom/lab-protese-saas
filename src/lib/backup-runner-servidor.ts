@@ -16,10 +16,7 @@ import {
   registrarExecucaoBackupAutomatico,
 } from "@/lib/backup-automatico-config";
 import { uploadBackupParaGoogleDrive } from "@/lib/backup-google-drive";
-import {
-  onedriveBackupSyncHabilitado,
-  sincronizarBackupComOneDrive,
-} from "@/lib/backup-onedrive-sync";
+import { sincronizarBackupComOneDrive } from "@/lib/backup-onedrive-sync";
 import { espelharUploadsNoBackupEmpresa } from "@/lib/backup-uploads-espelho";
 import {
   backupPertenceAEmpresa,
@@ -90,27 +87,26 @@ export async function executarBackupNoServidor(
   const uploads = await espelharUploadsNoBackupEmpresa(empresaId, slug, nome);
   await reportar?.({ fase: "sincronizando", percentual: 75 });
 
+  // OneDrive desligado — nuvem = Google Drive (JSON + pasta da empresa).
   const onedrive = await sincronizarBackupComOneDrive({ slug, nome });
-  // Sync OneDrive é best-effort: o JSON local já foi gravado.
-  // Só falha o job se ONEDRIVE_BACKUP_FAIL_LOUD=1 (diagnóstico).
-  if (onedriveBackupSyncHabilitado() && !onedrive.ok) {
-    const msg = onedrive.erro || "erro desconhecido";
-    console.error(
-      `[backup-runner] OneDrive sync falhou (backup local OK): ${msg}`
-    );
-    const failLoud = process.env.ONEDRIVE_BACKUP_FAIL_LOUD?.trim();
-    if (failLoud === "1" || failLoud === "true") {
-      throw new Error(
-        `Backup local criado, mas o envio ao OneDrive falhou: ${msg}`
-      );
-    }
-  }
   const drive = await uploadBackupParaGoogleDrive({
     empresaId,
     slug,
     nome,
     caminhoArquivoLocal: destino,
   });
+
+  if (!drive.ok && drive.erro && drive.erro !== "desativado") {
+    console.error(
+      `[backup-runner] Google Drive upload falhou (backup local OK): ${drive.erro}`
+    );
+    const failLoud = process.env.GOOGLE_DRIVE_BACKUP_FAIL_LOUD?.trim();
+    if (failLoud === "1" || failLoud === "true") {
+      throw new Error(
+        `Backup local criado, mas o envio ao Google Drive falhou: ${drive.erro}`
+      );
+    }
+  }
 
   await reportar?.({ fase: "finalizado", percentual: 100, arquivo: destino });
 

@@ -46,10 +46,12 @@ export function PainelUploadsDashboard({
     resumo.bytesUsados,
     limiteBytes
   );
-  const tituloCard =
-    resumo.onedriveAtivo || resumo.storageMode === "onedrive"
-      ? t("dashboard.uploadsNuvem")
-      : titulo;
+  const naNuvem =
+    Boolean(resumo.gdriveAtivo) ||
+    Boolean(resumo.onedriveAtivo) ||
+    resumo.storageMode === "gdrive" ||
+    resumo.storageMode === "onedrive";
+  const tituloCard = naNuvem ? t("dashboard.uploadsNuvem") : titulo;
 
   return (
     <section

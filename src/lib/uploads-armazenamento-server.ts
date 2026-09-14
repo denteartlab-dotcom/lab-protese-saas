@@ -18,7 +18,7 @@ import {
   excluirArquivoBancoPorId,
   listarArquivosBanco,
 } from "@/lib/upload-arquivo-server";
-import { uploadUsaOneDrive } from "@/lib/upload-onedrive-storage";
+import { uploadUsaGoogleDrive } from "@/lib/upload-google-drive-storage";
 import { resolverLimiteArmazenamentoEmpresa } from "@/lib/uploads-limites-plano";
 
 const PASTAS_UPLOAD: PastaUpload[] = [
@@ -56,8 +56,8 @@ export function resolverArquivoUploadsSeguro(relativePath: string, empresaSlug?:
 }
 
 export async function garantirPastasUploadEmpresa(empresaSlug: string) {
-  // Com OneDrive, pastas ficam só na nuvem — não cria var/uploads na VPS.
-  if (uploadUsaOneDrive()) {
+  // Com Google Drive, pastas ficam só na nuvem — não cria var/uploads na VPS.
+  if (uploadUsaGoogleDrive()) {
     return caminhoPastaUploads(empresaSlug);
   }
   const base = caminhoPastaUploads(empresaSlug);
@@ -80,14 +80,14 @@ export async function listarArquivosGaleria(
   const lista: ArquivoGaleria[] = [];
   const slugNorm = empresaSlug ? normalizarSlugPastaUploads(empresaSlug) : "";
 
-  // OneDrive: fonte da verdade = pasta do laboratório na nuvem.
-  if (slugNorm && uploadUsaOneDrive()) {
+  // Google Drive: fonte da verdade = pasta do laboratório na nuvem.
+  if (slugNorm && uploadUsaGoogleDrive()) {
     try {
-      const { listarArquivosUploadsEmpresaOneDrive } = await import(
-        "@/lib/onedrive-graph"
+      const { listarArquivosUploadsEmpresaGoogleDrive } = await import(
+        "@/lib/google-drive-uploads"
       );
       const { prisma } = await import("@/lib/db");
-      const odFiles = await listarArquivosUploadsEmpresaOneDrive(slugNorm, {
+      const odFiles = await listarArquivosUploadsEmpresaGoogleDrive(slugNorm, {
         force: true,
       });
       const dbRows = empresaId
@@ -112,8 +112,8 @@ export async function listarArquivosGaleria(
       function acharDbPorRemote(chave: string, nome: string) {
         const exato = porRemote.get(chave);
         if (exato) return exato;
-        // Compat: remotePath antigo sem a mesma raiz / uploads.
         for (const [remote, row] of porRemote) {
+          if (remote === chave) return row;
           if (remote.endsWith(`/${nome}`) && remote.includes("/uploads/")) {
             return row;
           }
@@ -121,7 +121,6 @@ export async function listarArquivosGaleria(
         return undefined;
       }
 
-      // Sincroniza órfãos da nuvem → banco (aparecem em Liberar espaço e no uso).
       for (const arq of odFiles) {
         const chave = arq.remotePath.replace(/\\/g, "/");
         if (acharDbPorRemote(chave, arq.name) || !empresaId) continue;
@@ -140,7 +139,7 @@ export async function listarArquivosGaleria(
               mimeType: "application/octet-stream",
               tamanho: arq.bytes,
               dados: null,
-              storage: "onedrive",
+              storage: "gdrive",
               remotePath: chave,
               criadoEm: new Date(arq.lastModified),
             },
@@ -174,7 +173,7 @@ export async function listarArquivosGaleria(
           });
         } else {
           lista.push({
-            relativePath: `od/${encodeURIComponent(chave)}`,
+            relativePath: `gd/${encodeURIComponent(chave)}`,
             nome: arq.name,
             bytes: arq.bytes,
             url: "",
@@ -183,7 +182,6 @@ export async function listarArquivosGaleria(
         }
       }
 
-      // Registros só no banco (ainda não refletidos na listagem da pasta).
       for (const db of dbRows) {
         if (idsNaLista.has(db.id)) continue;
         lista.push({
@@ -201,12 +199,12 @@ export async function listarArquivosGaleria(
         return (Number.isNaN(tb) ? 0 : tb) - (Number.isNaN(ta) ? 0 : ta);
       });
     } catch (erro) {
-      console.warn("[uploads] listagem OneDrive falhou, usando banco:", erro);
+      console.warn("[uploads] listagem Google Drive falhou, usando banco:", erro);
     }
   }
 
-  // Disco local (modo sem OneDrive).
-  if (slugNorm && !uploadUsaOneDrive()) {
+  // Disco local (modo sem Google Drive).
+  if (slugNorm && !uploadUsaGoogleDrive()) {
     const base = caminhoPastaUploads(slugNorm);
     await mkdir(base, { recursive: true });
 
@@ -258,19 +256,15 @@ export async function excluirArquivoGaleria(
   }
 
   // Arquivo só na nuvem (órfão ainda sem registro db/...).
-  if (relativePath.startsWith("od/")) {
+  if (relativePath.startsWith("gd/") || relativePath.startsWith("od/")) {
     const remotePath = decodeURIComponent(relativePath.slice(3)).replace(/\\/g, "/");
     const slug = empresaSlug ? normalizarSlugPastaUploads(empresaSlug) : "";
     if (!slug || !remotePath) throw new Error("Caminho inválido");
 
-    const { caminhoRemotoEmpresaRaiz } = await import("@/lib/onedrive-graph");
-    const { excluirArquivoOneDrive } = await import("@/lib/upload-onedrive-storage");
-    const raiz = caminhoRemotoEmpresaRaiz(slug);
-    const prefixo = `${raiz}/`;
-    if (remotePath !== raiz && !remotePath.startsWith(prefixo)) {
-      throw new Error("Caminho inválido");
-    }
-    await excluirArquivoOneDrive(remotePath);
+    const { excluirArquivoGoogleDrive } = await import(
+      "@/lib/upload-google-drive-storage"
+    );
+    await excluirArquivoGoogleDrive(remotePath);
     if (empresaId) {
       const { prisma } = await import("@/lib/db");
       await prisma.arquivoUpload.deleteMany({
@@ -345,6 +339,7 @@ export function resumoArmazenamentoVazio(): UploadsResumoArmazenamento {
     percentualLivre: 100,
     storageMode: "disk" as const,
     onedriveAtivo: false,
+    gdriveAtivo: false,
     emTesteGratis: false,
     motivoBloqueio: null,
   };
@@ -356,52 +351,43 @@ export async function calcularArmazenamentoGaleria(
   empresaNome?: string,
   opcoes?: { forceCota?: boolean }
 ): Promise<UploadsResumoArmazenamento> {
-  const onedrive = uploadUsaOneDrive();
+  const gdrive = uploadUsaGoogleDrive();
   const plano = await resolverLimiteArmazenamentoEmpresa(empresaId);
   const limiteBytes = plano.limiteBytes;
   const limiteGb = plano.limiteGb;
 
-  if (empresaSlug && !onedrive) {
+  if (empresaSlug && !gdrive) {
     await garantirPastasUploadEmpresa(empresaSlug);
   }
 
   const bytesDisco =
-    empresaSlug && !onedrive
+    empresaSlug && !gdrive
       ? await tamanhoDiretorio(caminhoPastaUploads(empresaSlug))
       : 0;
   const bytesBanco = await bytesTotalArquivosBanco(empresaId);
   const bytesBackup =
-    !onedrive && empresaSlug && empresaSlug.trim()
+    !gdrive && empresaSlug && empresaSlug.trim()
       ? await tamanhoDiretorio(pastaBackupEmpresa(empresaSlug, empresaNome))
       : 0;
 
-  // OneDrive: uso = pasta do lab na nuvem. No Início (sem force) não faz scan
-  // recursivo no Graph — usa cache quente ou soma do banco e aquece em background.
   let bytesUsados = bytesDisco + bytesBanco + bytesBackup;
-  if (onedrive && empresaSlug?.trim()) {
+  if (gdrive && empresaSlug?.trim()) {
     try {
-      const {
-        peekTamanhoPastaUploadsEmpresaOneDrive,
-        tamanhoPastaUploadsEmpresaOneDrive,
-      } = await import("@/lib/onedrive-graph");
+      const { listarArquivosUploadsEmpresaGoogleDrive } = await import(
+        "@/lib/google-drive-uploads"
+      );
       const force = Boolean(opcoes?.forceCota);
-      if (force) {
-        bytesUsados = await tamanhoPastaUploadsEmpresaOneDrive(empresaSlug, {
-          force: true,
-        });
-      } else {
-        const peek = peekTamanhoPastaUploadsEmpresaOneDrive(empresaSlug);
-        if (peek != null) {
-          bytesUsados = peek;
-        } else {
-          bytesUsados = bytesBanco;
-          void tamanhoPastaUploadsEmpresaOneDrive(empresaSlug).catch((erro) => {
-            console.warn("[uploads] aquecimento cache pasta OneDrive:", erro);
-          });
-        }
-      }
+      const arquivos = await listarArquivosUploadsEmpresaGoogleDrive(
+        empresaSlug,
+        { force, nomeEmpresa: empresaNome }
+      );
+      const soma = arquivos.reduce((s, a) => s + (a.bytes || 0), 0);
+      bytesUsados = soma > 0 ? soma : bytesBanco;
     } catch (erro) {
-      console.warn("[uploads] tamanho pasta OneDrive indisponível, usando banco:", erro);
+      console.warn(
+        "[uploads] tamanho pasta Google Drive indisponível, usando banco:",
+        erro
+      );
       bytesUsados = bytesBanco;
     }
   }
@@ -410,10 +396,10 @@ export async function calcularArmazenamentoGaleria(
   let nuvemPool: UploadsResumoArmazenamento["nuvemPool"];
   let livresPool = Number.POSITIVE_INFINITY;
 
-  if (onedrive) {
+  if (gdrive) {
     try {
-      const { obterCotaOneDriveGraph } = await import("@/lib/onedrive-graph");
-      const cota = await obterCotaOneDriveGraph(Boolean(opcoes?.forceCota));
+      const { obterCotaGoogleDrive } = await import("@/lib/google-drive-uploads");
+      const cota = await obterCotaGoogleDrive();
       if (cota && cota.total > 0) {
         livresPool = cota.remaining;
         nuvemPool = {
@@ -424,7 +410,7 @@ export async function calcularArmazenamentoGaleria(
         };
       }
     } catch (erro) {
-      console.warn("[uploads] cota OneDrive indisponível:", erro);
+      console.warn("[uploads] cota Google Drive indisponível:", erro);
     }
   }
 
@@ -454,12 +440,13 @@ export async function calcularArmazenamentoGaleria(
     limiteGb,
     percentualUsado,
     percentualLivre: 100 - percentualUsado,
-    storageMode: onedrive
-      ? ("onedrive" as const)
+    storageMode: gdrive
+      ? ("gdrive" as const)
       : bytesDisco > 0 || !empresaId
         ? ("disk" as const)
         : ("database" as const),
-    onedriveAtivo: onedrive,
+    onedriveAtivo: false,
+    gdriveAtivo: gdrive,
     emTesteGratis: plano.emTesteGratis,
     motivoBloqueio,
     nuvemPool,

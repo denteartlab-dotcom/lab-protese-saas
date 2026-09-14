@@ -2,9 +2,10 @@ import { cp, mkdir, readdir, readFile, rm, stat, writeFile } from "fs/promises";
 import path from "path";
 import { pastaBackupEmpresa } from "@/lib/backup-empresa-pasta";
 import { prisma } from "@/lib/db";
-import { uploadUsaBancoDados, uploadUsaOneDrive } from "@/lib/upload-arquivo-server";
-import { baixarArquivoOneDrive } from "@/lib/upload-onedrive-storage";
+import { uploadUsaBancoDados, uploadUsaGoogleDrive } from "@/lib/upload-arquivo-server";
+import { baixarArquivoGoogleDrive } from "@/lib/upload-google-drive-storage";
 import { caminhoPastaUploads } from "@/lib/uploads-armazenamento-server";
+import { extrairFileIdGdrive } from "@/lib/google-drive-shared";
 
 export function nomeArquivoUploadBackupSeguro(nome: string) {
   return nome
@@ -40,7 +41,7 @@ async function contarArquivosRecursivo(pasta: string): Promise<number> {
   return total;
 }
 
-/** Copia anexos/imagens para `backups/{empresa}/uploads/` (incluído no sync para OneDrive). */
+/** Copia anexos/imagens para `backups/{empresa}/uploads/` (réplica local; nuvem = Google Drive). */
 export async function espelharUploadsNoBackupEmpresa(
   empresaId: string,
   slug: string,
@@ -52,9 +53,9 @@ export async function espelharUploadsNoBackupEmpresa(
 
   let arquivos = 0;
 
-  // Uploads já estão no OneDrive — não espelha de novo no disco da VPS.
-  if (uploadUsaOneDrive()) {
-    return { destino, arquivos: 0, puladoOneDrive: true as const };
+  // Uploads já estão no Google Drive — não espelha de novo no disco da VPS.
+  if (uploadUsaGoogleDrive()) {
+    return { destino, arquivos: 0, puladoOneDrive: true as const, puladoGdrive: true as const };
   }
 
   if (uploadUsaBancoDados()) {
@@ -69,9 +70,14 @@ export async function espelharUploadsNoBackupEmpresa(
       await mkdir(pastaDestino, { recursive: true });
       const arquivo = `${row.id}-${nomeArquivoUploadBackupSeguro(row.nome)}`;
       let bytes: Buffer | null = row.dados && row.dados.length > 0 ? Buffer.from(row.dados) : null;
-      if (!bytes && row.storage === "onedrive" && row.remotePath) {
+      if (
+        !bytes &&
+        (row.storage === "gdrive" || row.storage === "onedrive") &&
+        row.remotePath &&
+        extrairFileIdGdrive(row.remotePath)
+      ) {
         try {
-          bytes = await baixarArquivoOneDrive(row.remotePath);
+          bytes = await baixarArquivoGoogleDrive(row.remotePath);
         } catch {
           continue;
         }

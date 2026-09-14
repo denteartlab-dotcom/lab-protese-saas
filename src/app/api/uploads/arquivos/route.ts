@@ -8,7 +8,7 @@ import {
   excluirArquivoGaleria,
   listarArquivosGaleria,
 } from "@/lib/uploads-armazenamento-server";
-import { uploadUsaOneDrive } from "@/lib/upload-onedrive-storage";
+import { uploadUsaGoogleDrive } from "@/lib/upload-google-drive-storage";
 
 function filtrarArquivosPorPeriodo(
   arquivos: ArquivoGaleriaItem[],
@@ -50,11 +50,11 @@ async function resumoAposExclusao(
   empresaSlug: string,
   empresaNome: string
 ) {
-  // forceCota lê o Graph e, se ainda estiver atrasado, preserva o ajuste otimista da exclusão.
+  // forceCota atualiza a cota; se ainda estiver atrasado, tenta de novo.
   let resumo = await calcularArmazenamentoGaleria(empresaId, empresaSlug, empresaNome, {
     forceCota: true,
   });
-  if (uploadUsaOneDrive() && resumo.bytesLivres <= 0) {
+  if (uploadUsaGoogleDrive() && resumo.bytesLivres <= 0) {
     await new Promise((r) => setTimeout(r, 1200));
     resumo = await calcularArmazenamentoGaleria(empresaId, empresaSlug, empresaNome, {
       forceCota: true,

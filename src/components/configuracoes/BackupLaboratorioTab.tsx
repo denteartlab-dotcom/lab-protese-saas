@@ -36,11 +36,15 @@ type StatusBackupAutomatico = {
   pastaUploads?: string;
   uploadsArquivos?: number;
   onedriveSyncHabilitado?: boolean;
-  uploadStorage?: "onedrive" | "database" | "disk";
+  uploadStorage?: "gdrive" | "onedrive" | "database" | "disk";
   onedriveUploadsAtivo?: boolean;
+  gdriveUploadsAtivo?: boolean;
   onedriveUploadsRemote?: string | null;
+  gdriveUploadsRemote?: string | null;
   onedriveGraphConfigurado?: boolean;
+  gdriveConfigurado?: boolean;
   onedriveFaltandoCredenciais?: string[];
+  gdriveFaltandoCredenciais?: string[];
   horarioFixo?: string;
   padraoNomeArquivo: string;
   arquivoPadrao: string;
@@ -190,11 +194,11 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
       });
       await Promise.all([carregarStatusAutomatico(), carregarArquivosPastaAutomatica()]);
       const uploads = resultado.uploadsArquivos ?? 0;
-      const onedrive = resultado.onedrive;
-      if (onedrive && onedrive.ok === false && onedrive.erro && onedrive.erro !== "desativado") {
+      const drive = resultado.drive;
+      if (drive && drive.ok === false && drive.erro && drive.erro !== "desativado") {
         onMensagem?.(
           `${t("settings.backupServidorOk").replace("{n}", String(uploads))} ${t(
-            "settings.backupServidorOneDriveErro"
+            "settings.backupServidorGdriveErro"
           )}`,
           "erro"
         );

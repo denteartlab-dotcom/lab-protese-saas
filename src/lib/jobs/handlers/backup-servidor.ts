@@ -34,5 +34,6 @@ export async function manipularJobBackupServidor(ctx: ContextoExecucaoJob) {
     pastaUploads: caminhoRelativoUploadsBackupEmpresa(payload.empresaSlug, payload.empresaNome),
     pastaPadrao: caminhoRelativoPastaBackupEmpresa(payload.empresaSlug, payload.empresaNome),
     onedrive: resultado.onedrive,
+    drive: resultado.drive,
   };
 }

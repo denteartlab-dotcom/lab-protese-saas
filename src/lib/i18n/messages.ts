@@ -1,4 +1,4 @@
-export type Locale = "pt" | "en" | "es";
+﻿export type Locale = "pt" | "en" | "es";
 
 import {
   messagesProducaoEn,
@@ -136,7 +136,7 @@ export const messages = {
     "settings.backupExportarDesc":
       "Gera um arquivo .zip com backup.json (dados do banco) e a pasta uploads/ (imagens e anexos). Guarde em local seguro.",
     "settings.backupExportarAvisoServidor":
-      "O download .zip é a cópia completa para o seu computador. Para gravar também no servidor (OneDrive), use «Gerar backup no servidor agora» na seção Backup automático.",
+      "O download .zip é a cópia completa para o seu computador. Para gravar também no servidor (Google Drive), use «Gerar backup no servidor agora» na seção Backup automático.",
     "settings.backupBaixar": "Baixar backup (.zip)",
     "settings.backupExportando": "Gerando arquivo...",
     "settings.backupExportado": "Backup .zip baixado com sucesso.",
@@ -157,7 +157,7 @@ export const messages = {
     "settings.backupConfirmeSubstituir": "Marque a confirmação para continuar.",
     "settings.backupAutoTitulo": "Backup automático",
     "settings.backupAutoDesc":
-      "O sistema grava na pasta backups/ do servidor: arquivo JSON com a data e a subpasta uploads/ com anexos e imagens enviados no sistema. A réplica para a nuvem (OneDrive) usa a pasta inteira da empresa.",
+      "O sistema grava na pasta backups/ do servidor: arquivo JSON com a data e a subpasta uploads/ com anexos e imagens enviados no sistema. A réplica para a nuvem (Google Drive) usa a pasta inteira da empresa.",
     "settings.backupAutoCarregando": "Carregando agendamento...",
     "settings.backupAutoUltimoLabel": "Último backup:",
     "settings.backupAutoUltimoNunca": "Nenhum backup automático realizado ainda.",
@@ -172,10 +172,10 @@ export const messages = {
     "settings.backupAutoPasta": "Pasta no servidor: {caminho}/",
     "settings.backupAutoPastaUploads": "Anexos e imagens: {caminho}/",
     "settings.backupAutoUploadsArquivos": "{n} arquivo(s) espelhado(s)",
-"settings.backupAutoOneDriveAtivo":
-            "OneDrive: após cada backup, os arquivos são enviados direto via Microsoft Graph (sem rclone).",
-    "settings.backupAutoOneDriveUploads":
-      "Uploads diretos no OneDrive (sem disco na VPS): {remote}",
+"settings.backupAutoGdriveAtivo":
+            "Google Drive: após cada backup, os arquivos são enviados direto via service account.",
+    "settings.backupAutoGdriveUploads":
+      "Uploads diretos no Google Drive (sem disco na VPS): {remote}",
     "settings.backupAutoUploadStorageDatabase":
       "Uploads: armazenados no banco de dados (PostgreSQL).",
     "settings.backupAutoUploadStorageDisk":
@@ -185,9 +185,9 @@ export const messages = {
     "settings.backupServidorOk":
       "Backup gravado no servidor. Pasta uploads/ com {n} arquivo(s) de anexos/imagens.",
     "settings.backupServidorErro": "Não foi possível gerar o backup no servidor.",
-    "settings.backupServidorOneDriveOk": "OneDrive sincronizado.",
-    "settings.backupServidorOneDriveErro":
-      "OneDrive não sincronizado — confira ONEDRIVE_GRAPH_* no .env (Graph).",
+    "settings.backupServidorGdriveOk": "Google Drive sincronizado.",
+    "settings.backupServidorGdriveErro":
+      "Google Drive não sincronizado — confira GOOGLE_DRIVE_FOLDER_ID / GOOGLE_APPLICATION_CREDENTIALS no .env.",
     "settings.backupAutoNomeArquivo": "Nome do arquivo de hoje: {nome}",
     "settings.backupAutoUltimoArquivo": "Último arquivo gerado: {nome}",
     "settings.backupAutoUltimoArquivoPendente": "Último arquivo gerado: ainda não gerado",
@@ -695,7 +695,7 @@ export const messages = {
     "dashboard.usadoValor": "Usado: {valor}",
     "dashboard.livreValor": "Livre: {valor}",
     "dashboard.espacoEsgotado": "Espaço esgotado — novos uploads estão bloqueados.",
-    "dashboard.uploadsNuvem": "Espaço na nuvem (OneDrive)",
+    "dashboard.uploadsNuvem": "Espaço na nuvem (Google Drive)",
     "dashboard.espacoQuaseCheio":
       "Armazenamento em 80% ou mais — libere espaço antes que acabe.",
     "dashboard.nuvemPoolEsgotado":
@@ -945,7 +945,7 @@ export const messages = {
     "settings.backupExportarDesc":
       "Creates a .zip file with backup.json (database) and uploads/ folder (images and attachments). Store it safely.",
     "settings.backupExportarAvisoServidor":
-      "The .zip download is a full copy for your computer. To also save on the server (OneDrive), use «Generate server backup now» in Automatic backup.",
+      "The .zip download is a full copy for your computer. To also save on the server (Google Drive), use «Generate server backup now» in Automatic backup.",
     "settings.backupBaixar": "Download backup (.zip)",
     "settings.backupExportando": "Generating file...",
     "settings.backupExportado": "Backup .zip downloaded successfully.",
@@ -966,7 +966,7 @@ export const messages = {
     "settings.backupConfirmeSubstituir": "Check the confirmation box to continue.",
     "settings.backupAutoTitulo": "Automatic backup",
     "settings.backupAutoDesc":
-      "The system saves to the server backups/ folder: a dated JSON file and an uploads/ subfolder with attachments and images. Cloud replication (OneDrive) syncs the entire company folder.",
+      "The system saves to the server backups/ folder: a dated JSON file and an uploads/ subfolder with attachments and images. Cloud replication (Google Drive) syncs the entire company folder.",
     "settings.backupAutoCarregando": "Loading schedule...",
     "settings.backupAutoUltimoLabel": "Last backup:",
     "settings.backupAutoUltimoNunca": "No automatic backup has been run yet.",
@@ -981,10 +981,10 @@ export const messages = {
     "settings.backupAutoPasta": "Server folder: {caminho}/",
     "settings.backupAutoPastaUploads": "Attachments and images: {caminho}/",
     "settings.backupAutoUploadsArquivos": "{n} mirrored file(s)",
-"settings.backupAutoOneDriveAtivo":
-            "OneDrive: after each backup, files are uploaded directly via Microsoft Graph (no rclone).",
-    "settings.backupAutoOneDriveUploads":
-      "Direct uploads to OneDrive (not stored on the VPS): {remote}",
+"settings.backupAutoGdriveAtivo":
+            "Google Drive: after each backup, files are uploaded directly via service account.",
+    "settings.backupAutoGdriveUploads":
+      "Direct uploads to Google Drive (not stored on the VPS): {remote}",
     "settings.backupAutoUploadStorageDatabase":
       "Uploads: stored in the database (PostgreSQL).",
     "settings.backupAutoUploadStorageDisk":
@@ -994,9 +994,9 @@ export const messages = {
     "settings.backupServidorOk":
       "Backup saved on server. uploads/ folder with {n} attachment/image file(s).",
     "settings.backupServidorErro": "Could not generate server backup.",
-    "settings.backupServidorOneDriveOk": "OneDrive synced.",
-    "settings.backupServidorOneDriveErro":
-      "OneDrive not synced — check ONEDRIVE_GRAPH_* in .env (Graph).",
+    "settings.backupServidorGdriveOk": "Google Drive synced.",
+    "settings.backupServidorGdriveErro":
+      "Google Drive not synced — check GOOGLE_DRIVE_FOLDER_ID / GOOGLE_APPLICATION_CREDENTIALS in .env.",
     "settings.backupAutoNomeArquivo": "Today's file name: {nome}",
     "settings.backupAutoUltimoArquivo": "Last generated file: {nome}",
     "settings.backupAutoUltimoArquivoPendente": "Last generated file: not generated yet",
@@ -1497,7 +1497,7 @@ export const messages = {
     "dashboard.usado": "Used",
     "dashboard.livre": "Free",
     "dashboard.liberarEspaco": "Free up cloud space",
-    "dashboard.uploadsNuvem": "Cloud space (OneDrive)",
+    "dashboard.uploadsNuvem": "Cloud space (Google Drive)",
     "dashboard.usadoValor": "Used: {valor}",
     "dashboard.livreValor": "Free: {valor}",
     "dashboard.espacoEsgotado": "Storage full — new uploads are blocked.",
@@ -1750,7 +1750,7 @@ export const messages = {
     "settings.backupExportarDesc":
       "Genera un .zip con backup.json (datos) y la carpeta uploads/ (imágenes y adjuntos). Guárdelo en un lugar seguro.",
     "settings.backupExportarAvisoServidor":
-      "La descarga .zip es la copia completa en su equipo. Para grabar también en el servidor (OneDrive), use «Generar respaldo en el servidor ahora».",
+      "La descarga .zip es la copia completa en su equipo. Para grabar también en el servidor (Google Drive), use «Generar respaldo en el servidor ahora».",
     "settings.backupBaixar": "Descargar respaldo (.zip)",
     "settings.backupExportando": "Generando archivo...",
     "settings.backupExportado": "Respaldo .zip descargado correctamente.",
@@ -1771,7 +1771,7 @@ export const messages = {
     "settings.backupConfirmeSubstituir": "Marque la confirmación para continuar.",
     "settings.backupAutoTitulo": "Respaldo automático",
     "settings.backupAutoDesc":
-      "El sistema guarda en la carpeta backups/ del servidor: archivo JSON con la fecha y la subcarpeta uploads/ con adjuntos e imágenes. La réplica en la nube (OneDrive) usa toda la carpeta de la empresa.",
+      "El sistema guarda en la carpeta backups/ del servidor: archivo JSON con la fecha y la subcarpeta uploads/ con adjuntos e imágenes. La réplica en la nube (Google Drive) usa toda la carpeta de la empresa.",
     "settings.backupAutoCarregando": "Cargando programación...",
     "settings.backupAutoUltimoLabel": "Último respaldo:",
     "settings.backupAutoUltimoNunca": "Aún no se realizó ningún respaldo automático.",
@@ -1786,10 +1786,10 @@ export const messages = {
     "settings.backupAutoPasta": "Carpeta en el servidor: {caminho}/",
     "settings.backupAutoPastaUploads": "Adjuntos e imágenes: {caminho}/",
     "settings.backupAutoUploadsArquivos": "{n} archivo(s) espejado(s)",
-"settings.backupAutoOneDriveAtivo":
-            "OneDrive: tras cada respaldo, los archivos se envían directo vía Microsoft Graph (sin rclone).",
-    "settings.backupAutoOneDriveUploads":
-      "Uploads directos en OneDrive (sin disco en la VPS): {remote}",
+"settings.backupAutoGdriveAtivo":
+            "Google Drive: tras cada respaldo, los archivos se envían directo vía service account.",
+    "settings.backupAutoGdriveUploads":
+      "Uploads directos en Google Drive (sin disco en la VPS): {remote}",
     "settings.backupAutoUploadStorageDatabase":
       "Uploads: almacenados en la base de datos (PostgreSQL).",
     "settings.backupAutoUploadStorageDisk":
@@ -1799,9 +1799,9 @@ export const messages = {
     "settings.backupServidorOk":
       "Respaldo guardado en el servidor. Carpeta uploads/ con {n} archivo(s) de adjuntos/imágenes.",
     "settings.backupServidorErro": "No se pudo generar el respaldo en el servidor.",
-    "settings.backupServidorOneDriveOk": "OneDrive sincronizado.",
-    "settings.backupServidorOneDriveErro":
-      "OneDrive no sincronizado — revise ONEDRIVE_GRAPH_* en el .env (Graph).",
+    "settings.backupServidorGdriveOk": "Google Drive sincronizado.",
+    "settings.backupServidorGdriveErro":
+      "Google Drive no sincronizado — revise GOOGLE_DRIVE_FOLDER_ID / GOOGLE_APPLICATION_CREDENTIALS en el .env.",
     "settings.backupAutoNomeArquivo": "Nombre del archivo de hoy: {nome}",
     "settings.backupAutoUltimoArquivo": "Último archivo generado: {nome}",
     "settings.backupAutoUltimoArquivoPendente": "Último archivo generado: aún no generado",
@@ -2303,7 +2303,7 @@ export const messages = {
     "dashboard.usado": "Usado",
     "dashboard.livre": "Libre",
     "dashboard.liberarEspaco": "Liberar espacio en la nube",
-    "dashboard.uploadsNuvem": "Espacio en la nube (OneDrive)",
+    "dashboard.uploadsNuvem": "Espacio en la nube (Google Drive)",
     "dashboard.usadoValor": "Usado: {valor}",
     "dashboard.livreValor": "Libre: {valor}",
     "dashboard.espacoEsgotado": "Espacio agotado — las nuevas subidas están bloqueadas.",

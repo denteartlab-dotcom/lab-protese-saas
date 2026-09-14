@@ -46,6 +46,7 @@ export type ResultadoBackupServidorJob = {
   pastaUploads?: string;
   pastaPadrao?: string;
   onedrive?: { ok: boolean; erro?: string; arquivos?: number };
+  drive?: { ok: boolean; erro?: string; arquivoId?: string; caminhoDrive?: string };
 };
 
 export const schemaJobBackupExport = z.object({

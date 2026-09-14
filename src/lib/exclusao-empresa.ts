@@ -2,7 +2,6 @@ import path from "path";
 import { rm } from "fs/promises";
 import { pastaBackupEmpresa } from "@/lib/backup-empresa-pasta";
 import { excluirPastaDriveEmpresa } from "@/lib/backup-google-drive";
-import { excluirPastaBackupEmpresaOneDrive } from "@/lib/backup-onedrive-sync";
 import { executarSemRls } from "@/lib/db";
 import { excluirJsonStoreTenant } from "@/lib/json-store-tenant";
 import { registrarLogMaster } from "@/lib/master-audit";
@@ -10,7 +9,7 @@ import {
   caminhoPastaUploads,
   normalizarSlugPastaUploads,
 } from "@/lib/uploads-armazenamento-server";
-import { excluirPastaUploadsEmpresaOneDrive } from "@/lib/upload-onedrive-storage";
+import { excluirPastaUploadsEmpresaGoogleDrive } from "@/lib/upload-google-drive-storage";
 import {
   DIAS_AVISO_INATIVIDADE_ANTES,
   DIAS_INATIVIDADE_PARA_EXCLUSAO,
@@ -97,8 +96,7 @@ async function registrarAuditoriaExclusao(
 }
 
 /**
- * Limpa nuvem + disco: Google Drive, OneDrive (pasta inteira do lab),
- * backups locais, uploads e temporários.
+ * Limpa nuvem + disco: Google Drive (pasta do lab), backups locais, uploads e temporários.
  */
 async function limparArquivosEmpresaExcluida(slug: string, nome: string, empresaId: string) {
   const drive = await excluirPastaDriveEmpresa({
@@ -110,15 +108,10 @@ async function limparArquivosEmpresaExcluida(slug: string, nome: string, empresa
     console.warn(`[exclusao-empresa] Drive ${slug}:`, drive.erro);
   }
 
-  const onedrive = await excluirPastaBackupEmpresaOneDrive(slug, nome);
-  if (!onedrive.ok && onedrive.erro && onedrive.erro !== "desativado") {
-    console.warn(`[exclusao-empresa] OneDrive backup ${slug}:`, onedrive.erro);
-  }
-
-  // Remove a pasta-raiz do lab no OneDrive (uploads + backups) — não sobra nada.
-  const onedriveRaiz = await excluirPastaUploadsEmpresaOneDrive(slug);
-  if (!onedriveRaiz.ok && onedriveRaiz.erro) {
-    console.warn(`[exclusao-empresa] OneDrive raiz ${slug}:`, onedriveRaiz.erro);
+  // Garante remoção da pasta do laboratório no Google Drive (uploads + backups).
+  const gdriveRaiz = await excluirPastaUploadsEmpresaGoogleDrive(slug, nome);
+  if (!gdriveRaiz.ok && gdriveRaiz.erro && gdriveRaiz.erro !== "gdrive-nao-configurado") {
+    console.warn(`[exclusao-empresa] Google Drive raiz ${slug}:`, gdriveRaiz.erro);
   }
 
   await excluirArquivosLocaisEmpresa(slug, nome, empresaId);

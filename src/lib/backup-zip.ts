@@ -6,9 +6,10 @@ import unzipper from "unzipper";
 import type { BackupLaboratorioPayload } from "@/lib/backup-laboratorio";
 import { nomeArquivoUploadBackupSeguro } from "@/lib/backup-uploads-espelho";
 import { prisma } from "@/lib/db";
-import { uploadUsaBancoDados, uploadUsaOneDrive } from "@/lib/upload-arquivo-server";
-import { baixarArquivoOneDrive } from "@/lib/upload-onedrive-storage";
+import { uploadUsaBancoDados, uploadUsaGoogleDrive } from "@/lib/upload-arquivo-server";
+import { baixarArquivoGoogleDrive } from "@/lib/upload-google-drive-storage";
 import { caminhoPastaUploads } from "@/lib/uploads-armazenamento-server";
+import { extrairFileIdGdrive } from "@/lib/google-drive-shared";
 
 export const BACKUP_JSON_NO_ZIP = "backup.json";
 export const UPLOADS_ZIP_PREFIX = "uploads/";
@@ -65,19 +66,23 @@ async function walkUploadsDisco(
   }
 }
 
-async function baixarOneDriveComTimeout(
+async function baixarNuvemComTimeout(
   remotePath: string,
   timeoutMs = 45_000
 ): Promise<Buffer | null> {
+  if (!extrairFileIdGdrive(remotePath)) {
+    // OneDrive legado sem fileId Drive — não há como baixar.
+    return null;
+  }
   try {
     return await Promise.race([
-      baixarArquivoOneDrive(remotePath),
+      baixarArquivoGoogleDrive(remotePath),
       new Promise<null>((resolve) => {
         setTimeout(() => resolve(null), timeoutMs);
       }),
     ]);
   } catch (err) {
-    console.warn("[backup-zip] OneDrive skip", remotePath, err);
+    console.warn("[backup-zip] Google Drive skip", remotePath, err);
     return null;
   }
 }
@@ -96,7 +101,7 @@ export async function coletarUploadsParaZipBackup(
     entradas.push({ zipPath: chave, dados });
   };
 
-  if (uploadUsaBancoDados() || uploadUsaOneDrive()) {
+  if (uploadUsaBancoDados() || uploadUsaGoogleDrive()) {
     const rows = await prisma.arquivoUpload.findMany({
       where: { empresaId },
       select: {
@@ -114,7 +119,7 @@ export async function coletarUploadsParaZipBackup(
         row.dados && row.dados.length > 0 ? Buffer.from(row.dados) : null;
 
       if (!bytes && row.remotePath) {
-        bytes = await baixarOneDriveComTimeout(row.remotePath);
+        bytes = await baixarNuvemComTimeout(row.remotePath);
       }
 
       if (!bytes?.length) continue;

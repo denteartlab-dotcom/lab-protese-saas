@@ -27,14 +27,16 @@ export type UploadsResumoArmazenamento = {
   limiteGb: number;
   percentualUsado: number;
   percentualLivre: number;
-  /** Onde os arquivos da galeria estão: onedrive | database | disk */
-  storageMode?: "onedrive" | "database" | "disk";
+  /** Onde os arquivos da galeria estão: gdrive | database | disk */
+  storageMode?: "gdrive" | "onedrive" | "database" | "disk";
+  /** @deprecated use gdriveAtivo */
   onedriveAtivo?: boolean;
+  gdriveAtivo?: boolean;
   /** Laboratório ainda em teste grátis (2 GB). */
   emTesteGratis?: boolean;
   /** Por que uploads estão bloqueados (se bytesLivres === 0). */
   motivoBloqueio?: MotivoBloqueioArmazenamento;
-  /** Cota compartilhada da conta OneDrive (pool físico). */
+  /** Cota compartilhada da conta Google Drive (pool físico), se disponível. */
   nuvemPool?: {
     bytesUsados: number;
     bytesLivres: number;

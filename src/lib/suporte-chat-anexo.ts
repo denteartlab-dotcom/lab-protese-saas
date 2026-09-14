@@ -1,9 +1,9 @@
 import { prisma } from "@/lib/db";
 import {
   caminhoRemotoUpload,
-  enviarBufferParaOneDrive,
-  uploadUsaOneDrive,
-} from "@/lib/upload-onedrive-storage";
+  enviarBufferParaGoogleDrive,
+  uploadUsaGoogleDrive,
+} from "@/lib/upload-google-drive-storage";
 import { normalizarSlugPastaUploads } from "@/lib/uploads-armazenamento-server";
 
 const MAX_BYTES_IMAGEM = 2 * 1024 * 1024;
@@ -50,7 +50,7 @@ export async function salvarImagemSuporteChat(
   const bytes = Buffer.from(await file.arrayBuffer());
   const nome = file.name || "imagem-chat";
 
-  if (uploadUsaOneDrive()) {
+  if (uploadUsaGoogleDrive()) {
     let slug = empresaSlug?.trim() || "";
     if (!slug) {
       const emp = await prisma.empresa.findFirst({
@@ -59,16 +59,27 @@ export async function salvarImagemSuporteChat(
       });
       slug = emp?.slug || "";
     }
-    if (!slug) throw new Error("empresaSlug obrigatório para OneDrive");
+    if (!slug) throw new Error("empresaSlug obrigatório para Google Drive");
 
     const slugNorm = normalizarSlugPastaUploads(slug);
     const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName(nome)}`;
-    const remotePath = caminhoRemotoUpload(slugNorm, "suporte", filename);
-    const { garantirPastaModuloUploadOneDrive } = await import("@/lib/onedrive-graph");
-    await garantirPastaModuloUploadOneDrive(slugNorm, "suporte");
-    await enviarBufferParaOneDrive(remotePath, bytes, filename, mimeType, {
-      garantirPastas: false,
-    });
+    const remotePathLogico = caminhoRemotoUpload(slugNorm, "suporte", filename);
+    const { garantirPastaModuloUploadGoogleDrive } = await import(
+      "@/lib/google-drive-uploads"
+    );
+    await garantirPastaModuloUploadGoogleDrive(slugNorm, "suporte");
+    const enviado = await enviarBufferParaGoogleDrive(
+      remotePathLogico,
+      bytes,
+      filename,
+      mimeType,
+      {
+        garantirPastas: false,
+        empresaSlug: slugNorm,
+        modulo: "suporte",
+        nomeArquivo: filename,
+      }
+    );
     const registro = await prisma.arquivoUpload.create({
       data: {
         empresaId,
@@ -77,8 +88,8 @@ export async function salvarImagemSuporteChat(
         mimeType,
         tamanho: bytes.length,
         dados: null,
-        storage: "onedrive",
-        remotePath,
+        storage: "gdrive",
+        remotePath: enviado.remotePath,
       },
     });
     return `/api/uploads/arquivo/${registro.id}`;
