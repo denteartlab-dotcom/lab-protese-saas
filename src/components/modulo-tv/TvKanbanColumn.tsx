@@ -12,6 +12,7 @@ type Props = {
   coluna: ColunaKanbanConfig;
   ordens: OrdemServicoTv[];
   carregando: boolean;
+  arrastar?: boolean;
   onAbrirResumo?: (ordem: OrdemServicoTv) => void;
 };
 
@@ -19,11 +20,13 @@ export function TvKanbanColumn({
   coluna,
   ordens,
   carregando,
+  arrastar = true,
   onAbrirResumo,
 }: Props) {
   const { setNodeRef, isOver } = useDroppable({
     id: coluna.id,
     data: { type: "coluna", coluna: coluna.id },
+    disabled: !arrastar,
   });
 
   return (
@@ -36,11 +39,27 @@ export function TvKanbanColumn({
         isOver && "ring-1 ring-blue-400/40"
       )}
     >
-      <div className={cn("mb-2 h-0.5 w-full rounded-full bg-gradient-to-r", coluna.bar)} />
+      <div
+        className={cn(
+          "mb-2 h-0.5 w-full rounded-full",
+          coluna.corHex ? "" : `bg-gradient-to-r ${coluna.bar}`
+        )}
+        style={coluna.corHex ? { backgroundColor: coluna.corHex } : undefined}
+      />
 
       <header className="mb-2 flex shrink-0 items-center justify-between gap-2 px-0.5">
         <div className="flex min-w-0 items-center gap-1.5">
-          <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", coluna.dot)} />
+          <span
+            className={cn("h-1.5 w-1.5 shrink-0 rounded-full", !coluna.corHex && coluna.dot)}
+            style={
+              coluna.corHex
+                ? {
+                    backgroundColor: coluna.corHex,
+                    boxShadow: `0 0 10px ${coluna.corHex}99`,
+                  }
+                : undefined
+            }
+          />
           <h3 className="truncate text-[10px] font-bold uppercase tracking-[0.1em] text-slate-200 tv:text-[11px] tv-4k:text-xs">
             {coluna.label}
           </h3>
@@ -73,6 +92,7 @@ export function TvKanbanColumn({
                   key={ordem.id}
                   ordem={ordem}
                   index={index}
+                  arrastar={arrastar}
                   onAbrirResumo={onAbrirResumo}
                 />
               ))}

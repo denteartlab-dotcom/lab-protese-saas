@@ -3,6 +3,20 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { PrioridadeOs } from "@/components/modulo-tv/types";
+import { VISTA_TV_TODOS } from "@/lib/tv/tv-colunas-setor";
+
+function sincronizarUrlVistaSetor(vista: string) {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  if (!vista || vista === VISTA_TV_TODOS) url.searchParams.delete("setor");
+  else url.searchParams.set("setor", vista);
+  const busca = url.searchParams.toString();
+  window.history.replaceState(
+    {},
+    "",
+    `${url.pathname}${busca ? `?${busca}` : ""}${url.hash}`
+  );
+}
 
 type FiltroPrioridade = PrioridadeOs | "todas";
 
@@ -12,6 +26,7 @@ type TvDashboardState = {
   sonsAtivos: boolean;
   locutorIaAtivo: boolean;
   modoKiosk: boolean;
+  vistaSetor: string;
   fullscreenAuto: boolean;
   novasOsIds: string[];
   wsConectado: boolean;
@@ -19,6 +34,7 @@ type TvDashboardState = {
   setFiltroPrioridade: (p: FiltroPrioridade) => void;
   setSonsAtivos: (v: boolean) => void;
   setLocutorIaAtivo: (v: boolean) => void;
+  setVistaSetor: (v: string) => void;
   setModoKiosk: (v: boolean) => void;
   setFullscreenAuto: (v: boolean) => void;
   setWsConectado: (v: boolean) => void;
@@ -35,6 +51,7 @@ export const useTvDashboardStore = create<TvDashboardState>()(
       sonsAtivos: false,
       locutorIaAtivo: false,
       modoKiosk: false,
+      vistaSetor: VISTA_TV_TODOS,
       fullscreenAuto: true,
       novasOsIds: [],
       wsConectado: false,
@@ -43,6 +60,10 @@ export const useTvDashboardStore = create<TvDashboardState>()(
       setFiltroPrioridade: (p) => set({ filtroPrioridade: p }),
       setSonsAtivos: (v) => set({ sonsAtivos: v }),
       setLocutorIaAtivo: (v) => set({ locutorIaAtivo: v }),
+      setVistaSetor: (v) => {
+        set({ vistaSetor: v });
+        sincronizarUrlVistaSetor(v);
+      },
       setModoKiosk: (v) => set({ modoKiosk: v }),
       setFullscreenAuto: (v) => set({ fullscreenAuto: v }),
       setWsConectado: (v) => set({ wsConectado: v }),
@@ -67,6 +88,8 @@ export const useTvDashboardStore = create<TvDashboardState>()(
             locutorIaAtivo: true,
           });
         }
+        const setorUrl = params.get("setor")?.trim();
+        if (setorUrl) set({ vistaSetor: setorUrl });
       },
     }),
     {
@@ -78,7 +101,11 @@ export const useTvDashboardStore = create<TvDashboardState>()(
         fullscreenAuto: s.fullscreenAuto,
         filtroColaborador: s.filtroColaborador,
         filtroPrioridade: s.filtroPrioridade,
+        vistaSetor: s.vistaSetor,
       }),
+      onRehydrateStorage: () => (state) => {
+        state?.initKioskFromUrl();
+      },
     }
   )
 );

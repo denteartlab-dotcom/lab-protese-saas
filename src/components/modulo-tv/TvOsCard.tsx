@@ -19,6 +19,7 @@ type Props = {
   ordem: OrdemServicoTv;
   index: number;
   isOverlay?: boolean;
+  arrastar?: boolean;
   onAbrirResumo?: (ordem: OrdemServicoTv) => void;
 };
 
@@ -26,6 +27,7 @@ export function TvOsCard({
   ordem,
   index,
   isOverlay = false,
+  arrastar = true,
   onAbrirResumo,
 }: Props) {
   const tempoEtapa = useEtapaTempo(ordem.etapaDesde);
@@ -33,19 +35,20 @@ export function TvOsCard({
   const categoriaPrazo = classificarPrazoTv(ordem);
   const estiloPrazo = estilosCardPrazoTv(categoriaPrazo);
   const ignorarProximoClique = useRef(false);
+  const podeArrastar = arrastar && !isOverlay;
 
   const { attributes, listeners, setNodeRef: setDragRef, isDragging } =
     useDraggable({
       id: ordem.id,
       data: { type: "ordem", coluna: ordem.coluna, ordem },
-      disabled: isOverlay,
+      disabled: !podeArrastar,
     });
 
   // Card também é droppable → soltar em cima de outro card muda para a coluna dele.
   const { setNodeRef: setDropRef } = useDroppable({
     id: isOverlay ? `overlay-${ordem.id}` : `drop-${ordem.id}`,
     data: { type: "ordem", coluna: ordem.coluna, ordem },
-    disabled: isOverlay,
+    disabled: isOverlay || !arrastar,
   });
 
   function setRefs(node: HTMLElement | null) {
@@ -71,7 +74,7 @@ export function TvOsCard({
       exit={{ opacity: 0, scale: 0.97 }}
       transition={{ duration: 0.25, delay: isOverlay ? 0 : index * 0.02 }}
       whileHover={isOverlay || isDragging ? undefined : { y: -1 }}
-      {...(isOverlay ? {} : { ...listeners, ...attributes })}
+      {...(podeArrastar ? { ...listeners, ...attributes } : {})}
       onClick={() => {
         if (isOverlay || !onAbrirResumo) return;
         if (ignorarProximoClique.current) {
@@ -89,7 +92,8 @@ export function TvOsCard({
         estiloPrazo.shadow,
         categoriaPrazo === "atrasada" && "tv-atrasada-pulse",
         isNova && "ring-offset-1 ring-offset-[#070b12]",
-        !isOverlay && "cursor-grab hover:brightness-110 active:cursor-grabbing",
+        podeArrastar && "cursor-grab hover:brightness-110 active:cursor-grabbing",
+        !podeArrastar && "cursor-pointer",
         isOverlay && "cursor-default",
         isDragging && !isOverlay && "pointer-events-none"
       )}

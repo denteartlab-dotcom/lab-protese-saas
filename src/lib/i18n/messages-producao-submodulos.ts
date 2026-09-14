@@ -165,6 +165,13 @@ const pt = {
   "producao.tv.locutor.paraEntregar": "para entregar",
   "producao.tv.locutor.noPrazo": "no prazo",
   "producao.tv.locutor.atrasados": "atrasados",
+  "producao.tv.setores.titulo": "Setor",
+  "producao.tv.setores.todos": "Todos os setores",
+  "producao.tv.setores.semEtapas":
+    "Cadastre etapas neste setor em Cadastros → Etapas.",
+  "producao.tv.setores.outras": "Outras",
+  "producao.tv.setores.somenteLeitura":
+    "Arrastar cartões fica disponível em Todos os setores.",
   "producao.modulo.tabela.qtd": "QTD",
   "producao.modulo.tabela.descricao": "Descrição",
   "producao.modulo.tabela.situacao": "Situação",
@@ -388,6 +395,13 @@ const en: Record<keyof typeof pt, string> = {
   "producao.tv.locutor.paraEntregar": "to deliver",
   "producao.tv.locutor.noPrazo": "on time",
   "producao.tv.locutor.atrasados": "overdue",
+  "producao.tv.setores.titulo": "Sector",
+  "producao.tv.setores.todos": "All sectors",
+  "producao.tv.setores.semEtapas":
+    "Register stages for this sector in Records → Stages.",
+  "producao.tv.setores.outras": "Other",
+  "producao.tv.setores.somenteLeitura":
+    "Drag-and-drop is available in All sectors.",
   "producao.modulo.tabela.qtd": "QTY",
   "producao.modulo.tabela.descricao": "Description",
   "producao.modulo.tabela.situacao": "Status",
@@ -611,6 +625,13 @@ const es: Record<keyof typeof pt, string> = {
   "producao.tv.locutor.paraEntregar": "para entregar",
   "producao.tv.locutor.noPrazo": "en plazo",
   "producao.tv.locutor.atrasados": "atrasados",
+  "producao.tv.setores.titulo": "Sector",
+  "producao.tv.setores.todos": "Todos los sectores",
+  "producao.tv.setores.semEtapas":
+    "Registre etapas de este sector en Registros → Etapas.",
+  "producao.tv.setores.outras": "Otras",
+  "producao.tv.setores.somenteLeitura":
+    "Arrastrar tarjetas está disponible en Todos los sectores.",
   "producao.modulo.tabela.qtd": "CANT",
   "producao.modulo.tabela.descricao": "Descripción",
   "producao.modulo.tabela.situacao": "Situación",

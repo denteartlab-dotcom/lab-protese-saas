@@ -46,6 +46,7 @@ function snapshotVazio(): TvOrdensResponse {
       percentualConcluido: 0,
     },
     ultimaAtualizacao: new Date().toISOString(),
+    layoutSetores: { setores: [], etapas: [] },
   };
 }
 

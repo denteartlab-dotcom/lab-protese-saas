@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
@@ -11,7 +11,18 @@ import { TvFooter } from "@/components/modulo-tv/TvFooter";
 import { TvHeader } from "@/components/modulo-tv/TvHeader";
 import { TvKanbanBoard } from "@/components/modulo-tv/TvKanbanBoard";
 import { TvLocutorIa } from "@/components/modulo-tv/TvLocutorIa";
+import { TvSetorAbas } from "@/components/modulo-tv/TvSetorAbas";
 import { TvSidebar } from "@/components/modulo-tv/TvSidebar";
+import type { OrdemServicoTv } from "@/components/modulo-tv/types";
+import {
+  colunasKanbanDaVista,
+  etapasCadastroDoSetor,
+  idColunaDaOrdemNaVista,
+  ordemVisivelNoSetorTv,
+  resolverSetorVistaTv,
+  VISTA_TV_TODOS,
+  type TvLayoutSetores,
+} from "@/lib/tv/tv-colunas-setor";
 import { cn } from "@/lib/utils";
 
 export function TvDashboard() {
@@ -19,7 +30,7 @@ export function TvDashboard() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const { nomeLaboratorio } = useLabConfigClient();
-  const { modoKiosk } = useTvDashboardStore();
+  const { modoKiosk, vistaSetor, setVistaSetor } = useTvDashboardStore();
 
   const {
     relogio,
@@ -37,7 +48,51 @@ export function TvDashboard() {
     moverOrdem,
     recarregar,
     dadosCarregados,
+    layoutSetores,
   } = useTvDashboard();
+
+  const layout = useMemo<TvLayoutSetores>(
+    () => ({
+      setores: layoutSetores.setores ?? [],
+      etapas: layoutSetores.etapas ?? [],
+    }),
+    [layoutSetores]
+  );
+
+  const vista = resolverSetorVistaTv(vistaSetor, layout.setores);
+
+  useEffect(() => {
+    if (layout.setores.length === 0) return;
+    if (vista !== vistaSetor) setVistaSetor(vista);
+  }, [layout.setores.length, setVistaSetor, vista, vistaSetor]);
+
+  const ordensVista = useMemo(
+    () =>
+      vista === VISTA_TV_TODOS
+        ? ordens
+        : ordens.filter((ordem) => ordemVisivelNoSetorTv(ordem, vista, layout)),
+    [layout, ordens, vista]
+  );
+
+  const colunas = useMemo(
+    () =>
+      colunasKanbanDaVista(
+        vista,
+        layout,
+        t("producao.tv.setores.outras"),
+        ordensVista
+      ),
+    [layout, ordensVista, t, vista]
+  );
+
+  const colunaIdPorOrdem = useCallback(
+    (ordem: OrdemServicoTv) => idColunaDaOrdemNaVista(ordem, vista, layout),
+    [layout, vista]
+  );
+
+  const semEtapasSetor =
+    vista !== VISTA_TV_TODOS &&
+    etapasCadastroDoSetor(vista, layout.etapas).length === 0;
 
   const [socketServidorAtivo, setSocketServidorAtivo] = useState<boolean | null>(null);
 
@@ -157,12 +212,35 @@ export function TvDashboard() {
           <TvSidebar stats={stats} colaboradores={colaboradores}>
             <TvLocutorIa ordens={ordensBrutas} dadosCarregados={dadosCarregados} />
           </TvSidebar>
-          <main className="min-h-0 min-w-0 w-full max-w-none flex-1 overflow-hidden">
-            <TvKanbanBoard
-              ordens={ordens}
-              carregando={carregando}
-              onMoverOrdem={moverOrdem}
+          <main className="flex min-h-0 min-w-0 w-full max-w-none flex-1 flex-col gap-1.5 overflow-hidden tv:gap-2">
+            <TvSetorAbas
+              setores={layout.setores}
+              selecionado={vista}
+              onChange={setVistaSetor}
             />
+            {semEtapasSetor && !carregando ? (
+              <div className="flex min-h-0 flex-1 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] px-6 text-center text-sm text-slate-400">
+                {t("producao.tv.setores.semEtapas")}
+              </div>
+            ) : (
+              <>
+                {vista !== VISTA_TV_TODOS ? (
+                  <p className="shrink-0 text-[9px] text-slate-500 tv:text-[10px]">
+                    {t("producao.tv.setores.somenteLeitura")}
+                  </p>
+                ) : null}
+                <div className="min-h-0 flex-1 overflow-hidden">
+                  <TvKanbanBoard
+                    ordens={ordensVista}
+                    colunas={colunas}
+                    colunaIdPorOrdem={colunaIdPorOrdem}
+                    permitirArrastar={vista === VISTA_TV_TODOS}
+                    carregando={carregando}
+                    onMoverOrdem={moverOrdem}
+                  />
+                </div>
+              </>
+            )}
           </main>
         </div>
 

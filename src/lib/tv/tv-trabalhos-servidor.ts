@@ -10,8 +10,11 @@ import type {
   TvOsResumo,
 } from "@/components/modulo-tv/types";
 import {
+  ETAPAS_STORAGE_KEY,
+  filtrarEtapasCadastro,
   nomeEtapaSemSetor,
   parseComplementosInstrucoesGrupo,
+  type EtapaCadastro,
   type EtapaOsLinha,
 } from "@/lib/etapas-os";
 import { isTrabalhoAtrasado } from "@/lib/controle-producao-prazos";
@@ -62,6 +65,12 @@ import {
 } from "@/lib/controle-entregas-automatico";
 import { normalizarColaborador } from "@/lib/utils";
 import { listarUsuariosOnlineEmpresa } from "@/lib/presenca-usuarios";
+import { setorResponsavelOs } from "@/lib/setor-os";
+import {
+  filtrarSetoresCadastro,
+  SETORES_STORAGE_KEY,
+  type SetorCadastro,
+} from "@/lib/setores-cadastro";
 
 type MapaEtapasConcluidas = Record<string, number[]>;
 
@@ -442,7 +451,8 @@ function trabalhoParaOrdem(
   colaboradoresCadastro: ColaboradorCadastro[],
   instrucoesGrupo: string[] = [],
   etapaDesde: Date,
-  mapaColunas?: MapaColunasTv
+  mapaColunas?: MapaColunasTv,
+  etapasCadastro: EtapaCadastro[] = []
 ) {
   const moduloOs: TrabalhoModuloOs = {
     id: trabalho.id,
@@ -488,6 +498,11 @@ function trabalhoParaOrdem(
     ? `${etapaAtual.nome}${nomeResp ? ` · ${nomeResp}` : ""}`
     : labelStatusOs(trabalho.status);
 
+  const instrucoesTexto =
+    instrucoesGrupo.filter(Boolean).join("\n") || moduloOs.instrucoes;
+  const setor = setorResponsavelOs(instrucoesTexto, etapasCadastro);
+  const etapaNome = etapaAtual ? nomeEtapaSemSetor(etapaAtual.nome) : "";
+
   return {
     id: trabalho.id,
     numeroOs: trabalho.numeroOs,
@@ -497,7 +512,7 @@ function trabalhoParaOrdem(
     colaboradorId: colab.id,
     prioridade: prioridadeDeTrabalho({
       ...moduloOs,
-      instrucoes: instrucoesGrupo.filter(Boolean).join("\n") || moduloOs.instrucoes,
+      instrucoes: instrucoesTexto,
     }),
     prazo: formatarPrazoBr(trabalho.dataPrevista, trabalho.dataEntrada),
     prazoIso: (trabalho.dataPrevista ?? trabalho.dataEntrada).toISOString(),
@@ -506,6 +521,8 @@ function trabalhoParaOrdem(
     coluna,
     atrasada,
     etapaDesde: etapaDesde.toISOString(),
+    setor,
+    etapaNome,
   };
 }
 
@@ -583,7 +600,7 @@ export async function carregarOrdensTv(
 async function carregarOrdensTvInterno(
   empresaId: string
 ): Promise<TvOrdensResponse> {
-  const [trabalhosBrutos, mapaConcluidas, mapaColunasTv, colaboradores] =
+  const [trabalhosBrutos, mapaConcluidas, mapaColunasTv, colaboradores, etapasCadastroRaw, setoresCadastroRaw] =
     await Promise.all([
       prisma.trabalho.findMany({
         where: {
@@ -605,6 +622,8 @@ async function carregarOrdensTvInterno(
         empresaId,
         "labProteseColaboradores"
       ),
+      lerJsonStoreTenant<EtapaCadastro[]>(empresaId, ETAPAS_STORAGE_KEY),
+      lerJsonStoreTenant<SetorCadastro[]>(empresaId, SETORES_STORAGE_KEY),
     ]);
 
   // Fonte de verdade: só situação Produção (aliases como processando).
@@ -615,6 +634,8 @@ async function carregarOrdensTvInterno(
   const mapa = mapaConcluidas ?? {};
   const mapaColunas = mapaColunasTv ?? {};
   const colabCadastro = colaboradores ?? [];
+  const etapasCadastro = filtrarEtapasCadastro(etapasCadastroRaw ?? []);
+  const setoresCadastro = filtrarSetoresCadastro(setoresCadastroRaw ?? []);
 
   const porNumero = new Map<number, TrabalhoTvRow[]>();
   for (const t of trabalhos) {
@@ -693,7 +714,8 @@ async function carregarOrdensTvInterno(
         colabCadastro,
         candidato.instrucoesGrupo,
         etapaDesde,
-        mapaColunas
+        mapaColunas,
+        etapasCadastro
       )
     );
   }
@@ -709,6 +731,10 @@ async function carregarOrdensTvInterno(
     colaboradores: colaboradoresTv,
     stats,
     ultimaAtualizacao: new Date().toISOString(),
+    layoutSetores: {
+      setores: setoresCadastro,
+      etapas: etapasCadastro,
+    },
   };
 }
 

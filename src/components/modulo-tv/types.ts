@@ -25,6 +25,10 @@ export type OrdemServicoTv = {
   coluna: ColunaKanbanId;
   atrasada: boolean;
   etapaDesde: string;
+  /** Setor responsável da OS (cadastro / linha Setor:). */
+  setor?: string;
+  /** Nome da etapa atual, sem sufixo de setor. */
+  etapaNome?: string;
 };
 
 export type ColaboradorTv = {
@@ -34,7 +38,7 @@ export type ColaboradorTv = {
 };
 
 export type ColunaKanbanConfig = {
-  id: ColunaKanbanId;
+  id: string;
   label: string;
   dot: string;
   bar: string;
@@ -43,6 +47,7 @@ export type ColunaKanbanConfig = {
   border: string;
   badge: string;
   ring: string;
+  corHex?: string;
 };
 
 export type TvDashboardStats = {
@@ -79,6 +84,10 @@ export type TvOrdensResponse = {
   colaboradores: ColaboradorTv[];
   stats: TvDashboardStats;
   ultimaAtualizacao: string;
+  layoutSetores?: {
+    setores: Array<{ id: string; nome: string; cor: string }>;
+    etapas: Array<{ id: string; nome: string; setor?: string; cor?: string }>;
+  };
   /** Presente após mover card no kanban — espelho local do Controle/Módulo. */
   mapaEtapas?: Record<string, number[]>;
   chaveEtapaMovida?: string;

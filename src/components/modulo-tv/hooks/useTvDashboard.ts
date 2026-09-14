@@ -116,12 +116,7 @@ export function useTvDashboard() {
       if (ctx?.prev) queryClient.setQueryData(TV_QUERY_KEYS.ordens, ctx.prev);
     },
     onSuccess: (data, vars) => {
-      queryClient.setQueryData(TV_QUERY_KEYS.ordens, {
-        ordens: data.ordens,
-        colaboradores: data.colaboradores,
-        stats: data.stats,
-        ultimaAtualizacao: data.ultimaAtualizacao,
-      });
+      queryClient.setQueryData(TV_QUERY_KEYS.ordens, data);
       if (data.mapaEtapas) {
         aplicarEspelhoServidor(MODULO_PRODUCAO_ETAPAS_STORAGE_KEY, data.mapaEtapas);
         if (typeof window !== "undefined") {
@@ -227,5 +222,6 @@ export function useTvDashboard() {
     recarregar,
     moverOrdem,
     movendo: moverMutation.isPending,
+    layoutSetores: ordensQuery.data?.layoutSetores ?? { setores: [], etapas: [] },
   };
 }
