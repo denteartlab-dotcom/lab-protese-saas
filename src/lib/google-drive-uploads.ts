@@ -532,17 +532,34 @@ export async function obterCotaGoogleDrive(): Promise<CotaGoogleDrive | null> {
 export async function quemSouGoogleDrive(): Promise<{
   email?: string;
   configurado: boolean;
+  modo?: "oauth" | "service_account";
 } | null> {
   if (!googleDriveUploadsConfigurado()) {
     return { configurado: false };
   }
   try {
-    const { lerCredenciaisGoogleDriveServiceAccount } = await import(
-      "@/lib/google-drive-shared"
-    );
+    const {
+      modoAuthGoogleDrive,
+      lerCredenciaisGoogleDriveServiceAccount,
+      criarClienteGoogleDrive,
+    } = await import("@/lib/google-drive-shared");
+    const modo = modoAuthGoogleDrive();
+    if (modo === "oauth") {
+      const drive = await criarClienteGoogleDrive();
+      if (drive) {
+        const about = await drive.about.get({ fields: "user(emailAddress,displayName)" });
+        return {
+          configurado: true,
+          modo: "oauth",
+          email: about.data.user?.emailAddress ?? undefined,
+        };
+      }
+      return { configurado: true, modo: "oauth" };
+    }
     const cred = await lerCredenciaisGoogleDriveServiceAccount();
     return {
       configurado: true,
+      modo: "service_account",
       email: cred?.client_email,
     };
   } catch {

@@ -25,12 +25,18 @@ export async function GET() {
   const configurado = googleDriveUploadsConfigurado();
   const faltando = faltamCredenciaisGoogleDrive();
   let conta: { email?: string; nome?: string } | null = null;
+  let modoAuth: "oauth" | "service_account" | null = null;
+
   if (configurado) {
     try {
       const eu = await quemSouGoogleDrive();
+      modoAuth = eu?.modo ?? null;
       conta = {
         email: eu?.email,
-        nome: "Google Drive (service account)",
+        nome:
+          modoAuth === "oauth"
+            ? "Google Drive (OAuth)"
+            : "Google Drive (service account)",
       };
     } catch (err) {
       conta = {
@@ -47,6 +53,7 @@ export async function GET() {
     onedriveAtivo: false,
     graphConfigurado: false,
     gdriveConfigurado: configurado,
+    gdriveAuthModo: modoAuth,
     faltandoCredenciais: faltando,
     rootFolder: raiz,
     remotePadrao: uploadUsaGoogleDrive() ? googleDriveUploadsRemote() : null,
@@ -56,9 +63,9 @@ export async function GET() {
     empresaSlug: ctx.empresaSlug,
     ok: uploadUsaGoogleDrive(),
     nota: uploadUsaGoogleDrive()
-      ? `OK — novos uploads vão para ${raiz}/{empresa}/uploads/`
+      ? `OK — uploads via ${modoAuth === "oauth" ? "OAuth (sua conta Google)" : "service account"} → ${raiz}/{empresa}/uploads/`
       : faltando.length
-        ? `Google Drive inativo. Falta no .env: ${faltando.join(", ")}`
+        ? `Google Drive inativo. Falta no .env: ${faltando.join(", ")}. Sem Workspace use OAuth: npm run uploads:gdrive-token`
         : "Google Drive inativo. Confira UPLOAD_STORAGE=gdrive e reinicie com pm2 startOrReload.",
   });
 }

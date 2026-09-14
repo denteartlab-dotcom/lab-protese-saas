@@ -17,7 +17,12 @@ import {
 } from "@/lib/upload-google-drive-storage";
 import { carregarEnvArquivoRuntime, envRuntime } from "@/lib/env-runtime";
 import { googleDriveUploadsConfigurado } from "@/lib/google-drive-uploads";
-import { extrairFileIdGdrive } from "@/lib/google-drive-shared";
+import {
+  extrairFileIdGdrive,
+  googleDriveOAuthConfigurado,
+  googleDriveCredenciaisServiceAccountPresentes,
+  obterRefreshTokenGoogleDrive,
+} from "@/lib/google-drive-shared";
 
 export { uploadUsaGoogleDrive, uploadUsaOneDrive } from "@/lib/upload-google-drive-storage";
 
@@ -128,13 +133,25 @@ export function faltamCredenciaisGoogleDrive(): string[] {
   ) {
     faltando.push("GOOGLE_DRIVE_FOLDER_ID");
   }
-  const temCred =
-    Boolean(envRuntime("GOOGLE_APPLICATION_CREDENTIALS")) ||
-    Boolean(process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim()) ||
-    Boolean(envRuntime("GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON")) ||
-    Boolean(process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON?.trim());
-  if (!temCred) {
-    faltando.push("GOOGLE_APPLICATION_CREDENTIALS");
+
+  if (googleDriveOAuthConfigurado() || googleDriveCredenciaisServiceAccountPresentes()) {
+    return faltando;
+  }
+
+  const temClientId = Boolean(
+    (envRuntime("GOOGLE_DRIVE_CLIENT_ID") || process.env.GOOGLE_DRIVE_CLIENT_ID)?.trim()
+  );
+  if (temClientId) {
+    if (!(envRuntime("GOOGLE_DRIVE_CLIENT_SECRET") || process.env.GOOGLE_DRIVE_CLIENT_SECRET)?.trim()) {
+      faltando.push("GOOGLE_DRIVE_CLIENT_SECRET");
+    }
+    if (!obterRefreshTokenGoogleDrive()) {
+      faltando.push("GOOGLE_DRIVE_REFRESH_TOKEN");
+    }
+  } else {
+    faltando.push(
+      "GOOGLE_DRIVE_CLIENT_ID+SECRET+REFRESH_TOKEN (OAuth) ou GOOGLE_APPLICATION_CREDENTIALS"
+    );
   }
   return faltando;
 }

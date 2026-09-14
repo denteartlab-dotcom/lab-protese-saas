@@ -1,12 +1,18 @@
 /**
- * Auth e pastas compartilhadas do Google Drive (service account).
- * Usado por uploads e pelo backup JSON.
+ * Auth Google Drive: OAuth (conta Google pessoal) OU service account (Shared Drive / Workspace).
+ * Sem Workspace, use OAuth — SA não grava no "Meu Drive".
  */
+import { existsSync, readFileSync, writeFileSync } from "fs";
 import { readFile } from "fs/promises";
+import path from "path";
 import { google } from "googleapis";
 import type { drive_v3 } from "googleapis";
 import { nomePastaBackupEmpresa } from "@/lib/backup-empresa-pasta";
-import { carregarEnvArquivoRuntime, envRuntime } from "@/lib/env-runtime";
+import {
+  carregarEnvArquivoRuntime,
+  envRuntime,
+  limparCacheEnvRuntime,
+} from "@/lib/env-runtime";
 
 export const GOOGLE_DRIVE_SCOPES = ["https://www.googleapis.com/auth/drive"];
 export const GOOGLE_DRIVE_PASTA_RAIZ_PADRAO = "Lab_Protese_Backups";
@@ -45,7 +51,61 @@ export function nomePastaRaizGoogleDrive() {
   );
 }
 
-export function googleDriveCredenciaisPresentes() {
+function caminhoRefreshTokenGdrive() {
+  return path.join(process.cwd(), ".gdrive-refresh-token");
+}
+
+/** Prefere token em arquivo (rotação) e depois .env. */
+export function obterRefreshTokenGoogleDrive(): string {
+  carregarEnvArquivoRuntime();
+  try {
+    const arquivo = caminhoRefreshTokenGdrive();
+    if (existsSync(arquivo)) {
+      const valor = readFileSync(arquivo, "utf8").trim();
+      if (valor.length > 20) return valor;
+    }
+  } catch {
+    /* .env */
+  }
+  return (
+    envRuntime("GOOGLE_DRIVE_REFRESH_TOKEN").trim() ||
+    process.env.GOOGLE_DRIVE_REFRESH_TOKEN?.trim() ||
+    ""
+  );
+}
+
+export function persistirRefreshTokenGoogleDrive(novoToken: string) {
+  const token = novoToken.trim();
+  if (token.length < 20) return;
+  try {
+    writeFileSync(caminhoRefreshTokenGdrive(), `${token}\n`, {
+      encoding: "utf8",
+      mode: 0o600,
+    });
+    process.env.GOOGLE_DRIVE_REFRESH_TOKEN = token;
+    limparCacheEnvRuntime();
+    carregarEnvArquivoRuntime(true);
+    process.env.GOOGLE_DRIVE_REFRESH_TOKEN = token;
+  } catch (err) {
+    console.warn("[gdrive] não foi possível salvar refresh_token:", err);
+  }
+}
+
+export function googleDriveOAuthConfigurado() {
+  carregarEnvArquivoRuntime();
+  const clientId =
+    envRuntime("GOOGLE_DRIVE_CLIENT_ID").trim() ||
+    process.env.GOOGLE_DRIVE_CLIENT_ID?.trim() ||
+    "";
+  const clientSecret =
+    envRuntime("GOOGLE_DRIVE_CLIENT_SECRET").trim() ||
+    process.env.GOOGLE_DRIVE_CLIENT_SECRET?.trim() ||
+    "";
+  const refresh = obterRefreshTokenGoogleDrive();
+  return Boolean(clientId && clientSecret && refresh);
+}
+
+export function googleDriveCredenciaisServiceAccountPresentes() {
   carregarEnvArquivoRuntime();
   return Boolean(
     envRuntime("GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON").trim() ||
@@ -55,9 +115,29 @@ export function googleDriveCredenciaisPresentes() {
   );
 }
 
-/** Pasta compartilhada + service account (uploads e backup). */
+/** OAuth ou service account. */
+export function googleDriveCredenciaisPresentes() {
+  return (
+    googleDriveOAuthConfigurado() ||
+    googleDriveCredenciaisServiceAccountPresentes()
+  );
+}
+
+/** Pasta + OAuth (recomendado sem Workspace) ou service account (Shared Drive). */
 export function googleDriveStorageConfigurado() {
-  return Boolean(pastaRaizGoogleDriveId() && googleDriveCredenciaisPresentes());
+  return Boolean(
+    pastaRaizGoogleDriveId() &&
+      (googleDriveOAuthConfigurado() ||
+        googleDriveCredenciaisServiceAccountPresentes())
+  );
+}
+
+export type ModoAuthGoogleDrive = "oauth" | "service_account" | null;
+
+export function modoAuthGoogleDrive(): ModoAuthGoogleDrive {
+  if (googleDriveOAuthConfigurado()) return "oauth";
+  if (googleDriveCredenciaisServiceAccountPresentes()) return "service_account";
+  return null;
 }
 
 export async function lerCredenciaisGoogleDriveServiceAccount(): Promise<CredenciaisServiceAccount | null> {
@@ -95,7 +175,36 @@ export async function lerCredenciaisGoogleDriveServiceAccount(): Promise<Credenc
   }
 }
 
+function oauthClientIds() {
+  carregarEnvArquivoRuntime();
+  return {
+    clientId:
+      envRuntime("GOOGLE_DRIVE_CLIENT_ID").trim() ||
+      process.env.GOOGLE_DRIVE_CLIENT_ID?.trim() ||
+      "",
+    clientSecret:
+      envRuntime("GOOGLE_DRIVE_CLIENT_SECRET").trim() ||
+      process.env.GOOGLE_DRIVE_CLIENT_SECRET?.trim() ||
+      "",
+  };
+}
+
+/** Cliente Drive: OAuth primeiro (conta Google); senão service account. */
 export async function criarClienteGoogleDrive(): Promise<drive_v3.Drive | null> {
+  const { clientId, clientSecret } = oauthClientIds();
+  const refreshToken = obterRefreshTokenGoogleDrive();
+
+  if (clientId && clientSecret && refreshToken) {
+    const oauth2 = new google.auth.OAuth2(clientId, clientSecret);
+    oauth2.setCredentials({ refresh_token: refreshToken });
+    oauth2.on("tokens", (tokens) => {
+      if (tokens.refresh_token) {
+        persistirRefreshTokenGoogleDrive(tokens.refresh_token);
+      }
+    });
+    return google.drive({ version: "v3", auth: oauth2 });
+  }
+
   const credenciais = await lerCredenciaisGoogleDriveServiceAccount();
   if (!credenciais?.client_email || !credenciais.private_key) return null;
 
@@ -170,17 +279,19 @@ export async function obterOuCriarPastaDrive(
     return existente;
   }
 
-  const criada = await drive.files.create({
-    requestBody: {
-      name: nome,
-      mimeType: GOOGLE_DRIVE_MIME_FOLDER,
-      parents: [parentId],
-    },
-    fields: "id",
-    supportsAllDrives: true,
-  }).catch((err) => {
-    throw traduzirErroGoogleDrive(err);
-  });
+  const criada = await drive.files
+    .create({
+      requestBody: {
+        name: nome,
+        mimeType: GOOGLE_DRIVE_MIME_FOLDER,
+        parents: [parentId],
+      },
+      fields: "id",
+      supportsAllDrives: true,
+    })
+    .catch((err) => {
+      throw traduzirErroGoogleDrive(err);
+    });
 
   const id = criada.data.id;
   if (!id) throw new Error("Não foi possível criar a pasta no Google Drive.");
@@ -235,7 +346,7 @@ export function limparCachePastasGoogleDrive() {
   cachePastasDrive.clear();
 }
 
-/** Mensagens amigáveis para erros comuns da API Drive + service account. */
+/** Mensagens amigáveis para erros comuns da API Drive. */
 export function traduzirErroGoogleDrive(err: unknown): Error {
   const msg = err instanceof Error ? err.message : String(err);
   const extra =
@@ -252,17 +363,16 @@ export function traduzirErroGoogleDrive(err: unknown): Error {
     )
   ) {
     return new Error(
-      'Google Drive: a conta de serviço não tem espaço no "Meu Drive". ' +
-        "Use um Shared Drive (Drive compartilhado do Google Workspace): " +
-        "adicione a service account como Gerenciador de conteúdo, " +
-        "coloque GOOGLE_DRIVE_FOLDER_ID com o ID de uma pasta DENTRO desse Shared Drive e reinicie o PM2. " +
-        "Veja deploy/GOOGLE-DRIVE-UPLOADS.md"
+      'Google Drive: service account não grava no "Meu Drive". ' +
+        "Sem Google Workspace, configure OAuth da sua conta Google: " +
+        "GOOGLE_DRIVE_CLIENT_ID, GOOGLE_DRIVE_CLIENT_SECRET, GOOGLE_DRIVE_REFRESH_TOKEN " +
+        "(npm run uploads:gdrive-token). Guia: deploy/GOOGLE-DRIVE-UPLOADS.md"
     );
   }
 
   if (/insufficientPermissions|The user does not have sufficient permissions/i.test(texto)) {
     return new Error(
-      "Google Drive: sem permissão. Adicione a service account no Shared Drive (Gerenciador de conteúdo) ou como Editor da pasta."
+      "Google Drive: sem permissão na pasta. Confira GOOGLE_DRIVE_FOLDER_ID e se a conta OAuth é dona da pasta."
     );
   }
 
@@ -283,7 +393,6 @@ export function extrairFileIdGdrive(remotePath?: string | null): string | null {
     const id = raw.slice(GDRIVE_REMOTE_PREFIX.length).trim();
     return id || null;
   }
-  // Legado: só o id sem prefixo (cuid/drive id longo).
   if (/^[a-zA-Z0-9_-]{10,}$/.test(raw) && !raw.includes("/")) {
     return raw;
   }

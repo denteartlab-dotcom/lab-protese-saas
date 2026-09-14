@@ -12,3 +12,5 @@ var/uploads/
 
 # Token Graph rotacionado em runtime
 .onedrive-refresh-token
+
+.gdrive-refresh-token

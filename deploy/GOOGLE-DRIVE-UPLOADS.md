@@ -1,65 +1,91 @@
-# Uploads no Google Drive (service account)
+# Uploads no Google Drive (sem Google Workspace)
 
-Substitui o OneDrive/Microsoft Graph. Anexos de OS, financeiro, produtos, WhatsApp e suporte vão direto para o Drive — **sem disco na VPS**.
+Service account **não grava** no “Meu Drive”. Sem Workspace, use **OAuth** com a sua conta Google.
 
-## Importante: Shared Drive (obrigatório)
+## Passo a passo (OAuth — caminho correto)
 
-A Google **não permite** que service account grave arquivos no **"Meu Drive"** (pasta compartilhada normal).  
-O erro típico é:
+### A) Google Cloud Console
 
-> Service Accounts do not have storage quota...
+1. Abra [Google Cloud Console](https://console.cloud.google.com/) (mesmo projeto da API Drive).
+2. **APIs e serviços** → **Biblioteca** → ative **Google Drive API**.
+3. **APIs e serviços** → **Tela de consentimento OAuth**:
+   - Tipo **Externo**
+   - Preencha nome do app, e-mail de suporte
+   - Escopos: adicione `.../auth/drive` (ou deixe e o script pede na autorização)
+   - Em **Usuários de teste**, adicione o Gmail que terá o Drive (ex.: seu e-mail)
+   - Salve (pode ficar em modo Teste)
+4. **APIs e serviços** → **Credenciais** → **Criar credenciais** → **ID do cliente OAuth**
+   - Tipo: **Aplicativo para computador** (Desktop)
+   - Nome: `Lab Protese Drive`
+   - Criar → copie **ID do cliente** e **Segredo do cliente**
 
-**Solução:** usar um **Shared Drive** (Drive compartilhado) do **Google Workspace**.
+### B) Pasta no Google Drive
 
-Conta Gmail pessoal **não** tem Shared Drive. É preciso Workspace (empresa) ou mudar para OAuth de usuário.
+1. No [Drive](https://drive.google.com), entre com a **mesma conta** que autorizar o OAuth.
+2. Crie uma pasta (ex.: `Lab_Protese`).
+3. Abra a pasta e copie o ID da URL: `.../folders/ID_AQUI`  
+   (não precisa “compartilhar” com service account).
 
-### Passo a passo Shared Drive
-
-1. Entre no [Google Drive](https://drive.google.com) com uma conta **Google Workspace** (admin ou quem pode criar Shared Drives).
-2. No menu esquerdo: **Drives compartilhados** → **Novo**.
-3. Nome: ex. `Lab Protese Arquivos`.
-4. Abra o Shared Drive → **Gerenciar membros** → **Adicionar membros**.
-5. Cole o e-mail da service account (campo `client_email` do JSON), ex.:
-   `lab-protese-drive@SEU-PROJETO.iam.gserviceaccount.com`
-6. Função: **Gerenciador de conteúdo** (Content manager) — precisa criar pastas/arquivos.
-7. Desmarque notificação → Confirmar.
-8. Dentro do Shared Drive, crie uma pasta (ex. `Lab_Protese`) **ou** use a raiz do Shared Drive.
-9. Abra a pasta e copie o ID da URL:
-   `https://drive.google.com/drive/folders/ID_AQUI`
-10. No `.env` da VPS:
+### C) `.env` na VPS (ou local para gerar o token)
 
 ```bash
 UPLOAD_STORAGE=gdrive
 GOOGLE_DRIVE_BACKUP_ENABLED=true
 GOOGLE_DRIVE_FOLDER_ID=ID_AQUI
-GOOGLE_APPLICATION_CREDENTIALS=/etc/lab-protese/gdrive-service-account.json
+
+GOOGLE_DRIVE_CLIENT_ID=.....apps.googleusercontent.com
+GOOGLE_DRIVE_CLIENT_SECRET=GOCSPX-.....
+# GOOGLE_DRIVE_REFRESH_TOKEN=  (preenchido pelo script abaixo)
 ```
 
-11. Reinicie: `pm2 restart all` (ou `pm2 startOrReload ...`)
+Comente/remova dependência só de service account se for usar só OAuth  
+(`GOOGLE_APPLICATION_CREDENTIALS` pode ficar, mas **OAuth tem prioridade**).
 
-O sistema cria sozinho:
+### D) Gerar o refresh token
+
+No PC (com Node), na pasta do projeto, com o `.env` já tendo CLIENT_ID e SECRET:
+
+```bash
+npm run uploads:gdrive-token
+```
+
+1. Abra o link no navegador  
+2. Faça login na conta Google **dona da pasta**  
+3. Autorize  
+4. Cole a URL/`code` no terminal  
+5. O script grava `.gdrive-refresh-token` e mostra a linha para o `.env`
+
+Copie o arquivo `.gdrive-refresh-token` **ou** a variável `GOOGLE_DRIVE_REFRESH_TOKEN` para a VPS.
+
+### E) Reiniciar
+
+```bash
+pm2 restart all
+```
+
+Teste um upload na OS. No Drive deve aparecer:
 
 ```
-{GOOGLE_DRIVE_FOLDER_ID}/
+Lab_Protese/
   Lab_Protese_Backups/
     {Empresa}/
       uploads/...
-      backups/*.json
+      backups/...
 ```
 
-## Pré-requisitos
+## Se ainda aparecer erro de “Service Accounts do not have storage quota”
 
-1. Projeto no Google Cloud com **Google Drive API** ativada  
-2. Conta de serviço (JSON)  
-3. **Shared Drive** com a SA como Gerenciador de conteúdo  
-4. `GOOGLE_DRIVE_FOLDER_ID` = pasta **dentro** do Shared Drive  
+O servidor ainda está usando só a service account. Confira:
 
-## Diagnóstico
+- `GOOGLE_DRIVE_CLIENT_ID`, `CLIENT_SECRET` e `REFRESH_TOKEN` (ou `.gdrive-refresh-token`) na VPS  
+- PM2 reiniciado  
+- `GET /api/uploads/status` deve mostrar conta OAuth (seu Gmail), não `...iam.gserviceaccount.com`
 
-`GET /api/uploads/status` → esperado `ok: true`, `modo: "gdrive"`.
+## Alternativa (só com Google Workspace)
 
-## Observações
+Shared Drive + service account como Gerenciador de conteúdo — ver histórico do guia. Sem Workspace, use OAuth acima.
 
-- Compartilhar só uma pasta do **Meu Drive** com a SA **não basta** (erro de quota).
-- Arquivos antigos do OneDrive não migram sozinhos.
-- Se a chave JSON vazou (chat, e-mail, print), **gere uma chave nova** na Cloud Console e apague a antiga.
+## Segurança
+
+Não compartilhe o JSON da service account nem o refresh token. Se vazou, revogue em  
+https://myaccount.google.com/permissions e gere outro com `npm run uploads:gdrive-token`.

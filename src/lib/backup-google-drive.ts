@@ -18,6 +18,10 @@ import {
   prisma,
   runWithTenantContext,
 } from "@/lib/db";
+import {
+  googleDriveCredenciaisServiceAccountPresentes,
+  googleDriveOAuthConfigurado,
+} from "@/lib/google-drive-shared";
 
 const SCOPES = ["https://www.googleapis.com/auth/drive"];
 const MIME_JSON = "application/json";
@@ -68,8 +72,8 @@ export function statusGoogleDriveBackup(): StatusGoogleDriveBackup {
   const pastaRaizId = pastaRaizGoogleDriveBackup();
   const habilitado = googleDriveBackupHabilitado();
   const temCredencial =
-    Boolean(process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON?.trim()) ||
-    Boolean(process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim());
+    googleDriveOAuthConfigurado() ||
+    googleDriveCredenciaisServiceAccountPresentes();
 
   return {
     habilitado,
@@ -109,15 +113,8 @@ async function lerCredenciaisServiceAccount(): Promise<CredenciaisServiceAccount
 }
 
 async function criarClienteDrive() {
-  const credenciais = await lerCredenciaisServiceAccount();
-  if (!credenciais?.client_email || !credenciais.private_key) return null;
-
-  const auth = new google.auth.GoogleAuth({
-    credentials: credenciais,
-    scopes: SCOPES,
-  });
-
-  return google.drive({ version: "v3", auth });
+  const { criarClienteGoogleDrive } = await import("@/lib/google-drive-shared");
+  return criarClienteGoogleDrive();
 }
 
 function escaparConsultaDrive(valor: string) {
