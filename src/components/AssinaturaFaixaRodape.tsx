@@ -41,8 +41,8 @@ export function AssinaturaFaixaRodape({
 
   return (
     <>
-      <footer className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white shadow-[0_-2px_8px_rgba(0,0,0,0.04)]">
-        <div className="mx-auto flex h-11 max-w-[1600px] flex-wrap items-center justify-between gap-2 px-4 sm:px-5 lg:pl-[calc(15.25rem+1rem)]">
+      <footer className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white shadow-[0_-2px_8px_rgba(0,0,0,0.04)] lg:left-[15.25rem]">
+        <div className="mx-auto flex h-11 max-w-[1600px] flex-wrap items-center justify-between gap-2 px-4 sm:px-5">
           <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
             <span>{t("footer.duvidas")}</span>
             <span className="text-slate-400">—</span>

@@ -767,10 +767,7 @@ function AppShellInner({
         </div>
 
           <header
-            className={cn(
-              "hidden lg:fixed lg:left-0 lg:top-[68px] lg:z-20 lg:flex lg:w-[15.25rem] lg:flex-col lg:overflow-hidden lg:border-r lg:border-white/10 lg:bg-[#0b3d3a] lg:shadow-[8px_0_24px_rgba(11,61,58,0.18)] dark:lg:border-slate-800 dark:lg:bg-slate-950",
-              mostrarFaixaAssinatura ? "lg:bottom-11" : "lg:bottom-0"
-            )}
+            className="hidden lg:fixed lg:bottom-0 lg:left-0 lg:top-[68px] lg:z-20 lg:flex lg:w-[15.25rem] lg:flex-col lg:overflow-hidden lg:border-r lg:border-white/10 lg:bg-[#0b3d3a] lg:shadow-[8px_0_24px_rgba(11,61,58,0.18)] dark:lg:border-slate-800 dark:lg:bg-slate-950"
           >
             <div className="shrink-0 border-b border-white/10 px-2.5 py-3">
               <button
