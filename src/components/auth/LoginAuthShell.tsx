@@ -34,19 +34,19 @@ export function LoginAuthShell({
           aria-hidden
         />
 
-        <div className="relative z-10 flex items-center gap-3 px-8 pb-2 pt-8">
+        <div className="relative z-10 flex items-center gap-4 px-8 pb-2 pt-8">
           <LoginLogoCircular
             src={logoSrc}
             alt={logoAlt || marcaTitulo}
             fallbackLetter={marcaTitulo}
-            size={48}
+            size={88}
           />
           <div className="min-w-0">
-            <p className="truncate text-[17px] font-bold tracking-tight text-blue-700">
+            <p className="truncate text-[22px] font-bold tracking-tight text-blue-700">
               {marcaTitulo}
             </p>
             {marcaSubtitulo ? (
-              <p className="truncate text-[11px] font-medium uppercase tracking-wide text-slate-400">
+              <p className="mt-0.5 truncate text-[12px] font-medium uppercase tracking-wide text-slate-400">
                 {marcaSubtitulo}
               </p>
             ) : null}

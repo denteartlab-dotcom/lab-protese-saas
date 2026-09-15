@@ -158,18 +158,18 @@ export function LoginLogoCircular({
         <img
           src={processado}
           alt={alt}
-          className="h-full w-full object-contain p-[18%]"
+          className="h-full w-full object-contain p-[10%]"
           draggable={false}
         />
       ) : processado ? (
         <img
           src={processado}
           alt={alt}
-          className="h-full w-full object-contain p-[14%]"
+          className="h-full w-full object-contain p-[8%]"
           draggable={false}
         />
       ) : (
-        <span className="flex h-full w-full items-center justify-center text-sm font-bold text-blue-700">
+        <span className="flex h-full w-full items-center justify-center text-lg font-bold text-blue-700">
           {(fallbackLetter || "L").charAt(0).toUpperCase()}
         </span>
       )}

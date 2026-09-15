@@ -525,17 +525,17 @@ export function LoginForm({
       logoLargura={Math.min(logoLogin.largura, 48)}
       logoAltura={Math.min(logoLogin.altura, 48)}
     >
-      <div className="mb-8 flex items-center gap-3 lg:hidden">
+      <div className="mb-8 flex items-center gap-3.5 lg:hidden">
         <LoginLogoCircular
           src={logoPainel}
           alt={`Logo ${nomeLaboratorio}`}
           fallbackLetter={nomeLaboratorio}
-          size={44}
+          size={72}
         />
         <div>
-          <p className="text-[15px] font-bold text-blue-700">{nomeLaboratorio}</p>
+          <p className="text-[18px] font-bold text-blue-700">{nomeLaboratorio}</p>
           {marcaSubtitulo ? (
-            <p className="text-[10px] uppercase tracking-wide text-slate-400">
+            <p className="text-[11px] uppercase tracking-wide text-slate-400">
               {marcaSubtitulo}
             </p>
           ) : null}
