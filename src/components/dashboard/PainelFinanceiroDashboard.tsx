@@ -130,9 +130,9 @@ function FinanceRow({
       href={href}
       className="flex items-center justify-between rounded-sm transition hover:bg-slate-50/80"
     >
-      <div className="flex items-center gap-3">
-        <div className={`rounded p-2 ${tones[tone]}`}>
-          <Icon className="h-4 w-4" />
+      <div className="flex items-center gap-2">
+        <div className={`rounded p-1.5 ${tones[tone]}`}>
+          <Icon className="h-3.5 w-3.5" />
         </div>
         <div>
           <p className="text-xs font-medium text-slate-700">{title}</p>
