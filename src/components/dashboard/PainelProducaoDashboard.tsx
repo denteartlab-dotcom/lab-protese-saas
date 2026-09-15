@@ -74,19 +74,19 @@ export function PainelProducaoDashboard({
           </select>
         </div>
       </div>
-      <div className="flex flex-col items-center p-3">
+      <div className="flex flex-col items-center p-3.5">
         <ProgressRing percent={resumo.percentual} />
-        <div className="mt-2 grid w-full grid-cols-2 border-t border-slate-100 text-center">
-          <div className="border-r border-slate-100 py-2">
+        <div className="mt-2.5 grid w-full grid-cols-2 border-t border-slate-100 text-center">
+          <div className="border-r border-slate-100 py-2.5">
             <p className="text-[11px] text-slate-400">{labels.concluido}</p>
-            <p className="text-base font-semibold text-slate-700">{resumo.concluido}</p>
+            <p className="text-lg font-semibold text-slate-700">{resumo.concluido}</p>
           </div>
-          <div className="py-2">
+          <div className="py-2.5">
             <p className="text-[11px] text-slate-400">{labels.pendente}</p>
-            <p className="text-base font-semibold text-slate-700">{resumo.pendente}</p>
+            <p className="text-lg font-semibold text-slate-700">{resumo.pendente}</p>
           </div>
         </div>
-        <div className="grid w-full grid-cols-2 gap-x-3 gap-y-1 px-1 text-[11px] text-slate-600">
+        <div className="grid w-full grid-cols-2 gap-x-3 gap-y-1.5 px-1 text-[11px] text-slate-600">
           <LinhaStatus
             label={labels.finalizado}
             value={resumo.porStatus.finalizado}
@@ -169,12 +169,12 @@ function ProgressRing({ percent }: { percent: number }) {
   const angle = Math.min(Math.max(percent, 0), 100) * 3.6;
   return (
     <div
-      className="mt-0.5 flex h-[80px] w-[80px] items-center justify-center rounded-full"
+      className="mt-0.5 flex h-[96px] w-[96px] items-center justify-center rounded-full"
       style={{
         background: `conic-gradient(#14b8a6 ${angle}deg, #e6f4f4 ${angle}deg)`,
       }}
     >
-      <div className="flex h-[64px] w-[64px] items-center justify-center rounded-full bg-white text-xl font-semibold text-teal-800">
+      <div className="flex h-[78px] w-[78px] items-center justify-center rounded-full bg-white text-[22px] font-semibold text-teal-800">
         {percent}%
       </div>
     </div>

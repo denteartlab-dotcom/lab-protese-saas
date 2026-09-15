@@ -80,7 +80,7 @@ function ItemNavSimples({
       href={item.href}
       onClick={onNavigate}
       className={cn(
-        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium transition-colors",
         ativo
           ? "bg-gradient-to-r from-teal-500 to-cyan-500 text-white shadow-nav"
           : "text-slate-700 hover:bg-teal-50 dark:text-slate-300 dark:hover:bg-slate-800"

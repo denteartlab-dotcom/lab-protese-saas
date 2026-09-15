@@ -103,19 +103,19 @@ type LancamentoBuscaOs = {
 
 /** Estilo do menu principal — sidebar vertical teal com accordion. */
 const CLASSE_NAV_MENU =
-  "flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[13px] leading-none tracking-tight transition";
+  "flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[15px] leading-snug tracking-tight transition";
 const CLASSE_NAV_ATIVO =
   "bg-gradient-to-r from-teal-500 to-cyan-500 font-semibold text-white shadow-nav";
 const CLASSE_NAV_INATIVO =
   "font-medium text-white/75 hover:bg-white/10 hover:text-white";
 const CLASSE_NAV_ICONE = "h-4 w-4 shrink-0";
-const CLASSE_NAV_EMOJI = "inline-flex h-4 w-4 shrink-0 items-center justify-center text-[15px] leading-none";
+const CLASSE_NAV_EMOJI = "inline-flex h-5 w-5 shrink-0 items-center justify-center text-[17px] leading-none";
 const CLASSE_NAV_CHEVRON =
-  "ml-auto h-3.5 w-3.5 shrink-0 opacity-60 transition-transform";
+  "ml-auto h-4 w-4 shrink-0 opacity-60 transition-transform";
 const CLASSE_NAV_SUBMENU =
   "mt-1 space-y-0.5 rounded-xl border border-white/10 bg-black/20 p-1.5";
 const CLASSE_NAV_SUBMENU_LINK =
-  "flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-white/75 transition hover:bg-white/10 hover:text-white";
+  "flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] text-white/75 transition hover:bg-white/10 hover:text-white";
 const CLASSE_NAV_SUBMENU_LINK_ATIVO =
   "bg-white/15 font-semibold text-white";
 
@@ -798,15 +798,15 @@ function AppShellInner({
                 <div className="min-w-0 flex-1">
                   <p
                     suppressHydrationWarning
-                    className="truncate text-[13px] font-bold text-white"
+                    className="truncate text-[14px] font-bold text-white"
                   >
                     {nomePerfil}
                   </p>
-                  <p className="truncate text-[11px] text-teal-100/70">{papelUsuario}</p>
+                  <p className="truncate text-[12px] text-teal-100/70">{papelUsuario}</p>
                 </div>
                 <ChevronDown
                   className={cn(
-                    "h-3.5 w-3.5 shrink-0 text-white/60 transition-transform",
+                    "h-4 w-4 shrink-0 text-white/60 transition-transform",
                     menuUsuarioAberto && "rotate-180"
                   )}
                 />
@@ -819,7 +819,7 @@ function AppShellInner({
                       setMenuUsuarioAberto(false);
                       router.push("/app/alterar-senha");
                     }}
-                    className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
+                    className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
                   >
                     <LockKeyhole className="h-3.5 w-3.5 shrink-0" />
                     <span className="truncate">{t("user.alterarSenha")}</span>
@@ -830,7 +830,7 @@ function AppShellInner({
                       setMenuUsuarioAberto(false);
                       void logout();
                     }}
-                    className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs font-medium text-white/80 transition hover:bg-red-500/20 hover:text-red-100"
+                    className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-white/80 transition hover:bg-red-500/20 hover:text-red-100"
                   >
                     <LogOut className="h-3.5 w-3.5 shrink-0" />
                     <span className="truncate">{t("user.logout")}</span>

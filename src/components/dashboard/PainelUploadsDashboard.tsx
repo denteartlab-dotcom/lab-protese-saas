@@ -66,8 +66,8 @@ export function PainelUploadsDashboard({
           {resumo.limiteGb} GB
         </span>
       </div>
-      <div className="p-3">
-        <div className="mb-2 flex items-center justify-between gap-2 text-[11px]">
+      <div className="p-3.5">
+        <div className="mb-2.5 flex items-center justify-between gap-2 text-[11px]">
           <span className="text-slate-500">
             <span
               className={cn(
@@ -109,7 +109,7 @@ export function PainelUploadsDashboard({
             {t("dashboard.livre")}
           </span>
         </div>
-        <div className="relative flex h-10 overflow-hidden rounded">
+        <div className="relative flex h-12 overflow-hidden rounded">
           {galeriaEsgotada ? (
             /* Cheio: barra toda em vermelho claro */
             <div className="h-full w-full bg-red-300 transition-all duration-300" />

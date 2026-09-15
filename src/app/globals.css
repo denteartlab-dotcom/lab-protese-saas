@@ -65,11 +65,11 @@ html.modo-tv-producao {
   }
 
   .ui-panel-header {
-    @apply flex min-h-9 items-center justify-between gap-2 border-b border-teal-900/[0.06] bg-gradient-to-r from-teal-50/90 to-transparent px-3 py-1.5 dark:border-slate-800 dark:from-teal-950/40;
+    @apply flex min-h-10 items-center justify-between gap-2 border-b border-teal-900/[0.06] bg-gradient-to-r from-teal-50/90 to-transparent px-3.5 py-2 dark:border-slate-800 dark:from-teal-950/40;
   }
 
   .ui-panel-title {
-    @apply text-[13px] font-semibold tracking-tight text-slate-800 dark:text-slate-100;
+    @apply text-sm font-semibold tracking-tight text-slate-800 dark:text-slate-100;
   }
 
   .gradient-hero {

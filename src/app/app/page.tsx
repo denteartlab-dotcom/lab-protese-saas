@@ -360,19 +360,19 @@ export default function DashboardPage() {
   const podeClientes = podeVer("/app/clientes");
 
   return (
-    <div className="space-y-2 text-[13px] text-slate-700">
-      <section className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-br from-slate-100 via-slate-50 to-white px-4 py-2.5 shadow-sm sm:px-5">
+    <div className="space-y-3 text-[13px] text-slate-700">
+      <section className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-br from-slate-100 via-slate-50 to-white px-4 py-3 shadow-sm sm:px-5">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(640px_220px_at_90%_-20%,rgba(148,163,184,0.18),transparent_55%)]" />
         <div className="relative flex flex-wrap items-center justify-between gap-2">
           <div className="min-w-0">
-            <h1 className="font-display text-xl font-extrabold tracking-tight text-slate-800 sm:text-2xl">
+            <h1 className="font-display text-2xl font-extrabold tracking-tight text-slate-800 sm:text-[1.65rem]">
               {t("dashboard.inicio")}
             </h1>
-            <p className="mt-0.5 max-w-xl truncate text-[11px] font-medium text-slate-500">
+            <p className="mt-0.5 max-w-xl truncate text-xs font-medium text-slate-500">
               {t("dashboard.heroSub")}
             </p>
           </div>
-          <div className="flex flex-wrap gap-1.5 text-[10px]">
+          <div className="flex flex-wrap gap-1.5 text-[11px]">
             <span className="rounded-full bg-slate-200/70 px-2.5 py-1 font-semibold text-slate-700 ring-1 ring-slate-300/60">
               {t("dashboard.servicosAtrasados")}: {atrasados}
             </span>
@@ -383,7 +383,7 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      <div className="grid gap-2 lg:grid-cols-2">
+      <div className="grid gap-3 lg:grid-cols-2">
         <PainelUrgenciasClienteDashboard
           titulo={t("dashboard.urgentesCliente")}
           lista={dashboard.urgentesCliente ?? []}
@@ -400,7 +400,7 @@ export default function DashboardPage() {
         />
       </div>
 
-      <div className="grid gap-2 lg:grid-cols-3 lg:items-start">
+      <div className="grid gap-3 lg:grid-cols-3 lg:items-start">
         <PainelServicosDashboard
           titulo={t("dashboard.servicosVencendo")}
           valor={vencendo}
@@ -471,7 +471,7 @@ export default function DashboardPage() {
         />
       </div>
 
-      <div className="grid gap-2 lg:grid-cols-3">
+      <div className="grid gap-3 lg:grid-cols-3">
         <PainelProducaoDashboard
           titulo={t("dashboard.producao")}
           resumo={producaoResumo}
@@ -508,7 +508,7 @@ export default function DashboardPage() {
         <PainelAnotacoesDashboard titulo={t("dashboard.anotacoes")} locale={locale} />
       </div>
 
-      <div className="grid gap-2 lg:grid-cols-3">
+      <div className="grid gap-3 lg:grid-cols-3">
         {podeClientes ? (
           carregandoSecundario && !dashboard.aniversariantesMes ? (
             <DashboardWidgetSkeleton />
@@ -624,7 +624,7 @@ function PainelEstoque({
   labelOrcamento: string;
 }) {
   return (
-    <div className="ui-panel relative min-h-[96px] px-3 pb-2 pt-2">
+    <div className="ui-panel relative min-h-[108px] px-3.5 pb-2.5 pt-2.5">
       <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-amber-400 to-orange-500" />
       <div className="flex items-start justify-between gap-2">
         <p className="ui-panel-title">{titulo}</p>
@@ -635,7 +635,7 @@ function PainelEstoque({
           {labelOrcamento}
         </Link>
       </div>
-      <div className="mt-2 flex items-start justify-around gap-3 px-1">
+      <div className="mt-3 flex items-start justify-around gap-3 px-1">
         <IndicadorEstoque
           valor={baixo}
           tom="amber"

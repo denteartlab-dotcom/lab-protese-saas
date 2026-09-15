@@ -103,8 +103,8 @@ export function PainelClientesServicosDashboard({
           ))}
         </select>
       </div>
-      <div className="p-3">
-        <p className="mb-2 text-[11px] text-slate-500">
+      <div className="p-3.5">
+        <p className="mb-2.5 text-[11px] text-slate-500">
           {t("dashboard.naoSolicitaServico", { dias: diasMinimos })}
         </p>
         <div className="mb-1 grid grid-cols-[1fr_auto] gap-2 border-b border-slate-100 pb-1 text-[10px] font-medium uppercase tracking-wide text-slate-400">

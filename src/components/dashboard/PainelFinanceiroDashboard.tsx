@@ -66,7 +66,7 @@ export function PainelFinanceiroDashboard({
           </select>
         </div>
       </div>
-      <div className="space-y-2 p-3">
+      <div className="space-y-2.5 p-3.5">
         <FinanceRow
           icon={TrendingUp}
           title={t("dashboard.finReceitas")}

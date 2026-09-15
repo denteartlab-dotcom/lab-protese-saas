@@ -107,7 +107,7 @@ export function PainelAniversariantesDashboard({
       <div className="ui-panel-header">
         <h2 className="ui-panel-title">{titulo}</h2>
       </div>
-      <div className="p-3">
+      <div className="p-3.5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <p className="text-xs text-slate-500">{t("dashboard.envieMensagemEspecial")}</p>
@@ -123,7 +123,7 @@ export function PainelAniversariantesDashboard({
                 />
               </div>
             )}
-            <div className="mt-2 max-h-20 space-y-1 overflow-y-auto">
+            <div className="mt-2.5 max-h-24 space-y-1 overflow-y-auto">
               {filtrados.length === 0 ? (
                 <p className="text-[11px] text-slate-400">
                   {t("dashboard.nenhumAniversarianteHoje")}

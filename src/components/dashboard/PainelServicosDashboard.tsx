@@ -106,7 +106,7 @@ export function PainelServicosDashboard({
   return (
     <div
       className={`ui-panel relative ${
-        expandido ? "min-h-[360px]" : "min-h-[96px]"
+        expandido ? "min-h-[360px]" : "min-h-[108px]"
       }`}
     >
       <div
@@ -116,13 +116,13 @@ export function PainelServicosDashboard({
             : "bg-gradient-to-r from-rose-500 to-red-600"
         }`}
       />
-      <div className="px-3 pb-2 pt-2">
+      <div className="px-3.5 pb-2.5 pt-2.5">
         <div className="flex items-start justify-between gap-2">
           <p className="ui-panel-title">{titulo}</p>
           <div className="flex shrink-0 items-center gap-1.5">{filtros}</div>
         </div>
-        <p className="mt-1 text-[32px] font-semibold leading-none text-slate-800">{valor}</p>
-        <div className="mt-2 flex gap-2">
+        <p className="mt-1.5 text-[36px] font-semibold leading-none text-slate-800">{valor}</p>
+        <div className="mt-2.5 flex gap-2">
           <button
             type="button"
             onClick={handleToggleExpandir}
