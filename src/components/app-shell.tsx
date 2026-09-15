@@ -61,7 +61,6 @@ import {
   Moon,
   Sun,
   ScanBarcode,
-  Settings,
   User,
   type LucideIcon,
 } from "lucide-react";
@@ -751,15 +750,6 @@ function AppShellInner({
               <>
                 <LanguageMenu />
                 <SiteSearchButton onAbrir={() => setBuscaSiteAberta(true)} />
-                <Suspense
-                  fallback={
-                    <span className="inline-flex h-7 w-7 items-center justify-center text-slate-400">
-                      <Settings className="h-[18px] w-[18px]" />
-                    </span>
-                  }
-                >
-                  <ConfiguracoesGearMenu />
-                </Suspense>
                 <NotificationsBell />
               </>
             }
@@ -904,11 +894,15 @@ function AppShellInner({
                 </div>
               );
             })}
+            <Suspense fallback={null}>
+              <ConfiguracoesGearMenu variant="sidebar" />
+            </Suspense>
             {isMasterAdmin && (
               <Link
                 href="/admin-master"
                 className={cn(
                   CLASSE_NAV_MENU,
+                  "mt-2",
                   pathname.startsWith("/admin-master")
                     ? "bg-violet-600 font-bold text-white shadow-[0_2px_4px_rgba(0,0,0,0.1)]"
                     : CLASSE_NAV_INATIVO

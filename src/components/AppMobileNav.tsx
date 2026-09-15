@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ChevronDown, ChevronRight, LockKeyhole, LogOut, Menu, X } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
 import { usePermissoesApp } from "@/components/PermissoesAppProvider";
+import { ConfiguracoesGearMenu } from "@/components/ConfiguracoesGearMenu";
 import {
   appNavPrincipal,
   appNavSemDropdown,
@@ -376,6 +377,10 @@ export function AppMobileNav({
                 oculto={!podeVer(item.href)}
               />
             ))}
+
+          <Suspense fallback={null}>
+            <ConfiguracoesGearMenu variant="mobile" />
+          </Suspense>
         </nav>
       </aside>
     </>
