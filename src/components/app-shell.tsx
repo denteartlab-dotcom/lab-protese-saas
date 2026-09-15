@@ -287,7 +287,7 @@ function AppShellInner({
     () => setMenuMobileAberto((atual) => !atual),
     []
   );
-  const logoPerfil = dimensoesLogoPx(lab, { largura: 61, altura: 61 });
+  const logoPerfil = dimensoesLogoPx(lab, { largura: 116, altura: 116 });
   const temLogoPerfil = Boolean(lab.logoDataUrl?.startsWith("data:image"));
 
   useEffect(() => {
@@ -767,31 +767,33 @@ function AppShellInner({
         </div>
 
           <header className="hidden lg:fixed lg:bottom-0 lg:left-0 lg:top-[68px] lg:z-20 lg:flex lg:w-[15.25rem] lg:flex-col lg:overflow-hidden lg:border-r lg:border-white/10 lg:bg-[#0b3d3a] lg:shadow-[8px_0_24px_rgba(11,61,58,0.18)] dark:lg:border-slate-800 dark:lg:bg-slate-950">
-            <div className="shrink-0 border-b border-white/10 px-2.5 py-2.5">
+            <div className="shrink-0 border-b border-white/10 px-2.5 py-3">
               <button
                 type="button"
                 onClick={alternarMenuUsuario}
                 aria-expanded={menuUsuarioAberto}
-                className="flex w-full items-center gap-2.5 rounded-xl px-1.5 py-1.5 text-left transition hover:bg-white/10"
+                className="flex w-full items-center gap-3 rounded-xl px-1.5 py-1.5 text-left transition hover:bg-white/10"
               >
                 <div
                   className={cn(
-                    "relative inline-flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl",
-                    temLogoPerfil ? "bg-white ring-1 ring-white/20" : "bg-teal-800 text-teal-100"
+                    "relative inline-flex h-[58px] w-[58px] shrink-0 items-center justify-center overflow-hidden rounded-xl",
+                    temLogoPerfil ? "bg-white ring-1 ring-white/25 shadow-sm" : "bg-teal-800 text-teal-100"
                   )}
                 >
                   {temLogoPerfil ? (
                     <img
                       src={lab.logoDataUrl}
                       alt="Logo do laboratório"
-                      className="h-full w-full object-contain p-0.5"
+                      className="h-[52px] w-[52px] object-contain"
                       width={logoPerfil.largura}
                       height={logoPerfil.altura}
+                      decoding="async"
+                      style={{ imageRendering: "auto" }}
                     />
                   ) : (
-                    <User className="h-5 w-5" />
+                    <User className="h-6 w-6" />
                   )}
-                  <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#0b3d3a] bg-teal-400" />
+                  <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[#0b3d3a] bg-teal-400" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p

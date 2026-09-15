@@ -274,12 +274,13 @@ export function AppMobileNav({
                 <img
                   src={logoDataUrl}
                   alt=""
-                  className="h-10 w-10 shrink-0 rounded-xl bg-white object-contain ring-1 ring-slate-200"
-                  width={logoLargura}
-                  height={logoAltura}
+                  className="h-14 w-14 shrink-0 rounded-xl bg-white object-contain ring-1 ring-slate-200 shadow-sm"
+                  width={Math.max(logoLargura, 112)}
+                  height={Math.max(logoAltura, 112)}
+                  decoding="async"
                 />
               ) : (
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-100 text-sm font-bold text-primary-700">
+                <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-primary-100 text-base font-bold text-primary-700">
                   {nomeLaboratorio.charAt(0).toUpperCase()}
                 </span>
               )}
