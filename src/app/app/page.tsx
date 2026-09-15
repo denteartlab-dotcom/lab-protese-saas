@@ -361,22 +361,22 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-3 text-[13px] text-slate-700">
-      <section className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-br from-slate-100 via-slate-50 to-white px-4 py-3 shadow-sm sm:px-5">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(640px_220px_at_90%_-20%,rgba(148,163,184,0.18),transparent_55%)]" />
+      <section className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-br from-slate-100 via-slate-50 to-white px-4 py-3 shadow-sm dark:border-teal-500/20 dark:bg-gradient-to-br dark:from-slate-900 dark:via-slate-900/95 dark:to-teal-950/50 dark:shadow-[0_12px_40px_-24px_rgba(0,0,0,0.65)] sm:px-5">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(640px_220px_at_90%_-20%,rgba(148,163,184,0.18),transparent_55%)] dark:bg-[radial-gradient(640px_240px_at_90%_-20%,rgba(45,212,191,0.16),transparent_55%),radial-gradient(420px_180px_at_10%_120%,rgba(14,165,233,0.1),transparent_50%)]" />
         <div className="relative flex flex-wrap items-center justify-between gap-2">
           <div className="min-w-0">
-            <h1 className="font-display text-2xl font-extrabold tracking-tight text-slate-800 sm:text-[1.65rem]">
+            <h1 className="font-display text-2xl font-extrabold tracking-tight text-slate-800 dark:text-white sm:text-[1.65rem]">
               {t("dashboard.inicio")}
             </h1>
-            <p className="mt-0.5 max-w-xl truncate text-xs font-medium text-slate-500">
+            <p className="mt-0.5 max-w-xl truncate text-xs font-medium text-slate-500 dark:text-slate-300/90">
               {t("dashboard.heroSub")}
             </p>
           </div>
           <div className="flex flex-wrap gap-1.5 text-[11px]">
-            <span className="rounded-full bg-slate-200/70 px-2.5 py-1 font-semibold text-slate-700 ring-1 ring-slate-300/60">
+            <span className="rounded-full bg-slate-200/70 px-2.5 py-1 font-semibold text-slate-700 ring-1 ring-slate-300/60 dark:bg-rose-500/15 dark:text-rose-200 dark:ring-rose-400/25">
               {t("dashboard.servicosAtrasados")}: {atrasados}
             </span>
-            <span className="rounded-full bg-slate-200/70 px-2.5 py-1 font-semibold text-slate-700 ring-1 ring-slate-300/60">
+            <span className="rounded-full bg-slate-200/70 px-2.5 py-1 font-semibold text-slate-700 ring-1 ring-slate-300/60 dark:bg-amber-500/15 dark:text-amber-200 dark:ring-amber-400/25">
               {t("dashboard.servicosVencendo")}: {vencendo}
             </span>
           </div>

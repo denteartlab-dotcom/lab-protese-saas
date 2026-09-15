@@ -68,7 +68,7 @@ export function DashboardInicioSkeleton() {
         <Bloco className="h-4 w-16" />
       </div>
 
-      <Bloco className="h-16 w-full rounded-2xl border border-teal-900/10 bg-white shadow-panel" />
+      <Bloco className="h-16 w-full rounded-2xl border border-teal-900/10 bg-white shadow-panel dark:border-teal-500/20 dark:bg-slate-900" />
 
       <div className="grid gap-4 lg:grid-cols-3">
         <PainelSkeleton />
