@@ -509,17 +509,21 @@ export function LoginForm({
     "h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20";
 
   return (
-    <div className="login-hero relative flex flex-1 flex-col items-center justify-center overflow-hidden bg-[#062226] px-4 py-8">
-      <img
-        src="/images/login-background.png"
-        alt=""
-        fetchPriority="high"
-        decoding="async"
-        className="login-hero__bg pointer-events-none select-none opacity-80"
-      />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-teal-950/70 via-cyan-900/35 to-slate-950/55" />
+    <div className="login-hero relative flex flex-1 flex-col items-center justify-center overflow-hidden bg-[#0c3d42] px-4 py-8">
+      <picture>
+        <source srcSet="/images/login-background.webp" type="image/webp" />
+        <img
+          src="/images/login-background.jpg"
+          alt=""
+          fetchPriority="high"
+          decoding="async"
+          className="login-hero__bg pointer-events-none select-none"
+        />
+      </picture>
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.18)_0%,transparent_55%),linear-gradient(160deg,rgba(8,45,50,0.55)_0%,rgba(12,70,78,0.28)_42%,rgba(15,23,42,0.45)_100%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#062226]/70 via-transparent to-[#062226]/35" />
 
-      <div className="relative z-10 w-full max-w-[320px] rounded-2xl border border-white/40 bg-white/95 p-6 shadow-[0_30px_80px_-20px_rgba(6,34,38,0.65)] backdrop-blur-sm">
+      <div className="relative z-10 w-full max-w-[320px] rounded-2xl border border-white/50 bg-white/92 p-6 shadow-[0_28px_70px_-24px_rgba(6,34,38,0.55)] backdrop-blur-md">
         <div className="mb-5 flex flex-col items-center gap-1.5 text-center">
           {logoSrc ? (
             <img

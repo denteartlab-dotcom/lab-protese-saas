@@ -289,6 +289,25 @@ html.modo-tv-producao {
     object-fit: cover;
     object-position: center center;
     image-rendering: auto;
+    transform: scale(1.04);
+    animation: login-hero-kenburns 22s ease-in-out infinite alternate;
+    will-change: transform;
+  }
+
+  @keyframes login-hero-kenburns {
+    from {
+      transform: scale(1.04) translate3d(0, 0, 0);
+    }
+    to {
+      transform: scale(1.1) translate3d(-1.2%, -0.6%, 0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .login-hero__bg {
+      animation: none;
+      transform: scale(1.04);
+    }
   }
 
   /*
