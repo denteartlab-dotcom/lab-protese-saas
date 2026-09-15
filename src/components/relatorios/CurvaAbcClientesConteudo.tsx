@@ -12,12 +12,10 @@ import { RelatorioCabecalho, RelatorioTituloLateral } from "@/components/relator
 import { PainelCarregando } from "@/components/ListaCarregando";
 import { dateToBrShort } from "@/lib/datas-br";
 import {
-  criarIndiceTrabalhosCurvaAbc,
   exportarCurvaAbcClientesCsv,
   formatarPercentualCurvaAbc,
-  gerarCurvaAbcClientes,
+  gerarCurvaAbcClientesRelatorio,
   type FiltrosCurvaAbcClientes,
-  type IndiceTrabalhosCurvaAbc,
   type RecebimentoCurvaAbc,
   type ResultadoCurvaAbcClientes,
   type SecaoCurvaAbc,
@@ -129,9 +127,7 @@ export function CurvaAbcClientesConteudo() {
   const { t, locale } = useI18n();
   const [carregando, setCarregando] = useState(true);
   const [recebimentos, setRecebimentos] = useState<RecebimentoCurvaAbc[]>([]);
-  const [indiceTrabalhos, setIndiceTrabalhos] = useState<IndiceTrabalhosCurvaAbc>(() =>
-    criarIndiceTrabalhosCurvaAbc([])
-  );
+  const [trabalhos, setTrabalhos] = useState<TrabalhoCurvaAbc[]>([]);
   const [gerado, setGerado] = useState(false);
 
   const [dataInicio, setDataInicio] = useState(primeiroDiaAnoBr);
@@ -197,6 +193,12 @@ export function CurvaAbcClientesConteudo() {
               instrucoes?: string | null;
               clienteId?: string | null;
               cliente?: { id?: string; nome?: string | null } | null;
+              dataEntrada?: string | null;
+              valor?: number | null;
+              status?: string | null;
+              segmentoFaturamento?: string | null;
+              dataPrevista?: string | null;
+              dataEntrega?: string | null;
             }) => ({
               id: t.id,
               numeroOs: Number(t.numeroOs) || 0,
@@ -204,13 +206,19 @@ export function CurvaAbcClientesConteudo() {
               instrucoes: t.instrucoes,
               clienteId: t.clienteId ?? t.cliente?.id ?? null,
               clienteNome: t.cliente?.nome ?? null,
+              dataEntrada: t.dataEntrada ?? null,
+              valor: Number(t.valor) || 0,
+              status: t.status ?? null,
+              segmentoFaturamento: t.segmentoFaturamento ?? "servico",
+              dataPrevista: t.dataPrevista ?? null,
+              dataEntrega: t.dataEntrega ?? null,
             })
           )
         : [];
-      setIndiceTrabalhos(criarIndiceTrabalhosCurvaAbc(listaTrab));
+      setTrabalhos(listaTrab);
     } catch {
       setRecebimentos([]);
-      setIndiceTrabalhos(criarIndiceTrabalhosCurvaAbc([]));
+      setTrabalhos([]);
     }
   }, []);
 
@@ -242,8 +250,8 @@ export function CurvaAbcClientesConteudo() {
 
   const resultado = useMemo<ResultadoCurvaAbcClientes | null>(() => {
     if (!gerado) return null;
-    return gerarCurvaAbcClientes(recebimentos, indiceTrabalhos, filtros);
-  }, [gerado, recebimentos, indiceTrabalhos, filtros]);
+    return gerarCurvaAbcClientesRelatorio(trabalhos, recebimentos, filtros);
+  }, [gerado, trabalhos, recebimentos, filtros]);
 
   function gerarRelatorio() {
     setGerado(true);
@@ -251,7 +259,7 @@ export function CurvaAbcClientesConteudo() {
 
   function imprimir() {
     const dados =
-      resultado ?? gerarCurvaAbcClientes(recebimentos, indiceTrabalhos, filtros);
+      resultado ?? gerarCurvaAbcClientesRelatorio(trabalhos, recebimentos, filtros);
     if (!gerado) setGerado(true);
     const periodo = t("relatorio.comum.periodoAte", { inicio: dataInicio, fim: dataFim });
     void abrirPdfGerando(
@@ -261,7 +269,7 @@ export function CurvaAbcClientesConteudo() {
   }
 
   function exportarExcel() {
-    const dados = resultado ?? gerarCurvaAbcClientes(recebimentos, indiceTrabalhos, filtros);
+    const dados = resultado ?? gerarCurvaAbcClientesRelatorio(trabalhos, recebimentos, filtros);
     exportarCurvaAbcClientesCsv(dados);
   }
 

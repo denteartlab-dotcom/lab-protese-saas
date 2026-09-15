@@ -1,10 +1,9 @@
 import {
   classificarCurvaAbcPorNome,
-  criarIndiceTrabalhosCurvaAbc,
-  gerarCurvaAbcClientes,
-  gerarCurvaAbcClientesPorOs,
+  gerarCurvaAbcClientesRelatorio,
   type RecebimentoCurvaAbc,
   type SecaoCurvaAbc,
+  type TrabalhoCurvaAbc,
 } from "@/lib/curva-abc-clientes";
 import { desempacotarDespesa } from "@/lib/lancamento-despesa";
 import { calcularMatrizDre, type LancamentoDre } from "@/lib/dre";
@@ -374,31 +373,41 @@ export function calcularDashboardGerencial(input: {
     }))
     .filter((item) => item.valor > 0.009);
 
-  // ABC Clientes: valor atual das OS do ano (editar/excluir OS atualiza a curva).
-  // Complementa com recebimentos de caixa do ano (mesma regra do relatório ABC).
-  const curvaPorOs = gerarCurvaAbcClientesPorOs(
-    trabalhosAno.map((t) => ({
-      clienteId: t.clienteId,
-      clienteNome: t.clienteNome,
-      valor: valorServicoTrabalhoFinanceiro(trabalhoParaValorFinanceiro(t)),
-      status: t.status,
-    }))
-  );
-
-  const indiceTrabalhos = criarIndiceTrabalhosCurvaAbc(
-    trabalhos.map((t) => ({
+  // ABC Clientes: mesma base do relatório Curva ABC (valor das OS por data de entrada).
+  const trabalhosCurva: TrabalhoCurvaAbc[] = trabalhos.map((t) => {
+    const dataEntrada =
+      typeof t.dataEntrada === "string" ? t.dataEntrada : t.dataEntrada.toISOString();
+    const dataPrevista =
+      t.dataPrevista == null
+        ? null
+        : typeof t.dataPrevista === "string"
+          ? t.dataPrevista
+          : t.dataPrevista.toISOString();
+    const dataEntrega =
+      t.dataEntrega == null
+        ? null
+        : typeof t.dataEntrega === "string"
+          ? t.dataEntrega
+          : t.dataEntrega.toISOString();
+    return {
       id: t.id,
       numeroOs: t.numeroOs,
       tipoProtese: t.tipoProtese || "",
       instrucoes: t.instrucoes,
       clienteId: t.clienteId,
       clienteNome: t.clienteNome,
-    }))
-  );
+      dataEntrada,
+      valor: t.valor,
+      status: t.status,
+      segmentoFaturamento: t.segmentoFaturamento || "servico",
+      dataPrevista,
+      dataEntrega,
+    };
+  });
 
-  const curvaPorRecebimentos = gerarCurvaAbcClientes(
+  const curvaAbcClientes = gerarCurvaAbcClientesRelatorio(
+    trabalhosCurva,
     recebimentosCurva,
-    indiceTrabalhos,
     {
       dataInicio: dateToBrShort(new Date(ano, 0, 1)),
       dataFim: dateToBrShort(new Date(ano, 11, 31)),
@@ -406,10 +415,7 @@ export function calcularDashboardGerencial(input: {
       urgente: "",
     }
   );
-
-  // Preferência: OS do ano (reflete edição/exclusão). Se não houver OS com valor, usa caixa.
-  const curvaAbcClientesSecoes =
-    curvaPorOs.total > 0.009 ? curvaPorOs.secoes : curvaPorRecebimentos.secoes;
+  const curvaAbcClientesSecoes = curvaAbcClientes.secoes;
 
   const secoesServicos = classificarCurvaAbcPorNome(itensServicoValor).secoes;
   const secoesFornecedores = classificarCurvaAbcPorNome(

@@ -1,6 +1,10 @@
 import { parseBrDate } from "@/lib/datas-br";
 import { valorCaixaReceitaPaga } from "@/lib/lancamento-valor-caixa";
 import { flagsUrgenciaTrabalho } from "@/lib/modulo-producao-os";
+import {
+  valorServicoTrabalhoFinanceiro,
+  type TrabalhoFinanceiroGeralInput,
+} from "@/lib/relatorio-financeiro-geral";
 
 /** Recebimento no financeiro (receita paga) — valor efetivo de caixa na agregação. */
 export type RecebimentoCurvaAbc = {
@@ -24,6 +28,13 @@ export type TrabalhoCurvaAbc = {
   instrucoes?: string | null;
   clienteId?: string | null;
   clienteNome?: string | null;
+  /** ISO ou data da entrada da OS — base do período (igual Dashboard Gerencial). */
+  dataEntrada?: string | null;
+  valor?: number | null;
+  status?: string | null;
+  segmentoFaturamento?: string | null;
+  dataPrevista?: string | null;
+  dataEntrega?: string | null;
 };
 
 export type FiltrosCurvaAbcClientes = {
@@ -244,6 +255,82 @@ function agregarPorCliente(
   return [...mapa.values()]
     .map(({ nome, valor }) => ({ cliente: nome, valor }))
     .sort((a, b) => b.valor - a.valor);
+}
+
+function trabalhoNoPeriodoEntrada(
+  dataEntrada: string | null | undefined,
+  inicio: Date | null,
+  fim: Date | null
+) {
+  if (!dataEntrada) return false;
+  return recebimentoNoPeriodo(dataEntrada, inicio, fim);
+}
+
+function valorOsCurvaAbc(t: TrabalhoCurvaAbc): number {
+  const input: TrabalhoFinanceiroGeralInput = {
+    id: t.id,
+    numeroOs: t.numeroOs,
+    tipoProtese: t.tipoProtese || "",
+    valor: Number(t.valor) || 0,
+    status: t.status || "",
+    segmentoFaturamento: t.segmentoFaturamento || "servico",
+    dataEntrada: t.dataEntrada || "",
+    dataPrevista: t.dataPrevista ?? null,
+    dataEntrega: t.dataEntrega ?? null,
+    instrucoes: t.instrucoes ?? null,
+    clienteId: t.clienteId,
+    clienteNome: t.clienteNome || "Sem cliente",
+    pacienteNome: "",
+  };
+  return valorServicoTrabalhoFinanceiro(input);
+}
+
+/** Filtra OS pela data de entrada e pelos filtros de urgente/repetição. */
+export function filtrarTrabalhosCurvaAbc(
+  trabalhos: TrabalhoCurvaAbc[],
+  filtros: FiltrosCurvaAbcClientes
+) {
+  const inicio = filtros.dataInicio ? parseBrDate(filtros.dataInicio) : null;
+  const fim = filtros.dataFim ? parseBrDate(filtros.dataFim) : null;
+  if (inicio) inicio.setHours(0, 0, 0, 0);
+  if (fim) fim.setHours(23, 59, 59, 999);
+
+  return trabalhos.filter((t) => {
+    if (String(t.status || "").toLowerCase() === "cancelado") return false;
+    if (!trabalhoNoPeriodoEntrada(t.dataEntrada, inicio, fim)) return false;
+    if (filtrosOsAtivos(filtros)) {
+      const flags = flagsUrgenciaTrabalho({
+        tipoProtese: t.tipoProtese || "",
+        instrucoes: t.instrucoes,
+      });
+      if (!passaFiltrosOs(flags, filtros)) return false;
+    }
+    return true;
+  });
+}
+
+/**
+ * Mesma base do Dashboard Gerencial: valor das OS no período (data de entrada).
+ * Se não houver OS com valor, cai para recebimentos de caixa (fallback).
+ */
+export function gerarCurvaAbcClientesRelatorio(
+  trabalhos: TrabalhoCurvaAbc[],
+  recebimentos: RecebimentoCurvaAbc[],
+  filtros: FiltrosCurvaAbcClientes
+): ResultadoCurvaAbcClientes {
+  const trabalhosFiltrados = filtrarTrabalhosCurvaAbc(trabalhos, filtros);
+  const curvaPorOs = gerarCurvaAbcClientesPorOs(
+    trabalhosFiltrados.map((t) => ({
+      clienteId: t.clienteId,
+      clienteNome: t.clienteNome,
+      valor: valorOsCurvaAbc(t),
+      status: t.status,
+    }))
+  );
+  if (curvaPorOs.total > 0.009) return curvaPorOs;
+
+  const indice = criarIndiceTrabalhosCurvaAbc(trabalhos);
+  return gerarCurvaAbcClientes(recebimentos, indice, filtros);
 }
 
 /**
