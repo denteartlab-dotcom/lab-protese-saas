@@ -18,7 +18,6 @@ import { dimensoesLogoPx } from "@/lib/lab-logo";
 import {
   navGrupoTemAcesso,
   podeVerHref,
-  primeiroHrefPermitidoNav,
 } from "@/lib/permissoes-acesso";
 import { AppFaixaTopo } from "@/components/AppFaixaTopo";
 import { AssinaturaFaixaRodape } from "@/components/AssinaturaFaixaRodape";
@@ -110,6 +109,8 @@ const CLASSE_NAV_ATIVO =
 const CLASSE_NAV_INATIVO =
   "font-medium text-white/75 hover:bg-white/10 hover:text-white";
 const CLASSE_NAV_ICONE = "h-4 w-4 shrink-0";
+const CLASSE_NAV_CHEVRON =
+  "ml-auto h-3.5 w-3.5 shrink-0 opacity-60 transition-transform";
 const CLASSE_NAV_SUBMENU =
   "mt-1 space-y-0.5 rounded-xl border border-white/10 bg-black/20 p-1.5";
 const CLASSE_NAV_SUBMENU_LINK =
@@ -859,42 +860,26 @@ function AppShellInner({
               }
               const grupoAtivo = grupo.ativo(pathname);
               const aberto = menuNavAberto === grupo.id;
-              const hrefGrupo =
-                primeiroHrefPermitidoNav(acessoTotal, permissoesModulos, grupo.itens) ||
-                grupo.hrefBase;
               return (
                 <div key={grupo.id}>
-                  <div
-                    className={cn(
-                      "flex w-full items-stretch overflow-hidden rounded-xl",
-                      grupoAtivo ? CLASSE_NAV_ATIVO : CLASSE_NAV_INATIVO
-                    )}
+                  <button
+                    type="button"
+                    onClick={() => alternarMenuNav(grupo.id)}
+                    aria-expanded={aberto}
+                    className={classeItemNavPrincipal(grupoAtivo)}
                   >
-                    <Link
-                      href={hrefGrupo}
-                      className="flex min-w-0 flex-1 items-center gap-2.5 px-3 py-2.5 text-left text-[13px] leading-none tracking-tight"
-                    >
-                      <grupo.icon
-                        className={CLASSE_NAV_ICONE}
-                        strokeWidth={grupoAtivo ? 2.25 : 2}
-                      />
-                      <span className="min-w-0 flex-1 truncate">{t(grupo.labelKey)}</span>
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => alternarMenuNav(grupo.id)}
-                      aria-expanded={aberto}
-                      aria-label={t(grupo.labelKey)}
-                      className="flex shrink-0 items-center px-2.5 transition hover:bg-white/10"
-                    >
-                      <ChevronDown
-                        className={cn(
-                          "h-3.5 w-3.5 opacity-60 transition-transform",
-                          aberto && "rotate-180"
-                        )}
-                      />
-                    </button>
-                  </div>
+                    <grupo.icon
+                      className={CLASSE_NAV_ICONE}
+                      strokeWidth={grupoAtivo ? 2.25 : 2}
+                    />
+                    <span className="min-w-0 flex-1 truncate text-left">{t(grupo.labelKey)}</span>
+                    <ChevronDown
+                      className={cn(
+                        CLASSE_NAV_CHEVRON,
+                        aberto && "rotate-180"
+                      )}
+                    />
+                  </button>
                   {aberto && (
                     <div className={CLASSE_NAV_SUBMENU}>
                       {grupo.itens.filter((item) => podeVerMenu(item.href)).map((item) => (
