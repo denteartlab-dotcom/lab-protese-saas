@@ -268,7 +268,7 @@ export function AppMobileNav({
                 setMenuUsuarioAberto((atual) => !atual);
               }}
               aria-expanded={menuUsuarioAberto}
-              className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl px-1 py-1 text-left transition hover:bg-slate-50 dark:hover:bg-slate-800"
+              className="flex min-w-0 flex-1 items-center gap-3 rounded-xl px-1 py-1 text-left transition hover:bg-slate-50 dark:hover:bg-slate-800"
             >
               {temLogo ? (
                 <img
