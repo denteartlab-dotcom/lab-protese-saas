@@ -18,6 +18,7 @@ import { dimensoesLogoPx } from "@/lib/lab-logo";
 import {
   navGrupoTemAcesso,
   podeVerHref,
+  primeiroHrefPermitidoNav,
 } from "@/lib/permissoes-acesso";
 import { AppFaixaTopo } from "@/components/AppFaixaTopo";
 import { AssinaturaFaixaRodape } from "@/components/AssinaturaFaixaRodape";
@@ -29,11 +30,7 @@ import { useLabConfigClient } from "@/lib/use-lab-config-client";
 import {
   appNavPrincipal,
   appNavSemDropdown,
-  cadastrosNav,
-  estoqueNav,
-  financeiroNav,
-  producaoNav,
-  relatoriosNav,
+  gruposNavMobile,
 } from "@/lib/app-nav";
 import type { MessageKey } from "@/lib/i18n";
 import { ArmazenamentoLaboratorioProvider } from "@/components/ArmazenamentoLaboratorioProvider";
@@ -59,22 +56,15 @@ import {
   restanteCaminhoMenuApp,
 } from "@/lib/rotas-app";
 import {
-  BarChart3,
-  CheckSquare,
   ChevronDown,
-  ClipboardList,
-  Home,
   LockKeyhole,
   LogOut,
   Moon,
   Sun,
-  Package,
   ScanBarcode,
   Settings,
   Shield,
   User,
-  Users,
-  Wallet,
 } from "lucide-react";
 
 type TrabalhoBuscaOs = {
@@ -120,7 +110,6 @@ const CLASSE_NAV_ATIVO =
 const CLASSE_NAV_INATIVO =
   "font-medium text-white/75 hover:bg-white/10 hover:text-white";
 const CLASSE_NAV_ICONE = "h-4 w-4 shrink-0";
-const CLASSE_NAV_CHEVRON = "ml-auto h-3.5 w-3.5 shrink-0 opacity-60 transition-transform";
 const CLASSE_NAV_SUBMENU =
   "mt-1 space-y-0.5 rounded-xl border border-white/10 bg-black/20 p-1.5";
 const CLASSE_NAV_SUBMENU_LINK =
@@ -354,31 +343,15 @@ function AppShellInner({
   }, []);
 
   useEffect(() => {
-    if (menuAppSecaoAtiva(pathname, ["/producao", "/trabalhos"])) {
-      setMenuNavAberto("producao");
-      return;
-    }
-    if (menuAppSecaoAtiva(pathname, "/financeiro")) {
-      setMenuNavAberto("financeiro");
-      return;
-    }
-    if (menuAppSecaoAtiva(pathname, ["/clientes", "/cadastros"])) {
-      setMenuNavAberto("cadastros");
-      return;
-    }
-    if (menuAppSecaoAtiva(pathname, ["/produtos", "/orcamentos"])) {
-      setMenuNavAberto("estoque");
-      return;
-    }
-    if (menuAppSecaoAtiva(pathname, "/relatorios")) {
-      setMenuNavAberto("relatorios");
-      return;
-    }
-    setMenuNavAberto(null);
+    const grupoAtivo = gruposNavMobile.find((grupo) => grupo.ativo(pathname));
+    setMenuNavAberto(grupoAtivo?.id ?? null);
   }, [pathname]);
 
   function submenuLinkAtivo(href: string) {
-    return pathname === href || pathname.startsWith(`${href}/`);
+    const base = href.split("?")[0] || href;
+    if (base === "/app") return ehPaginaInicioApp(pathname);
+    const sufixo = base.replace(/^\/app/, "") || "/";
+    return menuAppSecaoAtiva(pathname, sufixo);
   }
 
   useEffect(() => {
@@ -880,177 +853,65 @@ function AppShellInner({
                 </Link>
               );
             })}
-            {navGrupoTemAcesso(acessoTotal, permissoesModulos, producaoNav) && (
-            <div>
-              <button
-                type="button"
-                onClick={() => alternarMenuNav("producao")}
-                aria-expanded={menuNavAberto === "producao"}
-                className={classeItemNavPrincipal(
-                  menuAppSecaoAtiva(pathname, ["/producao", "/trabalhos"])
-                )}
-              >
-                <ClipboardList
-                  className={CLASSE_NAV_ICONE}
-                  strokeWidth={menuAppSecaoAtiva(pathname, ["/producao", "/trabalhos"]) ? 2.25 : 2}
-                />
-                <span className="min-w-0 flex-1 truncate text-left">{t("nav.producao")}</span>
-                <ChevronDown
-                  className={cn(CLASSE_NAV_CHEVRON, menuNavAberto === "producao" && "rotate-180")}
-                />
-              </button>
-              {menuNavAberto === "producao" && (
-                <div className={CLASSE_NAV_SUBMENU}>
-                  {producaoNav.filter((item) => podeVerMenu(item.href)).map((item) => (
+            {gruposNavMobile.map((grupo) => {
+              if (!navGrupoTemAcesso(acessoTotal, permissoesModulos, grupo.itens)) {
+                return null;
+              }
+              const grupoAtivo = grupo.ativo(pathname);
+              const aberto = menuNavAberto === grupo.id;
+              const hrefGrupo =
+                primeiroHrefPermitidoNav(acessoTotal, permissoesModulos, grupo.itens) ||
+                grupo.hrefBase;
+              return (
+                <div key={grupo.id}>
+                  <div
+                    className={cn(
+                      "flex w-full items-stretch overflow-hidden rounded-xl",
+                      grupoAtivo ? CLASSE_NAV_ATIVO : CLASSE_NAV_INATIVO
+                    )}
+                  >
                     <Link
-                      key={item.href}
-                      href={item.href}
-                      className={classeLinkSubmenu(submenuLinkAtivo(item.href))}
+                      href={hrefGrupo}
+                      className="flex min-w-0 flex-1 items-center gap-2.5 px-3 py-2.5 text-left text-[13px] leading-none tracking-tight"
                     >
-                      <item.icon className="h-3.5 w-3.5 shrink-0" />
-                      {t(item.labelKey)}
+                      <grupo.icon
+                        className={CLASSE_NAV_ICONE}
+                        strokeWidth={grupoAtivo ? 2.25 : 2}
+                      />
+                      <span className="min-w-0 flex-1 truncate">{t(grupo.labelKey)}</span>
                     </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-            )}
-            {navGrupoTemAcesso(acessoTotal, permissoesModulos, financeiroNav) && (
-            <div>
-              <button
-                type="button"
-                onClick={() => alternarMenuNav("financeiro")}
-                aria-expanded={menuNavAberto === "financeiro"}
-                className={classeItemNavPrincipal(menuAppSecaoAtiva(pathname, "/financeiro"))}
-              >
-                <Wallet
-                  className={CLASSE_NAV_ICONE}
-                  strokeWidth={menuAppSecaoAtiva(pathname, "/financeiro") ? 2.25 : 2}
-                />
-                <span className="min-w-0 flex-1 truncate text-left">{t("nav.financeiro")}</span>
-                <ChevronDown
-                  className={cn(CLASSE_NAV_CHEVRON, menuNavAberto === "financeiro" && "rotate-180")}
-                />
-              </button>
-              {menuNavAberto === "financeiro" && (
-                <div className={CLASSE_NAV_SUBMENU}>
-                  {financeiroNav.filter((item) => podeVerMenu(item.href)).map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={classeLinkSubmenu(submenuLinkAtivo(item.href))}
+                    <button
+                      type="button"
+                      onClick={() => alternarMenuNav(grupo.id)}
+                      aria-expanded={aberto}
+                      aria-label={t(grupo.labelKey)}
+                      className="flex shrink-0 items-center px-2.5 transition hover:bg-white/10"
                     >
-                      <item.icon className="h-3.5 w-3.5 shrink-0" />
-                      {t(item.labelKey)}
-                    </Link>
-                  ))}
+                      <ChevronDown
+                        className={cn(
+                          "h-3.5 w-3.5 opacity-60 transition-transform",
+                          aberto && "rotate-180"
+                        )}
+                      />
+                    </button>
+                  </div>
+                  {aberto && (
+                    <div className={CLASSE_NAV_SUBMENU}>
+                      {grupo.itens.filter((item) => podeVerMenu(item.href)).map((item) => (
+                        <Link
+                          key={`${grupo.id}-${item.href}-${item.labelKey}`}
+                          href={item.href}
+                          className={classeLinkSubmenu(submenuLinkAtivo(item.href))}
+                        >
+                          <item.icon className="h-3.5 w-3.5 shrink-0" />
+                          {t(item.labelKey)}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-            )}
-            {navGrupoTemAcesso(acessoTotal, permissoesModulos, cadastrosNav) && (
-            <div>
-              <button
-                type="button"
-                onClick={() => alternarMenuNav("cadastros")}
-                aria-expanded={menuNavAberto === "cadastros"}
-                className={classeItemNavPrincipal(
-                  menuAppSecaoAtiva(pathname, ["/clientes", "/cadastros"])
-                )}
-              >
-                <Users
-                  className={CLASSE_NAV_ICONE}
-                  strokeWidth={menuAppSecaoAtiva(pathname, ["/clientes", "/cadastros"]) ? 2.25 : 2}
-                />
-                <span className="min-w-0 flex-1 truncate text-left">{t("nav.cadastros")}</span>
-                <ChevronDown
-                  className={cn(CLASSE_NAV_CHEVRON, menuNavAberto === "cadastros" && "rotate-180")}
-                />
-              </button>
-              {menuNavAberto === "cadastros" && (
-                <div className={CLASSE_NAV_SUBMENU}>
-                  {cadastrosNav.filter((item) => podeVerMenu(item.href)).map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={classeLinkSubmenu(submenuLinkAtivo(item.href))}
-                    >
-                      <item.icon className="h-3.5 w-3.5 shrink-0" />
-                      {t(item.labelKey)}
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-            )}
-            {navGrupoTemAcesso(acessoTotal, permissoesModulos, estoqueNav) && (
-            <div>
-              <button
-                type="button"
-                onClick={() => alternarMenuNav("estoque")}
-                aria-expanded={menuNavAberto === "estoque"}
-                className={classeItemNavPrincipal(
-                  menuAppSecaoAtiva(pathname, ["/produtos", "/orcamentos"])
-                )}
-              >
-                <Package
-                  className={CLASSE_NAV_ICONE}
-                  strokeWidth={menuAppSecaoAtiva(pathname, ["/produtos", "/orcamentos"]) ? 2.25 : 2}
-                />
-                <span className="min-w-0 flex-1 truncate text-left">{t("nav.estoque")}</span>
-                <ChevronDown
-                  className={cn(CLASSE_NAV_CHEVRON, menuNavAberto === "estoque" && "rotate-180")}
-                />
-              </button>
-              {menuNavAberto === "estoque" && (
-                <div className={CLASSE_NAV_SUBMENU}>
-                  {estoqueNav.filter((item) => podeVerMenu(item.href)).map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={classeLinkSubmenu(submenuLinkAtivo(item.href))}
-                    >
-                      <item.icon className="h-3.5 w-3.5 shrink-0" />
-                      {t(item.labelKey)}
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-            )}
-            {navGrupoTemAcesso(acessoTotal, permissoesModulos, relatoriosNav as typeof producaoNav) && (
-            <div>
-              <button
-                type="button"
-                onClick={() => alternarMenuNav("relatorios")}
-                aria-expanded={menuNavAberto === "relatorios"}
-                className={classeItemNavPrincipal(menuAppSecaoAtiva(pathname, "/relatorios"))}
-              >
-                <BarChart3
-                  className={CLASSE_NAV_ICONE}
-                  strokeWidth={menuAppSecaoAtiva(pathname, "/relatorios") ? 2.25 : 2}
-                />
-                <span className="min-w-0 flex-1 truncate text-left">{t("nav.relatorios")}</span>
-                <ChevronDown
-                  className={cn(CLASSE_NAV_CHEVRON, menuNavAberto === "relatorios" && "rotate-180")}
-                />
-              </button>
-              {menuNavAberto === "relatorios" && (
-                <div className={CLASSE_NAV_SUBMENU}>
-                  {relatoriosNav.filter((item) => podeVerMenu(item.href)).map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={classeLinkSubmenu(submenuLinkAtivo(item.href))}
-                    >
-                      <item.icon className="h-3.5 w-3.5 shrink-0" />
-                      {t(item.labelKey)}
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-            )}
+              );
+            })}
             {isMasterAdmin && (
               <Link
                 href="/admin-master"
