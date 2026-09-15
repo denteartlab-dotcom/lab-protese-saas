@@ -1365,7 +1365,8 @@ function AppShellInner({
                 ? "h-full min-h-[100vh] w-full max-w-none overflow-auto p-0 m-0"
                 : "h-full min-h-0 w-full max-w-none overflow-hidden p-0 m-0"
               : cn(
-                  "min-h-screen px-3 py-4 sm:px-5 lg:pl-[16rem]",
+                  "min-h-screen px-3 py-2 sm:px-5 lg:pl-[16rem]",
+                  isDashboard && "py-2",
                   mostrarFaixaAssinatura && "pb-16"
                 )
           )}

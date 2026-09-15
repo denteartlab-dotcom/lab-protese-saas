@@ -244,7 +244,7 @@ export function PainelSolicitacoesEnvioDashboard({
           type="button"
           onClick={() => setAberto((v) => !v)}
           className={cn(
-            "flex w-full flex-wrap items-center justify-between gap-3 bg-emerald-50/70 px-4 py-3 text-left transition hover:bg-emerald-50",
+            "flex w-full flex-wrap items-center justify-between gap-2 bg-emerald-50/70 px-3 py-2 text-left transition hover:bg-emerald-50",
             aberto && "border-b border-emerald-100"
           )}
           aria-expanded={aberto}
@@ -257,13 +257,13 @@ export function PainelSolicitacoesEnvioDashboard({
               )}
             />
             <div>
-              <h2 className="text-sm font-semibold text-emerald-900">{titulo}</h2>
-              <p className="text-[12px] text-emerald-800/80">
+              <h2 className="text-[13px] font-semibold text-emerald-900">{titulo}</h2>
+              <p className="text-[11px] text-emerald-800/80">
                 {t("dashboard.solicitacoesResumo", { total })}
               </p>
             </div>
           </div>
-          <span className="rounded-full bg-emerald-600 px-3 py-1 text-lg font-bold text-white">
+          <span className="rounded-full bg-emerald-600 px-2.5 py-0.5 text-sm font-bold text-white">
             {total}
           </span>
         </button>

@@ -103,8 +103,8 @@ export function PainelClientesServicosDashboard({
           ))}
         </select>
       </div>
-      <div className="p-4">
-        <p className="mb-3 text-[11px] text-slate-500">
+      <div className="p-3">
+        <p className="mb-2 text-[11px] text-slate-500">
           {t("dashboard.naoSolicitaServico", { dias: diasMinimos })}
         </p>
         <div className="mb-1 grid grid-cols-[1fr_auto] gap-2 border-b border-slate-100 pb-1 text-[10px] font-medium uppercase tracking-wide text-slate-400">
@@ -117,14 +117,14 @@ export function PainelClientesServicosDashboard({
           }`}
         >
           {visiveis.length === 0 ? (
-            <p className="py-4 text-center text-[11px] text-slate-400">
+            <p className="py-3 text-center text-[11px] text-slate-400">
               {t("dashboard.nenhumClientePeriodo")}
             </p>
           ) : (
             visiveis.map((c) => (
               <div
                 key={c.id}
-                className="grid grid-cols-[1fr_auto] gap-2 border-b border-slate-50 py-2 last:border-0"
+                className="grid grid-cols-[1fr_auto] gap-2 border-b border-slate-50 py-1.5 last:border-0"
               >
                 <span className="truncate font-medium text-slate-700">
                   {c.nome}
@@ -136,7 +136,7 @@ export function PainelClientesServicosDashboard({
             ))
           )}
         </div>
-        <div className="mt-4 flex gap-2">
+        <div className="mt-2 flex gap-2">
           {temMais ? (
             <button
               type="button"

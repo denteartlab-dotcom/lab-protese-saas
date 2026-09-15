@@ -85,16 +85,16 @@ export function PainelAnotacoesDashboard({
       <div className="ui-panel-header">
         <h2 className="ui-panel-title">{titulo}</h2>
       </div>
-      <div className="flex h-56 flex-col p-3">
-        <div className="min-h-0 flex-1 overflow-y-auto rounded-xl border border-teal-900/10 bg-teal-50/40 dark:border-slate-700 dark:bg-slate-800/60">
+      <div className="flex h-36 flex-col p-2.5">
+        <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-teal-900/10 bg-teal-50/40 dark:border-slate-700 dark:bg-slate-800/60">
           {lista.length === 0 ? (
-            <p className="px-3 py-6 text-center text-[11px] text-slate-400">
+            <p className="px-3 py-4 text-center text-[11px] text-slate-400">
               {t("dashboard.semAnotacoes")}
             </p>
           ) : (
             <ul className="divide-y divide-slate-100 dark:divide-slate-700">
               {lista.map((a) => (
-                <li key={a.id} className="group flex gap-2 px-3 py-2.5 hover:bg-white dark:hover:bg-slate-800">
+                <li key={a.id} className="group flex gap-2 px-3 py-1.5 hover:bg-white dark:hover:bg-slate-800">
                   <div className="min-w-0 flex-1">
                     <p className="whitespace-pre-wrap text-[12px] leading-snug text-slate-700">
                       {a.texto}

@@ -42,7 +42,7 @@ export function PainelUrgenciasClienteDashboard({
         type="button"
         onClick={() => setAberto((v) => !v)}
         className={cn(
-          "flex w-full flex-wrap items-center justify-between gap-3 bg-red-50/60 px-4 py-3 text-left transition hover:bg-red-50/90",
+          "flex w-full flex-wrap items-center justify-between gap-2 bg-red-50/60 px-3 py-2 text-left transition hover:bg-red-50/90",
           aberto && "border-b border-red-100"
         )}
         aria-expanded={aberto}
@@ -55,13 +55,13 @@ export function PainelUrgenciasClienteDashboard({
             )}
           />
           <div>
-            <h2 className="text-sm font-semibold text-red-800">{titulo}</h2>
-            <p className="text-[12px] text-red-700/80">
+            <h2 className="text-[13px] font-semibold text-red-800">{titulo}</h2>
+            <p className="text-[11px] text-red-700/80">
               {t("dashboard.urgentesResumo", { total })}
             </p>
           </div>
         </div>
-        <span className="rounded-full bg-red-600 px-3 py-1 text-lg font-bold text-white">
+        <span className="rounded-full bg-red-600 px-2.5 py-0.5 text-sm font-bold text-white">
           {total}
         </span>
       </button>

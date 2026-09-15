@@ -107,7 +107,7 @@ export function PainelAniversariantesDashboard({
       <div className="ui-panel-header">
         <h2 className="ui-panel-title">{titulo}</h2>
       </div>
-      <div className="p-4">
+      <div className="p-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <p className="text-xs text-slate-500">{t("dashboard.envieMensagemEspecial")}</p>
@@ -123,7 +123,7 @@ export function PainelAniversariantesDashboard({
                 />
               </div>
             )}
-            <div className="mt-3 max-h-28 space-y-1.5 overflow-y-auto">
+            <div className="mt-2 max-h-20 space-y-1 overflow-y-auto">
               {filtrados.length === 0 ? (
                 <p className="text-[11px] text-slate-400">
                   {t("dashboard.nenhumAniversarianteHoje")}
@@ -153,7 +153,7 @@ export function PainelAniversariantesDashboard({
             {erroLinha ? (
               <p className="mt-2 text-[11px] text-rose-600">{erroLinha}</p>
             ) : null}
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="mt-2 flex flex-wrap gap-2">
               <Link
                 href="/app/clientes"
                 className="inline-flex h-7 items-center rounded bg-sky-500 px-3 text-[11px] font-medium text-white hover:bg-sky-600"
@@ -176,7 +176,7 @@ export function PainelAniversariantesDashboard({
               </button>
             </div>
           </div>
-          <Cake className="h-14 w-14 shrink-0 text-amber-300" />
+          <Cake className="h-10 w-10 shrink-0 text-amber-300" />
         </div>
       </div>
     </section>
