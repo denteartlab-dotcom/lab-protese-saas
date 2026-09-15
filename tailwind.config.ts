@@ -50,6 +50,12 @@ const config: Config = {
           "-apple-system",
           "sans-serif",
         ],
+        display: [
+          "var(--font-display)",
+          "Outfit",
+          "var(--font-sans)",
+          "sans-serif",
+        ],
         tv: ["var(--font-tv-sans)", "system-ui", "sans-serif"],
         "tv-mono": ["var(--font-tv-mono)", "ui-monospace", "monospace"],
       },

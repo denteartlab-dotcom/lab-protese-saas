@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import { Outfit, Plus_Jakarta_Sans } from "next/font/google";
 import Script from "next/script";
 import { headers } from "next/headers";
 import { LabConfigProvider } from "@/components/LabConfigProvider";
@@ -20,6 +20,13 @@ const fonteApp = Plus_Jakarta_Sans({
   display: "swap",
   variable: "--font-sans",
   weight: ["400", "500", "600", "700", "800"],
+});
+
+const fonteDisplay = Outfit({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-display",
+  weight: ["500", "600", "700", "800"],
 });
 
 export const dynamic = "force-dynamic";
@@ -47,7 +54,11 @@ export default async function RootLayout({
   const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   return (
-    <html lang="pt-BR" className={fonteApp.variable} suppressHydrationWarning>
+    <html
+      lang="pt-BR"
+      className={`${fonteApp.variable} ${fonteDisplay.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         <Script
           id="aplicar-tema-inicial"

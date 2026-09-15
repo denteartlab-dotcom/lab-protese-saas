@@ -37,6 +37,29 @@ function linkAtivo(pathname: string, href: string) {
   return menuAppSecaoAtiva(pathname, sufixo);
 }
 
+
+function IconeNavMobile({
+  emoji,
+  Icon,
+  className = "h-5 w-5 shrink-0 opacity-90",
+}: {
+  emoji?: string;
+  Icon: AppNavItem["icon"];
+  className?: string;
+}) {
+  if (emoji) {
+    return (
+      <span
+        className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-[16px] leading-none"
+        aria-hidden
+      >
+        {emoji}
+      </span>
+    );
+  }
+  return <Icon className={className} />;
+}
+
 function ItemNavSimples({
   item,
   pathname,
@@ -63,7 +86,7 @@ function ItemNavSimples({
           : "text-slate-700 hover:bg-teal-50 dark:text-slate-300 dark:hover:bg-slate-800"
       )}
     >
-      <item.icon className="h-5 w-5 shrink-0 opacity-90" />
+      <IconeNavMobile emoji={item.emoji} Icon={item.icon} />
       <span>{t(item.labelKey)}</span>
     </Link>
   );
@@ -100,7 +123,7 @@ function GrupoNavExpansivel({
             : "text-slate-700 hover:bg-teal-50"
         )}
       >
-        <grupo.icon className="h-5 w-5 shrink-0 opacity-90" />
+        <IconeNavMobile emoji={grupo.emoji} Icon={grupo.icon} />
         <span className="flex-1">{t(grupo.labelKey)}</span>
         {expandido ? (
           <ChevronDown className="h-4 w-4 shrink-0 opacity-80" />
@@ -124,7 +147,7 @@ function GrupoNavExpansivel({
                     : "text-slate-600 hover:bg-slate-50 hover:text-primary-700"
                 )}
               >
-                <item.icon className="h-4 w-4 shrink-0" />
+                <IconeNavMobile emoji={item.emoji} Icon={item.icon} className="h-4 w-4 shrink-0" />
                 {t(item.labelKey)}
               </Link>
             );

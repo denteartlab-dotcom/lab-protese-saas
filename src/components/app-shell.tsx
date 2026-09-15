@@ -62,8 +62,8 @@ import {
   Sun,
   ScanBarcode,
   Settings,
-  Shield,
   User,
+  type LucideIcon,
 } from "lucide-react";
 
 type TrabalhoBuscaOs = {
@@ -109,6 +109,7 @@ const CLASSE_NAV_ATIVO =
 const CLASSE_NAV_INATIVO =
   "font-medium text-white/75 hover:bg-white/10 hover:text-white";
 const CLASSE_NAV_ICONE = "h-4 w-4 shrink-0";
+const CLASSE_NAV_EMOJI = "inline-flex h-4 w-4 shrink-0 items-center justify-center text-[15px] leading-none";
 const CLASSE_NAV_CHEVRON =
   "ml-auto h-3.5 w-3.5 shrink-0 opacity-60 transition-transform";
 const CLASSE_NAV_SUBMENU =
@@ -117,6 +118,27 @@ const CLASSE_NAV_SUBMENU_LINK =
   "flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-white/75 transition hover:bg-white/10 hover:text-white";
 const CLASSE_NAV_SUBMENU_LINK_ATIVO =
   "bg-white/15 font-semibold text-white";
+
+function IconeNav({
+  emoji,
+  Icon,
+  strokeWidth,
+  className = CLASSE_NAV_ICONE,
+}: {
+  emoji?: string;
+  Icon: LucideIcon;
+  strokeWidth?: number;
+  className?: string;
+}) {
+  if (emoji) {
+    return (
+      <span className={CLASSE_NAV_EMOJI} aria-hidden>
+        {emoji}
+      </span>
+    );
+  }
+  return <Icon className={className} strokeWidth={strokeWidth} />;
+}
 
 function classeItemNavPrincipal(ativo: boolean) {
   return cn(CLASSE_NAV_MENU, ativo ? CLASSE_NAV_ATIVO : CLASSE_NAV_INATIVO);
@@ -824,7 +846,11 @@ function AppShellInner({
                   href={item.href}
                   className={classeItemNavPrincipal(active)}
                 >
-                  <item.icon className={CLASSE_NAV_ICONE} strokeWidth={active ? 2.25 : 2} />
+                  <IconeNav
+                    emoji={item.emoji}
+                    Icon={item.icon}
+                    strokeWidth={active ? 2.25 : 2}
+                  />
                   {t(item.labelKey)}
                 </Link>
               );
@@ -843,8 +869,9 @@ function AppShellInner({
                     aria-expanded={aberto}
                     className={classeItemNavPrincipal(grupoAtivo)}
                   >
-                    <grupo.icon
-                      className={CLASSE_NAV_ICONE}
+                    <IconeNav
+                      emoji={grupo.emoji}
+                      Icon={grupo.icon}
                       strokeWidth={grupoAtivo ? 2.25 : 2}
                     />
                     <span className="min-w-0 flex-1 truncate text-left">{t(grupo.labelKey)}</span>
@@ -863,7 +890,11 @@ function AppShellInner({
                           href={item.href}
                           className={classeLinkSubmenu(submenuLinkAtivo(item.href))}
                         >
-                          <item.icon className="h-3.5 w-3.5 shrink-0" />
+                          <IconeNav
+                            emoji={item.emoji}
+                            Icon={item.icon}
+                            className="h-3.5 w-3.5 shrink-0"
+                          />
                           {t(item.labelKey)}
                         </Link>
                       ))}
@@ -883,7 +914,9 @@ function AppShellInner({
                 )}
                 title={userEmail ?? "Master"}
               >
-                <Shield className={CLASSE_NAV_ICONE} strokeWidth={2} />
+                <span className={CLASSE_NAV_EMOJI} aria-hidden>
+                  🛡️
+                </span>
                 Gerenciar Sistema
               </Link>
             )}
@@ -899,7 +932,7 @@ function AppShellInner({
                   href={item.href}
                   className={classeItemNavPrincipal(active)}
                 >
-                  <item.icon className={CLASSE_NAV_ICONE} strokeWidth={2} />
+                  <IconeNav emoji={item.emoji} Icon={item.icon} strokeWidth={2} />
                   {t(item.labelKey)}
                 </Link>
               );

@@ -30,13 +30,14 @@ export type AppNavItem = {
   href: string;
   labelKey: MessageKey;
   icon: LucideIcon;
+  emoji?: string;
 };
 
 export const appNavPrincipal: AppNavItem[] = [
-  { href: "/app", labelKey: "nav.inicio", icon: Home },
-  { href: "/app/financeiro", labelKey: "nav.financeiro", icon: Wallet },
-  { href: "/app/clientes", labelKey: "nav.cadastros", icon: Users },
-  { href: "/app/produtos", labelKey: "nav.estoque", icon: Package },
+  { href: "/app", labelKey: "nav.inicio", icon: Home, emoji: "🏠" },
+  { href: "/app/financeiro", labelKey: "nav.financeiro", icon: Wallet, emoji: "💰" },
+  { href: "/app/clientes", labelKey: "nav.cadastros", icon: Users, emoji: "👥" },
+  { href: "/app/produtos", labelKey: "nav.estoque", icon: Package, emoji: "📦" },
 ];
 
 export const appNavSemDropdown = new Set<MessageKey>([
@@ -50,46 +51,47 @@ export const appNavSemDropdown = new Set<MessageKey>([
 export { relatoriosNav };
 
 export const producaoNav: AppNavItem[] = [
-  { href: "/app/producao/os", labelKey: "nav.os", icon: ClipboardList },
-  { href: "/app/producao/controle", labelKey: "nav.controleProducao", icon: Settings },
-  { href: "/app/producao/agenda", labelKey: "nav.agendaProducao", icon: CalendarDays },
-  { href: "/app/producao/modulo", labelKey: "nav.moduloProducao", icon: Users },
-  { href: "/app/producao/comissao", labelKey: "nav.comissao", icon: HandCoins },
-  { href: "/app/producao/finalizadores", labelKey: "nav.finalizadores", icon: Send },
-  { href: "/app/producao/entregas", labelKey: "nav.entregas", icon: Package },
-  { href: "/app/producao/modulo-tv", labelKey: "nav.moduloTv", icon: Tv },
+  { href: "/app/producao/os", labelKey: "nav.os", icon: ClipboardList, emoji: "📋" },
+  { href: "/app/producao/controle", labelKey: "nav.controleProducao", icon: Settings, emoji: "⚙️" },
+  { href: "/app/producao/agenda", labelKey: "nav.agendaProducao", icon: CalendarDays, emoji: "📅" },
+  { href: "/app/producao/modulo", labelKey: "nav.moduloProducao", icon: Users, emoji: "🧑‍🔧" },
+  { href: "/app/producao/comissao", labelKey: "nav.comissao", icon: HandCoins, emoji: "💸" },
+  { href: "/app/producao/finalizadores", labelKey: "nav.finalizadores", icon: Send, emoji: "🚀" },
+  { href: "/app/producao/entregas", labelKey: "nav.entregas", icon: Package, emoji: "📦" },
+  { href: "/app/producao/modulo-tv", labelKey: "nav.moduloTv", icon: Tv, emoji: "📺" },
 ];
 
 export const financeiroNav: AppNavItem[] = [
-  { href: "/app/financeiro?tipo=receita", labelKey: "nav.contasReceber", icon: TrendingUp },
-  { href: "/app/financeiro?aba=boletos", labelKey: "nav.controleBoletos", icon: BarChart3 },
-  { href: "/app/financeiro?tipo=despesa", labelKey: "nav.contasPagar", icon: TrendingDown },
-  { href: "/app/financeiro?aba=plano-de-contas", labelKey: "nav.planoContas", icon: List },
-  { href: "/app/financeiro?aba=conta-bancaria", labelKey: "nav.contaBancaria", icon: CreditCard },
+  { href: "/app/financeiro?tipo=receita", labelKey: "nav.contasReceber", icon: TrendingUp, emoji: "📈" },
+  { href: "/app/financeiro?aba=boletos", labelKey: "nav.controleBoletos", icon: BarChart3, emoji: "🧾" },
+  { href: "/app/financeiro?tipo=despesa", labelKey: "nav.contasPagar", icon: TrendingDown, emoji: "📉" },
+  { href: "/app/financeiro?aba=plano-de-contas", labelKey: "nav.planoContas", icon: List, emoji: "🗂️" },
+  { href: "/app/financeiro?aba=conta-bancaria", labelKey: "nav.contaBancaria", icon: CreditCard, emoji: "💳" },
 ];
 
 export const estoqueNav: AppNavItem[] = [
-  { href: "/app/produtos", labelKey: "nav.produtos", icon: Package },
-  { href: "/app/orcamentos", labelKey: "nav.orcamentos", icon: FileText },
+  { href: "/app/produtos", labelKey: "nav.produtos", icon: Package, emoji: "📦" },
+  { href: "/app/orcamentos", labelKey: "nav.orcamentos", icon: FileText, emoji: "📝" },
 ];
 
 export const cadastrosNav: AppNavItem[] = [
-  { href: "/app/clientes", labelKey: "nav.clientes", icon: Users },
-  { href: "/app/disparos-whatsapp", labelKey: "nav.disparosWhatsapp", icon: MessageCircle },
-  { href: "/app/cadastros/colaboradores", labelKey: "nav.colaboradores", icon: UserPlus },
-  { href: "/app/cadastros/fornecedores", labelKey: "nav.fornecedores", icon: ShoppingCart },
-  { href: "/app/cadastros/prestadores", labelKey: "nav.prestadores", icon: Send },
-  { href: "/app/cadastros/entregadores", labelKey: "nav.entregadores", icon: Truck },
-  { href: "/app/cadastros/tabela-precos", labelKey: "nav.tabelaPrecos", icon: FileText },
-  { href: "/app/cadastros/setores", labelKey: "nav.setores", icon: LayoutGrid },
-  { href: "/app/cadastros/material-dentista", labelKey: "nav.materialDentista", icon: Package },
-  { href: "/app/cadastros/etapas", labelKey: "nav.etapas", icon: List },
+  { href: "/app/clientes", labelKey: "nav.clientes", icon: Users, emoji: "😊" },
+  { href: "/app/disparos-whatsapp", labelKey: "nav.disparosWhatsapp", icon: MessageCircle, emoji: "💬" },
+  { href: "/app/cadastros/colaboradores", labelKey: "nav.colaboradores", icon: UserPlus, emoji: "👷" },
+  { href: "/app/cadastros/fornecedores", labelKey: "nav.fornecedores", icon: ShoppingCart, emoji: "🛒" },
+  { href: "/app/cadastros/prestadores", labelKey: "nav.prestadores", icon: Send, emoji: "🤝" },
+  { href: "/app/cadastros/entregadores", labelKey: "nav.entregadores", icon: Truck, emoji: "🚚" },
+  { href: "/app/cadastros/tabela-precos", labelKey: "nav.tabelaPrecos", icon: FileText, emoji: "💲" },
+  { href: "/app/cadastros/setores", labelKey: "nav.setores", icon: LayoutGrid, emoji: "🧩" },
+  { href: "/app/cadastros/material-dentista", labelKey: "nav.materialDentista", icon: Package, emoji: "🦷" },
+  { href: "/app/cadastros/etapas", labelKey: "nav.etapas", icon: List, emoji: "🔢" },
 ];
 
 export type AppNavGrupoMobile = {
   id: string;
   labelKey: MessageKey;
   icon: LucideIcon;
+  emoji: string;
   hrefBase: string;
   ativo: (pathname: string) => boolean;
   itens: AppNavItem[];
@@ -100,6 +102,7 @@ export const gruposNavMobile: AppNavGrupoMobile[] = [
     id: "producao",
     labelKey: "nav.producao",
     icon: ClipboardList,
+    emoji: "🦷",
     hrefBase: "/app/producao",
     ativo: (pathname) => menuAppSecaoAtiva(pathname, ["/producao", "/trabalhos"]),
     itens: producaoNav,
@@ -108,6 +111,7 @@ export const gruposNavMobile: AppNavGrupoMobile[] = [
     id: "financeiro",
     labelKey: "nav.financeiro",
     icon: Wallet,
+    emoji: "💰",
     hrefBase: "/app/financeiro",
     ativo: (pathname) => menuAppSecaoAtiva(pathname, "/financeiro"),
     itens: financeiroNav,
@@ -116,6 +120,7 @@ export const gruposNavMobile: AppNavGrupoMobile[] = [
     id: "cadastros",
     labelKey: "nav.cadastros",
     icon: Users,
+    emoji: "👥",
     hrefBase: "/app/clientes",
     ativo: (pathname) => menuAppSecaoAtiva(pathname, ["/clientes", "/cadastros", "/disparos-whatsapp"]),
     itens: cadastrosNav,
@@ -124,6 +129,7 @@ export const gruposNavMobile: AppNavGrupoMobile[] = [
     id: "estoque",
     labelKey: "nav.estoque",
     icon: Package,
+    emoji: "📦",
     hrefBase: "/app/produtos",
     ativo: (pathname) => menuAppSecaoAtiva(pathname, ["/produtos", "/orcamentos"]),
     itens: estoqueNav,
@@ -132,6 +138,7 @@ export const gruposNavMobile: AppNavGrupoMobile[] = [
     id: "relatorios",
     labelKey: "nav.relatorios",
     icon: FileText,
+    emoji: "📊",
     hrefBase: "/app/relatorios",
     ativo: (pathname) => menuAppSecaoAtiva(pathname, "/relatorios"),
     itens: relatoriosNav as AppNavItem[],

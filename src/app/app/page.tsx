@@ -361,26 +361,23 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-5 text-[13px] text-slate-700">
-      <section className="relative overflow-hidden rounded-3xl border border-teal-900/10 bg-[#0b3d3a] px-5 py-6 text-white shadow-panel sm:px-7 sm:py-7">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(700px_240px_at_90%_-20%,rgba(34,211,238,0.35),transparent_55%)]" />
-        <div className="pointer-events-none absolute -left-10 bottom-0 h-40 w-40 rounded-full bg-teal-400/10 blur-2xl" />
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-teal-400 via-cyan-400 to-sky-400 px-5 py-6 text-white shadow-[0_18px_44px_-16px_rgba(14,165,233,0.5)] sm:px-7 sm:py-7">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(720px_260px_at_12%_-10%,rgba(255,255,255,0.45),transparent_55%)]" />
+        <div className="pointer-events-none absolute -right-8 bottom-0 h-44 w-44 rounded-full bg-white/20 blur-2xl" />
         <div className="relative flex flex-wrap items-end justify-between gap-4">
           <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-teal-200/80">
-              {t("dashboard.home")}
-            </p>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
+            <h1 className="font-display text-3xl font-extrabold tracking-tight sm:text-4xl">
               {t("dashboard.inicio")}
             </h1>
-            <p className="mt-2 max-w-xl text-sm text-teal-50/80">
+            <p className="mt-2 max-w-xl text-sm font-medium text-white/90">
               {t("dashboard.heroSub")}
             </p>
           </div>
           <div className="flex flex-wrap gap-2 text-[11px]">
-            <span className="rounded-full bg-white/10 px-3 py-1.5 font-semibold text-teal-50 ring-1 ring-white/15">
+            <span className="rounded-full bg-white/20 px-3 py-1.5 font-semibold text-white ring-1 ring-white/30 backdrop-blur-sm">
               {t("dashboard.servicosAtrasados")}: {atrasados}
             </span>
-            <span className="rounded-full bg-white/10 px-3 py-1.5 font-semibold text-teal-50 ring-1 ring-white/15">
+            <span className="rounded-full bg-white/20 px-3 py-1.5 font-semibold text-white ring-1 ring-white/30 backdrop-blur-sm">
               {t("dashboard.servicosVencendo")}: {vencendo}
             </span>
           </div>
