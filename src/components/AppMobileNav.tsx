@@ -366,6 +366,10 @@ export function AppMobileNav({
             );
           })}
 
+          <Suspense fallback={null}>
+            <ConfiguracoesGearMenu variant="mobile" />
+          </Suspense>
+
           {appNavPrincipal
             .filter((item) => !appNavSemDropdown.has(item.labelKey))
             .map((item) => (
@@ -377,10 +381,6 @@ export function AppMobileNav({
                 oculto={!podeVer(item.href)}
               />
             ))}
-
-          <Suspense fallback={null}>
-            <ConfiguracoesGearMenu variant="mobile" />
-          </Suspense>
         </nav>
       </aside>
     </>
