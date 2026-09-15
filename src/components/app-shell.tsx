@@ -103,7 +103,7 @@ type LancamentoBuscaOs = {
 
 /** Estilo do menu principal — sidebar vertical teal com accordion. */
 const CLASSE_NAV_MENU =
-  "flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[15px] leading-snug tracking-tight transition";
+  "flex w-full cursor-pointer select-none items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[15px] leading-snug tracking-tight caret-transparent outline-none transition focus:outline-none focus-visible:ring-0";
 const CLASSE_NAV_ATIVO =
   "bg-gradient-to-r from-teal-500 to-cyan-500 font-semibold text-white shadow-nav";
 const CLASSE_NAV_INATIVO =
@@ -115,7 +115,7 @@ const CLASSE_NAV_CHEVRON =
 const CLASSE_NAV_SUBMENU =
   "mt-1 space-y-0.5 rounded-xl border border-white/10 bg-black/20 p-1.5";
 const CLASSE_NAV_SUBMENU_LINK =
-  "flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] text-white/75 transition hover:bg-white/10 hover:text-white";
+  "flex cursor-pointer select-none items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] text-white/75 caret-transparent outline-none transition hover:bg-white/10 hover:text-white focus:outline-none";
 const CLASSE_NAV_SUBMENU_LINK_ATIVO =
   "bg-white/15 font-semibold text-white";
 
@@ -772,7 +772,7 @@ function AppShellInner({
                 type="button"
                 onClick={alternarMenuUsuario}
                 aria-expanded={menuUsuarioAberto}
-                className="flex w-full items-center gap-3 rounded-xl px-1.5 py-1.5 text-left transition hover:bg-white/10"
+                className="flex w-full cursor-pointer select-none items-center gap-3 rounded-xl px-1.5 py-1.5 text-left caret-transparent outline-none transition hover:bg-white/10 focus:outline-none"
               >
                 <div
                   className={cn(
@@ -838,7 +838,7 @@ function AppShellInner({
                 </div>
               ) : null}
             </div>
-            <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-2.5 py-3 font-sans antialiased">
+            <nav className="flex min-h-0 flex-1 select-none flex-col gap-1 overflow-y-auto px-2.5 py-3 font-sans antialiased caret-transparent">
             {podeVerMenu("/app") &&
               appNavPrincipal.filter((item) => item.labelKey === "nav.inicio").map((item) => {
               const active = ehPaginaInicioApp(pathname);
@@ -867,6 +867,7 @@ function AppShellInner({
                 <div key={grupo.id}>
                   <button
                     type="button"
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => alternarMenuNav(grupo.id)}
                     aria-expanded={aberto}
                     className={classeItemNavPrincipal(grupoAtivo)}

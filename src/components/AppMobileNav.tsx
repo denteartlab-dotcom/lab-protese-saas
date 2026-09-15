@@ -80,7 +80,7 @@ function ItemNavSimples({
       href={item.href}
       onClick={onNavigate}
       className={cn(
-        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium transition-colors",
+        "flex cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium caret-transparent outline-none transition-colors focus:outline-none",
         ativo
           ? "bg-gradient-to-r from-teal-500 to-cyan-500 text-white shadow-nav"
           : "text-slate-700 hover:bg-teal-50 dark:text-slate-300 dark:hover:bg-slate-800"
@@ -117,7 +117,7 @@ function GrupoNavExpansivel({
         type="button"
         onClick={onToggle}
         className={cn(
-          "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[15px] font-medium transition-colors",
+          "flex w-full cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[15px] font-medium caret-transparent outline-none transition-colors focus:outline-none",
           ativo
             ? "bg-gradient-to-r from-teal-500 to-cyan-500 text-white shadow-nav"
             : "text-slate-700 hover:bg-teal-50"
@@ -141,7 +141,7 @@ function GrupoNavExpansivel({
                 href={item.href}
                 onClick={onNavigate}
                 className={cn(
-                  "flex items-center rounded-lg px-3 py-2 text-[13px] transition-colors",
+                  "flex cursor-pointer select-none items-center rounded-lg px-3 py-2 text-[13px] caret-transparent outline-none transition-colors focus:outline-none",
                   itemAtivo
                     ? "bg-primary-50 font-medium text-primary-700"
                     : "text-slate-600 hover:bg-slate-50 hover:text-primary-700"
