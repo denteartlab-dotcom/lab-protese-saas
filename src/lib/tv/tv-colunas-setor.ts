@@ -233,7 +233,8 @@ export function resolverSetorVistaTv(
   if (!valor || valor === VISTA_TV_TODOS) return VISTA_TV_TODOS;
   const chave = chaveNomeTv(valor);
   const setor = setores.find((item) => chaveNomeTv(item.nome) === chave);
-  return setor?.nome ?? VISTA_TV_TODOS;
+  // Mantém o setor escolhido travado (sem voltar sozinho para "todos").
+  return setor?.nome ?? valor;
 }
 
 export function idColunaDaOrdemNaVista(

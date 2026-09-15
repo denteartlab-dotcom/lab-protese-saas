@@ -28,9 +28,9 @@ export function TvLocutorIa({ ordens, dadosCarregados }: Props) {
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: 0.2 }}
-      className={cn("p-3 tv:p-4 tv-4k:p-5", TV_SIDEBAR_CARD)}
+      className={cn("shrink-0 p-2.5 tv:p-3", TV_SIDEBAR_CARD)}
     >
-      <p className={cn("mb-3", TV_TEXT_LABEL)}>{t("producao.tv.locutor.titulo")}</p>
+      <p className={cn("mb-1.5", TV_TEXT_LABEL)}>{t("producao.tv.locutor.titulo")}</p>
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"

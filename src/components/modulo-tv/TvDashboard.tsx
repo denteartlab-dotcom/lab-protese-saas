@@ -37,7 +37,6 @@ export function TvDashboard() {
     relogio,
     dataAtual,
     ordens,
-    ordensBrutas,
     stats,
     colaboradores,
     carregando,
@@ -63,10 +62,15 @@ export function TvDashboard() {
 
   const vista = resolverSetorVistaTv(vistaSetor, layout.setores);
 
+  // Só normaliza o nome canônico do setor — nunca reseta para "todos".
   useEffect(() => {
     if (layout.setores.length === 0) return;
-    if (vista !== vistaSetor) setVistaSetor(vista);
-  }, [layout.setores.length, setVistaSetor, vista, vistaSetor]);
+    if (!vistaSetor || vistaSetor === VISTA_TV_TODOS) return;
+    const match = layout.setores.find(
+      (setor) => chaveNomeTv(setor.nome) === chaveNomeTv(vistaSetor)
+    );
+    if (match && match.nome !== vistaSetor) setVistaSetor(match.nome);
+  }, [layout.setores, setVistaSetor, vistaSetor]);
 
   const ordensVista = useMemo(
     () =>
@@ -214,7 +218,7 @@ export function TvDashboard() {
 
         <div className="flex min-h-0 w-full max-w-none flex-1 gap-2 overflow-hidden tv-hd:gap-2.5 tv:gap-3">
           <TvSidebar stats={stats} colaboradores={colaboradores}>
-            <TvLocutorIa ordens={ordensBrutas} dadosCarregados={dadosCarregados} />
+            <TvLocutorIa ordens={ordensVista} dadosCarregados={dadosCarregados} />
             <TvSetorAbas
               setores={layout.setores}
               selecionado={vista}
