@@ -177,7 +177,8 @@ function lancamentoIncluido(
     return lancamentoEfetivadoFinanceiro(l);
   }
 
-  // Previsto: pagos + pendentes (a receber, despesas e descontos futuros).
+  // Previsto: só lançamentos reais pagos ou pendentes (a receber / a pagar).
+  // Não inventa valores de OS ainda não faturadas — só o que está cadastrado no Financeiro.
   return l.status === "pago" || l.status === "pendente";
 }
 
@@ -250,6 +251,11 @@ function saldoContaAte(
 ) {
   const conta = contas.find((c) => c.nome === contaNome && !c.excluida);
   const saldoInicial = conta?.saldoInicial ?? 0;
+  // Período "todos" (ate=null + exclusivo): saldo de abertura sem movimentos —
+  // os lançamentos entram uma única vez na linha do tempo, sem dobrar o saldo.
+  if (ate == null && exclusivo) {
+    return saldoInicial;
+  }
   let saldo = saldoInicial;
   const limite = ate?.getTime() ?? Number.POSITIVE_INFINITY;
 
@@ -363,8 +369,29 @@ export function calcularMatrizFluxoMensal(
     else saidas[m] += Math.abs(row.valor);
   }
 
+  // Previsto: meses futuros sem lançamento real não repetem saldo (evita número fictício).
+  if (situacao === "previsto") {
+    for (let m = 0; m < 12; m++) {
+      if (
+        mesFluxoAindaNaoChegou(ano, m, referencia) &&
+        entradas[m] === 0 &&
+        saidas[m] === 0
+      ) {
+        saldoInicial[m] = 0;
+      }
+    }
+  }
+
   const saldoFinal = saldoInicial.map((ini, m) => {
     if (situacao === "realizado" && mesFluxoAindaNaoChegou(ano, m, referencia)) {
+      return 0;
+    }
+    if (
+      situacao === "previsto" &&
+      mesFluxoAindaNaoChegou(ano, m, referencia) &&
+      entradas[m] === 0 &&
+      saidas[m] === 0
+    ) {
       return 0;
     }
     return ini + entradas[m] - saidas[m];
