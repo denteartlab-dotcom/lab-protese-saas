@@ -770,6 +770,7 @@ function AppShellInner({
             <div className="shrink-0 border-b border-white/10 px-2.5 py-3">
               <button
                 type="button"
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={alternarMenuUsuario}
                 aria-expanded={menuUsuarioAberto}
                 className="flex w-full cursor-pointer select-none items-center gap-3 rounded-xl px-1.5 py-1.5 text-left caret-transparent outline-none transition hover:bg-white/10 focus:outline-none"
