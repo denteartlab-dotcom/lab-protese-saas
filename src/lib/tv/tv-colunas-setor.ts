@@ -7,6 +7,7 @@ import {
 } from "@/lib/setores-cadastro";
 import {
   etapasPadraoDoSetor,
+  ETAPAS_OCULTAS_TV_POR_SETOR,
   SETORES_PADRAO_TV,
 } from "@/lib/tv/tv-setores-padrao";
 
@@ -42,6 +43,21 @@ export function etapasCadastroDoSetor(
     resultado.push(etapa);
   }
   return resultado;
+}
+
+/** Etapas do setor visíveis no kanban da TV (ex.: Gesso sem Acabamento). */
+export function etapasVisiveisTvDoSetor(
+  setorNome: string,
+  etapas: EtapaCadastro[]
+) {
+  const lista = etapasCadastroDoSetor(setorNome, etapas);
+  const ocultas = new Set(
+    (ETAPAS_OCULTAS_TV_POR_SETOR[chaveNomeTv(setorNome)] || []).map((nome) =>
+      chaveNomeTv(nome)
+    )
+  );
+  if (ocultas.size === 0) return lista;
+  return lista.filter((etapa) => !ocultas.has(chaveNomeTv(etapa.nome)));
 }
 
 /** Completa setores/etapas do cadastro com Gesso, CAD/CAM, Resina e Cerâmica. */
@@ -170,7 +186,7 @@ export function montarColunasDoSetorTv(
   layout: TvLayoutSetores,
   labelOutras: string
 ): ColunaKanbanConfig[] {
-  const etapas = etapasCadastroDoSetor(setorNome, layout.etapas);
+  const etapas = etapasVisiveisTvDoSetor(setorNome, layout.etapas);
   const corSetor = corSetorPorNome(setorNome, layout.setores);
   const colunas: ColunaKanbanConfig[] = etapas.map((etapa, indice) => {
     const estilo = estiloColunaCiclo(indice);
@@ -202,7 +218,7 @@ export function ordemVisivelNoSetorTv(
   if (chaveNomeTv(ordem.setor || "") === chaveSetor) return true;
 
   const nomes = new Set(
-    etapasCadastroDoSetor(setorNome, layout.etapas).map((etapa) =>
+    etapasVisiveisTvDoSetor(setorNome, layout.etapas).map((etapa) =>
       chaveNomeTv(etapa.nome)
     )
   );
@@ -217,7 +233,7 @@ export function colunaIdOrdemNoSetorTv(
   setorNome: string,
   layout: TvLayoutSetores
 ) {
-  const etapas = etapasCadastroDoSetor(setorNome, layout.etapas);
+  const etapas = etapasVisiveisTvDoSetor(setorNome, layout.etapas);
   const chaveEtapa = chaveNomeTv(etapaAtualDaOrdemTv(ordem));
   if (chaveEtapa) {
     const etapa = etapas.find((item) => chaveNomeTv(item.nome) === chaveEtapa);
