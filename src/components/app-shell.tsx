@@ -234,6 +234,7 @@ function AppShellInner({
   const isDashboard = ehPaginaInicioApp(pathname);
   const [darkMode, setDarkMode] = useState(false);
   const [menuNavAberto, setMenuNavAberto] = useState<string | null>(null);
+  const [menuUsuarioAberto, setMenuUsuarioAberto] = useState(false);
   const [buscaSiteAberta, setBuscaSiteAberta] = useState(false);
   const [buscaOsAberta, setBuscaOsAberta] = useState(false);
   const [buscaOs, setBuscaOs] = useState("");
@@ -313,6 +314,7 @@ function AppShellInner({
 
   useEffect(() => {
     setMenuMobileAberto(false);
+    setMenuUsuarioAberto(false);
     if (!ehPaginaInicioApp(pathname)) {
       setBuscaOsAberta(false);
       setBuscaPacienteAberta(false);
@@ -320,7 +322,13 @@ function AppShellInner({
   }, [pathname]);
 
   const alternarMenuNav = useCallback((id: string) => {
+    setMenuUsuarioAberto(false);
     setMenuNavAberto((atual) => (atual === id ? null : id));
+  }, []);
+
+  const alternarMenuUsuario = useCallback(() => {
+    setMenuNavAberto(null);
+    setMenuUsuarioAberto((atual) => !atual);
   }, []);
 
   useEffect(() => {
@@ -737,8 +745,13 @@ function AppShellInner({
         </div>
 
           <header className="hidden lg:fixed lg:bottom-0 lg:left-0 lg:top-[68px] lg:z-20 lg:flex lg:w-[15.25rem] lg:flex-col lg:overflow-hidden lg:border-r lg:border-white/10 lg:bg-[#0b3d3a] lg:shadow-[8px_0_24px_rgba(11,61,58,0.18)] dark:lg:border-slate-800 dark:lg:bg-slate-950">
-            <div className="shrink-0 border-b border-white/10 px-3 py-3">
-              <div className="flex items-center gap-2.5">
+            <div className="shrink-0 border-b border-white/10 px-2.5 py-2.5">
+              <button
+                type="button"
+                onClick={alternarMenuUsuario}
+                aria-expanded={menuUsuarioAberto}
+                className="flex w-full items-center gap-2.5 rounded-xl px-1.5 py-1.5 text-left transition hover:bg-white/10"
+              >
                 <div
                   className={cn(
                     "relative inline-flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl",
@@ -767,7 +780,39 @@ function AppShellInner({
                   </p>
                   <p className="truncate text-[11px] text-teal-100/70">{papelUsuario}</p>
                 </div>
-              </div>
+                <ChevronDown
+                  className={cn(
+                    "h-3.5 w-3.5 shrink-0 text-white/60 transition-transform",
+                    menuUsuarioAberto && "rotate-180"
+                  )}
+                />
+              </button>
+              {menuUsuarioAberto ? (
+                <div className="mt-1.5 space-y-0.5 rounded-xl border border-white/10 bg-black/20 p-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuUsuarioAberto(false);
+                      router.push("/app/alterar-senha");
+                    }}
+                    className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
+                  >
+                    <LockKeyhole className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{t("user.alterarSenha")}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuUsuarioAberto(false);
+                      void logout();
+                    }}
+                    className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs font-medium text-white/80 transition hover:bg-red-500/20 hover:text-red-100"
+                  >
+                    <LogOut className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{t("user.logout")}</span>
+                  </button>
+                </div>
+              ) : null}
             </div>
             <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-2.5 py-3 font-sans antialiased">
             {podeVerMenu("/app") &&
@@ -860,24 +905,6 @@ function AppShellInner({
               );
             })}
             </nav>
-            <div className="shrink-0 space-y-1 border-t border-white/10 px-2.5 py-3">
-              <button
-                type="button"
-                onClick={() => router.push("/app/alterar-senha")}
-                className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[13px] font-medium text-white/75 transition hover:bg-white/10 hover:text-white"
-              >
-                <LockKeyhole className="h-4 w-4 shrink-0" />
-                <span className="truncate">{t("user.alterarSenha")}</span>
-              </button>
-              <button
-                type="button"
-                onClick={logout}
-                className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[13px] font-medium text-white/75 transition hover:bg-red-500/20 hover:text-red-100"
-              >
-                <LogOut className="h-4 w-4 shrink-0" />
-                <span className="truncate">{t("user.logout")}</span>
-              </button>
-            </div>
           </header>
         </>
       )}

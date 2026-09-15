@@ -169,6 +169,7 @@ export function AppMobileNav({
   const { acessoTotal, permissoesModulos } = usePermissoesApp();
   const pathname = usePathname();
   const [grupoExpandido, setGrupoExpandido] = useState<string | null>(null);
+  const [menuUsuarioAberto, setMenuUsuarioAberto] = useState(false);
 
   function podeVer(href: string) {
     return podeVerHref(acessoTotal, permissoesModulos, href);
@@ -211,6 +212,7 @@ export function AppMobileNav({
   useEffect(() => {
     if (!aberto) {
       setGrupoExpandido(null);
+      setMenuUsuarioAberto(false);
       return;
     }
     const abertoPorRota = gruposNavMobile.find((g) => g.ativo(pathname));
@@ -235,43 +237,82 @@ export function AppMobileNav({
         aria-modal="true"
         aria-label="Menu principal"
       >
-        <div className="flex items-center justify-between gap-2 border-b border-slate-200 px-4 py-3 dark:border-slate-800">
-          <div className="flex min-w-0 items-center gap-2.5">
-            {temLogo ? (
-              <img
-                src={logoDataUrl}
-                alt=""
-                className="h-10 w-10 shrink-0 rounded-xl object-contain bg-white ring-1 ring-slate-200"
-                width={logoLargura}
-                height={logoAltura}
-              />
-            ) : (
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-100 text-sm font-bold text-primary-700">
-                {nomeLaboratorio.charAt(0).toUpperCase()}
-              </span>
-            )}
-            <div className="min-w-0">
-              <p
-                suppressHydrationWarning
-                className="truncate text-sm font-bold text-slate-800 dark:text-slate-100"
-              >
-                {nomeLaboratorio}
-              </p>
-              {papelUsuario ? (
-                <p className="truncate text-xs text-slate-500 dark:text-slate-400">
-                  {papelUsuario}
+        <div className="border-b border-slate-200 px-3 py-3 dark:border-slate-800">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setGrupoExpandido(null);
+                setMenuUsuarioAberto((atual) => !atual);
+              }}
+              aria-expanded={menuUsuarioAberto}
+              className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl px-1 py-1 text-left transition hover:bg-slate-50 dark:hover:bg-slate-800"
+            >
+              {temLogo ? (
+                <img
+                  src={logoDataUrl}
+                  alt=""
+                  className="h-10 w-10 shrink-0 rounded-xl bg-white object-contain ring-1 ring-slate-200"
+                  width={logoLargura}
+                  height={logoAltura}
+                />
+              ) : (
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-100 text-sm font-bold text-primary-700">
+                  {nomeLaboratorio.charAt(0).toUpperCase()}
+                </span>
+              )}
+              <div className="min-w-0 flex-1">
+                <p
+                  suppressHydrationWarning
+                  className="truncate text-sm font-bold text-slate-800 dark:text-slate-100"
+                >
+                  {nomeLaboratorio}
                 </p>
-              ) : null}
-            </div>
+                {papelUsuario ? (
+                  <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+                    {papelUsuario}
+                  </p>
+                ) : null}
+              </div>
+              <ChevronDown
+                className={cn(
+                  "h-4 w-4 shrink-0 text-slate-400 transition-transform",
+                  menuUsuarioAberto && "rotate-180"
+                )}
+              />
+            </button>
+            <button
+              type="button"
+              onClick={onFechar}
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-slate-800"
+              aria-label="Fechar menu"
+            >
+              <X className="h-5 w-5" />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={onFechar}
-            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-slate-800"
-            aria-label="Fechar menu"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          {menuUsuarioAberto ? (
+            <div className="mt-2 space-y-0.5 rounded-xl border border-slate-200 bg-slate-50 p-1.5 dark:border-slate-700 dark:bg-slate-800/60">
+              <button
+                type="button"
+                onClick={() => {
+                  onFechar();
+                  router.push("/app/alterar-senha");
+                }}
+                className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-white dark:text-slate-200 dark:hover:bg-slate-700"
+              >
+                <LockKeyhole className="h-4 w-4 shrink-0 opacity-90" />
+                <span>{t("user.alterarSenha")}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => void logout()}
+                className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-red-50 hover:text-red-600 dark:text-slate-200 dark:hover:bg-red-950/30"
+              >
+                <LogOut className="h-4 w-4 shrink-0" />
+                <span>{t("user.logout")}</span>
+              </button>
+            </div>
+          ) : null}
         </div>
 
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-3">
@@ -291,9 +332,10 @@ export function AppMobileNav({
               grupo={grupo}
               pathname={pathname}
               expandido={grupoExpandido === grupo.id}
-              onToggle={() =>
-                setGrupoExpandido((atual) => (atual === grupo.id ? null : grupo.id))
-              }
+              onToggle={() => {
+                setMenuUsuarioAberto(false);
+                setGrupoExpandido((atual) => (atual === grupo.id ? null : grupo.id));
+              }}
               onNavigate={onFechar}
               itensVisiveis={itensVisiveis}
             />
@@ -312,28 +354,6 @@ export function AppMobileNav({
               />
             ))}
         </nav>
-
-        <div className="space-y-1 border-t border-slate-200 px-3 py-3 dark:border-slate-800">
-          <button
-            type="button"
-            onClick={() => {
-              onFechar();
-              router.push("/app/alterar-senha");
-            }}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition hover:bg-teal-50 dark:text-slate-300 dark:hover:bg-slate-800"
-          >
-            <LockKeyhole className="h-5 w-5 shrink-0 opacity-90" />
-            <span>{t("user.alterarSenha")}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => void logout()}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition hover:bg-red-50 hover:text-red-600 dark:text-slate-300 dark:hover:bg-red-950/30"
-          >
-            <LogOut className="h-5 w-5 shrink-0" />
-            <span>{t("user.logout")}</span>
-          </button>
-        </div>
       </aside>
     </>
   );
