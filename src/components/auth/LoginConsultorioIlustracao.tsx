@@ -1,69 +1,122 @@
-/** Ilustração flat minimalista de consultório — painel esquerdo do login. */
+/** Ilustração de consultório — branca, cores vivas, distinta do estilo Smart Prótese. */
 export function LoginConsultorioIlustracao({ className = "" }: { className?: string }) {
   return (
     <svg
-      viewBox="0 0 640 420"
+      viewBox="0 0 680 440"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
       aria-hidden
     >
-      <circle cx="520" cy="78" r="92" fill="#E8F3FA" />
-      <circle cx="112" cy="320" r="70" fill="#EAF7F5" />
+      {/* Fundo branco + acentos geométricos */}
+      <rect x="24" y="36" width="632" height="368" rx="28" fill="#FFFFFF" />
+      <circle cx="86" cy="90" r="36" fill="#BFDBFE" />
+      <circle cx="602" cy="360" r="48" fill="#93C5FD" fillOpacity="0.55" />
+      <circle cx="560" cy="78" r="22" fill="#38BDF8" />
       <path
-        d="M470 86c18-28 52-28 70 0"
-        stroke="#9FD4C8"
-        strokeWidth="10"
+        d="M520 48c28-8 56 10 64 36"
+        stroke="#60A5FA"
+        strokeWidth="8"
         strokeLinecap="round"
       />
 
-      {/* Mesa / bancada */}
-      <rect x="72" y="248" width="420" height="18" rx="6" fill="#D7E8F4" />
-      <rect x="88" y="266" width="28" height="72" rx="4" fill="#C5DCEC" />
-      <rect x="448" y="266" width="28" height="72" rx="4" fill="#C5DCEC" />
+      {/* Janela clara */}
+      <rect x="72" y="108" width="150" height="118" rx="14" fill="#E0F2FE" />
+      <path d="M147 108v118" stroke="#FFFFFF" strokeWidth="8" />
+      <path d="M72 167h150" stroke="#FFFFFF" strokeWidth="8" />
+      <rect x="88" y="122" width="44" height="32" rx="6" fill="#7DD3FC" />
+      <rect x="162" y="122" width="44" height="32" rx="6" fill="#38BDF8" />
+      <rect x="88" y="176" width="44" height="32" rx="6" fill="#38BDF8" />
+      <rect x="162" y="176" width="44" height="32" rx="6" fill="#0EA5E9" />
 
-      {/* Cadeira odontológica */}
-      <rect x="168" y="178" width="150" height="70" rx="28" fill="#14B8A6" />
-      <rect x="198" y="148" width="78" height="42" rx="20" fill="#0D9488" />
-      <rect x="228" y="248" width="36" height="48" rx="8" fill="#99BFD4" />
-      <ellipse cx="246" cy="300" rx="42" ry="10" fill="#C9DDEA" />
+      {/* Piso / sombra */}
+      <ellipse cx="340" cy="352" rx="210" ry="18" fill="#DBEAFE" />
 
-      {/* Braço / monitor */}
-      <path d="M318 168h78" stroke="#94A3B8" strokeWidth="8" strokeLinecap="round" />
-      <rect x="386" y="118" width="86" height="64" rx="10" fill="#F8FBFE" stroke="#B7D0E2" strokeWidth="4" />
-      <rect x="398" y="132" width="62" height="8" rx="3" fill="#7DD3C7" />
-      <rect x="398" y="148" width="44" height="8" rx="3" fill="#CBE4F2" />
-      <rect x="398" y="164" width="52" height="8" rx="3" fill="#CBE4F2" />
+      {/* Cadeira odontológica branca + azul vivo */}
+      <path
+        d="M210 250c0-42 34-76 76-76h28c42 0 76 34 76 76v18H210v-18Z"
+        fill="#FFFFFF"
+        stroke="#93C5FD"
+        strokeWidth="6"
+      />
+      <rect x="248" y="188" width="92" height="52" rx="24" fill="#2563EB" />
+      <rect x="268" y="158" width="52" height="40" rx="18" fill="#1D4ED8" />
+      <rect x="286" y="268" width="28" height="56" rx="8" fill="#60A5FA" />
+      <ellipse cx="300" cy="328" rx="46" ry="12" fill="#BFDBFE" />
 
-      {/* Luminária */}
-      <path d="M330 96c0-24 20-40 44-40" stroke="#94A3B8" strokeWidth="6" strokeLinecap="round" />
-      <circle cx="386" cy="56" r="18" fill="#FDE68A" fillOpacity="0.9" />
-      <circle cx="386" cy="56" r="8" fill="#F59E0B" fillOpacity="0.35" />
+      {/* Braço articulado + monitor branco */}
+      <path
+        d="M360 210h88"
+        stroke="#3B82F6"
+        strokeWidth="10"
+        strokeLinecap="round"
+      />
+      <path
+        d="M448 210v-42"
+        stroke="#3B82F6"
+        strokeWidth="10"
+        strokeLinecap="round"
+      />
+      <rect
+        x="420"
+        y="108"
+        width="108"
+        height="78"
+        rx="12"
+        fill="#FFFFFF"
+        stroke="#2563EB"
+        strokeWidth="5"
+      />
+      <rect x="436" y="124" width="76" height="10" rx="4" fill="#38BDF8" />
+      <rect x="436" y="144" width="54" height="10" rx="4" fill="#93C5FD" />
+      <rect x="436" y="164" width="64" height="10" rx="4" fill="#60A5FA" />
 
-      {/* Pessoa profissional */}
-      <circle cx="430" cy="210" r="22" fill="#F2C4A8" />
-      <path d="M404 236c8-16 44-16 52 0v46H404V236Z" fill="#0F766E" />
-      <rect x="412" y="248" width="36" height="48" rx="8" fill="#115E59" />
-      <path d="M430 282v34" stroke="#0F766E" strokeWidth="10" strokeLinecap="round" />
-      <circle cx="418" cy="318" r="8" fill="#334155" />
-      <circle cx="442" cy="318" r="8" fill="#334155" />
+      {/* Luminária circular */}
+      <circle cx="390" cy="86" r="28" fill="#FFFFFF" stroke="#38BDF8" strokeWidth="6" />
+      <circle cx="390" cy="86" r="10" fill="#FACC15" />
+      <path
+        d="M390 114v28"
+        stroke="#60A5FA"
+        strokeWidth="6"
+        strokeLinecap="round"
+      />
 
-      {/* Paciente sentado (silhueta suave) */}
-      <circle cx="246" cy="132" r="18" fill="#E7B796" />
-      <path d="M220 154c10-14 42-14 52 0v28H220V154Z" fill="#64748B" />
+      {/* Armário branco */}
+      <rect
+        x="520"
+        y="188"
+        width="96"
+        height="140"
+        rx="14"
+        fill="#FFFFFF"
+        stroke="#93C5FD"
+        strokeWidth="5"
+      />
+      <path d="M536 228h64" stroke="#BFDBFE" strokeWidth="5" strokeLinecap="round" />
+      <path d="M536 258h64" stroke="#BFDBFE" strokeWidth="5" strokeLinecap="round" />
+      <path d="M536 288h64" stroke="#BFDBFE" strokeWidth="5" strokeLinecap="round" />
+      <circle cx="596" cy="214" r="5" fill="#2563EB" />
 
-      {/* Planta */}
-      <rect x="118" y="214" width="22" height="34" rx="4" fill="#99BFD4" />
-      <ellipse cx="129" cy="198" rx="18" ry="22" fill="#34D399" />
-      <ellipse cx="118" cy="206" rx="12" ry="14" fill="#10B981" />
+      {/* Planta viva */}
+      <rect x="120" y="286" width="28" height="36" rx="6" fill="#FFFFFF" stroke="#34D399" strokeWidth="4" />
+      <ellipse cx="134" cy="268" rx="22" ry="26" fill="#22C55E" />
+      <ellipse cx="118" cy="276" rx="14" ry="16" fill="#4ADE80" />
 
-      {/* Painel / gráficos sutis */}
-      <rect x="500" y="168" width="96" height="120" rx="14" fill="#FFFFFF" stroke="#C9DDEA" strokeWidth="3" />
-      <rect x="516" y="236" width="12" height="32" rx="3" fill="#5EEAD4" />
-      <rect x="536" y="220" width="12" height="48" rx="3" fill="#2DD4BF" />
-      <rect x="556" y="208" width="12" height="60" rx="3" fill="#14B8A6" />
-      <path d="M516 196h48" stroke="#94A3B8" strokeWidth="3" strokeLinecap="round" />
-      <path d="M516 186c12-10 24 6 36-4 8-6 16 2 24-6" stroke="#38BDF8" strokeWidth="3" strokeLinecap="round" />
+      {/* Profissional (jaleco branco) */}
+      <circle cx="470" cy="248" r="20" fill="#FDBA74" />
+      <path d="M446 272c10-18 48-18 58 0v42H446V272Z" fill="#FFFFFF" stroke="#93C5FD" strokeWidth="4" />
+      <rect x="458" y="292" width="34" height="40" rx="8" fill="#DBEAFE" />
+      <path d="M475 334v22" stroke="#64748B" strokeWidth="8" strokeLinecap="round" />
+      <circle cx="464" cy="360" r="7" fill="#1E293B" />
+      <circle cx="486" cy="360" r="7" fill="#1E293B" />
+
+      {/* Detalhe dente (marca consultório) */}
+      <path
+        d="M188 292c8-18 28-18 36 0 4 10 2 24-6 34-6 8-18 8-24 0-8-10-10-24-6-34Z"
+        fill="#FFFFFF"
+        stroke="#2563EB"
+        strokeWidth="4"
+      />
     </svg>
   );
 }

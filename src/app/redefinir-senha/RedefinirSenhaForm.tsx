@@ -7,7 +7,7 @@ import { ArrowLeft, Eye } from "lucide-react";
 import { LoginAuthShell } from "@/components/auth/LoginAuthShell";
 
 const inputCls =
-  "h-11 w-full rounded-lg border border-slate-200 bg-white px-3.5 text-sm text-slate-700 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15";
+  "h-11 w-full rounded-lg border border-slate-200 bg-white px-3.5 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15";
 
 function RedefinirSenhaInner() {
   const searchParams = useSearchParams();
@@ -62,7 +62,7 @@ function RedefinirSenhaInner() {
           </p>
           <Link
             href="/login"
-            className="flex h-11 w-full items-center justify-center rounded-lg bg-teal-600 text-sm font-semibold text-white hover:bg-teal-700"
+            className="flex h-11 w-full items-center justify-center rounded-lg bg-blue-600 text-sm font-semibold text-white hover:bg-blue-700"
           >
             Ir para o login
           </Link>
@@ -114,7 +114,7 @@ function RedefinirSenhaInner() {
           <button
             type="submit"
             disabled={loading}
-            className="h-11 w-full rounded-lg bg-teal-600 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:opacity-60"
+            className="h-11 w-full rounded-lg bg-blue-600 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
           >
             {loading ? "Salvando..." : "Salvar nova senha"}
           </button>
@@ -124,7 +124,7 @@ function RedefinirSenhaInner() {
       {!sucesso && (
         <Link
           href="/recuperar-senha"
-          className="mt-5 inline-flex items-center gap-1.5 text-[13px] font-medium text-teal-600 hover:underline"
+          className="mt-5 inline-flex items-center gap-1.5 text-[13px] font-medium text-blue-600 hover:underline"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           Solicitar novo link

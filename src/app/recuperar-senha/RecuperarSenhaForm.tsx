@@ -6,7 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import { LoginAuthShell } from "@/components/auth/LoginAuthShell";
 
 const inputCls =
-  "h-11 w-full rounded-lg border border-slate-200 bg-white px-3.5 text-sm text-slate-700 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15";
+  "h-11 w-full rounded-lg border border-slate-200 bg-white px-3.5 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15";
 
 export function RecuperarSenhaForm() {
   const [email, setEmail] = useState("");
@@ -77,7 +77,7 @@ export function RecuperarSenhaForm() {
         <button
           type="submit"
           disabled={loading || Boolean(sucesso)}
-          className="h-11 w-full rounded-lg bg-teal-600 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60"
+          className="h-11 w-full rounded-lg bg-blue-600 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {loading ? "Enviando..." : "Enviar link por e-mail"}
         </button>
@@ -85,7 +85,7 @@ export function RecuperarSenhaForm() {
 
       <Link
         href="/login"
-        className="mt-5 inline-flex items-center gap-1.5 text-[13px] font-medium text-teal-600 hover:underline"
+        className="mt-5 inline-flex items-center gap-1.5 text-[13px] font-medium text-blue-600 hover:underline"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         Voltar ao login
