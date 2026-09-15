@@ -52,9 +52,9 @@ export function RecuperarSenhaForm() {
           className="login-hero__bg pointer-events-none select-none"
         />
       </picture>
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.16)_0%,transparent_55%),linear-gradient(160deg,rgba(8,45,50,0.55)_0%,rgba(12,70,78,0.28)_42%,rgba(15,23,42,0.45)_100%)]" />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#062226]/70 via-transparent to-[#062226]/35" />
-      <div className="relative z-10 w-full max-w-[340px] rounded-xl border border-white/50 bg-white/92 p-6 shadow-2xl backdrop-blur-md">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_55%_45%,rgba(255,255,255,0.22)_0%,transparent_52%),linear-gradient(155deg,rgba(8,45,50,0.38)_0%,rgba(14,90,98,0.18)_45%,rgba(15,23,42,0.32)_100%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#062226]/48 via-transparent to-[#0c3d42]/22" />
+      <div className="relative z-10 w-full max-w-[340px] rounded-xl border border-white/55 bg-white/93 p-6 shadow-2xl backdrop-blur-md">
         <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-blue-600">
           <Mail className="h-5 w-5" />
         </div>
