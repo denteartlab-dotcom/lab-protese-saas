@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
-import { ChevronDown, ChevronRight, Menu, X } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { ChevronDown, ChevronRight, LockKeyhole, LogOut, Menu, X } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
 import { usePermissoesApp } from "@/components/PermissoesAppProvider";
 import {
@@ -16,6 +16,7 @@ import {
   navGrupoTemAcesso,
   podeVerHref,
 } from "@/lib/permissoes-acesso";
+import { limparUltimaAtividadeSessao } from "@/lib/sessao-inatividade";
 import { cn } from "@/lib/utils";
 import { ehPaginaInicioApp, menuAppSecaoAtiva } from "@/lib/rotas-app";
 
@@ -23,6 +24,7 @@ type Props = {
   aberto: boolean;
   onFechar: () => void;
   nomeLaboratorio: string;
+  papelUsuario?: string;
   logoDataUrl?: string;
   logoLargura?: number;
   logoAltura?: number;
@@ -157,17 +159,31 @@ export function AppMobileNav({
   aberto,
   onFechar,
   nomeLaboratorio,
+  papelUsuario,
   logoDataUrl,
   logoLargura = 36,
   logoAltura = 36,
 }: Props) {
   const { t } = useI18n();
+  const router = useRouter();
   const { acessoTotal, permissoesModulos } = usePermissoesApp();
   const pathname = usePathname();
   const [grupoExpandido, setGrupoExpandido] = useState<string | null>(null);
 
   function podeVer(href: string) {
     return podeVerHref(acessoTotal, permissoesModulos, href);
+  }
+
+  async function logout() {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "same-origin",
+      });
+    } finally {
+      limparUltimaAtividadeSessao();
+      window.location.href = "/login";
+    }
   }
 
   useEffect(() => {
@@ -225,21 +241,28 @@ export function AppMobileNav({
               <img
                 src={logoDataUrl}
                 alt=""
-                className="h-9 w-9 shrink-0 object-contain"
+                className="h-10 w-10 shrink-0 rounded-xl object-contain bg-white ring-1 ring-slate-200"
                 width={logoLargura}
                 height={logoAltura}
               />
             ) : (
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-100 text-sm font-bold text-primary-700">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-100 text-sm font-bold text-primary-700">
                 {nomeLaboratorio.charAt(0).toUpperCase()}
               </span>
             )}
-            <p
-              suppressHydrationWarning
-              className="truncate text-sm font-bold text-slate-800 dark:text-slate-100"
-            >
-              {nomeLaboratorio}
-            </p>
+            <div className="min-w-0">
+              <p
+                suppressHydrationWarning
+                className="truncate text-sm font-bold text-slate-800 dark:text-slate-100"
+              >
+                {nomeLaboratorio}
+              </p>
+              {papelUsuario ? (
+                <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+                  {papelUsuario}
+                </p>
+              ) : null}
+            </div>
           </div>
           <button
             type="button"
@@ -289,6 +312,28 @@ export function AppMobileNav({
               />
             ))}
         </nav>
+
+        <div className="space-y-1 border-t border-slate-200 px-3 py-3 dark:border-slate-800">
+          <button
+            type="button"
+            onClick={() => {
+              onFechar();
+              router.push("/app/alterar-senha");
+            }}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition hover:bg-teal-50 dark:text-slate-300 dark:hover:bg-slate-800"
+          >
+            <LockKeyhole className="h-5 w-5 shrink-0 opacity-90" />
+            <span>{t("user.alterarSenha")}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => void logout()}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition hover:bg-red-50 hover:text-red-600 dark:text-slate-300 dark:hover:bg-red-950/30"
+          >
+            <LogOut className="h-5 w-5 shrink-0" />
+            <span>{t("user.logout")}</span>
+          </button>
+        </div>
       </aside>
     </>
   );

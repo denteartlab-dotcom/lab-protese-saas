@@ -233,9 +233,7 @@ function AppShellInner({
     !isPrint && !isModuloImersivo && Boolean(dataVencimentoAssinatura);
   const isDashboard = ehPaginaInicioApp(pathname);
   const [darkMode, setDarkMode] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [menuNavAberto, setMenuNavAberto] = useState<string | null>(null);
-  const userMenuRef = useRef<HTMLDivElement>(null);
   const [buscaSiteAberta, setBuscaSiteAberta] = useState(false);
   const [buscaOsAberta, setBuscaOsAberta] = useState(false);
   const [buscaOs, setBuscaOs] = useState("");
@@ -314,7 +312,6 @@ function AppShellInner({
   }, []);
 
   useEffect(() => {
-    setUserMenuOpen(false);
     setMenuMobileAberto(false);
     if (!ehPaginaInicioApp(pathname)) {
       setBuscaOsAberta(false);
@@ -322,25 +319,8 @@ function AppShellInner({
     }
   }, [pathname]);
 
-  useEffect(() => {
-    if (!userMenuOpen) return;
-    function fecharMenuUsuario(event: MouseEvent) {
-      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
-        setUserMenuOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", fecharMenuUsuario);
-    return () => document.removeEventListener("mousedown", fecharMenuUsuario);
-  }, [userMenuOpen]);
-
   const alternarMenuNav = useCallback((id: string) => {
-    setUserMenuOpen(false);
     setMenuNavAberto((atual) => (atual === id ? null : id));
-  }, []);
-
-  const alternarMenuUsuario = useCallback(() => {
-    setMenuNavAberto(null);
-    setUserMenuOpen((atual) => !atual);
   }, []);
 
   useEffect(() => {
@@ -421,7 +401,6 @@ function AppShellInner({
   });
 
   async function logout() {
-    setUserMenuOpen(false);
     try {
       await fetch("/api/auth/logout", {
         method: "POST",
@@ -683,6 +662,7 @@ function AppShellInner({
           aberto={menuMobileAberto}
           onFechar={fecharMenuMobile}
           nomeLaboratorio={nomePerfil}
+          papelUsuario={papelUsuario}
           logoDataUrl={lab.logoDataUrl?.startsWith("data:image") ? lab.logoDataUrl : undefined}
           logoLargura={logoPerfil.largura}
           logoAltura={logoPerfil.altura}
@@ -751,93 +731,43 @@ function AppShellInner({
                   <ConfiguracoesGearMenu />
                 </Suspense>
                 <NotificationsBell />
-                <div className="relative" ref={userMenuRef}>
-                  <button
-                    type="button"
-                    onClick={alternarMenuUsuario}
-                    className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition hover:bg-black/5 dark:hover:bg-white/10"
-                    aria-expanded={userMenuOpen}
-                    aria-label="Abrir menu do usuário"
-                  >
-                    <div className="hidden leading-tight sm:block">
-                      <p
-                        suppressHydrationWarning
-                        className="text-[13px] font-bold text-slate-800 dark:text-slate-100"
-                      >
-                        {nomePerfil}
-                      </p>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400">{papelUsuario}</p>
-                    </div>
-                    <div
-                      className={cn(
-                        "relative inline-flex h-[57px] w-[57px] shrink-0 items-center justify-center overflow-hidden rounded-full",
-                        temLogoPerfil ? "bg-white ring-1 ring-teal-900/10" : "bg-teal-100 text-teal-700"
-                      )}
-                    >
-                      {temLogoPerfil ? (
-                        <img
-                          src={lab.logoDataUrl}
-                          alt="Logo do laboratório"
-                          className="object-contain"
-                          width={logoPerfil.largura}
-                          height={logoPerfil.altura}
-                        />
-                      ) : (
-                        <User className="h-6 w-6" />
-                      )}
-                      <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[#eef6f7] bg-teal-400" />
-                    </div>
-                  </button>
-
-                  {userMenuOpen && (
-                    <div className="absolute right-0 top-full z-50 mt-2 w-52 overflow-hidden rounded-2xl border border-teal-900/10 bg-white py-2 shadow-panel dark:border-slate-700 dark:bg-slate-900">
-                      <div className="border-b border-slate-100 px-4 pb-3 pt-2 dark:border-slate-800">
-                        <p
-                          suppressHydrationWarning
-                          className="text-sm font-bold text-slate-700 dark:text-slate-100"
-                        >
-                          {nomePerfil}
-                        </p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                          {papelUsuario}
-                        </p>
-                      </div>
-                      <div className="py-1">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setUserMenuOpen(false);
-                            router.push("/app/alterar-senha");
-                          }}
-                          className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-600 transition hover:bg-slate-50 hover:text-primary-700 dark:text-slate-300 dark:hover:bg-slate-800"
-                        >
-                          <LockKeyhole className="h-4 w-4 text-slate-500" />
-                          <span>{t("user.alterarSenha")}</span>
-                        </button>
-                      </div>
-                      <div className="border-t border-slate-100 pt-1 dark:border-slate-800">
-                        <button
-                          type="button"
-                          onClick={logout}
-                          className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-600 transition hover:bg-red-50 hover:text-red-600 dark:text-slate-300 dark:hover:bg-red-950/30"
-                        >
-                          <LogOut className="h-4 w-4" />
-                          {t("user.logout")}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
               </>
             }
           />
         </div>
 
-          <header className="hidden lg:fixed lg:bottom-0 lg:left-0 lg:top-[68px] lg:z-20 lg:flex lg:w-[15.25rem] lg:flex-col lg:overflow-visible lg:border-r lg:border-white/10 lg:bg-[#0b3d3a] lg:shadow-[8px_0_24px_rgba(11,61,58,0.18)] dark:lg:border-slate-800 dark:lg:bg-slate-950">
-            <div className="hidden border-b border-white/10 px-4 py-3 lg:block">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-teal-200/70">
-                Menu
-              </p>
+          <header className="hidden lg:fixed lg:bottom-0 lg:left-0 lg:top-[68px] lg:z-20 lg:flex lg:w-[15.25rem] lg:flex-col lg:overflow-hidden lg:border-r lg:border-white/10 lg:bg-[#0b3d3a] lg:shadow-[8px_0_24px_rgba(11,61,58,0.18)] dark:lg:border-slate-800 dark:lg:bg-slate-950">
+            <div className="shrink-0 border-b border-white/10 px-3 py-3">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={cn(
+                    "relative inline-flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl",
+                    temLogoPerfil ? "bg-white ring-1 ring-white/20" : "bg-teal-800 text-teal-100"
+                  )}
+                >
+                  {temLogoPerfil ? (
+                    <img
+                      src={lab.logoDataUrl}
+                      alt="Logo do laboratório"
+                      className="h-full w-full object-contain p-0.5"
+                      width={logoPerfil.largura}
+                      height={logoPerfil.altura}
+                    />
+                  ) : (
+                    <User className="h-5 w-5" />
+                  )}
+                  <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#0b3d3a] bg-teal-400" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p
+                    suppressHydrationWarning
+                    className="truncate text-[13px] font-bold text-white"
+                  >
+                    {nomePerfil}
+                  </p>
+                  <p className="truncate text-[11px] text-teal-100/70">{papelUsuario}</p>
+                </div>
+              </div>
             </div>
             <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-2.5 py-3 font-sans antialiased">
             {podeVerMenu("/app") &&
@@ -930,6 +860,24 @@ function AppShellInner({
               );
             })}
             </nav>
+            <div className="shrink-0 space-y-1 border-t border-white/10 px-2.5 py-3">
+              <button
+                type="button"
+                onClick={() => router.push("/app/alterar-senha")}
+                className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[13px] font-medium text-white/75 transition hover:bg-white/10 hover:text-white"
+              >
+                <LockKeyhole className="h-4 w-4 shrink-0" />
+                <span className="truncate">{t("user.alterarSenha")}</span>
+              </button>
+              <button
+                type="button"
+                onClick={logout}
+                className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[13px] font-medium text-white/75 transition hover:bg-red-500/20 hover:text-red-100"
+              >
+                <LogOut className="h-4 w-4 shrink-0" />
+                <span className="truncate">{t("user.logout")}</span>
+              </button>
+            </div>
           </header>
         </>
       )}
