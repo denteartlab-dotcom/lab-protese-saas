@@ -897,6 +897,20 @@ function AppShellInner({
             <Suspense fallback={null}>
               <ConfiguracoesGearMenu variant="sidebar" />
             </Suspense>
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => void logout()}
+              className={cn(
+                CLASSE_NAV_MENU,
+                "mt-1 font-medium text-white/75 hover:bg-red-500/20 hover:text-red-100"
+              )}
+            >
+              <span className={CLASSE_NAV_EMOJI} aria-hidden>
+                🚪
+              </span>
+              <span className="min-w-0 flex-1 truncate text-left">{t("user.logout")}</span>
+            </button>
             {isMasterAdmin && (
               <Link
                 href="/admin-master"

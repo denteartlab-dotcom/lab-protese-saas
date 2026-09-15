@@ -370,6 +370,21 @@ export function AppMobileNav({
             <ConfiguracoesGearMenu variant="mobile" />
           </Suspense>
 
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              onFechar();
+              void logout();
+            }}
+            className="mt-1 flex w-full cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[15px] font-medium text-slate-700 caret-transparent outline-none transition-colors hover:bg-red-50 hover:text-red-700 focus:outline-none dark:text-slate-200 dark:hover:bg-red-950/30 dark:hover:text-red-200"
+          >
+            <span className="text-[17px] leading-none" aria-hidden>
+              🚪
+            </span>
+            <span className="min-w-0 flex-1 truncate">{t("user.logout")}</span>
+          </button>
+
           {appNavPrincipal
             .filter((item) => !appNavSemDropdown.has(item.labelKey))
             .map((item) => (
