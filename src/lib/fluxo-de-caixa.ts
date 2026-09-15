@@ -313,13 +313,25 @@ function filtrarBrutos(
   });
 }
 
+/** Mês ainda não iniciado em relação à data de referência (ano/mês civil). */
+export function mesFluxoAindaNaoChegou(
+  ano: number,
+  mesIndex: number,
+  referencia: Date = new Date()
+) {
+  const anoRef = referencia.getFullYear();
+  const mesRef = referencia.getMonth();
+  return ano > anoRef || (ano === anoRef && mesIndex > mesRef);
+}
+
 export function calcularMatrizFluxoMensal(
   lancamentos: LancamentoFluxo[],
   movimentacoes: MovimentacaoContaBancaria[],
   contas: ContaBancaria[],
   ano: number,
   filtros: Pick<FiltrosFluxoCaixa, "conta" | "tipo" | "formaPagamento">,
-  situacao: SituacaoFluxoCaixa
+  situacao: SituacaoFluxoCaixa,
+  referencia: Date = new Date()
 ) {
   const filtroConta = nomeContaFiltro(filtros.conta, contas);
   const brutos = filtrarBrutos(
@@ -333,6 +345,10 @@ export function calcularMatrizFluxoMensal(
   const saldoInicial = Array.from({ length: 12 }, () => 0);
 
   for (let m = 0; m < 12; m++) {
+    // No realizado, não projeta saldo para meses que ainda não começaram.
+    if (situacao === "realizado" && mesFluxoAindaNaoChegou(ano, m, referencia)) {
+      continue;
+    }
     const inicioMes = new Date(ano, m, 1);
     saldoInicial[m] = saldoConsolidado(contas, brutos, inicioMes, true, filtroConta);
   }
@@ -340,11 +356,19 @@ export function calcularMatrizFluxoMensal(
   for (const row of brutos) {
     if (row.data.getFullYear() !== ano) continue;
     const m = row.data.getMonth();
+    if (situacao === "realizado" && mesFluxoAindaNaoChegou(ano, m, referencia)) {
+      continue;
+    }
     if (row.valor > 0) entradas[m] += row.valor;
     else saidas[m] += Math.abs(row.valor);
   }
 
-  const saldoFinal = saldoInicial.map((ini, m) => ini + entradas[m] - saidas[m]);
+  const saldoFinal = saldoInicial.map((ini, m) => {
+    if (situacao === "realizado" && mesFluxoAindaNaoChegou(ano, m, referencia)) {
+      return 0;
+    }
+    return ini + entradas[m] - saidas[m];
+  });
 
   const linhas: LinhaMatrizFluxoMensal[] = [
     { id: "saldo_inicial", label: "Saldo Inicial", valores: saldoInicial },
