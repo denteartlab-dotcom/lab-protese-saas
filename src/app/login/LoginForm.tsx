@@ -25,6 +25,7 @@ import type { LabImpressaoConfig } from "@/lib/lab-impressao";
 import { dimensoesLogoPx } from "@/lib/lab-logo";
 import { analisarCaminhoApp } from "@/lib/rotas-app";
 import { LoginAuthShell } from "@/components/auth/LoginAuthShell";
+import { LoginLogoCircular } from "@/components/auth/LoginLogoCircular";
 import { MfaChallengePanel } from "@/components/auth/MfaChallengePanel";
 import { lerTemaLocal } from "@/lib/theme-ui";
 
@@ -524,14 +525,13 @@ export function LoginForm({
       logoLargura={Math.min(logoLogin.largura, 48)}
       logoAltura={Math.min(logoLogin.altura, 48)}
     >
-      <div className="lg:hidden mb-8 flex items-center gap-3">
-        {logoPainel ? (
-          <img
-            src={logoPainel}
-            alt={`Logo ${nomeLaboratorio}`}
-            className="h-10 w-10 object-contain"
-          />
-        ) : null}
+      <div className="mb-8 flex items-center gap-3 lg:hidden">
+        <LoginLogoCircular
+          src={logoPainel}
+          alt={`Logo ${nomeLaboratorio}`}
+          fallbackLetter={nomeLaboratorio}
+          size={44}
+        />
         <div>
           <p className="text-[15px] font-bold text-blue-700">{nomeLaboratorio}</p>
           {marcaSubtitulo ? (

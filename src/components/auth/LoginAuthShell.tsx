@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { LoginConsultorioIlustracao } from "@/components/auth/LoginConsultorioIlustracao";
+import { LoginLogoCircular } from "@/components/auth/LoginLogoCircular";
 
 type Props = {
   children: ReactNode;
@@ -20,8 +21,6 @@ export function LoginAuthShell({
   marcaSubtitulo,
   logoSrc,
   logoAlt,
-  logoLargura = 40,
-  logoAltura = 40,
 }: Props) {
   return (
     <div className="login-hero flex min-h-[inherit] flex-1 flex-col bg-[#e8f3fc] lg:flex-row">
@@ -36,18 +35,12 @@ export function LoginAuthShell({
         />
 
         <div className="relative z-10 flex items-center gap-3 px-8 pb-2 pt-8">
-          {logoSrc ? (
-            <img
-              src={logoSrc}
-              alt={logoAlt || marcaTitulo}
-              className="object-contain"
-              style={{ width: logoLargura, height: logoAltura, maxWidth: 56 }}
-            />
-          ) : (
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white">
-              {(marcaTitulo || "L").charAt(0).toUpperCase()}
-            </div>
-          )}
+          <LoginLogoCircular
+            src={logoSrc}
+            alt={logoAlt || marcaTitulo}
+            fallbackLetter={marcaTitulo}
+            size={48}
+          />
           <div className="min-w-0">
             <p className="truncate text-[17px] font-bold tracking-tight text-blue-700">
               {marcaTitulo}

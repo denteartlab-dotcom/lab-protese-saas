@@ -122,12 +122,11 @@ export async function arquivoParaLogoDataUrl(file: File): Promise<string> {
   canvas.height = h;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Não foi possível processar a imagem.");
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, w, h);
+  // Mantém transparência (não pinta fundo branco).
+  ctx.clearRect(0, 0, w, h);
   ctx.drawImage(bitmap, 0, 0, w, h);
   bitmap.close();
-  const mime = file.type === "image/png" ? "image/png" : "image/jpeg";
-  return canvas.toDataURL(mime, mime === "image/jpeg" ? 0.88 : undefined);
+  return canvas.toDataURL("image/png");
 }
 
 export { LAB_IMPRESSAO_PADRAO } from "@/lib/lab-impressao";
