@@ -676,10 +676,6 @@ export function LoginForm({
                 ))}
               </select>
             </div>
-          ) : empresaSlugRedirect ? (
-            <p className="rounded-lg bg-slate-50 px-3 py-2 text-[12px] text-slate-600">
-              Entrando em: <strong>/app/{empresaSlugRedirect}</strong>
-            </p>
           ) : null}
 
           <button
