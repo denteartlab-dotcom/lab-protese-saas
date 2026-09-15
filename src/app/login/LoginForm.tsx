@@ -24,6 +24,7 @@ import type { LabBrandingPublico } from "@/lib/lab-branding-types";
 import type { LabImpressaoConfig } from "@/lib/lab-impressao";
 import { dimensoesLogoPx } from "@/lib/lab-logo";
 import { analisarCaminhoApp } from "@/lib/rotas-app";
+import { LoginAuthShell } from "@/components/auth/LoginAuthShell";
 import { MfaChallengePanel } from "@/components/auth/MfaChallengePanel";
 import { lerTemaLocal } from "@/lib/theme-ui";
 
@@ -506,101 +507,88 @@ export function LoginForm({
     : logoLab || (!labIdentificado ? brandingInicial.lab.logoDataUrl : "");
 
   const inputCls =
-    "h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20";
+    "h-11 w-full rounded-lg border border-slate-200 bg-white px-3.5 text-sm text-slate-700 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15";
+
+  const logoPainel =
+    logoSrc ||
+    (labIdentificado
+      ? undefined
+      : brandingInicial.lab.logoDataUrl?.trim() || "/logo-lab-protese.png");
 
   return (
-    <div className="login-hero relative flex flex-1 flex-col items-center justify-center overflow-hidden bg-[#0c3d42] px-4 py-8">
-      <picture>
-        <source srcSet="/images/login-background.webp" type="image/webp" />
-        <img
-          src="/images/login-background.jpg"
-          alt=""
-          fetchPriority="high"
-          decoding="async"
-          className="login-hero__bg pointer-events-none select-none"
-        />
-      </picture>
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_55%_45%,rgba(255,255,255,0.22)_0%,transparent_52%),linear-gradient(155deg,rgba(8,45,50,0.38)_0%,rgba(14,90,98,0.18)_45%,rgba(15,23,42,0.32)_100%)]" />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#062226]/48 via-transparent to-[#0c3d42]/22" />
-
-      <div className="relative z-10 w-full max-w-[320px] rounded-2xl border border-white/55 bg-white/93 p-6 shadow-[0_28px_70px_-24px_rgba(6,34,38,0.48)] backdrop-blur-md">
-        <div className="mb-5 flex flex-col items-center gap-1.5 text-center">
-          {logoSrc ? (
-            <img
-              src={logoSrc}
-              alt={`Logo ${nomeLaboratorio}`}
-              className="object-contain"
-              style={{
-                width: logoLogin.largura,
-                height: logoLogin.altura,
-                maxWidth: "100%",
-              }}
-            />
-          ) : labIdentificado && nomeLaboratorio ? (
-            <div
-              className="flex items-center justify-center rounded-xl bg-teal-50 font-bold text-teal-700"
-              style={{
-                width: logoLogin.largura,
-                height: logoLogin.altura,
-                fontSize: Math.min(logoLogin.altura * 0.45, 32),
-              }}
-              aria-hidden
-            >
-              {nomeLaboratorio.charAt(0).toUpperCase()}
-            </div>
-          ) : null}
-          <h1 className="text-base font-bold leading-tight text-slate-900">
-            {nomeLaboratorio}
-          </h1>
+    <LoginAuthShell
+      marcaTitulo={nomeLaboratorio}
+      marcaSubtitulo={marcaSubtitulo || undefined}
+      logoSrc={logoPainel}
+      logoAlt={`Logo ${nomeLaboratorio}`}
+      logoLargura={Math.min(logoLogin.largura, 48)}
+      logoAltura={Math.min(logoLogin.altura, 48)}
+    >
+      <div className="lg:hidden mb-8 flex items-center gap-3">
+        {logoPainel ? (
+          <img
+            src={logoPainel}
+            alt={`Logo ${nomeLaboratorio}`}
+            className="h-10 w-10 object-contain"
+          />
+        ) : null}
+        <div>
+          <p className="text-[15px] font-bold text-teal-700">{nomeLaboratorio}</p>
           {marcaSubtitulo ? (
-            <p className="text-[9px] uppercase tracking-wide text-slate-500">
+            <p className="text-[10px] uppercase tracking-wide text-slate-400">
               {marcaSubtitulo}
             </p>
           ) : null}
         </div>
+      </div>
 
-        <h2 className="text-sm font-bold text-slate-900" suppressHydrationWarning>
-          {!(clientePronto ? jaEntrou : jaEntrouInicial)
-            ? t("login.bemVindoPrimeira")
-            : t("login.bemVindo")}
-        </h2>
-        <p className="mt-1 text-[10px] text-slate-500">{t("login.subtitulo")}</p>
+      <h1
+        className="text-[22px] font-bold leading-tight tracking-tight text-slate-800"
+        suppressHydrationWarning
+      >
+        {!(clientePronto ? jaEntrou : jaEntrouInicial)
+          ? `${t("login.bemVindoPrimeira")}!`
+          : `${t("login.bemVindo")}!`}
+      </h1>
+      <p className="mt-1.5 text-sm text-slate-500">{t("login.subtitulo")}</p>
 
-        {cadastroOk && !mfaModo && (
-          <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
-            <p className="text-[11px] font-semibold text-emerald-800">
-              Conta criada com sucesso!
-            </p>
-            <p className="mt-0.5 text-[10px] text-emerald-700">
-              Faça login para começar seu teste grátis de 14 dias no plano Premium.
-            </p>
-          </div>
-        )}
+      {cadastroOk && !mfaModo && (
+        <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+          <p className="text-[12px] font-semibold text-emerald-800">
+            Conta criada com sucesso!
+          </p>
+          <p className="mt-0.5 text-[11px] text-emerald-700">
+            Faça login para começar seu teste grátis de 14 dias no plano Premium.
+          </p>
+        </div>
+      )}
 
-        {error && (
-          <p className="mt-3 rounded bg-red-50 px-2 py-1.5 text-[10px] text-red-700">{error}</p>
-        )}
+      {error && (
+        <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-[12px] text-red-700">
+          {error}
+        </p>
+      )}
 
-        {mfaModo && mfaToken ? (
-          <div className="mt-4">
-            <MfaChallengePanel
-              modo={mfaModo}
-              canSkip={mfaCanSkip}
-              mfaToken={mfaToken}
-              basePath="/api/auth/mfa"
-              onSuccess={finalizarAposMfa}
-              onCancel={() => {
-                setMfaModo(null);
-                setMfaToken("");
-                setError("");
-              }}
-              onError={setError}
-            />
-          </div>
-        ) : (
-        <form onSubmit={handleLogin} className="mt-4 space-y-3">
-          <div className="space-y-1">
-            <label className="text-[10px] font-medium uppercase text-slate-700">
+      {mfaModo && mfaToken ? (
+        <div className="mt-5">
+          <MfaChallengePanel
+            modo={mfaModo}
+            canSkip={mfaCanSkip}
+            mfaToken={mfaToken}
+            basePath="/api/auth/mfa"
+            onSuccess={finalizarAposMfa}
+            onCancel={() => {
+              setMfaModo(null);
+              setMfaToken("");
+              setError("");
+            }}
+            onError={setError}
+          />
+        </div>
+      ) : (
+        <form onSubmit={handleLogin} className="mt-6 space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-[13px] font-medium text-slate-600">
               {t("login.email")}
             </label>
             <input
@@ -615,10 +603,18 @@ export function LoginForm({
             />
           </div>
 
-          <div className="space-y-1">
-            <label className="text-[10px] font-medium uppercase text-slate-700">
-              {t("login.senha")}
-            </label>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-3">
+              <label className="text-[13px] font-medium text-slate-600">
+                {t("login.senha")}
+              </label>
+              <a
+                href="/recuperar-senha"
+                className="text-[12px] font-medium text-teal-600 hover:text-teal-700 hover:underline"
+              >
+                Esqueceu sua senha?
+              </a>
+            </div>
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
@@ -626,31 +622,23 @@ export function LoginForm({
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="********"
                 autoComplete="current-password"
-                className={`${inputCls} pr-8`}
+                className={`${inputCls} pr-10`}
                 required
                 disabled={loading}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((current) => !current)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                 title={showPassword ? t("login.ocultarSenha") : t("login.mostrarSenha")}
                 disabled={loading}
               >
-                <Eye className="h-3.5 w-3.5" />
+                <Eye className="h-4 w-4" />
               </button>
-            </div>
-            <div className="flex justify-end">
-              <a
-                href="/recuperar-senha"
-                className="text-[10px] font-medium text-primary-700 hover:underline"
-              >
-                Esqueceu sua senha?
-              </a>
             </div>
           </div>
 
-          <label className="flex cursor-pointer items-center gap-2 text-[10px] text-slate-600">
+          <label className="flex cursor-pointer items-center gap-2.5 text-[13px] text-slate-600">
             <input
               type="checkbox"
               checked={lembrarSenha}
@@ -659,22 +647,22 @@ export function LoginForm({
                 setLembrarSenha(marcado);
                 if (!marcado) limparLembrarLogin();
               }}
-              className="h-3.5 w-3.5 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+              className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
               disabled={loading}
             />
             {t("login.lembrarSenha")}
           </label>
 
           {aguardandoServidor && loading ? (
-            <p className="rounded bg-amber-50 px-2 py-1.5 text-[10px] text-amber-800">
-              Primeira entrada após iniciar o servidor pode levar até 1 minuto (compilação local).
-              Aguarde…
+            <p className="rounded-lg bg-amber-50 px-3 py-2 text-[12px] text-amber-800">
+              Primeira entrada após iniciar o servidor pode levar até 1 minuto
+              (compilação local). Aguarde…
             </p>
           ) : null}
 
           {empresasDisponiveis.length > 1 ? (
-            <div className="space-y-1 rounded-lg border border-primary-100 bg-primary-50/80 p-3">
-              <p className="text-[10px] font-medium text-slate-700">Laboratório</p>
+            <div className="space-y-1.5 rounded-lg border border-teal-100 bg-teal-50/70 p-3">
+              <p className="text-[12px] font-medium text-slate-700">Laboratório</p>
               <select
                 value={empresaSlugSelecionado}
                 onChange={(e) => setEmpresaSlugSelecionado(e.target.value)}
@@ -689,7 +677,7 @@ export function LoginForm({
               </select>
             </div>
           ) : empresaSlugRedirect ? (
-            <p className="rounded bg-slate-50 px-2 py-1.5 text-[10px] text-slate-600">
+            <p className="rounded-lg bg-slate-50 px-3 py-2 text-[12px] text-slate-600">
               Entrando em: <strong>/app/{empresaSlugRedirect}</strong>
             </p>
           ) : null}
@@ -697,13 +685,12 @@ export function LoginForm({
           <button
             type="submit"
             disabled={loading}
-            className="h-9 w-full rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 text-xs font-semibold text-white shadow-nav transition hover:from-teal-600 hover:to-cyan-600 disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-1 h-11 w-full rounded-lg bg-teal-600 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading ? t("login.entrando") : t("login.entrar")}
           </button>
         </form>
-        )}
-      </div>
-    </div>
+      )}
+    </LoginAuthShell>
   );
 }

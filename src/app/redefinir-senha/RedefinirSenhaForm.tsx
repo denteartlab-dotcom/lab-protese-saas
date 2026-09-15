@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
-import { ArrowLeft, Eye, LockKeyhole } from "lucide-react";
+import { ArrowLeft, Eye } from "lucide-react";
+import { LoginAuthShell } from "@/components/auth/LoginAuthShell";
 
 const inputCls =
-  "h-9 w-full rounded border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20";
+  "h-11 w-full rounded-lg border border-slate-200 bg-white px-3.5 text-sm text-slate-700 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15";
 
 function RedefinirSenhaInner() {
   const searchParams = useSearchParams();
@@ -46,107 +47,90 @@ function RedefinirSenhaInner() {
   }
 
   return (
-    <div className="login-hero relative flex flex-1 items-center justify-center overflow-hidden bg-[#0c3d42] px-4">
-      <picture>
-        <source srcSet="/images/login-background.webp" type="image/webp" />
-        <img
-          src="/images/login-background.jpg"
-          alt=""
-          fetchPriority="high"
-          decoding="async"
-          className="login-hero__bg pointer-events-none select-none"
-        />
-      </picture>
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_55%_45%,rgba(255,255,255,0.22)_0%,transparent_52%),linear-gradient(155deg,rgba(8,45,50,0.38)_0%,rgba(14,90,98,0.18)_45%,rgba(15,23,42,0.32)_100%)]" />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#062226]/48 via-transparent to-[#0c3d42]/22" />
-      <div className="relative z-10 w-full max-w-[340px] rounded-xl border border-white/55 bg-white/93 p-6 shadow-2xl backdrop-blur-md">
-        <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-          <LockKeyhole className="h-5 w-5" />
-        </div>
-        <h1 className="text-base font-bold text-slate-900">Nova senha</h1>
-        <p className="mt-1 text-[11px] text-slate-500">
-          Escolha uma nova senha para acessar o Lab Prótese.
-        </p>
+    <LoginAuthShell marcaTitulo="Lab Prótese" logoSrc="/logo-lab-protese.png">
+      <h1 className="text-[22px] font-bold leading-tight tracking-tight text-slate-800">
+        Nova senha
+      </h1>
+      <p className="mt-1.5 text-sm text-slate-500">
+        Escolha uma nova senha para acessar o Lab Prótese.
+      </p>
 
-        {sucesso ? (
-          <div className="mt-4 space-y-3">
-            <p className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] text-emerald-800">
-              Senha redefinida com sucesso!
-            </p>
-            <Link
-              href="/login"
-              className="flex h-9 w-full items-center justify-center rounded bg-blue-600 text-xs font-semibold text-white hover:bg-blue-700"
-            >
-              Ir para o login
-            </Link>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="mt-4 space-y-3">
-            <div className="space-y-1">
-              <label className="text-[10px] font-medium uppercase text-slate-700">
-                Nova senha
-              </label>
-              <div className="relative">
-                <input
-                  type={mostrar ? "text" : "password"}
-                  value={novaSenha}
-                  onChange={(e) => setNovaSenha(e.target.value)}
-                  autoComplete="new-password"
-                  minLength={6}
-                  className={`${inputCls} pr-8`}
-                  required
-                  disabled={loading}
-                />
-                <button
-                  type="button"
-                  onClick={() => setMostrar((v) => !v)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400"
-                >
-                  <Eye className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-medium uppercase text-slate-700">
-                Confirmar senha
-              </label>
+      {sucesso ? (
+        <div className="mt-6 space-y-4">
+          <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-[13px] text-emerald-800">
+            Senha redefinida com sucesso!
+          </p>
+          <Link
+            href="/login"
+            className="flex h-11 w-full items-center justify-center rounded-lg bg-teal-600 text-sm font-semibold text-white hover:bg-teal-700"
+          >
+            Ir para o login
+          </Link>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-[13px] font-medium text-slate-600">Nova senha</label>
+            <div className="relative">
               <input
                 type={mostrar ? "text" : "password"}
-                value={confirmarSenha}
-                onChange={(e) => setConfirmarSenha(e.target.value)}
+                value={novaSenha}
+                onChange={(e) => setNovaSenha(e.target.value)}
                 autoComplete="new-password"
                 minLength={6}
-                className={inputCls}
+                className={`${inputCls} pr-10`}
                 required
                 disabled={loading}
               />
+              <button
+                type="button"
+                onClick={() => setMostrar((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+              >
+                <Eye className="h-4 w-4" />
+              </button>
             </div>
-
-            {erro && (
-              <p className="rounded bg-red-50 px-2 py-1.5 text-[10px] text-red-700">{erro}</p>
-            )}
-
-            <button
-              type="submit"
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[13px] font-medium text-slate-600">
+              Confirmar senha
+            </label>
+            <input
+              type={mostrar ? "text" : "password"}
+              value={confirmarSenha}
+              onChange={(e) => setConfirmarSenha(e.target.value)}
+              autoComplete="new-password"
+              minLength={6}
+              className={inputCls}
+              required
               disabled={loading}
-              className="h-9 w-full rounded bg-blue-600 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
-            >
-              {loading ? "Salvando..." : "Salvar nova senha"}
-            </button>
-          </form>
-        )}
+            />
+          </div>
 
-        {!sucesso && (
-          <Link
-            href="/recuperar-senha"
-            className="mt-4 inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 hover:underline"
+          {erro && (
+            <p className="rounded-lg bg-red-50 px-3 py-2 text-[12px] text-red-700">{erro}</p>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="h-11 w-full rounded-lg bg-teal-600 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:opacity-60"
           >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            Solicitar novo link
-          </Link>
-        )}
-      </div>
-    </div>
+            {loading ? "Salvando..." : "Salvar nova senha"}
+          </button>
+        </form>
+      )}
+
+      {!sucesso && (
+        <Link
+          href="/recuperar-senha"
+          className="mt-5 inline-flex items-center gap-1.5 text-[13px] font-medium text-teal-600 hover:underline"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Solicitar novo link
+        </Link>
+      )}
+    </LoginAuthShell>
   );
 }
 
@@ -154,7 +138,7 @@ export function RedefinirSenhaForm() {
   return (
     <Suspense
       fallback={
-        <div className="flex flex-1 items-center justify-center bg-[#0a2f6e] text-sm text-white">
+        <div className="flex flex-1 items-center justify-center bg-white text-sm text-slate-500">
           Carregando...
         </div>
       }
