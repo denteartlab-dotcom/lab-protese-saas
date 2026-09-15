@@ -83,6 +83,10 @@ html.modo-tv-producao {
 }
 
 @layer base {
+  html {
+    caret-color: transparent;
+  }
+
   body {
     @apply bg-[#edf5f6] font-sans text-slate-800 antialiased;
     min-height: calc(100vh / var(--site-zoom));
@@ -92,6 +96,10 @@ html.modo-tv-producao {
       radial-gradient(800px 420px at -8% 8%, rgba(8, 145, 178, 0.14), transparent 50%),
       linear-gradient(180deg, #e7f3f4 0%, #edf5f6 40%, #f3f8f8 100%);
     background-attachment: fixed;
+    /* UI sem seleção/caret | ao clicar; campos editáveis liberam abaixo. */
+    -webkit-user-select: none;
+    user-select: none;
+    caret-color: transparent;
   }
 
   body.site-editor-tela-cheia {
@@ -106,12 +114,38 @@ html.modo-tv-producao {
       radial-gradient(700px 360px at 0% 0%, rgba(56, 189, 248, 0.08), transparent 48%);
   }
 
-  /* Evita arrastar texto de um input e soltar em outro campo */
-  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  /* Botões, links e títulos: sem cursor de texto */
+  button,
+  a,
+  label,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  p,
+  span,
+  li,
+  nav,
+  header,
+  footer,
+  summary {
+    -webkit-user-select: none;
+    user-select: none;
+    caret-color: transparent;
+  }
+
+  /* Só onde digitar/copiar faz sentido */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="button"]):not([type="submit"]):not([type="reset"]),
   textarea,
-  select {
+  select,
+  [contenteditable="true"],
+  .allow-text-select {
     -webkit-user-drag: none;
-    user-select: text;
+    -webkit-user-select: text !important;
+    user-select: text !important;
+    caret-color: auto !important;
   }
 }
 
