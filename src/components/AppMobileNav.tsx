@@ -141,13 +141,12 @@ function GrupoNavExpansivel({
                 href={item.href}
                 onClick={onNavigate}
                 className={cn(
-                  "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors",
+                  "flex items-center rounded-lg px-3 py-2 text-sm transition-colors",
                   itemAtivo
                     ? "bg-primary-50 font-medium text-primary-700"
                     : "text-slate-600 hover:bg-slate-50 hover:text-primary-700"
                 )}
               >
-                <IconeNavMobile emoji={item.emoji} Icon={item.icon} className="h-4 w-4 shrink-0" />
                 {t(item.labelKey)}
               </Link>
             );

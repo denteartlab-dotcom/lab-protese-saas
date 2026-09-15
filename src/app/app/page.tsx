@@ -361,23 +361,22 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-5 text-[13px] text-slate-700">
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-teal-400 via-cyan-400 to-sky-400 px-5 py-6 text-white shadow-[0_18px_44px_-16px_rgba(14,165,233,0.5)] sm:px-7 sm:py-7">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(720px_260px_at_12%_-10%,rgba(255,255,255,0.45),transparent_55%)]" />
-        <div className="pointer-events-none absolute -right-8 bottom-0 h-44 w-44 rounded-full bg-white/20 blur-2xl" />
+      <section className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-gradient-to-br from-slate-100 via-slate-50 to-white px-5 py-6 shadow-sm sm:px-7 sm:py-7">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(640px_220px_at_90%_-20%,rgba(148,163,184,0.18),transparent_55%)]" />
         <div className="relative flex flex-wrap items-end justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="font-display text-3xl font-extrabold tracking-tight sm:text-4xl">
+            <h1 className="font-display text-3xl font-extrabold tracking-tight text-slate-800 sm:text-4xl">
               {t("dashboard.inicio")}
             </h1>
-            <p className="mt-2 max-w-xl text-sm font-medium text-white/90">
+            <p className="mt-2 max-w-xl text-sm font-medium text-slate-500">
               {t("dashboard.heroSub")}
             </p>
           </div>
           <div className="flex flex-wrap gap-2 text-[11px]">
-            <span className="rounded-full bg-white/20 px-3 py-1.5 font-semibold text-white ring-1 ring-white/30 backdrop-blur-sm">
+            <span className="rounded-full bg-slate-200/70 px-3 py-1.5 font-semibold text-slate-700 ring-1 ring-slate-300/60">
               {t("dashboard.servicosAtrasados")}: {atrasados}
             </span>
-            <span className="rounded-full bg-white/20 px-3 py-1.5 font-semibold text-white ring-1 ring-white/30 backdrop-blur-sm">
+            <span className="rounded-full bg-slate-200/70 px-3 py-1.5 font-semibold text-slate-700 ring-1 ring-slate-300/60">
               {t("dashboard.servicosVencendo")}: {vencendo}
             </span>
           </div>

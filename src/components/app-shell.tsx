@@ -890,11 +890,6 @@ function AppShellInner({
                           href={item.href}
                           className={classeLinkSubmenu(submenuLinkAtivo(item.href))}
                         >
-                          <IconeNav
-                            emoji={item.emoji}
-                            Icon={item.icon}
-                            className="h-3.5 w-3.5 shrink-0"
-                          />
                           {t(item.labelKey)}
                         </Link>
                       ))}
