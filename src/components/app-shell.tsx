@@ -766,7 +766,12 @@ function AppShellInner({
           />
         </div>
 
-          <header className="hidden lg:fixed lg:bottom-0 lg:left-0 lg:top-[68px] lg:z-20 lg:flex lg:w-[15.25rem] lg:flex-col lg:overflow-hidden lg:border-r lg:border-white/10 lg:bg-[#0b3d3a] lg:shadow-[8px_0_24px_rgba(11,61,58,0.18)] dark:lg:border-slate-800 dark:lg:bg-slate-950">
+          <header
+            className={cn(
+              "hidden lg:fixed lg:left-0 lg:top-[68px] lg:z-20 lg:flex lg:w-[15.25rem] lg:flex-col lg:overflow-hidden lg:border-r lg:border-white/10 lg:bg-[#0b3d3a] lg:shadow-[8px_0_24px_rgba(11,61,58,0.18)] dark:lg:border-slate-800 dark:lg:bg-slate-950",
+              mostrarFaixaAssinatura ? "lg:bottom-11" : "lg:bottom-0"
+            )}
+          >
             <div className="shrink-0 border-b border-white/10 px-2.5 py-3">
               <button
                 type="button"
@@ -839,7 +844,7 @@ function AppShellInner({
                 </div>
               ) : null}
             </div>
-            <nav className="flex min-h-0 flex-1 select-none flex-col gap-1 overflow-y-auto px-2.5 py-3 font-sans antialiased caret-transparent">
+            <nav className="app-sidebar-scroll flex min-h-0 flex-1 select-none flex-col gap-1 overflow-y-auto overscroll-contain px-2.5 py-3 font-sans antialiased caret-transparent">
             {podeVerMenu("/app") &&
               appNavPrincipal.filter((item) => item.labelKey === "nav.inicio").map((item) => {
               const active = ehPaginaInicioApp(pathname);
@@ -1369,7 +1374,7 @@ function AppShellInner({
               : cn(
                   "min-h-screen px-3 py-2 sm:px-5 lg:pl-[16rem]",
                   isDashboard && "py-2",
-                  mostrarFaixaAssinatura && "pb-16"
+                  mostrarFaixaAssinatura && "pb-14"
                 )
           )}
         >
