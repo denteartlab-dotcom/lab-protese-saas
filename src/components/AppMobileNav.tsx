@@ -327,14 +327,6 @@ export function AppMobileNav({
                 <LockKeyhole className="h-4 w-4 shrink-0 opacity-90" />
                 <span>{t("user.alterarSenha")}</span>
               </button>
-              <button
-                type="button"
-                onClick={() => void logout()}
-                className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-red-50 hover:text-red-600 dark:text-slate-200 dark:hover:bg-red-950/30"
-              >
-                <LogOut className="h-4 w-4 shrink-0" />
-                <span>{t("user.logout")}</span>
-              </button>
             </div>
           ) : null}
         </div>
@@ -370,19 +362,6 @@ export function AppMobileNav({
             <ConfiguracoesGearMenu variant="mobile" />
           </Suspense>
 
-          <button
-            type="button"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => {
-              onFechar();
-              void logout();
-            }}
-            className="mt-8 flex w-full cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[15px] font-medium text-slate-700 caret-transparent outline-none transition-colors hover:bg-red-50 hover:text-red-700 focus:outline-none dark:text-slate-200 dark:hover:bg-red-950/30 dark:hover:text-red-200"
-          >
-            <LogOut className="h-4 w-4 shrink-0 opacity-90" />
-            <span className="min-w-0 flex-1 truncate">{t("user.logout")}</span>
-          </button>
-
           {appNavPrincipal
             .filter((item) => !appNavSemDropdown.has(item.labelKey))
             .map((item) => (
@@ -395,6 +374,21 @@ export function AppMobileNav({
               />
             ))}
         </nav>
+
+        <div className="shrink-0 border-t border-slate-200 px-3 pb-3 pt-2 dark:border-slate-800">
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              onFechar();
+              void logout();
+            }}
+            className="flex w-full cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[15px] font-medium text-slate-700 caret-transparent outline-none transition-colors hover:bg-red-50 hover:text-red-700 focus:outline-none dark:text-slate-200 dark:hover:bg-red-950/30 dark:hover:text-red-200"
+          >
+            <LogOut className="h-4 w-4 shrink-0 opacity-90" />
+            <span className="min-w-0 flex-1 truncate">{t("user.logout")}</span>
+          </button>
+        </div>
       </aside>
     </>
   );

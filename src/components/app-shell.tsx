@@ -817,17 +817,6 @@ function AppShellInner({
                     <LockKeyhole className="h-3.5 w-3.5 shrink-0" />
                     <span className="truncate">{t("user.alterarSenha")}</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMenuUsuarioAberto(false);
-                      void logout();
-                    }}
-                    className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-white/80 transition hover:bg-red-500/20 hover:text-red-100"
-                  >
-                    <LogOut className="h-3.5 w-3.5 shrink-0" />
-                    <span className="truncate">{t("user.logout")}</span>
-                  </button>
                 </div>
               ) : null}
             </div>
@@ -897,18 +886,6 @@ function AppShellInner({
             <Suspense fallback={null}>
               <ConfiguracoesGearMenu variant="sidebar" />
             </Suspense>
-            <button
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => void logout()}
-              className={cn(
-                CLASSE_NAV_MENU,
-                "mt-10 font-medium text-white/75 hover:bg-red-500/20 hover:text-red-100"
-              )}
-            >
-              <LogOut className={cn(CLASSE_NAV_ICONE, "opacity-90")} />
-              <span className="min-w-0 flex-1 truncate text-left">{t("user.logout")}</span>
-            </button>
             {isMasterAdmin && (
               <Link
                 href="/admin-master"
@@ -945,6 +922,20 @@ function AppShellInner({
               );
             })}
             </nav>
+            <div className="shrink-0 border-t border-white/10 px-2.5 pb-3 pt-2">
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => void logout()}
+                className={cn(
+                  CLASSE_NAV_MENU,
+                  "font-medium text-white/75 hover:bg-red-500/20 hover:text-red-100"
+                )}
+              >
+                <LogOut className={cn(CLASSE_NAV_ICONE, "opacity-90")} />
+                <span className="min-w-0 flex-1 truncate text-left">{t("user.logout")}</span>
+              </button>
+            </div>
           </header>
         </>
       )}
