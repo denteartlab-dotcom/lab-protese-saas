@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { LoginConsultorioIlustracao } from "@/components/auth/LoginConsultorioIlustracao";
+import { LoginFrasesMotivacionais } from "@/components/auth/LoginFrasesMotivacionais";
 import { LoginLogoCircular } from "@/components/auth/LoginLogoCircular";
 
 type Props = {
@@ -53,8 +54,9 @@ export function LoginAuthShell({
           </div>
         </div>
 
-        <div className="relative z-10 flex flex-1 items-center justify-center px-10 pb-12 pt-4">
+        <div className="relative z-10 flex flex-1 flex-col items-center justify-center gap-5 px-10 pb-10 pt-4">
           <LoginConsultorioIlustracao className="h-auto w-full max-w-[580px] drop-shadow-sm" />
+          <LoginFrasesMotivacionais />
         </div>
       </aside>
 
