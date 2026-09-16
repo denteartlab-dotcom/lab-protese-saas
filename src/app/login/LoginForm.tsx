@@ -685,6 +685,13 @@ export function LoginForm({
           >
             {loading ? t("login.entrando") : t("login.entrar")}
           </button>
+
+          <p className="pt-1 text-center text-[13px] text-slate-500">
+            Novo laboratório?{" "}
+            <a href="/cadastro" className="font-medium text-blue-600 hover:underline">
+              Cadastre-se
+            </a>
+          </p>
         </form>
       )}
     </LoginAuthShell>
