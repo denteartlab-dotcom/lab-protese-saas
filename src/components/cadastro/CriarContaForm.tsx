@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
-import { AsaasSeloInstitucional } from "@/components/AsaasSeloInstitucional";
 import { useI18n } from "@/components/i18n-provider";
 import { LogoMarcaDenteArt } from "@/components/LogoMarcaDenteArt";
 import { SeletorPaisComBusca } from "@/components/cadastro/SeletorPaisComBusca";
@@ -23,7 +22,7 @@ const ERROS_SENHA_PARA_CHAVE: Record<string, MessageKey> = {
   "Inclua um número.": "cadastro.senhaErroNumero",
 };
 
-export function CriarContaForm({ versaoSeloAsaas }: { versaoSeloAsaas?: string }) {
+export function CriarContaForm(_props: { versaoSeloAsaas?: string } = {}) {
   const { t } = useI18n();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -33,7 +32,6 @@ export function CriarContaForm({ versaoSeloAsaas }: { versaoSeloAsaas?: string }
   const [error, setError] = useState("");
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [mostrarConfirmar, setMostrarConfirmar] = useState(false);
-  const [aceiteTermos, setAceiteTermos] = useState(false);
 
   const [form, setForm] = useState({
     nome: "",
@@ -135,11 +133,6 @@ export function CriarContaForm({ versaoSeloAsaas }: { versaoSeloAsaas?: string }
       return;
     }
 
-    if (!aceiteTermos) {
-      setError(t("cadastro.aceiteTermosObrigatorio"));
-      return;
-    }
-
     setLoading(true);
     try {
       const res = await fetch("/api/empresas/cadastro", {
@@ -154,6 +147,7 @@ export function CriarContaForm({ versaoSeloAsaas }: { versaoSeloAsaas?: string }
           adminSenha: form.adminSenha,
           confirmarSenha: form.confirmarSenha,
           codigoVerificacao: codigo,
+          // Temporário: termos ocultos na UI; API ainda exige o flag.
           aceiteTermos: true as const,
         }),
       });
@@ -414,40 +408,9 @@ export function CriarContaForm({ versaoSeloAsaas }: { versaoSeloAsaas?: string }
               <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>
             ) : null}
 
-            <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2.5 text-left">
-              <input
-                type="checkbox"
-                checked={aceiteTermos}
-                onChange={(e) => setAceiteTermos(e.target.checked)}
-                className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-[#0066FF] focus:ring-[#0066FF]/30"
-                required
-              />
-              <span className="text-[11px] leading-relaxed text-slate-600">
-                {t("cadastro.aceiteTermosPrefixo")}{" "}
-                <Link
-                  href="/termos"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-medium text-[#0066FF] hover:underline"
-                >
-                  {t("cadastro.termosUso")}
-                </Link>{" "}
-                {t("cadastro.eA")}{" "}
-                <Link
-                  href="/privacidade"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-medium text-[#0066FF] hover:underline"
-                >
-                  {t("cadastro.politicaPrivacidade")}
-                </Link>{" "}
-                {t("cadastro.doLabProtese")}
-              </span>
-            </label>
-
             <button
               type="submit"
-              disabled={loading || !aceiteTermos}
+              disabled={loading}
               className="mt-1 h-11 w-full rounded-lg bg-[#0066FF] text-sm font-semibold text-white transition hover:bg-[#0052cc] disabled:opacity-60"
             >
               {loading ? t("cadastro.cadastrando") : t("cadastro.cadastrar")}
@@ -470,8 +433,6 @@ export function CriarContaForm({ versaoSeloAsaas }: { versaoSeloAsaas?: string }
             {t("cadastro.faleConosco")}
           </a>
         </p>
-
-        <AsaasSeloInstitucional className="mt-6 max-w-sm" versaoCache={versaoSeloAsaas} />
       </div>
     </div>
   );
