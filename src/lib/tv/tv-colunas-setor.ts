@@ -8,6 +8,7 @@ import {
 import {
   etapasPadraoDoSetor,
   ETAPAS_OCULTAS_TV_POR_SETOR,
+  ETAPAS_TV_FORCADAS_POR_SETOR,
   SETORES_PADRAO_TV,
 } from "@/lib/tv/tv-setores-padrao";
 
@@ -50,14 +51,52 @@ export function etapasVisiveisTvDoSetor(
   setorNome: string,
   etapas: EtapaCadastro[]
 ) {
-  const lista = etapasCadastroDoSetor(setorNome, etapas);
+  const chaveSetor = chaveNomeTv(setorNome);
+  const listaCadastro = etapasCadastroDoSetor(setorNome, etapas);
+  const forcadas = ETAPAS_TV_FORCADAS_POR_SETOR[chaveSetor];
+
+  if (forcadas?.length) {
+    return forcadas.map((nome) => {
+      const chaveForcada = chaveNomeTv(nome);
+      const existente =
+        listaCadastro.find((etapa) => chaveNomeTv(etapa.nome) === chaveForcada) ||
+        listaCadastro.find((etapa) =>
+          etapaTvCompativelComColuna(etapa.nome, nome)
+        );
+      if (existente) {
+        return { ...existente, nome };
+      }
+      return {
+        id: `tv-forcada-${chaveSetor}-${chaveForcada.replace(/[^a-z0-9]+/g, "-")}`,
+        nome,
+        setor: setorNome,
+      } satisfies EtapaCadastro;
+    });
+  }
+
   const ocultas = new Set(
-    (ETAPAS_OCULTAS_TV_POR_SETOR[chaveNomeTv(setorNome)] || []).map((nome) =>
+    (ETAPAS_OCULTAS_TV_POR_SETOR[chaveSetor] || []).map((nome) =>
       chaveNomeTv(nome)
     )
   );
-  if (ocultas.size === 0) return lista;
-  return lista.filter((etapa) => !ocultas.has(chaveNomeTv(etapa.nome)));
+  if (ocultas.size === 0) return listaCadastro;
+  return listaCadastro.filter((etapa) => !ocultas.has(chaveNomeTv(etapa.nome)));
+}
+
+/** Aceita "Aplicação" em coluna "Aplicação/Opaco" e vice-versa. */
+export function etapaTvCompativelComColuna(
+  nomeEtapaOrdem: string,
+  nomeColuna: string
+) {
+  const a = chaveNomeTv(nomeEtapaOrdem);
+  const b = chaveNomeTv(nomeColuna);
+  if (!a || !b) return false;
+  if (a === b) return true;
+  const partesA = a.split(/[\/|,+-]+/).filter(Boolean);
+  const partesB = b.split(/[\/|,+-]+/).filter(Boolean);
+  if (partesA.some((p) => partesB.includes(p))) return true;
+  if (a.includes(b) || b.includes(a)) return true;
+  return false;
 }
 
 /** Completa setores/etapas do cadastro com Gesso, CAD/CAM, Resina e Cerâmica. */
@@ -217,14 +256,10 @@ export function ordemVisivelNoSetorTv(
   if (!chaveSetor) return false;
   if (chaveNomeTv(ordem.setor || "") === chaveSetor) return true;
 
-  const nomes = new Set(
-    etapasVisiveisTvDoSetor(setorNome, layout.etapas).map((etapa) =>
-      chaveNomeTv(etapa.nome)
-    )
-  );
-  return Boolean(
-    chaveNomeTv(etapaAtualDaOrdemTv(ordem)) &&
-      nomes.has(chaveNomeTv(etapaAtualDaOrdemTv(ordem)))
+  const etapaAtual = etapaAtualDaOrdemTv(ordem);
+  if (!chaveNomeTv(etapaAtual)) return false;
+  return etapasVisiveisTvDoSetor(setorNome, layout.etapas).some((etapa) =>
+    etapaTvCompativelComColuna(etapaAtual, etapa.nome)
   );
 }
 
@@ -236,7 +271,11 @@ export function colunaIdOrdemNoSetorTv(
   const etapas = etapasVisiveisTvDoSetor(setorNome, layout.etapas);
   const chaveEtapa = chaveNomeTv(etapaAtualDaOrdemTv(ordem));
   if (chaveEtapa) {
-    const etapa = etapas.find((item) => chaveNomeTv(item.nome) === chaveEtapa);
+    const etapa =
+      etapas.find((item) => chaveNomeTv(item.nome) === chaveEtapa) ||
+      etapas.find((item) =>
+        etapaTvCompativelComColuna(etapaAtualDaOrdemTv(ordem), item.nome)
+      );
     if (etapa) return idColunaEtapaSetor(etapa);
   }
   return ID_COLUNA_OUTRAS_SETOR;
