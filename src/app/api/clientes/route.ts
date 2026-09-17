@@ -42,7 +42,7 @@ export async function GET(request: Request) {
   if (negado) return negado;
 
   const { searchParams } = new URL(request.url);
-  const q = searchParams.get("q") || "";
+  const q = (searchParams.get("q") || "").trim();
   const excluidos = searchParams.get("excluidos") === "1";
 
   const clientes = await prisma.cliente.findMany({
@@ -53,9 +53,14 @@ export async function GET(request: Request) {
       ...(q
         ? {
             OR: [
-              { nome: { contains: q } },
-              { email: { contains: q } },
-              { cro: { contains: q } },
+              { nome: { contains: q, mode: "insensitive" } },
+              { razaoSocial: { contains: q, mode: "insensitive" } },
+              { email: { contains: q, mode: "insensitive" } },
+              { cro: { contains: q, mode: "insensitive" } },
+              { cnpjCpf: { contains: q } },
+              { telefone: { contains: q } },
+              { celular: { contains: q } },
+              { cidade: { contains: q, mode: "insensitive" } },
             ],
           }
         : {}),

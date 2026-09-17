@@ -202,22 +202,73 @@ export default function ClientesPage() {
   const [idsSelecionados, setIdsSelecionados] = useState<Set<string>>(() => new Set());
   const [exclusaoMultiplaAberta, setExclusaoMultiplaAberta] = useState(false);
   const ultimoCepBuscado = useRef("");
+  const buscaAbortRef = useRef<AbortController | null>(null);
+  const buscaSeqRef = useRef(0);
 
   const recarregarTabelasPreco = async () => {
     const nomes = await carregarNomesTabelasPrecoRemoto();
     setTabelasPreco(nomes);
   };
 
-  async function load() {
-    const params = new URLSearchParams({ q });
+  function textoBuscaCliente(valor: string | null | undefined) {
+    return (valor || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim();
+  }
+
+  function clienteCorrespondeBusca(cliente: Cliente, termoBruto: string) {
+    const termo = textoBuscaCliente(termoBruto);
+    if (!termo) return true;
+    const campos = [
+      cliente.nome,
+      cliente.razaoSocial,
+      cliente.email,
+      cliente.cro,
+      cliente.cnpjCpf,
+      cliente.telefone,
+      cliente.celular,
+      cliente.cidade,
+    ];
+    return campos.some((campo) => textoBuscaCliente(campo).includes(termo));
+  }
+
+  async function load(termoBusca = q) {
+    const seq = ++buscaSeqRef.current;
+    buscaAbortRef.current?.abort();
+    const controller = new AbortController();
+    buscaAbortRef.current = controller;
+
+    const termo = termoBusca.trim();
+    const params = new URLSearchParams();
+    if (termo) params.set("q", termo);
     if (mostrarExcluidos) params.set("excluidos", "1");
-    const res = await fetch(`/api/clientes?${params}`);
-    if (!res.ok) {
+
+    try {
+      const res = await fetch(`/api/clientes?${params}`, {
+        signal: controller.signal,
+        cache: "no-store",
+      });
+      if (seq !== buscaSeqRef.current) return;
+      if (!res.ok) {
+        setList([]);
+        return;
+      }
+      const data = await res.json();
+      if (seq !== buscaSeqRef.current) return;
+      const recebidos = Array.isArray(data) ? (data as Cliente[]) : [];
+      // Rede de segurança: só mostra quem realmente bate com o termo atual.
+      setList(
+        termo
+          ? recebidos.filter((cliente) => clienteCorrespondeBusca(cliente, termo))
+          : recebidos
+      );
+    } catch (erro) {
+      if ((erro as { name?: string } | null)?.name === "AbortError") return;
+      if (seq !== buscaSeqRef.current) return;
       setList([]);
-      return;
     }
-    const data = await res.json();
-    setList(Array.isArray(data) ? data : []);
   }
 
   function formatDateInput(value: string) {
@@ -304,8 +355,20 @@ export default function ClientesPage() {
   }, [form.cep, open]);
 
   useEffect(() => {
-    void load();
     limparSelecao();
+    const termo = q.trim();
+    // Busca vazia: carrega na hora. Com texto: debounce para evitar corrida por tecla.
+    if (!termo) {
+      void load("");
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      void load(termo);
+    }, 280);
+    return () => {
+      window.clearTimeout(timer);
+      buscaAbortRef.current?.abort();
+    };
   }, [q, mostrarExcluidos]);
 
   useEffect(() => {
