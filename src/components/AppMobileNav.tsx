@@ -119,9 +119,8 @@ function GrupoNavExpansivel({
         onClick={onToggle}
         className={cn(
           "flex w-full cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[15px] font-medium caret-transparent outline-none transition-colors focus:outline-none",
-          ativo
-            ? "bg-gradient-to-r from-teal-500 to-cyan-500 text-white shadow-nav"
-            : "text-slate-700 hover:bg-teal-50"
+          "text-slate-700 hover:bg-teal-50",
+          ativo && "font-semibold text-slate-900"
         )}
       >
         <IconeNavMobile emoji={grupo.emoji} Icon={grupo.icon} />

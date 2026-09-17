@@ -852,14 +852,21 @@ function AppShellInner({
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => alternarMenuNav(grupo.id)}
                     aria-expanded={aberto}
-                    className={classeItemNavPrincipal(grupoAtivo)}
+                    className={classeItemNavPrincipal(false)}
                   >
                     <IconeNav
                       emoji={grupo.emoji}
                       Icon={grupo.icon}
-                      strokeWidth={grupoAtivo ? 2.25 : 2}
+                      strokeWidth={grupoAtivo || aberto ? 2.25 : 2}
                     />
-                    <span className="min-w-0 flex-1 truncate text-left">{t(grupo.labelKey)}</span>
+                    <span
+                      className={cn(
+                        "min-w-0 flex-1 truncate text-left",
+                        (grupoAtivo || aberto) && "font-semibold text-white"
+                      )}
+                    >
+                      {t(grupo.labelKey)}
+                    </span>
                     <ChevronDown
                       className={cn(
                         CLASSE_NAV_CHEVRON,
