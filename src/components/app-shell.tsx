@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AppMobileNav, BotaoMenuMobile } from "@/components/AppMobileNav";
 import { ConfiguracoesGearMenu } from "@/components/ConfiguracoesGearMenu";
 import { LanguageMenu } from "@/components/header/LanguageMenu";
@@ -51,7 +50,7 @@ import { cn, STATUS_TRABALHO } from "@/lib/utils";
 import {
   analisarCaminhoApp,
   ehPaginaInicioApp,
-  menuAppSecaoAtiva,
+  menuAppHrefAtivo,
   restanteCaminhoMenuApp,
 } from "@/lib/rotas-app";
 import {
@@ -176,7 +175,8 @@ export function AppShell({
 }) {
   return (
     <ArmazenamentoLaboratorioProvider>
-      <AppShellInner
+      <Suspense fallback={null}>
+        <AppShellInner
           userName={userName}
           userRole={userRole}
           userEmail={userEmail}
@@ -189,8 +189,9 @@ export function AppShell({
           initialLab={initialLab}
           initialNomeLaboratorio={initialNomeLaboratorio}
         >
-        {children}
-      </AppShellInner>
+          {children}
+        </AppShellInner>
+      </Suspense>
     </ArmazenamentoLaboratorioProvider>
   );
 }
@@ -224,6 +225,7 @@ function AppShellInner({
 }) {
   const { t, locale } = useI18n();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const isPrint =
     pathname.includes("/imprimir") ||
@@ -358,10 +360,7 @@ function AppShellInner({
   }, [pathname]);
 
   function submenuLinkAtivo(href: string) {
-    const base = href.split("?")[0] || href;
-    if (base === "/app") return ehPaginaInicioApp(pathname);
-    const sufixo = base.replace(/^\/app/, "") || "/";
-    return menuAppSecaoAtiva(pathname, sufixo);
+    return menuAppHrefAtivo(pathname, searchParams, href);
   }
 
   useEffect(() => {

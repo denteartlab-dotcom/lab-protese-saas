@@ -91,6 +91,74 @@ export function menuAppSecaoAtiva(pathname: string, prefixos: string | string[])
   });
 }
 
+/**
+ * Visão ativa do Financeiro (espelha o roteamento em financeiro/page.tsx).
+ * Usado para destacar só o subitem correto quando todos apontam para /app/financeiro?...
+ */
+export function financeiroVisaoAtiva(
+  searchParams: URLSearchParams | { get: (key: string) => string | null }
+): "receita" | "boletos" | "despesa" | "plano-de-contas" | "conta-bancaria" {
+  const aba = searchParams.get("aba");
+  const tipo = searchParams.get("tipo");
+  const acao = searchParams.get("acao");
+
+  if (aba === "plano-de-contas") return "plano-de-contas";
+  if (aba === "conta-bancaria" || aba === "conta-digital") return "conta-bancaria";
+  if (aba === "boletos") return "boletos";
+  if (
+    aba === "pagar" ||
+    tipo === "despesa" ||
+    tipo === "vencidas" ||
+    acao === "pagar"
+  ) {
+    return "despesa";
+  }
+  return "receita";
+}
+
+function financeiroHrefVisao(expected: URLSearchParams): string | null {
+  if (expected.get("aba") === "plano-de-contas") return "plano-de-contas";
+  if (expected.get("aba") === "conta-bancaria") return "conta-bancaria";
+  if (expected.get("aba") === "boletos") return "boletos";
+  if (expected.get("tipo") === "despesa") return "despesa";
+  if (expected.get("tipo") === "receita") return "receita";
+  return null;
+}
+
+/**
+ * Item de menu ativo considerando pathname + query (?tipo=, ?aba=).
+ * Sem query, mantém o comportamento de menuAppSecaoAtiva / início.
+ */
+export function menuAppHrefAtivo(
+  pathname: string,
+  searchParams: URLSearchParams | { get: (key: string) => string | null },
+  href: string
+): boolean {
+  const [pathPart, queryPart = ""] = href.split("?");
+  const base = pathPart || href;
+
+  if (base === "/app") return ehPaginaInicioApp(pathname);
+
+  const sufixo = base.replace(/^\/app/, "") || "/";
+  if (!menuAppSecaoAtiva(pathname, sufixo)) return false;
+
+  if (!queryPart) return true;
+
+  const expected = new URLSearchParams(queryPart);
+
+  if (menuAppSecaoAtiva(pathname, "/financeiro")) {
+    const visaoHref = financeiroHrefVisao(expected);
+    if (visaoHref) {
+      return financeiroVisaoAtiva(searchParams) === visaoHref;
+    }
+  }
+
+  for (const [key, value] of expected.entries()) {
+    if (searchParams.get(key) !== value) return false;
+  }
+  return true;
+}
+
 export function normalizarSlugEmpresa(slug: string): string {
   return slug
     .trim()

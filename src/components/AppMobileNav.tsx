@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState, Suspense } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChevronDown, ChevronRight, LockKeyhole, LogOut, Menu, X } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
 import { usePermissoesApp } from "@/components/PermissoesAppProvider";
@@ -19,7 +19,7 @@ import {
 } from "@/lib/permissoes-acesso";
 import { limparUltimaAtividadeSessao } from "@/lib/sessao-inatividade";
 import { cn } from "@/lib/utils";
-import { ehPaginaInicioApp, menuAppSecaoAtiva } from "@/lib/rotas-app";
+import { menuAppHrefAtivo } from "@/lib/rotas-app";
 
 type Props = {
   aberto: boolean;
@@ -31,11 +31,12 @@ type Props = {
   logoAltura?: number;
 };
 
-function linkAtivo(pathname: string, href: string) {
-  const base = href.split("?")[0];
-  if (base === "/app") return ehPaginaInicioApp(pathname);
-  const sufixo = base.replace(/^\/app/, "") || "/";
-  return menuAppSecaoAtiva(pathname, sufixo);
+function linkAtivo(
+  pathname: string,
+  searchParams: { get: (key: string) => string | null },
+  href: string
+) {
+  return menuAppHrefAtivo(pathname, searchParams, href);
 }
 
 
@@ -64,17 +65,19 @@ function IconeNavMobile({
 function ItemNavSimples({
   item,
   pathname,
+  searchParams,
   onNavigate,
   oculto,
 }: {
   item: AppNavItem;
   pathname: string;
+  searchParams: { get: (key: string) => string | null };
   onNavigate: () => void;
   oculto?: boolean;
 }) {
   const { t } = useI18n();
   if (oculto) return null;
-  const ativo = linkAtivo(pathname, item.href);
+  const ativo = linkAtivo(pathname, searchParams, item.href);
 
   return (
     <Link
@@ -96,6 +99,7 @@ function ItemNavSimples({
 function GrupoNavExpansivel({
   grupo,
   pathname,
+  searchParams,
   expandido,
   onToggle,
   onNavigate,
@@ -103,6 +107,7 @@ function GrupoNavExpansivel({
 }: {
   grupo: (typeof gruposNavMobile)[number];
   pathname: string;
+  searchParams: { get: (key: string) => string | null };
   expandido: boolean;
   onToggle: () => void;
   onNavigate: () => void;
@@ -134,7 +139,7 @@ function GrupoNavExpansivel({
       {expandido ? (
         <div className="ml-2 space-y-0.5 border-l border-slate-200 pl-2">
           {itensVisiveis.map((item) => {
-            const itemAtivo = linkAtivo(pathname, item.href);
+            const itemAtivo = linkAtivo(pathname, searchParams, item.href);
             return (
               <Link
                 key={`${grupo.id}-${item.href}-${item.labelKey}`}
@@ -190,6 +195,7 @@ export function AppMobileNav({
   const router = useRouter();
   const { acessoTotal, permissoesModulos } = usePermissoesApp();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [grupoExpandido, setGrupoExpandido] = useState<string | null>(null);
   const [menuUsuarioAberto, setMenuUsuarioAberto] = useState(false);
 
@@ -334,6 +340,7 @@ export function AppMobileNav({
           <ItemNavSimples
             item={appNavPrincipal[0]}
             pathname={pathname}
+            searchParams={searchParams}
             onNavigate={onFechar}
             oculto={!podeVer("/app")}
           />
@@ -346,6 +353,7 @@ export function AppMobileNav({
               key={grupo.id}
               grupo={grupo}
               pathname={pathname}
+              searchParams={searchParams}
               expandido={grupoExpandido === grupo.id}
               onToggle={() => {
                 setMenuUsuarioAberto(false);
@@ -368,6 +376,7 @@ export function AppMobileNav({
                 key={`${item.href}-${item.labelKey}`}
                 item={item}
                 pathname={pathname}
+                searchParams={searchParams}
                 onNavigate={onFechar}
                 oculto={!podeVer(item.href)}
               />
