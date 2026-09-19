@@ -43,6 +43,7 @@ import {
 } from "@/lib/urgencia-cliente";
 import { carregarStoreObservacoesCliente } from "@/lib/observacao-cliente-trabalho";
 import { listarSolicitacoesEnvioCliente } from "@/lib/solicitacao-envio-servidor";
+import { filtrarServicoPrincipalPorOs } from "@/lib/trabalho-os-segmento";
 import { calcularResumoEstoqueDashboardServer } from "@/lib/dashboard-estoque-server";
 import {
   ALERTA_ARMAZENAMENTO_GB,
@@ -116,6 +117,7 @@ export async function montarNotificacoesEmpresa(
       include: {
         paciente: { select: { nome: true } },
       },
+      orderBy: { createdAt: "asc" },
     }),
   ]);
 
@@ -316,8 +318,12 @@ export async function montarNotificacoesEmpresa(
   }
 
   const periodoVencendo = periodoVencendoNotificacoes();
-  const vencendo = filtrarTrabalhosVencendoPeriodo(trabalhosAtivos, "lab", periodoVencendo);
-  const atrasados = filtrarTrabalhosAtrasados(trabalhosAtivos, "lab");
+  const vencendo = filtrarServicoPrincipalPorOs(
+    filtrarTrabalhosVencendoPeriodo(trabalhosAtivos, "lab", periodoVencendo)
+  );
+  const atrasados = filtrarServicoPrincipalPorOs(
+    filtrarTrabalhosAtrasados(trabalhosAtivos, "lab")
+  );
 
   for (const t of vencendo) {
     const prazo = prazoTrabalho(t, "lab");

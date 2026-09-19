@@ -734,6 +734,57 @@ export function linhasServicoDoGrupoOs<
   return grupo.filter((t) => segmentoEfetivoTrabalho(t) === "servico");
 }
 
+type TrabalhoServicoPrincipalOs = {
+  id: string;
+  numeroOs: number;
+  grupoOsId?: string | null;
+  createdAt?: Date | string;
+  segmentoFaturamento?: string | null;
+  instrucoes?: string | null;
+};
+
+function chaveOsNotificacao(trabalho: TrabalhoServicoPrincipalOs) {
+  if (Number.isFinite(trabalho.numeroOs) && trabalho.numeroOs > 0) {
+    return `os-${trabalho.numeroOs}`;
+  }
+  return trabalho.grupoOsId?.trim() || trabalho.id;
+}
+
+function tempoCriacaoTrabalho(trabalho: TrabalhoServicoPrincipalOs) {
+  if (!trabalho.createdAt) return Number.POSITIVE_INFINITY;
+  const ms = new Date(trabalho.createdAt).getTime();
+  return Number.isNaN(ms) ? Number.POSITIVE_INFINITY : ms;
+}
+
+/** Serviço principal do protocolo: linha-pai (id = grupoOsId) ou o serviço mais antigo. */
+export function escolherServicoPrincipalOs<T extends TrabalhoServicoPrincipalOs>(
+  grupo: T[]
+): T {
+  const servicos = linhasServicoDoGrupoOs(grupo);
+  const lista = servicos.length ? servicos : grupo;
+  const raiz = lista.find((t) => t.grupoOsId && t.id === t.grupoOsId);
+  if (raiz) return raiz;
+  return [...lista].sort((a, b) => tempoCriacaoTrabalho(a) - tempoCriacaoTrabalho(b))[0];
+}
+
+/**
+ * Uma linha por OS quando há vários serviços cadastrados no mesmo protocolo.
+ * Usado nas notificações de prazo para avisar só o serviço principal.
+ */
+export function filtrarServicoPrincipalPorOs<T extends TrabalhoServicoPrincipalOs>(
+  trabalhos: T[]
+): T[] {
+  const grupos = new Map<string, T[]>();
+  for (const trabalho of trabalhos) {
+    if (segmentoEfetivoTrabalho(trabalho) !== "servico") continue;
+    const chave = chaveOsNotificacao(trabalho);
+    const lista = grupos.get(chave) || [];
+    lista.push(trabalho);
+    grupos.set(chave, lista);
+  }
+  return Array.from(grupos.values()).map((grupo) => escolherServicoPrincipalOs(grupo));
+}
+
 type TrabalhoContagemItensOs = {
   numeroOs: number;
   tipoProtese?: string | null;
