@@ -163,14 +163,16 @@ export async function obterContextoAppServidor(): Promise<ContextoAppServidor | 
       carregarConfigLaboratorioServidor(session.empresaId)
     );
 
-    void runWithTenantContext(user.empresa.id, () =>
-      registrarUltimoAcessoEmpresa(user.empresa!.id)
-    );
+    const visualizacaoMaster = sessaoEhSuporteMaster(session);
+
+    if (!visualizacaoMaster) {
+      void runWithTenantContext(user.empresa.id, () =>
+        registrarUltimoAcessoEmpresa(user.empresa!.id)
+      );
+    }
 
     const lab = configParaLabImpressao(configLab);
     const nomeLaboratorio = nomeExibicaoLaboratorio(configLab) || "Lab Prótese";
-
-    const visualizacaoMaster = sessaoEhSuporteMaster(session);
     const permissoes = visualizacaoMaster
       ? {
           setores: [] as string[],

@@ -94,16 +94,23 @@ export function VisualizarEmpresaMaster({ empresaId }: { empresaId: string }) {
   );
 
   useEffect(() => {
+    let cancelado = false;
     fetch(`/api/admin-master/empresas/${empresaId}`)
       .then(async (res) => {
+        if (cancelado) return;
         if (!res.ok) {
           setErro(t("admin.master.view.erroNaoEncontrada"));
           return;
         }
         setDados(await res.json());
       })
-      .catch(() => setErro(t("admin.master.view.erroCarregar")));
-  }, [empresaId, t]);
+      .catch(() => {
+        if (!cancelado) setErro(t("admin.master.view.erroCarregar"));
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [empresaId]);
 
   if (erro) {
     return (

@@ -8,6 +8,7 @@ import {
   armazenamentoLaboratorioBootstrapOk,
   armazenamentoLaboratorioPronto,
   armazenamentoLaboratorioSessaoExpirada,
+  definirArmazenamentoSomenteLeitura,
   inicializarArmazenamentoLaboratorio,
   reinicializarArmazenamentoLaboratorio,
 } from "@/lib/armazenamento-laboratorio";
@@ -19,6 +20,7 @@ import { TIMEOUT_CARREGAMENTO_APP_MS } from "@/lib/dev-timeouts";
 
 type Props = {
   children: React.ReactNode;
+  somenteLeitura?: boolean;
 };
 
 type EstadoBootstrap = "carregando" | "pronto" | "erro";
@@ -40,13 +42,22 @@ function redirecionarParaLogin() {
   window.location.assign(`/login?redirect=${encodeURIComponent(redirect)}`);
 }
 
-export function ArmazenamentoLaboratorioProvider({ children }: Props) {
+export function ArmazenamentoLaboratorioProvider({
+  children,
+  somenteLeitura = false,
+}: Props) {
+  definirArmazenamentoSomenteLeitura(somenteLeitura);
   const pathname = usePathname();
   const ignoraBootstrap = rotaSemArmazenamentoLaboratorio(pathname);
   const [estado, setEstado] = useState<EstadoBootstrap>("carregando");
   const [erro, setErro] = useState("");
   const [tentando, setTentando] = useState(false);
   const [montado, setMontado] = useState(false);
+
+  useEffect(() => {
+    definirArmazenamentoSomenteLeitura(somenteLeitura);
+    return () => definirArmazenamentoSomenteLeitura(false);
+  }, [somenteLeitura]);
 
   useEffect(() => {
     setMontado(true);

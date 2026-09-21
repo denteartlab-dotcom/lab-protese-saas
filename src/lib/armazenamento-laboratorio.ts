@@ -20,6 +20,7 @@ const snapshotServidor = new Map<string, string>();
 let hidratado = false;
 let bootstrapOk = false;
 let sessaoExpirada = false;
+let gravacaoSomenteLeitura = false;
 let hidratando: Promise<void> | null = null;
 const filaSalvar = new Map<string, unknown>();
 let timerSalvar: ReturnType<typeof setTimeout> | null = null;
@@ -45,6 +46,26 @@ export function armazenamentoLaboratorioBootstrapOk() {
 
 export function armazenamentoLaboratorioSessaoExpirada() {
   return sessaoExpirada;
+}
+
+/** Sessão de suporte master (ou outro 403 de escrita): espelha o banco, não grava. */
+export function definirArmazenamentoSomenteLeitura(valor: boolean) {
+  gravacaoSomenteLeitura = valor;
+  if (valor) {
+    filaSalvar.clear();
+    if (timerSalvar) {
+      clearTimeout(timerSalvar);
+      timerSalvar = null;
+    }
+  }
+}
+
+export function armazenamentoLaboratorioSomenteLeitura() {
+  return gravacaoSomenteLeitura;
+}
+
+function respostaBloqueiaEscrita(res: Response) {
+  return res.status === 403;
 }
 
 /** Aguarda carga inicial do banco (para impressão e telas que dependem do JsonStore). */
@@ -117,6 +138,7 @@ const LIMITE_MIGRACAO_LOCALSTORAGE_BYTES = 4_000_000;
  */
 async function migrarLocalStorageLegadoParaServidor() {
   if (typeof window === "undefined") return;
+  if (gravacaoSomenteLeitura) return;
 
   if (window.localStorage.getItem(FLAG_MIGRACAO_LOCALSTORAGE) === "1") {
     limparLocalStorageLegadoLab();
@@ -199,8 +221,12 @@ async function migrarLocalStorageLegadoParaServidor() {
       },
       TIMEOUT_MIGRAR_LOCAL_MS
     );
-    if (res.status === 401 || res.status === 403) {
+    if (res.status === 401) {
       sessaoExpirada = true;
+      return;
+    }
+    if (respostaBloqueiaEscrita(res)) {
+      definirArmazenamentoSomenteLeitura(true);
       return;
     }
     if (!res.ok) {
@@ -368,6 +394,10 @@ function aplicarConfirmacaoSalvar(entradas: Record<string, unknown>) {
 }
 
 async function flushSalvarPendentes() {
+  if (gravacaoSomenteLeitura) {
+    filaSalvar.clear();
+    return;
+  }
   if (filaSalvar.size === 0) return;
   const entradasBrutas = Object.fromEntries(filaSalvar.entries());
   filaSalvar.clear();
@@ -400,8 +430,12 @@ async function flushSalvarPendentes() {
         },
         SALVAR_TIMEOUT_MS
       );
-      if (res.status === 401 || res.status === 403) {
+      if (res.status === 401) {
         sessaoExpirada = true;
+        return;
+      }
+      if (respostaBloqueiaEscrita(res)) {
+        definirArmazenamentoSomenteLeitura(true);
         return;
       }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -445,6 +479,10 @@ function enviarSalvamentoUrgente(entradas: Record<string, unknown>): boolean {
 }
 
 function flushSalvarPendentesKeepalive() {
+  if (gravacaoSomenteLeitura) {
+    filaSalvar.clear();
+    return;
+  }
   if (filaSalvar.size === 0) return;
   const entradas = Object.fromEntries(filaSalvar.entries());
   if (timerSalvar) {
@@ -465,6 +503,7 @@ function flushSalvarPendentesKeepalive() {
 }
 
 function agendarSalvar(key: string, valor: unknown) {
+  if (gravacaoSomenteLeitura) return;
   filaSalvar.set(key, valor);
   if (timerSalvar) clearTimeout(timerSalvar);
   timerSalvar = setTimeout(() => {
@@ -493,7 +532,7 @@ async function carregarBootstrapServidor(
         credentials: "same-origin",
         cache: "no-store",
       });
-      if (res.status === 401 || res.status === 403) {
+      if (res.status === 401) {
         if (tentativa < TENTATIVAS_BOOTSTRAP_CLIENTE) {
           await new Promise((resolve) =>
             window.setTimeout(resolve, 400 + tentativa * 400)
@@ -501,6 +540,16 @@ async function carregarBootstrapServidor(
           continue;
         }
         sessaoExpirada = true;
+        return { ok: false, mudou: false };
+      }
+      if (respostaBloqueiaEscrita(res)) {
+        definirArmazenamentoSomenteLeitura(true);
+        if (tentativa < TENTATIVAS_BOOTSTRAP_CLIENTE) {
+          await new Promise((resolve) =>
+            window.setTimeout(resolve, 400 + tentativa * 400)
+          );
+          continue;
+        }
         return { ok: false, mudou: false };
       }
       if (res.status >= 500 && tentativa < TENTATIVAS_BOOTSTRAP_CLIENTE) {
@@ -614,6 +663,7 @@ export function gravarArmazenamentoCache<T>(
 ) {
   espelho.set(key, valor);
   if (typeof window === "undefined") return;
+  if (gravacaoSomenteLeitura) return;
   if (!devePersistirGravacao(key, valor, opcoes)) return;
 
   if (!hidratado || !bootstrapOk) {
@@ -628,6 +678,7 @@ export function gravarArmazenamentoCache<T>(
 export async function persistirArmazenamentoImediato(key: string, valor: unknown) {
   espelho.set(key, valor);
   filaSalvar.delete(key);
+  if (gravacaoSomenteLeitura) return;
 
   const res = await fetch("/api/armazenamento/migrar", {
     method: "POST",
@@ -637,6 +688,14 @@ export async function persistirArmazenamentoImediato(key: string, valor: unknown
     body: JSON.stringify({ entradas: { [key]: valor }, sobrescrever: true }),
   });
 
+  if (res.status === 401) {
+    sessaoExpirada = true;
+    throw new Error(`Falha ao gravar ${key} no servidor (${res.status})`);
+  }
+  if (respostaBloqueiaEscrita(res)) {
+    definirArmazenamentoSomenteLeitura(true);
+    return;
+  }
   if (!res.ok) {
     throw new Error(`Falha ao gravar ${key} no servidor (${res.status})`);
   }

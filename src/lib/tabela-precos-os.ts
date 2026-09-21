@@ -4,6 +4,7 @@ import {
   type EtapaCadastro,
 } from "@/lib/etapas-os";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
+import { armazenamentoLaboratorioSomenteLeitura } from "@/lib/armazenamento-laboratorio";
 
 export const TABELA_PRECOS_STORAGE_KEY = "labProteseTabelaPrecos";
 export const TABELA_PRECOS_EVENT = "labProteseTabelaPrecosAtualizada";
@@ -915,12 +916,14 @@ export async function sincronizarTabelaPrecosServidor(
   dados: DadosTabelaPrecosStorage
 ) {
   if (typeof window === "undefined") return;
+  if (armazenamentoLaboratorioSomenteLeitura()) return;
   try {
-    await fetch(`/api/json-store/${encodeURIComponent(TABELA_PRECOS_STORAGE_KEY)}`, {
+    const res = await fetch(`/api/json-store/${encodeURIComponent(TABELA_PRECOS_STORAGE_KEY)}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(dados),
     });
+    if (!res.ok) return;
     notificarTabelasPrecoAtualizadas();
   } catch {
     /* offline — espelho em memória mantém o valor */

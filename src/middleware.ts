@@ -91,6 +91,14 @@ function apiMutavel(method: string) {
   return m === "POST" || m === "PUT" || m === "PATCH" || m === "DELETE";
 }
 
+function apiLiberadaSomenteLeituraSuporte(pathname: string) {
+  return (
+    pathname === "/api/admin-master/impersonacao/encerrar" ||
+    pathname === "/api/auth/logout" ||
+    pathname === "/api/admin-master/auth/logout"
+  );
+}
+
 function sessaoSomenteLeituraSuporte(payload: PayloadSessao | null): boolean {
   if (!payload) return false;
   if (payload.suporteMaster === true || payload.somenteLeitura === true) {
@@ -474,7 +482,8 @@ export async function middleware(request: NextRequest) {
   if (
     sessaoSomenteLeituraSuporte(payloadSessao) &&
     apiMutavel(request.method) &&
-    (pathname.startsWith("/api") || pathname.startsWith("/app"))
+    (pathname.startsWith("/api") || pathname.startsWith("/app")) &&
+    !apiLiberadaSomenteLeituraSuporte(pathname)
   ) {
     return aplicarCsp(
       NextResponse.json(

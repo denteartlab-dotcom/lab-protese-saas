@@ -174,7 +174,7 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   return (
-    <ArmazenamentoLaboratorioProvider>
+    <ArmazenamentoLaboratorioProvider somenteLeitura={visualizacaoMaster}>
       <Suspense fallback={null}>
         <AppShellInner
           userName={userName}

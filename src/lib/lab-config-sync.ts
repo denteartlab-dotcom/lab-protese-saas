@@ -3,6 +3,7 @@ import {
   CONFIG_LAB_STORAGE_KEY,
   LAB_CONFIG_ATUALIZADA_EVENT,
   carregarConfigLaboratorio,
+  configLaboratorioCabecalhoAtual,
   hidratarConfigLaboratorioCache,
   normalizarTipoPessoa,
   prepararConfigParaSalvar,
@@ -22,7 +23,7 @@ import { NOME_LAB_PADRAO } from "@/lib/document-title";
 import { lerIdiomaLocal } from "@/lib/idioma-ui";
 import { normalizarIdioma } from "@/lib/i18n";
 import { aplicarEspelhoServidor } from "@/lib/persisted-storage";
-import { configLaboratorioCabecalhoAtual } from "@/lib/configuracoes-lab";
+import { armazenamentoLaboratorioSomenteLeitura } from "@/lib/armazenamento-laboratorio";
 
 function nomeLaboratorioUtil(valor?: string | null) {
   return nomeLaboratorioValido(valor);
@@ -62,6 +63,9 @@ export async function persistirConfigLaboratorioServidor(
     assinaturaExplicita?: boolean;
   }
 ): Promise<void> {
+  if (typeof window !== "undefined" && armazenamentoLaboratorioSomenteLeitura()) {
+    return;
+  }
   let remoto: Partial<ConfigLaboratorio> | null = null;
   try {
     const res = await fetch(

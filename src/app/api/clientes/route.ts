@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireEmpresaContext } from "@/lib/empresa-context";
+import { sessaoEhSuporteMaster } from "@/lib/auth";
 import { acaoHttpParaPermissao, negarSeSemPermissao } from "@/lib/require-permissao";
 import {
   gerarTokenAcompanhamentoCliente,
@@ -69,7 +70,9 @@ export async function GET(request: Request) {
     include: { _count: { select: { pacientes: true, trabalhos: true } } },
   });
 
-  void preencherTokensAcompanhamentoAusentes().catch(() => {});
+  if (!sessaoEhSuporteMaster(ctx.user)) {
+    void preencherTokensAcompanhamentoAusentes().catch(() => {});
+  }
 
   return NextResponse.json(
     clientes.map((c) => sanitizarClienteSemSenhaPortal(c as Record<string, unknown>))
