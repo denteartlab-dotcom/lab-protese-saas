@@ -170,6 +170,7 @@ export type LancarReceitaOsSubmit = {
   imprimirRecibo: boolean;
   alterarEntregue: boolean;
   abaterCredito: boolean;
+  acrescentarSaldoDevedor: boolean;
   enviarControleEntrega: boolean;
   anexos?: AnexoDespesa[];
   boletoAsaas?: {
@@ -199,6 +200,7 @@ type Props = {
   valorOsSelecionadas: number;
   totalLiquido: number;
   creditoDisponivel: number;
+  debitoAberto?: number;
   mensagemLancamento: string;
   mensagemLancamentoTipo: "erro" | "sucesso" | "info";
   formaSelecionadaEhBoleto: (parcelas: ParcelaLinhaReceita[]) => boolean;
@@ -225,6 +227,7 @@ function BlocoTotaisReceita({
   abaterCredito = false,
   creditoAplicado = 0,
   totalAReceberComCredito = 0,
+  debitoAplicado = 0,
   currency,
 }: {
   valorTotal: string;
@@ -239,6 +242,7 @@ function BlocoTotaisReceita({
   abaterCredito?: boolean;
   creditoAplicado?: number;
   totalAReceberComCredito?: number;
+  debitoAplicado?: number;
   currency: (n: number) => string;
 }) {
   return (
@@ -278,6 +282,12 @@ function BlocoTotaisReceita({
           {totalLiquidoFmt}
         </span>
       </div>
+      {debitoAplicado > 0.009 ? (
+        <div className="flex items-center justify-between border-t border-[#e8eaed] py-2 text-[12px] text-rose-700">
+          <span>Saldo anterior</span>
+          <span className="tabular-nums">- {currency(debitoAplicado)}</span>
+        </div>
+      ) : null}
       {abaterCredito && creditoAplicado > 0 ? (
         <>
           <div className="flex items-center justify-between border-t border-[#e8eaed] py-2 text-[12px] text-emerald-700">
@@ -289,10 +299,10 @@ function BlocoTotaisReceita({
             <span className="tabular-nums">{currency(totalAReceberComCredito)}</span>
           </div>
         </>
-      ) : creditoDisponivelSeguro > 0.009 ? (
+      ) : creditoDisponivelSeguro > 0.009 || debitoAplicado > 0.009 ? (
         <div className="flex items-center justify-between border-t border-[#e8eaed] py-2 text-[12px] font-semibold text-[#374151]">
           <span>Total a cobrar</span>
-          <span className="tabular-nums">{totalLiquidoFmt}</span>
+          <span className="tabular-nums">{currency(totalAReceberComCredito)}</span>
         </div>
       ) : null}
     </div>
@@ -348,6 +358,7 @@ export function LancarReceitaOsModal({
   valorOsSelecionadas,
   totalLiquido,
   creditoDisponivel = 0,
+  debitoAberto = 0,
   mensagemLancamento,
   mensagemLancamentoTipo,
   formaSelecionadaEhBoleto,
@@ -372,12 +383,17 @@ export function LancarReceitaOsModal({
     () => carregarConfiguracoesGerais().faturasAdicionarControleEntregas
   );
   const creditoDisponivelSeguro = Number.isFinite(creditoDisponivel) ? creditoDisponivel : 0;
+  const debitoAbertoSeguro = Number.isFinite(debitoAberto) ? Math.max(0, debitoAberto) : 0;
   const [abaterCredito, setAbaterCredito] = useState(false);
+  const [acrescentarSaldoDevedor, setAcrescentarSaldoDevedor] = useState(false);
+  const debitoAplicado =
+    acrescentarSaldoDevedor && debitoAbertoSeguro > 0.009 ? debitoAbertoSeguro : 0;
+  const totalNota = totalLiquido + debitoAplicado;
   const creditoAplicado =
     abaterCredito && creditoDisponivelSeguro > 0
-      ? Math.min(creditoDisponivelSeguro, totalLiquido)
+      ? Math.min(creditoDisponivelSeguro, totalNota)
       : 0;
-  const totalAReceberComCredito = Math.max(0, totalLiquido - creditoAplicado);
+  const totalAReceberComCredito = Math.max(0, totalNota - creditoAplicado);
   const [codigoBarras, setCodigoBarras] = useState("");
   const [feedbackCodigo, setFeedbackCodigo] = useState<{ tipo: "ok" | "erro"; msg: string } | null>(
     null
@@ -469,9 +485,14 @@ export function LancarReceitaOsModal({
   }, [open, pixAsaasDisponivel, setParcelas]);
 
   useEffect(() => {
+    setAcrescentarSaldoDevedor(false);
+  }, [form.clienteId]);
+
+  useEffect(() => {
     if (!open) return;
     aplicarConfiguracoesFaturas();
     setAbaterCredito(false);
+    setAcrescentarSaldoDevedor(false);
     setCodigoBarras("");
     setFeedbackCodigo(null);
     setLeitorCodigoAtivo(false);
@@ -634,6 +655,7 @@ export function LancarReceitaOsModal({
         imprimirRecibo,
         alterarEntregue,
         abaterCredito,
+        acrescentarSaldoDevedor,
         enviarControleEntrega,
         anexos,
         boletoAsaas,
@@ -778,6 +800,13 @@ export function LancarReceitaOsModal({
                   label={`Abater do Crédito de ${currency(creditoDisponivelSeguro)}`}
                 />
               ) : null}
+              {debitoAbertoSeguro > 0.009 ? (
+                <ToggleSmart
+                  checked={acrescentarSaldoDevedor}
+                  onChange={setAcrescentarSaldoDevedor}
+                  label={`Acrescentar saldo devedor de ${currency(debitoAbertoSeguro)}`}
+                />
+              ) : null}
 
               <div className="flex justify-end">
                 <BlocoTotaisReceita
@@ -799,6 +828,7 @@ export function LancarReceitaOsModal({
                   abaterCredito={abaterCredito}
                   creditoAplicado={creditoAplicado}
                   totalAReceberComCredito={totalAReceberComCredito}
+                  debitoAplicado={debitoAplicado}
                   currency={money}
                 />
               </div>
@@ -1159,6 +1189,13 @@ export function LancarReceitaOsModal({
                   label={`Abater do Crédito de ${currency(creditoDisponivelSeguro)}`}
                 />
               ) : null}
+              {debitoAbertoSeguro > 0.009 ? (
+                <ToggleSmart
+                  checked={acrescentarSaldoDevedor}
+                  onChange={setAcrescentarSaldoDevedor}
+                  label={`Acrescentar saldo devedor de ${currency(debitoAbertoSeguro)}`}
+                />
+              ) : null}
             </div>
 
             <div className="w-full max-w-[260px] shrink-0 sm:ml-auto">
@@ -1181,6 +1218,7 @@ export function LancarReceitaOsModal({
                 abaterCredito={abaterCredito}
                 creditoAplicado={creditoAplicado}
                 totalAReceberComCredito={totalAReceberComCredito}
+                debitoAplicado={debitoAplicado}
                 currency={money}
               />
             </div>

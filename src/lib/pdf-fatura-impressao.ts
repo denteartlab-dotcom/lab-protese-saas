@@ -12,6 +12,7 @@ import type {
 import {
   descontoFaturaImpressaoTotal,
   resolverUsuarioFaturaImpressao,
+  saldoDevedorIncorporadoImpressao,
 } from "@/lib/fatura-impressao-html";
 import type { FaturaModeloLayout } from "@/lib/fatura-modelo-layout";
 import {
@@ -432,6 +433,10 @@ function desenharTotais(
       pl("print.fatura.descontoFatura"),
       formatarMoedaPdf(descontoFaturaImpressaoTotal(dados))
     );
+  }
+  const saldoDevedorNota = saldoDevedorIncorporadoImpressao(dados);
+  if (saldoDevedorNota > 0.009) {
+    linhaTotal(pl("print.fatura.saldoAnterior"), `- ${formatarMoedaPdf(saldoDevedorNota)}`);
   }
   if (modelo === "modelo2") {
     linhaTotal(pl("print.fatura.jurosFatura"), "R$ 0,00");

@@ -17,6 +17,7 @@ export type LancamentoResumoFatura = {
   formaPagamento?: string | null;
   cliente?: { id: string } | null;
   createdAt?: string;
+  trabalho?: { id: string; numeroOs?: number } | null;
 };
 
 export function isCreditoGeradoFatura(descricao: string) {
@@ -34,6 +35,7 @@ export function isPagamentoClienteFatura(lancamento: LancamentoResumoFatura) {
   if (lancamento.tipo !== "receita" || lancamento.status !== "pago") return false;
   if (isCreditoUtilizadoFatura(lancamento.descricao)) return false;
   if (lancamento.descricao.toLowerCase().includes(" - saldo restante")) return false;
+  if (lancamento.descricao.toLowerCase().includes("saldo anterior incorporado")) return false;
   return true;
 }
 
@@ -68,13 +70,42 @@ export function formatarSaldoAnteriorCreditoFatura(
   return `- ${valorMonetarioSemPrefixo(credito, money)} C`;
 }
 
-/** Débito em aberto (outras faturas) — formato Smart: `350,00 D`. */
+/** Débito em aberto (outras faturas) — formato Smart: `- 350,00 D`. */
 export function formatarSaldoAnteriorDebitoFatura(
   debito: number,
   money: (n: number) => string
 ) {
   if (debito <= 0.009) return "0,00";
-  return `${valorMonetarioSemPrefixo(debito, money)} D`;
+  return `- ${valorMonetarioSemPrefixo(debito, money)} D`;
+}
+
+export function ehFaturaDebitoAberto(
+  lancamento: LancamentoResumoFatura,
+  clienteId?: string,
+  excluirLancamentoId?: string
+) {
+  return (
+    Boolean(clienteId) &&
+    lancamento.cliente?.id === clienteId &&
+    lancamento.tipo === "receita" &&
+    lancamento.id !== excluirLancamentoId &&
+    ehDescricaoFaturaContasReceber(lancamento.descricao) &&
+    lancamento.status !== "pago"
+  );
+}
+
+/** Faturas em aberto do cliente (exclui a fatura atual). */
+export function listarFaturasDebitoAberto(
+  lancamentos: LancamentoResumoFatura[],
+  clienteId?: string,
+  excluirLancamentoId?: string
+) {
+  if (!clienteId) return [];
+  const refs = lancamentos as LancamentoContasReceber[];
+  return lancamentos.filter((l) => {
+    if (!ehFaturaDebitoAberto(l, clienteId, excluirLancamentoId)) return false;
+    return saldoFatura(l, refs) > 0.009;
+  });
 }
 
 /** Saldo em aberto de outras faturas do cliente (exclui a fatura atual). */
@@ -85,16 +116,10 @@ export function calcularDebitoAbertoOutrasFaturas(
 ) {
   if (!clienteId) return 0;
   const refs = lancamentos as LancamentoContasReceber[];
-  return lancamentos
-    .filter(
-      (l) =>
-        l.cliente?.id === clienteId &&
-        l.tipo === "receita" &&
-        l.id !== excluirLancamentoId &&
-        ehDescricaoFaturaContasReceber(l.descricao) &&
-        l.status !== "pago"
-    )
-    .reduce((sum, l) => sum + saldoFatura(l, refs), 0);
+  return listarFaturasDebitoAberto(lancamentos, clienteId, excluirLancamentoId).reduce(
+    (sum, l) => sum + saldoFatura(l, refs),
+    0
+  );
 }
 
 export function calcularCreditoDisponivelClienteFatura(

@@ -78,9 +78,11 @@ import {
 } from "@/lib/fatura-impressao-html";
 import {
   calcularCreditoDisponivelClienteFatura,
+  calcularDebitoAbertoOutrasFaturas,
   calcularSaldoAnteriorFatura,
   calcularUltimoPagamentoClienteFatura,
   FORMA_PAGAMENTO_ABATIMENTO_CREDITO,
+  listarFaturasDebitoAberto,
 } from "@/lib/fatura-cliente-financeiro";
 import { htmlCabecalhoLab, labImpressaoFromConfig } from "@/lib/lab-logo";
 import { linhasItensFaturaFromTrabalhos } from "@/lib/itens-fatura-linhas";
@@ -104,7 +106,7 @@ import {
   exportarContasReceberClientesCsv,
   gerarContasReceberClientesPdf,
 } from "@/lib/contas-receber-clientes-export";
-import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, isRecebimentoParcial, deveExibirNoHistoricoRecebimentos, valorHistoricoRecebimentoCliente, referenciaLancamento as referenciaHistoricoRecebimento, recebidoNaFatura as recebidoNaFaturaLib, saldoFatura as saldoFaturaLib, valorNotaFatura as valorNotaFaturaLib, classeReferenciaHistoricoRecebimento, faturaExibeSituacaoParcial, faturasExibicaoPainelCliente, faturaQuitada, recebimentosHistoricoCliente, movimentacoesRecebimentoDaFatura, ehFaturaCobrancaOsParaExclusao, idsLancamentosExclusaoAoRemoverFatura, ehDescricaoFaturaContasReceber, listarAbatimentosCreditoSemFatura, listarFaturasAbatimentoComValorZerado, payloadReparoFaturaDeAbatimento, type LancamentoContasReceber } from "@/lib/contas-receber-financeiro";
+import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, isRecebimentoParcial, isSaldoAnteriorIncorporado, deveExibirNoHistoricoRecebimentos, valorHistoricoRecebimentoCliente, referenciaLancamento as referenciaHistoricoRecebimento, recebidoNaFatura as recebidoNaFaturaLib, saldoFatura as saldoFaturaLib, valorNotaFatura as valorNotaFaturaLib, classeReferenciaHistoricoRecebimento, faturaExibeSituacaoParcial, faturasExibicaoPainelCliente, faturaQuitada, faturaTemNotaImprimivel, recebimentosHistoricoCliente, movimentacoesRecebimentoDaFatura, ehFaturaCobrancaOsParaExclusao, idsLancamentosExclusaoAoRemoverFatura, ehDescricaoFaturaContasReceber, empacotarSaldoDevedorIncorporado, extrairSaldoDevedorIncorporado, descricaoSaldoAnteriorIncorporado, FORMA_PAGAMENTO_SALDO_ANTERIOR_INCORPORADO, listarAbatimentosCreditoSemFatura, listarFaturasAbatimentoComValorZerado, payloadReparoFaturaDeAbatimento, type LancamentoContasReceber } from "@/lib/contas-receber-financeiro";
 import { calcularContasRecebidasPeriodo } from "@/lib/lancamento-valor-caixa";
 import { telefoneWhatsappCliente } from "@/lib/cliente-observacoes";
 import { fetchPainelFinanceiro } from "@/lib/financeiro-painel-cliente";
@@ -771,6 +773,10 @@ function FinanceiroReceberConteudo() {
         grupos.set(chave, grupo);
         return;
       }
+      if (isSaldoAnteriorIncorporado(lancamento)) {
+        grupos.set(chave, grupo);
+        return;
+      }
       if (!isFaturaContasReceber(lancamento)) {
         grupos.set(chave, grupo);
         return;
@@ -831,6 +837,11 @@ function FinanceiroReceberConteudo() {
   const creditoDisponivelReceita = useMemo(
     () =>
       calcularCreditoDisponivelClienteFatura(data?.lancamentos ?? [], form.clienteId),
+    [data, form.clienteId]
+  );
+  const debitoAbertoReceita = useMemo(
+    () =>
+      calcularDebitoAbertoOutrasFaturas(data?.lancamentos ?? [], form.clienteId),
     [data, form.clienteId]
   );
 
@@ -1036,6 +1047,7 @@ function FinanceiroReceberConteudo() {
     imprimirRecibo,
     alterarEntregue,
     abaterCredito,
+    acrescentarSaldoDevedor,
     enviarControleEntrega,
     anexos,
     boletoAsaas,
@@ -1061,14 +1073,25 @@ function FinanceiroReceberConteudo() {
       return;
     }
     const creditoDisponivel = creditoDisponivelCliente(form.clienteId);
+    const faturasDebitoAberto = listarFaturasDebitoAberto(
+      data?.lancamentos ?? [],
+      form.clienteId
+    );
+    const debitoAberto = faturasDebitoAberto.reduce(
+      (sum, l) => sum + saldoFatura(l as Lancamento),
+      0
+    );
+    const debitoAplicado =
+      acrescentarSaldoDevedor && debitoAberto > 0.009 ? debitoAberto : 0;
+    const totalNota = totalLiquido + debitoAplicado;
     const creditoAplicado =
       abaterCredito && creditoDisponivel > 0
-        ? Math.min(creditoDisponivel, totalLiquido)
+        ? Math.min(creditoDisponivel, totalNota)
         : 0;
-    const totalAReceberComCredito = Math.max(0, totalLiquido - creditoAplicado);
+    const totalAReceberComCredito = Math.max(0, totalNota - creditoAplicado);
     // Sempre cria a Cobrança OS (nota), mesmo com abatimento total de crédito.
     // Antes, cash=0 pulava a fatura e só criava "Desconto com crédito" órfão.
-    const deveCriarFaturaReceber = Math.round(totalLiquido * 100) > 0;
+    const deveCriarFaturaReceber = Math.round(totalNota * 100) > 0;
     const cobrancaQuitadaSoComCredito =
       creditoAplicado > 0.009 && Math.round(totalAReceberComCredito * 100) <= 0;
     const descricaoBase = form.semOs
@@ -1081,7 +1104,15 @@ function FinanceiroReceberConteudo() {
             trabalhosSelecionados.map((trabalho) => trabalho.id)
           )
         : form.descricao || "Receita sem cobrança";
-    const descricaoCobranca = descricaoReceitaComPlano(descricaoBase, anexos);
+    const descricaoComSaldo =
+      debitoAplicado > 0.009
+        ? empacotarSaldoDevedorIncorporado(
+            descricaoBase,
+            debitoAplicado,
+            faturasDebitoAberto.map((l) => l.id).filter(Boolean)
+          )
+        : descricaoBase;
+    const descricaoCobranca = descricaoReceitaComPlano(descricaoComSaldo, anexos);
     const hojeIso = brShortToIso(dateToBrShort(new Date()));
     const lancamentosCriados: Lancamento[] = [];
     const emitirAsaas =
@@ -1093,12 +1124,12 @@ function FinanceiroReceberConteudo() {
       const qtd = Math.max(totalParcelas, 1);
       // Abatimento total: parcela na UI fica 0 (cash), mas a nota deve guardar o bruto.
       if (totalAReceberComCredito <= 0.009) {
-        const base = totalLiquido / qtd;
+        const base = totalNota / qtd;
         const juros = valorCampoMoedaPercentual(parcela.juros, parcela.jurosTipo, base);
         return Math.max(0, Math.round((base + juros) * 100) / 100);
       }
       if (creditoAplicado <= 0.009) {
-        return valorParcelaNumerico(parcela, totalLiquido / qtd);
+        return valorParcelaNumerico(parcela, totalNota / qtd);
       }
       // Fatura no valor bruto; crédito vira lançamento à parte.
       const valorCobrancaParcela = valorParcelaNumerico(
@@ -1106,7 +1137,7 @@ function FinanceiroReceberConteudo() {
         totalAReceberComCredito / qtd
       );
       const proporcao = valorCobrancaParcela / totalAReceberComCredito;
-      return Math.round(totalLiquido * proporcao * 100) / 100;
+      return Math.round(totalNota * proporcao * 100) / 100;
     }
 
     function statusParcelaFatura(parcela: ParcelaLinhaReceita) {
@@ -1229,7 +1260,7 @@ function FinanceiroReceberConteudo() {
         }
       } else {
         const p = parcelas[0];
-        const valorLancamento = p ? valorParcelaFatura(p, 1) : totalLiquido;
+        const valorLancamento = p ? valorParcelaFatura(p, 1) : totalNota;
         const valorPixBoleto =
           creditoAplicado > 0.009
             ? p
@@ -1322,6 +1353,30 @@ function FinanceiroReceberConteudo() {
             "Cobrança quitada com abatimento de crédito e registrada em Contas a Receber."
           );
         }
+      }
+    }
+    if (
+      debitoAplicado > 0.009 &&
+      deveCriarFaturaReceber &&
+      (!mensagemLancamento || mensagemLancamentoTipo !== "erro")
+    ) {
+      for (const faturaAntiga of faturasDebitoAberto) {
+        const restante = saldoFatura(faturaAntiga as Lancamento);
+        if (restante <= 0.009 || !faturaAntiga.id) continue;
+        await fetch("/api/financeiro", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tipo: "receita",
+            clienteId: form.clienteId || undefined,
+            valor: restante,
+            data: hojeIso,
+            status: "pago",
+            formaPagamento: FORMA_PAGAMENTO_SALDO_ANTERIOR_INCORPORADO,
+            descricao: descricaoSaldoAnteriorIncorporado(faturaAntiga.descricao),
+            trabalhoId: faturaAntiga.trabalho?.id,
+          }),
+        });
       }
     }
     if (!mensagemLancamento || mensagemLancamentoTipo !== "erro") {
@@ -2022,6 +2077,7 @@ function FinanceiroReceberConteudo() {
 
   function isFaturaContasReceber(lancamento: Lancamento) {
     if (isCreditoGerado(lancamento) || isCreditoUtilizado(lancamento)) return false;
+    if (isSaldoAnteriorIncorporado(lancamento)) return false;
     if (!ehDescricaoFaturaContasReceber(lancamento.descricao)) return false;
     // Não ocultar Cobrança OS só porque a forma é Abatimento de Crédito.
     const creditoQuitouFatura =
@@ -2319,6 +2375,11 @@ function FinanceiroReceberConteudo() {
           <div><span>Total Serviços / Produtos (=)</span><strong class="right">R$ ${money(totalServicos)}</strong></div>
           <div><span>Desconto Serviços (-)</span><span class="right">R$ 0,00</span></div>
           <div><span>Desconto Fatura (-)</span><span class="right">R$ ${money(descontoFaturaExibir)}</span></div>
+          ${
+            extrairSaldoDevedorIncorporado(primeiraFatura?.descricao || "").valor > 0.009
+              ? `<div><span>Saldo Anterior</span><span class="right">- R$ ${money(extrairSaldoDevedorIncorporado(primeiraFatura?.descricao || "").valor)}</span></div>`
+              : ""
+          }
           <div><span>Juros Fatura (+)</span><span class="right">R$ 0,00</span></div>
           <div><strong>Total (=)</strong><strong class="right">R$ ${money(totalFinal)}</strong></div>
         </div>
@@ -2810,6 +2871,7 @@ function FinanceiroReceberConteudo() {
                                                   <ListTree className="h-3.5 w-3.5" />
                                                 </button>
                                               ) : null}
+                                              {faturaTemNotaImprimivel(l, data?.lancamentos || []) ? (
                                               <button
                                                 type="button"
                                                 title={t("financeiro.receber.imprimirNota")}
@@ -2818,6 +2880,7 @@ function FinanceiroReceberConteudo() {
                                               >
                                                 <Printer className="h-3.5 w-3.5" />
                                               </button>
+                                              ) : null}
                                               <button
                                                 type="button"
                                                 title={t("financeiro.receber.editarFatura")}
@@ -3100,6 +3163,9 @@ function FinanceiroReceberConteudo() {
           if (!detalheCliente) return;
           abrirImprimirFatura(detalheCliente, l as Lancamento);
         }}
+        podeImprimirFatura={(l) =>
+          faturaTemNotaImprimivel(l as Lancamento, data?.lancamentos || [])
+        }
         onEditarFatura={(l) => abrirEdicaoFatura(l as Lancamento)}
         onExcluirFatura={(l) => remove(l.id)}
         onEstornarRecebimento={(l) => void estornarRecebimento(l as Lancamento)}
@@ -3674,6 +3740,7 @@ function FinanceiroReceberConteudo() {
             valorOsSelecionadas={valorOsSelecionadas}
             totalLiquido={totalLiquido}
             creditoDisponivel={creditoDisponivelReceita}
+            debitoAberto={debitoAbertoReceita}
             mensagemLancamento={mensagemLancamento}
             mensagemLancamentoTipo={mensagemLancamentoTipo}
             formaSelecionadaEhBoleto={formaSelecionadaEhBoleto}

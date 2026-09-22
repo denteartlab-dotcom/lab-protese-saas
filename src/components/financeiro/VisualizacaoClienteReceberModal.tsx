@@ -96,6 +96,7 @@ type Props = {
   onImprimirNota: () => void;
   onVisualizarFatura: (l: LancamentoClienteModal) => void;
   onImprimirFatura: (l: LancamentoClienteModal) => void;
+  podeImprimirFatura?: (l: LancamentoClienteModal) => boolean;
   onEditarFatura: (l: LancamentoClienteModal) => void;
   onExcluirFatura: (l: LancamentoClienteModal) => void;
   onEstornarRecebimento: (l: LancamentoClienteModal) => void;
@@ -323,6 +324,7 @@ export function VisualizacaoClienteReceberModal({
   onImprimirNota,
   onVisualizarFatura,
   onImprimirFatura,
+  podeImprimirFatura,
   onEditarFatura,
   onExcluirFatura,
   onEstornarRecebimento,
@@ -1133,6 +1135,7 @@ export function VisualizacaoClienteReceberModal({
                               >
                                 <Eye className="h-4 w-4" />
                               </button>
+                              {podeImprimirFatura?.(l) !== false ? (
                               <button
                                 type="button"
                                 title="Imprimir fatura"
@@ -1141,6 +1144,7 @@ export function VisualizacaoClienteReceberModal({
                               >
                                 <Printer className="h-4 w-4" />
                               </button>
+                              ) : null}
                               <button
                                 type="button"
                                 title="Editar"

@@ -17,6 +17,7 @@ import {
 } from "@/lib/fatura-cliente-financeiro";
 import {
   creditosUtilizadosDaFatura,
+  extrairSaldoDevedorIncorporado,
   recebimentosParciaisDaFatura,
   valorNotaFatura,
   type LancamentoContasReceber,
@@ -141,6 +142,8 @@ export type DadosFaturaImpressao = {
   descontoServicos?: number;
   /** Desconto aplicado na fatura (form.desconto), além do crédito utilizado. */
   descontoFatura?: number;
+  /** Saldo devedor de notas anteriores acrescentado nesta fatura (toggle no lançamento). */
+  saldoDevedorIncorporado?: number;
   linhas: LinhaFaturaImpressao[];
   parcelas: ParcelaFaturaImpressao[];
   totalServicos: number;
@@ -150,6 +153,10 @@ export type DadosFaturaImpressao = {
 /** Valor exibido em «Desconto Fatura»: só desconto comercial (não inclui abatimento de crédito). */
 export function descontoFaturaImpressaoTotal(dados: DadosFaturaImpressao) {
   return Math.max(0, dados.descontoFatura || 0);
+}
+
+export function saldoDevedorIncorporadoImpressao(dados: DadosFaturaImpressao) {
+  return Math.max(0, dados.saldoDevedorIncorporado || 0);
 }
 
 function escapeHtml(texto: string) {
@@ -476,6 +483,7 @@ export function montarDadosFaturaImpressao(params: {
 }): DadosFaturaImpressao {
   const { numeroFatura, clienteNome, lancamento, trabalhos, formatDate, money } = params;
   const creditoFatura = params.creditoFatura ?? 0;
+  const saldoDevedorIncorporado = extrairSaldoDevedorIncorporado(lancamento.descricao).valor;
   const pack = desempacotarDespesa(lancamento.descricao);
   const textoDescricao = pack.texto.replace(/@@trab:[a-zA-Z0-9_,-]+@@/gi, "").trim();
   const observacao = textoDescricao.toLowerCase().startsWith("cobrança os")
@@ -521,7 +529,8 @@ export function montarDadosFaturaImpressao(params: {
       }
     }
   } else {
-    totalServicos = lancamento.valor;
+    const valorServicosSemSaldo = Math.max(0, lancamento.valor - saldoDevedorIncorporado);
+    totalServicos = valorServicosSemSaldo;
     linhas.push({
       os: lancamento.trabalho?.numeroOs ? String(lancamento.trabalho.numeroOs) : "-",
       osExterna: "-",
@@ -532,9 +541,9 @@ export function montarDadosFaturaImpressao(params: {
       dentes: "-",
       paciente: "-",
       qtd: "1",
-      unitario: money(lancamento.valor),
+      unitario: money(valorServicosSemSaldo),
       desconto: formatarDescontoImpressaoOs(),
-      subtotal: money(lancamento.valor),
+      subtotal: money(valorServicosSemSaldo),
       segmento: classificarItemOs({ servico: observacao || lancamento.descricao }),
     });
   }
@@ -558,12 +567,13 @@ export function montarDadosFaturaImpressao(params: {
     lancamentoComoContas,
     (params.lancamentosCliente || []) as LancamentoContasReceber[]
   );
-  // Preferir o maior entre valor da nota efetiva e líquido dos itens (nota cheia).
-  const valorBaseNota = Math.max(valorNotaEfetivo, trabalhos.length ? liquidoItens : 0);
+  const valorNotaSemSaldo = Math.max(0, valorNotaEfetivo - saldoDevedorIncorporado);
+  // Preferir o maior entre valor da nota efetiva (sem saldo incorporado) e líquido dos itens.
+  const valorBaseServicos = Math.max(valorNotaSemSaldo, trabalhos.length ? liquidoItens : 0);
   const descontoFatura = trabalhos.length
-    ? Math.max(0, Math.round((liquidoItens - valorBaseNota) * 100) / 100)
+    ? Math.max(0, Math.round((liquidoItens - valorNotaSemSaldo) * 100) / 100)
     : 0;
-  const totalFinal = Math.max(valorBaseNota, 0);
+  const totalFinal = Math.max(valorNotaEfetivo, valorBaseServicos + saldoDevedorIncorporado, 0);
   const agora = new Date();
 
   return {
@@ -575,6 +585,7 @@ export function montarDadosFaturaImpressao(params: {
     usuario: params.usuario?.trim() || "—",
     creditoFatura,
     descontoFatura,
+    saldoDevedorIncorporado,
     descontoServicos,
     clienteTelefones: params.clienteTelefones,
     clienteEmail: params.clienteEmail,
@@ -949,6 +960,12 @@ function htmlTotaisA4(
       `<div><span>Desconto Fatura (-)</span><span class="right">${escapeHtml(formatarMoedaReais(descontoFaturaImpressaoTotal(dados), money))}</span></div>`
     );
   }
+  const saldoDevedorNota = saldoDevedorIncorporadoImpressao(dados);
+  if (saldoDevedorNota > 0.009) {
+    partes.push(
+      `<div><span>${pl("print.fatura.saldoAnterior")}</span><span class="right">${escapeHtml(`- ${formatarMoedaReais(saldoDevedorNota, money)}`)}</span></div>`
+    );
+  }
   if (modelo === "modelo2") {
     partes.push(`<div><span>Juros Fatura (+)</span><span class="right">R$ 0,00</span></div>`);
   }
@@ -1297,12 +1314,18 @@ function gerarHtmlFaturaTermica(
     layout.descontoServicos ||
     layout.descontoFatura ||
     layout.total ||
-    saldoAnteriorNosTotais
+    saldoAnteriorNosTotais ||
+    saldoDevedorIncorporadoImpressao(dados) > 0.009
       ? `<div style="margin-top:6px;text-align:right;font-size:${fsSmall}px">
           ${layout.totalServicos ? `<p style="margin:2px 0"><strong>Total Serviços(+): </strong>${escapeHtml(money(dados.totalServicos))}</p>` : ""}
           ${saldoAnteriorNosTotais ? `<p style="margin:2px 0"><strong>Saldo Anterior(+): </strong>${escapeHtml(dados.saldoAnterior || "0,00")}</p>` : ""}
           ${layout.descontoServicos ? `<p style="margin:2px 0"><strong>Desconto Serviços(-): </strong>${escapeHtml(formatarMoedaReais(dados.descontoServicos ?? 0, money))}</p>` : ""}
           ${layout.descontoFatura ? `<p style="margin:2px 0"><strong>Desconto Fatura(-): </strong>${escapeHtml(formatarMoedaReais(descontoFaturaImpressaoTotal(dados), money))}</p>` : ""}
+          ${
+            saldoDevedorIncorporadoImpressao(dados) > 0.009
+              ? `<p style="margin:2px 0"><strong>${pl("print.fatura.saldoAnterior")}: </strong>${escapeHtml(`- ${formatarMoedaReais(saldoDevedorIncorporadoImpressao(dados), money)}`)}</p>`
+              : ""
+          }
           ${layout.total ? `<p style="margin:2px 0;font-weight:bold"><strong>Total(=): </strong>${escapeHtml(formatarMoedaReais(dados.totalFinal, money))}</p>` : ""}
         </div>`
       : "";

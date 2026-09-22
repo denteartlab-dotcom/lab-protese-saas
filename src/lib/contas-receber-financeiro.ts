@@ -75,6 +75,91 @@ export function isRecebimentoParcial(lancamento: { descricao: string }) {
   return /^recebimento parcial\s*-/i.test(base);
 }
 
+export const FORMA_PAGAMENTO_SALDO_ANTERIOR_INCORPORADO = "Saldo anterior incorporado";
+export const PREFIXO_SALDO_ANTERIOR_INCORPORADO = "Saldo anterior incorporado - ";
+
+/** `@@sdev:centavos:id1,id2@@` — saldo devedor incorporado na nota. */
+const META_SALDO_DEVEDOR = /@@sdev:(\d+):([a-zA-Z0-9_,-]*)@@/;
+
+export function isSaldoAnteriorIncorporado(lancamento: { descricao: string }) {
+  const base = descricaoReceitaSemMeta(lancamento.descricao)
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase();
+  return base.startsWith("saldo anterior incorporado");
+}
+
+export function empacotarSaldoDevedorIncorporado(
+  descricao: string,
+  valor: number,
+  faturaIds: string[]
+) {
+  const base = descricao.replace(META_SALDO_DEVEDOR, "").replace(/\s{2,}/g, " ").trim();
+  const cents = Math.max(0, Math.round(valor * 100));
+  if (cents <= 0) return base;
+  const ids = [...new Set(faturaIds.filter(Boolean))].join(",");
+  return `${base} @@sdev:${cents}:${ids}@@`;
+}
+
+export function extrairSaldoDevedorIncorporado(descricao: string) {
+  const match = descricao.match(META_SALDO_DEVEDOR);
+  if (!match) return { valor: 0, ids: [] as string[] };
+  const valor = Number(match[1] || 0) / 100;
+  const ids = (match[2] || "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+  return { valor: Number.isFinite(valor) ? valor : 0, ids };
+}
+
+function descricaoFaturaParaVinculo(descricao: string) {
+  return descricaoReceitaSemMeta(descricao)
+    .replace(/@@[^@\n]+@@/g, "")
+    .split(/\n@@CAP@@/i)[0]
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+export function descricaoSaldoAnteriorIncorporado(descricaoFatura: string) {
+  return `${PREFIXO_SALDO_ANTERIOR_INCORPORADO}${descricaoFaturaParaVinculo(descricaoFatura)}`;
+}
+
+export function incorporacoesSaldoDaFatura(
+  lancamento: Pick<LancamentoContasReceber, "descricao" | "cliente">,
+  lancamentos: LancamentoFaturaFinanceiroRef[]
+) {
+  const descricaoFatura = descricaoFaturaParaVinculo(lancamento.descricao);
+  const prefixo = `${PREFIXO_SALDO_ANTERIOR_INCORPORADO}${descricaoFatura}`;
+  return lancamentos.filter((item) => {
+    if (!isSaldoAnteriorIncorporado(item)) return false;
+    if (item.cliente?.id !== lancamento.cliente?.id) return false;
+    const base = descricaoFaturaParaVinculo(item.descricao).replace(
+      /^saldo anterior incorporado\s*-\s*/i,
+      ""
+    );
+    return (
+      descricaoReceitaSemMeta(item.descricao).trim() === prefixo ||
+      base === descricaoFatura ||
+      (descricaoFatura.length > 8 && base.includes(descricaoFatura))
+    );
+  });
+}
+
+export function faturaTeveSaldoIncorporado(
+  lancamento: Pick<LancamentoContasReceber, "descricao" | "cliente">,
+  lancamentos: LancamentoFaturaFinanceiroRef[]
+) {
+  return incorporacoesSaldoDaFatura(lancamento, lancamentos).length > 0;
+}
+
+/** Fatura cujo saldo restante foi acrescentado em outra nota — permanece listada, sem impressão. */
+export function faturaTemNotaImprimivel(
+  lancamento: Pick<LancamentoContasReceber, "descricao" | "cliente">,
+  lancamentos: LancamentoFaturaFinanceiroRef[]
+) {
+  return !faturaTeveSaldoIncorporado(lancamento, lancamentos);
+}
+
 export function creditosUtilizadosDaFatura(
   lancamento: Pick<LancamentoContasReceber, "descricao" | "cliente">,
   lancamentos: LancamentoFaturaFinanceiroRef[]
@@ -135,6 +220,16 @@ export function valorNotaFatura(
   return credito > 0.009 ? credito : valor;
 }
 
+export function saldoAnteriorIncorporadoNaFatura(
+  lancamento: LancamentoContasReceber,
+  lancamentos: LancamentoContasReceber[]
+) {
+  return incorporacoesSaldoDaFatura(lancamento, lancamentos).reduce(
+    (sum, item) => sum + item.valor,
+    0
+  );
+}
+
 export function recebidoNaFatura(
   lancamento: LancamentoContasReceber,
   lancamentos: LancamentoContasReceber[]
@@ -145,7 +240,8 @@ export function recebidoNaFatura(
     (sum, item) => sum + item.valor,
     0
   );
-  const totalParcialCredito = credito + parciais;
+  const incorporado = saldoAnteriorIncorporadoNaFatura(lancamento, lancamentos);
+  const totalParcialCredito = credito + parciais + incorporado;
   if (lancamento.status === "pago") {
     const cashFinal = valorRecebidoCashNaFaturaPaga(lancamento, lancamentos);
     return Math.min(valorNota, totalParcialCredito + cashFinal);
@@ -201,6 +297,7 @@ export function contribuiRecebidoCliente(
 ) {
   if (lancamento.tipo !== "receita" || lancamento.status !== "pago") return 0;
   if (isCreditoUtilizado(lancamento)) return 0;
+  if (isSaldoAnteriorIncorporado(lancamento)) return 0;
   // Quitação só com crédito: o dinheiro já entrou no caixa no adiantamento.
   if (
     (lancamento.formaPagamento || "").trim().toLowerCase() === "abatimento de crédito"
@@ -221,6 +318,7 @@ export function deveExibirNoHistoricoRecebimentos(
   lancamento: LancamentoContasReceber,
   lancamentos: LancamentoContasReceber[]
 ) {
+  if (isSaldoAnteriorIncorporado(lancamento)) return false;
   if (!ehDescricaoFaturaContasReceber(lancamento.descricao)) return true;
   if (lancamento.status !== "pago") return false;
   if (!faturaTevePagamentoParcialOuCredito(lancamento, lancamentos)) return true;
@@ -235,6 +333,8 @@ export function descricaoFaturaVinculadaAoPagamento(descricao: string) {
   if (credito) return credito[1].trim();
   const creditoLegado = base.match(/^cr[eé]dito utilizado\s*-\s*(.+)$/i);
   if (creditoLegado) return creditoLegado[1].trim();
+  const incorporado = base.match(/^saldo anterior incorporado\s*-\s*(.+)$/i);
+  if (incorporado) return incorporado[1].trim();
   return null;
 }
 
@@ -251,6 +351,9 @@ export function observacaoRecebimentoCurta(descricao: string) {
     .replace(/\s{2,}/g, " ")
     .trim();
 
+  if (/^saldo anterior incorporado/i.test(base)) {
+    return "Saldo anterior incorporado";
+  }
   if (/^recebimento parcial/i.test(base)) {
     const os = base.match(/OS\s*([\d,\s]+)/i);
     return os ? `Pagamento parcial — OS ${os[1]!.trim()}` : "Pagamento parcial";
@@ -293,6 +396,7 @@ export function valorHistoricoRecebimentoCliente(
   lancamentos: LancamentoContasReceber[]
 ) {
   if (isCreditoUtilizado(lancamento)) return -Math.abs(lancamento.valor);
+  if (isSaldoAnteriorIncorporado(lancamento)) return 0;
   if (
     ehDescricaoFaturaContasReceber(lancamento.descricao) &&
     lancamento.status === "pago" &&
@@ -342,6 +446,7 @@ export function isFaturaContasReceber(
   _trabalhos: TrabalhoContasReceber[]
 ) {
   if (isCreditoGerado(lancamento) || isCreditoUtilizado(lancamento)) return false;
+  if (isSaldoAnteriorIncorporado(lancamento)) return false;
   if (!ehDescricaoFaturaContasReceber(lancamento.descricao)) return false;
   // Fatura paga só com crédito continua sendo Cobrança OS (não ocultar pela forma).
   const creditoQuitouFatura =
@@ -451,7 +556,10 @@ export function referenciaLancamento(
 
 /** Texto curto para nota/PDF — evita "Cobrança OS 123, 456 - …". */
 export function descricaoExibicaoCobranca(descricao: string): string {
-  const texto = descricao.replace(/@@trab:[a-zA-Z0-9_,-]+@@/gi, "").trim();
+  const texto = descricao
+    .replace(/@@trab:[a-zA-Z0-9_,-]+@@/gi, "")
+    .replace(/@@sdev:\d+:[a-zA-Z0-9_,-]*@@/gi, "")
+    .trim();
   if (ehDescricaoFaturaContasReceber(texto)) return "Cobrança";
   return texto;
 }
@@ -488,6 +596,7 @@ export function clienteVisivelContasReceber(totais: TotaisContasReceberCliente):
 /** Fatura Cobrança OS para exibição no painel — inclui quitadas (diferente de isFaturaContasReceber). */
 export function isFaturaExibicaoContasReceber(lancamento: LancamentoContasReceber) {
   if (isCreditoGerado(lancamento) || isCreditoUtilizado(lancamento)) return false;
+  if (isSaldoAnteriorIncorporado(lancamento)) return false;
   if (!ehDescricaoFaturaContasReceber(lancamento.descricao)) return false;
   // Inclui notas quitadas com "Abatimento de Crédito" (forma na própria Cobrança OS).
   return true;
@@ -699,6 +808,7 @@ export function ehFaturaCobrancaOsParaExclusao(
   if (descricao.startsWith("crédito utilizado") || descricao.includes("desconto com crédito")) {
     return false;
   }
+  if (descricao.startsWith("saldo anterior incorporado")) return false;
   return ehDescricaoFaturaContasReceber(descricao);
 }
 
@@ -715,6 +825,17 @@ export function idsLancamentosExclusaoAoRemoverFatura(
   }
   for (const credito of creditosUtilizadosDaFatura(fatura, lancamentos)) {
     if (credito.id) ids.add(credito.id);
+  }
+  for (const incorporado of incorporacoesSaldoDaFatura(fatura, lancamentos)) {
+    if (incorporado.id) ids.add(incorporado.id);
+  }
+  const incorporadoNesta = extrairSaldoDevedorIncorporado(fatura.descricao);
+  for (const oldId of incorporadoNesta.ids) {
+    const antiga = lancamentos.find((item) => item.id === oldId);
+    if (!antiga) continue;
+    for (const item of incorporacoesSaldoDaFatura(antiga, lancamentos)) {
+      if (item.id) ids.add(item.id);
+    }
   }
   const descricaoBase = descricaoReceitaSemMeta(fatura.descricao).trim();
   const prefixoSaldo = `${descricaoBase} - Saldo restante`;
