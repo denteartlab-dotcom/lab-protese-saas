@@ -114,6 +114,10 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
   >([]);
   const [carregandoArquivosPasta, setCarregandoArquivosPasta] = useState(false);
   const [arquivoPastaSelecionado, setArquivoPastaSelecionado] = useState("");
+  const [modalGdriveAberto, setModalGdriveAberto] = useState(false);
+  const [gdriveAuthUrl, setGdriveAuthUrl] = useState("");
+  const [gdriveCode, setGdriveCode] = useState("");
+  const [reconectandoGdrive, setReconectandoGdrive] = useState(false);
 
   async function carregarStatusAutomatico() {
     setCarregandoAuto(true);
@@ -210,6 +214,70 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
       onMensagem?.(t("settings.backupAutoErro"), "erro");
     } finally {
       setSalvandoAuto(false);
+    }
+  }
+
+  async function abrirReconexaoGoogleDrive() {
+    setReconectandoGdrive(true);
+    try {
+      const res = await fetch("/api/backup/gdrive-oauth", {
+        credentials: "same-origin",
+        cache: "no-store",
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        authUrl?: string;
+        error?: string;
+      };
+      if (!res.ok || !data.authUrl) {
+        onMensagem?.(data.error || t("settings.backupGdriveReconectarErro"), "erro");
+        return;
+      }
+      setGdriveAuthUrl(data.authUrl);
+      setGdriveCode("");
+      setModalGdriveAberto(true);
+      window.open(data.authUrl, "_blank", "noopener,noreferrer");
+    } catch {
+      onMensagem?.(t("settings.backupGdriveReconectarErro"), "erro");
+    } finally {
+      setReconectandoGdrive(false);
+    }
+  }
+
+  async function salvarReconexaoGoogleDrive() {
+    if (!gdriveCode.trim()) {
+      onMensagem?.(t("settings.backupGdriveReconectarCole"), "erro");
+      return;
+    }
+    setReconectandoGdrive(true);
+    try {
+      const res = await fetch("/api/backup/gdrive-oauth", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: gdriveCode }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        caminhoDrive?: string;
+      };
+      if (!res.ok) {
+        onMensagem?.(data.error || t("settings.backupGdriveReconectarErro"), "erro");
+        return;
+      }
+      setModalGdriveAberto(false);
+      setGdriveCode("");
+      await Promise.all([carregarStatusAutomatico(), carregarArquivosPastaAutomatica()]);
+      onMensagem?.(
+        t("settings.backupGdriveReconectarOk").replace(
+          "{caminho}",
+          data.caminhoDrive || "Lab_Protese_Backups"
+        ),
+        "sucesso"
+      );
+    } catch {
+      onMensagem?.(t("settings.backupGdriveReconectarErro"), "erro");
+    } finally {
+      setReconectandoGdrive(false);
     }
   }
 
@@ -472,18 +540,30 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                     </Button>
                     {!statusAuto?.hospedagemVercel ||
                     statusAuto.googleDrive?.configurado ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={reconectandoGdrive || salvandoAuto}
+                      onClick={() => void abrirReconexaoGoogleDrive()}
+                      className="inline-flex items-center gap-2 rounded border-amber-500 bg-white px-4 py-2 text-sm text-amber-900 hover:bg-amber-50 dark:border-amber-600 dark:bg-slate-800 dark:text-amber-200 dark:hover:bg-amber-950/50"
+                    >
+                      {reconectandoGdrive
+                        ? t("settings.backupGdriveReconectando")
+                        : t("settings.backupGdriveReconectar")}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={
                           gerandoBackupServidor ||
                           salvandoAuto ||
+                          reconectandoGdrive ||
                           Boolean(
                             statusAuto?.googleDrive &&
                               !statusAuto.googleDrive.configurado
                           )
                         }
-                        onClick={() => void gerarBackupServidorAgora()}
+                      onClick={() => void gerarBackupServidorAgora()}
                         className="inline-flex items-center gap-2 rounded border-emerald-500 bg-white px-4 py-2 text-sm text-emerald-900 hover:bg-emerald-50 dark:border-emerald-600 dark:bg-slate-800 dark:text-emerald-200 dark:hover:bg-emerald-950/50"
                       >
                         {gerandoBackupServidor
@@ -702,6 +782,61 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
       ) : (
         <p className="text-xs text-slate-500 dark:text-slate-400">{t("settings.restaurarPadraoAcessoNegado")}</p>
       )}
+
+      {modalGdriveAberto ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-lg border border-slate-200 bg-white p-5 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+              {t("settings.backupGdriveReconectarTitulo")}
+            </h3>
+            <p className="mt-3 text-xs text-slate-600 dark:text-slate-300">
+              {t("settings.backupGdriveReconectarPasso1")}
+            </p>
+            <Button
+              type="button"
+              className="mt-3 rounded bg-emerald-600 px-4 py-2 text-sm text-white hover:bg-emerald-700"
+              onClick={() => {
+                if (gdriveAuthUrl) {
+                  window.open(gdriveAuthUrl, "_blank", "noopener,noreferrer");
+                }
+              }}
+            >
+              {t("settings.backupGdriveReconectarAbrir")}
+            </Button>
+            <p className="mt-4 text-xs text-slate-600 dark:text-slate-300">
+              {t("settings.backupGdriveReconectarPasso2")}
+            </p>
+            <textarea
+              value={gdriveCode}
+              onChange={(evento) => setGdriveCode(evento.target.value)}
+              rows={3}
+              className="mt-2 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-800 outline-none focus:border-emerald-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+              placeholder={t("settings.backupGdriveReconectarCole")}
+            />
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button
+                type="button"
+                disabled={reconectandoGdrive}
+                onClick={() => void salvarReconexaoGoogleDrive()}
+                className="rounded bg-emerald-600 px-4 py-2 text-sm text-white hover:bg-emerald-700 disabled:opacity-60"
+              >
+                {reconectandoGdrive
+                  ? t("settings.backupGdriveReconectando")
+                  : t("settings.backupGdriveReconectarSalvar")}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={reconectandoGdrive}
+                onClick={() => setModalGdriveAberto(false)}
+                className="rounded px-4 py-2 text-sm"
+              >
+                {t("common.cancelar")}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <ModalAbrirPastaBackup
         open={modalPastaBackupAberto}

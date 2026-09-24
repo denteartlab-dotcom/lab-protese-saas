@@ -82,7 +82,27 @@ function tokenRefreshUtilizavel(valor?: string | null) {
   return token.length > 20 ? token : "";
 }
 
-/** .env primeiro (token novo) e depois o arquivo (rotação). Sem duplicar. */
+function persistirRefreshTokenNoEnv(token: string) {
+  const envPath = path.join(process.cwd(), ".env");
+  if (!existsSync(envPath)) return;
+  try {
+    let conteudo = readFileSync(envPath, "utf8");
+    if (/^GOOGLE_DRIVE_REFRESH_TOKEN=/m.test(conteudo)) {
+      conteudo = conteudo.replace(
+        /^GOOGLE_DRIVE_REFRESH_TOKEN=.*$/m,
+        `GOOGLE_DRIVE_REFRESH_TOKEN=${token}`
+      );
+    } else {
+      const nl = conteudo.endsWith("\n") ? "" : "\n";
+      conteudo = `${conteudo}${nl}GOOGLE_DRIVE_REFRESH_TOKEN=${token}\n`;
+    }
+    writeFileSync(envPath, conteudo, { encoding: "utf8" });
+  } catch (err) {
+    console.warn("[gdrive] não foi possível atualizar o token no .env:", err);
+  }
+}
+
+/** Arquivo de reconexão primeiro; depois .env. Sem duplicar. */
 export function listarRefreshTokensGoogleDrive(): string[] {
   carregarEnvArquivoRuntime();
   const tokens: string[] = [];
@@ -91,17 +111,17 @@ export function listarRefreshTokensGoogleDrive(): string[] {
     if (token && !tokens.includes(token)) tokens.push(token);
   };
 
-  adicionar(envRuntime("GOOGLE_DRIVE_REFRESH_TOKEN"));
-  adicionar(process.env.GOOGLE_DRIVE_REFRESH_TOKEN);
-
   try {
     const arquivo = caminhoRefreshTokenGdrive();
     if (existsSync(arquivo)) {
       adicionar(readFileSync(arquivo, "utf8"));
     }
   } catch {
-    /* segue só com .env */
+    /* segue com .env */
   }
+
+  adicionar(envRuntime("GOOGLE_DRIVE_REFRESH_TOKEN"));
+  adicionar(process.env.GOOGLE_DRIVE_REFRESH_TOKEN);
 
   return tokens;
 }
@@ -119,6 +139,7 @@ export function persistirRefreshTokenGoogleDrive(novoToken: string) {
       encoding: "utf8",
       mode: 0o600,
     });
+    persistirRefreshTokenNoEnv(token);
     process.env.GOOGLE_DRIVE_REFRESH_TOKEN = token;
     limparCacheEnvRuntime();
     carregarEnvArquivoRuntime(true);
@@ -279,26 +300,122 @@ async function criarClienteServiceAccountGoogleDrive() {
   return google.drive({ version: "v3", auth });
 }
 
+async function validarClienteGoogleDrive(drive: drive_v3.Drive) {
+  const pastaId = pastaRaizGoogleDriveId();
+  if (pastaId) {
+    await drive.files.get({
+      fileId: pastaId,
+      fields: "id,trashed",
+      supportsAllDrives: true,
+    });
+    return;
+  }
+  await drive.about.get({ fields: "user(emailAddress)" });
+}
+
 /**
  * Cliente Drive: OAuth da conta Google (a mesma dos anexos).
- * Não cai para service account quando o OAuth existe — SA não grava no "Meu Drive".
+ * Tenta todos os refresh tokens; só cai na service account se não houver OAuth.
  */
 export async function criarClienteGoogleDrive(): Promise<drive_v3.Drive | null> {
   const { clientId, clientSecret } = oauthClientIds();
   const tokens = listarRefreshTokensGoogleDrive();
 
   if (clientId && clientSecret && tokens.length) {
-    const refreshToken = tokens[0];
-    const cliente = await criarClienteOAuthGoogleDrive(
-      clientId,
-      clientSecret,
-      refreshToken
-    );
-    persistirRefreshTokenGoogleDrive(refreshToken);
-    return cliente;
+    let ultimoErro: unknown;
+    for (const refreshToken of tokens) {
+      try {
+        const cliente = await criarClienteOAuthGoogleDrive(
+          clientId,
+          clientSecret,
+          refreshToken
+        );
+        await validarClienteGoogleDrive(cliente);
+        persistirRefreshTokenGoogleDrive(refreshToken);
+        return cliente;
+      } catch (erro) {
+        ultimoErro = erro;
+        console.warn(
+          "[gdrive] token recusado, tentando o próximo:",
+          erro instanceof Error ? erro.message : erro
+        );
+      }
+    }
+    throw traduzirErroGoogleDrive(ultimoErro);
   }
 
   return criarClienteServiceAccountGoogleDrive();
+}
+
+export function redirectUriOAuthGoogleDrive() {
+  carregarEnvArquivoRuntime();
+  return (
+    envRuntime("GOOGLE_DRIVE_OAUTH_REDIRECT_URI").trim() ||
+    process.env.GOOGLE_DRIVE_OAUTH_REDIRECT_URI?.trim() ||
+    "http://localhost"
+  );
+}
+
+export function gerarUrlAutorizacaoGoogleDrive() {
+  const { clientId, clientSecret } = oauthClientIds();
+  if (!clientId || !clientSecret) {
+    throw new Error(
+      "Defina GOOGLE_DRIVE_CLIENT_ID e GOOGLE_DRIVE_CLIENT_SECRET no servidor."
+    );
+  }
+  const oauth2 = new google.auth.OAuth2(
+    clientId,
+    clientSecret,
+    redirectUriOAuthGoogleDrive()
+  );
+  return oauth2.generateAuthUrl({
+    access_type: "offline",
+    prompt: "consent",
+    scope: GOOGLE_DRIVE_SCOPES,
+  });
+}
+
+export function extrairCodeOAuthGoogleDrive(entrada: string) {
+  let s = entrada.trim().replace(/^["']|["']$/g, "");
+  try {
+    if (s.includes("code=")) {
+      const u = new URL(s.startsWith("http") ? s : `http://localhost/?${s.replace(/^\?/, "")}`);
+      const code = u.searchParams.get("code");
+      if (code) return code;
+    }
+  } catch {
+    /* segue */
+  }
+  const m = s.match(/(?:^|[?&])code=([^&\s#]+)/i);
+  if (m?.[1]) return decodeURIComponent(m[1]);
+  return decodeURIComponent(s.split("&")[0] || s);
+}
+
+export async function trocarCodePorRefreshTokenGoogleDrive(entrada: string) {
+  const code = extrairCodeOAuthGoogleDrive(entrada);
+  if (!code) {
+    throw new Error("Cole a URL completa do Google ou o código code=.");
+  }
+  const { clientId, clientSecret } = oauthClientIds();
+  if (!clientId || !clientSecret) {
+    throw new Error(
+      "Defina GOOGLE_DRIVE_CLIENT_ID e GOOGLE_DRIVE_CLIENT_SECRET no servidor."
+    );
+  }
+  const oauth2 = new google.auth.OAuth2(
+    clientId,
+    clientSecret,
+    redirectUriOAuthGoogleDrive()
+  );
+  const { tokens } = await oauth2.getToken(code);
+  if (!tokens.refresh_token) {
+    throw new Error(
+      "Google não devolveu refresh_token. Revogue o acesso do app em " +
+        "https://myaccount.google.com/permissions e autorize de novo."
+    );
+  }
+  persistirRefreshTokenGoogleDrive(tokens.refresh_token);
+  return tokens.refresh_token;
 }
 
 export function escaparConsultaDrive(valor: string) {
@@ -589,9 +706,7 @@ export function traduzirErroGoogleDrive(err: unknown): Error {
 
   if (/invalid_grant|Token has been expired or revoked|invalid_rapt/i.test(texto)) {
     return new Error(
-      "Google Drive: refresh_token expirado ou revogado. Gere outro com " +
-        "npm run uploads:gdrive-token e atualize GOOGLE_DRIVE_REFRESH_TOKEN " +
-        "(e o arquivo .gdrive-refresh-token, se existir)."
+      "Google Drive: token expirado. Clique em Reconectar Google Drive na tela de Backup."
     );
   }
 

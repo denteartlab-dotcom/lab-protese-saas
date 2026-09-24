@@ -73,9 +73,7 @@ function exigirDrive(drive: drive_v3.Drive | null): drive_v3.Drive {
   if (!drive) {
     if (googleDriveOAuthConfigurado()) {
       throw new Error(
-        "Google Drive: refresh_token expirado ou revogado. Gere outro com " +
-          "npm run uploads:gdrive-token e atualize GOOGLE_DRIVE_REFRESH_TOKEN " +
-          "(e o arquivo .gdrive-refresh-token, se existir)."
+        "Google Drive: token expirado. Clique em Reconectar Google Drive na tela de Backup."
       );
     }
     throw new Error(

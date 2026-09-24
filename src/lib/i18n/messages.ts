@@ -190,6 +190,19 @@ export const messages = {
       "Uploads: armazenados no banco de dados (PostgreSQL).",
     "settings.backupAutoUploadStorageDisk":
       "Uploads: pasta local na VPS (var/uploads).",
+    "settings.backupGdriveReconectar": "Reconectar Google Drive",
+    "settings.backupGdriveReconectando": "Reconectando…",
+    "settings.backupGdriveReconectarTitulo": "Reconectar Google Drive",
+    "settings.backupGdriveReconectarPasso1":
+      "1. Abra o Google com a mesma conta dona da pasta Lab_Protese_Backups.",
+    "settings.backupGdriveReconectarAbrir": "Abrir autorização do Google",
+    "settings.backupGdriveReconectarPasso2":
+      "2. Autorize. O navegador vai para localhost (a página pode falhar — é normal). Copie a URL inteira da barra de endereço.",
+    "settings.backupGdriveReconectarCole": "Cole a URL ou o código code=",
+    "settings.backupGdriveReconectarSalvar": "Salvar e criar pasta backups",
+    "settings.backupGdriveReconectarOk":
+      "Google Drive reconectado. Pasta criada: {caminho}",
+    "settings.backupGdriveReconectarErro": "Não foi possível reconectar o Google Drive.",
     "settings.backupServidorGerarAgora": "Gerar backup no Google Drive agora",
     "settings.backupServidorGerando": "Enviando backup ao Google Drive...",
     "settings.backupServidorOk":
@@ -1011,6 +1024,19 @@ export const messages = {
       "Uploads: stored in the database (PostgreSQL).",
     "settings.backupAutoUploadStorageDisk":
       "Uploads: local folder on the VPS (var/uploads).",
+    "settings.backupGdriveReconectar": "Reconnect Google Drive",
+    "settings.backupGdriveReconectando": "Reconnecting…",
+    "settings.backupGdriveReconectarTitulo": "Reconnect Google Drive",
+    "settings.backupGdriveReconectarPasso1":
+      "1. Open Google with the same account that owns the Lab_Protese_Backups folder.",
+    "settings.backupGdriveReconectarAbrir": "Open Google authorization",
+    "settings.backupGdriveReconectarPasso2":
+      "2. Authorize. The browser goes to localhost (the page may fail — that is normal). Copy the full URL from the address bar.",
+    "settings.backupGdriveReconectarCole": "Paste the URL or the code= value",
+    "settings.backupGdriveReconectarSalvar": "Save and create the backups folder",
+    "settings.backupGdriveReconectarOk":
+      "Google Drive reconnected. Folder created: {caminho}",
+    "settings.backupGdriveReconectarErro": "Could not reconnect Google Drive.",
     "settings.backupServidorGerarAgora": "Generate Google Drive backup now",
     "settings.backupServidorGerando": "Uploading backup to Google Drive...",
     "settings.backupServidorOk":
@@ -1828,6 +1854,19 @@ export const messages = {
       "Uploads: almacenados en la base de datos (PostgreSQL).",
     "settings.backupAutoUploadStorageDisk":
       "Uploads: carpeta local en la VPS (var/uploads).",
+    "settings.backupGdriveReconectar": "Reconectar Google Drive",
+    "settings.backupGdriveReconectando": "Reconectando…",
+    "settings.backupGdriveReconectarTitulo": "Reconectar Google Drive",
+    "settings.backupGdriveReconectarPasso1":
+      "1. Abra Google con la misma cuenta dueña de la carpeta Lab_Protese_Backups.",
+    "settings.backupGdriveReconectarAbrir": "Abrir autorización de Google",
+    "settings.backupGdriveReconectarPasso2":
+      "2. Autorice. El navegador irá a localhost (la página puede fallar — es normal). Copie la URL completa de la barra de direcciones.",
+    "settings.backupGdriveReconectarCole": "Pegue la URL o el código code=",
+    "settings.backupGdriveReconectarSalvar": "Guardar y crear la carpeta backups",
+    "settings.backupGdriveReconectarOk":
+      "Google Drive reconectado. Carpeta creada: {caminho}",
+    "settings.backupGdriveReconectarErro": "No fue posible reconectar Google Drive.",
     "settings.backupServidorGerarAgora": "Generar respaldo en Google Drive ahora",
     "settings.backupServidorGerando": "Enviando respaldo a Google Drive...",
     "settings.backupServidorOk":

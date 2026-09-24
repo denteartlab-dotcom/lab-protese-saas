@@ -3,6 +3,7 @@ import {
 } from "../src/lib/backup-automatico-config";
 import {
   candidatosNomePastaEmpresaDrive,
+  extrairCodeOAuthGoogleDrive,
   listarRefreshTokensGoogleDrive,
   normalizarPrivateKeyServiceAccount,
   pastaDriveJaEhRaizBackup,
@@ -67,7 +68,7 @@ const traduzido = traduzirErroGoogleDrive(
   new Error("invalid_grant: Token has been expired or revoked")
 );
 assert(
-  /refresh_token expirado|revogado/i.test(traduzido.message),
+  /token expirado|Reconectar Google Drive/i.test(traduzido.message),
   `invalid_grant deve virar mensagem amigável: ${traduzido.message}`
 );
 
@@ -76,6 +77,11 @@ assert(candidatos[0] === "denteart-1", `slug deve vir primeiro: ${candidatos.joi
 assert(
   candidatos.some((nome) => /dente/i.test(nome) && nome !== "denteart-1"),
   `candidatos devem incluir o nome fantasia: ${candidatos.join(",")}`
+);
+
+assert(
+  extrairCodeOAuthGoogleDrive("http://localhost/?code=abc123&scope=drive") === "abc123",
+  "deve extrair code da URL do Google"
 );
 
 console.log("ok: backup Google Drive (token, status, pasta raiz e pasta da empresa)");
