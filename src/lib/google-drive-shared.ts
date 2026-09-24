@@ -411,7 +411,18 @@ export async function listarPastasFilhasDrive(
   return pastas;
 }
 
-/** Reusa a pasta já criada pelos anexos (ex.: denteart-1) em vez de abrir outra pelo nome fantasia. */
+async function pastaTemFilhaComNome(
+  drive: drive_v3.Drive,
+  pastaId: string,
+  nome: string
+) {
+  return Boolean(await buscarPastaPorNome(drive, pastaId, nome));
+}
+
+/**
+ * A pasta da empresa no Drive é a que já tem `uploads` (ex.: denteart-1).
+ * Nunca abre outra pelo nome fantasia — o backup nasce ao lado dos anexos.
+ */
 export async function resolverPastaEmpresaGoogleDrive(
   drive: drive_v3.Drive,
   slug: string,
@@ -422,26 +433,52 @@ export async function resolverPastaEmpresaGoogleDrive(
     throw new Error("Pasta raiz do Google Drive indisponível.");
   }
 
-  const candidatos = candidatosNomePastaEmpresaDrive(slug, nomeEmpresa);
-  for (const nome of candidatos) {
-    const id = await buscarPastaPorNome(drive, pastaRaizId, nome);
-    if (id) {
-      return { pastaEmpresaId: id, pastaEmpresaNome: nome, pastaRaizId };
-    }
-  }
-
-  const filhas = await listarPastasFilhasDrive(drive, pastaRaizId);
-  const alvo = new Set(candidatos.map((nome) => nome.toLowerCase()));
-  const achada = filhas.find((pasta) => alvo.has(pasta.name.toLowerCase()));
-  if (achada) {
+  if (await pastaTemFilhaComNome(drive, pastaRaizId, "uploads")) {
     return {
-      pastaEmpresaId: achada.id,
-      pastaEmpresaNome: achada.name,
+      pastaEmpresaId: pastaRaizId,
+      pastaEmpresaNome: normalizarSlugEmpresaDrive(slug) || slug,
       pastaRaizId,
     };
   }
 
-  const nomeCriar = candidatos[0] || slug;
+  const filhas = await listarPastasFilhasDrive(drive, pastaRaizId);
+  const comUploads: { id: string; name: string }[] = [];
+  for (const pasta of filhas) {
+    if (await pastaTemFilhaComNome(drive, pasta.id, "uploads")) {
+      comUploads.push(pasta);
+    }
+  }
+
+  const candidatos = new Set(
+    candidatosNomePastaEmpresaDrive(slug, nomeEmpresa).map((nome) => nome.toLowerCase())
+  );
+  const peloSlug = comUploads.find((pasta) => candidatos.has(pasta.name.toLowerCase()));
+  if (peloSlug) {
+    return {
+      pastaEmpresaId: peloSlug.id,
+      pastaEmpresaNome: peloSlug.name,
+      pastaRaizId,
+    };
+  }
+
+  if (comUploads.length === 1) {
+    return {
+      pastaEmpresaId: comUploads[0].id,
+      pastaEmpresaNome: comUploads[0].name,
+      pastaRaizId,
+    };
+  }
+
+  const existente = filhas.find((pasta) => candidatos.has(pasta.name.toLowerCase()));
+  if (existente) {
+    return {
+      pastaEmpresaId: existente.id,
+      pastaEmpresaNome: existente.name,
+      pastaRaizId,
+    };
+  }
+
+  const nomeCriar = normalizarSlugEmpresaDrive(slug) || slug;
   const pastaEmpresaId = await obterOuCriarPastaDrive(drive, pastaRaizId, nomeCriar);
   return { pastaEmpresaId, pastaEmpresaNome: nomeCriar, pastaRaizId };
 }

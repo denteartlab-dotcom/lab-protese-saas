@@ -89,8 +89,9 @@ async function montarStatus(
   const leve = opcoes?.leve === true;
   const statusDrive = statusGoogleDriveBackup();
   const caminhoEmpresa = caminhoDriveEmpresa(slug, nome);
+  let pastaDriveErro: string | null = null;
 
-  if (!leve && statusDrive.configurado && (config.ativo || !config.pastaDriveId)) {
+  if (!leve) {
     const pastaDrive = await garantirPastaDriveEmpresa({
       empresaId,
       slug,
@@ -99,6 +100,7 @@ async function montarStatus(
     if (pastaDrive.ok) {
       config = await carregarConfigBackupAutomatico(empresaId);
     } else if (pastaDrive.erro && pastaDrive.erro !== "desativado") {
+      pastaDriveErro = pastaDrive.erro;
       console.warn("[backup/automatico] pasta Drive:", pastaDrive.erro);
     }
   }
@@ -146,6 +148,7 @@ async function montarStatus(
       statusUpload: textoStatusUploadDrive(config, fuso),
       pastaEmpresa: config.pastaDriveNome ?? null,
       caminhoEmpresa,
+      pastaErro: pastaDriveErro,
     },
   };
 }

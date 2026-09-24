@@ -167,20 +167,13 @@ export type ResultadoPastaDriveEmpresa = {
   erro?: string;
 };
 
-/** Garante Lab_Protese_Backups/{Empresa}/backups no Drive. */
+/** Garante Lab_Protese_Backups/{Empresa}/backups no Drive, ao lado de uploads. */
 export async function garantirPastaDriveEmpresa(params: {
   empresaId: string;
   slug: string;
   nome?: string;
 }): Promise<ResultadoPastaDriveEmpresa> {
   const status = statusGoogleDriveBackup();
-  if (!status.habilitado || !status.configurado || !status.pastaRaizId) {
-    return {
-      ok: false,
-      erro: status.habilitado ? "nao_configurado" : "desativado",
-    };
-  }
-
   const nomeEmpresa = await nomeEmpresaBackup(params.empresaId, params.slug, params.nome);
 
   try {
@@ -191,12 +184,11 @@ export async function garantirPastaDriveEmpresa(params: {
       console.warn(`[backup-drive] ${params.slug}: config ignorada`, erroConfig);
     }
 
-    const pastaBackupsId = await comRetryDrive(() =>
+    const criadaPasta = await comRetryDrive(() =>
       garantirPastaBackupsEmpresaGoogleDrive(params.slug, nomeEmpresa)
     );
-    const pastaEmpresaNome =
-      candidatosNomePastaEmpresaDrive(params.slug, nomeEmpresa)[0] ||
-      nomePastaBackupEmpresa(params.slug, nomeEmpresa);
+    const pastaBackupsId = criadaPasta.pastaBackupsId;
+    const pastaEmpresaNome = criadaPasta.pastaEmpresaNome;
     const caminhoDrive = `${status.pastaRaizNome}/${pastaEmpresaNome}/backups`;
     const criada = config?.pastaDriveId !== pastaBackupsId;
 
@@ -430,10 +422,7 @@ export async function excluirArquivosBackupEmpresaGoogleDrive(params: {
 
 export function exigirGoogleDriveBackupPronto() {
   const status = statusGoogleDriveBackup();
-  if (!status.habilitado) {
-    throw new Error(mensagemErroDriveObrigatorio("desativado"));
-  }
-  if (!status.configurado) {
+  if (!pastaRaizGoogleDriveId() || !status.pastaRaizId) {
     throw new Error(mensagemErroDriveObrigatorio("nao_configurado"));
   }
   return status;

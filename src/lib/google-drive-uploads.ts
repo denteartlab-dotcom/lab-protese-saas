@@ -569,19 +569,19 @@ export async function quemSouGoogleDrive(): Promise<{
   }
 }
 
-/** Garante pasta backups/ dentro da empresa (sync de arquivos de backup). */
+/** Garante pasta backups/ ao lado de uploads/ na pasta da empresa que já existe. */
 export async function garantirPastaBackupsEmpresaGoogleDrive(
   empresaSlug: string,
   nomeEmpresa?: string
 ) {
   const drive = exigirDrive(await criarClienteGoogleDrive());
   const slug = normalizarSlugEmpresaDrive(empresaSlug);
-  const { pastaBackupsId } = await garantirPastaEmpresaUploads(
+  const { pastaBackupsId, pastaEmpresaNome } = await garantirPastaEmpresaUploads(
     drive,
     slug,
     nomeEmpresa
   );
-  return pastaBackupsId;
+  return { pastaBackupsId, pastaEmpresaNome };
 }
 
 async function confirmarArquivoNoDrive(drive: drive_v3.Drive, fileId: string) {

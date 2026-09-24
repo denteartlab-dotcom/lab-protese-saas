@@ -67,6 +67,7 @@ type StatusBackupAutomatico = {
       arquivo?: string | null;
       pastaEmpresa?: string | null;
     };
+    pastaErro?: string | null;
   };
   pastaDrive?: {
     ok: boolean;
@@ -391,6 +392,11 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                               </span>{" "}
                               {statusAuto.googleDrive.caminhoEmpresa}
                             </p>
+                            {statusAuto.googleDrive.pastaErro ? (
+                              <p className="mt-1 text-red-700 dark:text-red-300">
+                                {statusAuto.googleDrive.pastaErro}
+                              </p>
+                            ) : null}
                             {statusAuto.googleDrive.statusUpload.tipo === "erro" ? (
                               <p className="mt-1 text-red-700 dark:text-red-300">
                                 {t("settings.backupAutoGdriveErro").replace(
