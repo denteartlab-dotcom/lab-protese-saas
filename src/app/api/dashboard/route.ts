@@ -13,7 +13,9 @@ export const GET = medirHandlerApi("/api/dashboard", async function GET(request:
       });
 
       const payload = await montarDashboard(params);
-      return NextResponse.json(payload);
+      return NextResponse.json(payload, {
+        headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },
+      });
     });
   } catch (error) {
     if (error instanceof Error && error.message === "UNAUTHORIZED") {

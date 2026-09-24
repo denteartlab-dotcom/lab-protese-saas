@@ -46,9 +46,11 @@ export type ResumoFinanceiroDashboard = {
 };
 
 export type OpcoesResumoFinanceiroDashboard = {
-  /** Mês 0–11; quando informado com `ano`, despesas a pagar/vencidas usam o vencimento desse mês. */
+  /** Mês 0–11; com `ano`, a receber/a pagar usam o vencimento desse mês (igual ao Financeiro). */
   mes?: number;
   ano?: number;
+  /** Quando informado, ignora fatura de cliente inativo — igual ao Contas a receber. */
+  idsClientesAtivos?: ReadonlySet<string> | string[];
 };
 
 export function vencimentoNoMesAno(
@@ -167,10 +169,15 @@ export function calcularResumoFinanceiroDashboard(
 
   const mapped = mapearLancamentos(lancamentos);
   const trabalhosMapped = trabalhos as TrabalhoContasReceber[];
-  const filtrarDespesaMes =
+  const filtrarMes =
     opcoes != null &&
     Number.isInteger(opcoes.mes) &&
     Number.isInteger(opcoes.ano);
+  const idsAtivos = opcoes?.idsClientesAtivos
+    ? opcoes.idsClientesAtivos instanceof Set
+      ? opcoes.idsClientesAtivos
+      : new Set(opcoes.idsClientesAtivos)
+    : null;
 
   let receitasAReceber = 0;
   let receitasInadimplencia = 0;
@@ -183,14 +190,18 @@ export function calcularResumoFinanceiroDashboard(
 
     if (l.tipo === "receita") {
       if (l.status === "cancelado") continue;
+      if (!raw.clienteId || !raw.clienteNome?.trim()) continue;
+      if (idsAtivos && !idsAtivos.has(raw.clienteId)) continue;
       if (!isFaturaContasReceberLib(l, mapped, trabalhosMapped)) continue;
       if (l.status === "pago") continue;
+      if (filtrarMes && !vencimentoNoMesAno(raw.data, opcoes.mes!, opcoes.ano!)) {
+        continue;
+      }
 
       const saldo = saldoFaturaLib(l, mapped);
       if (saldo <= 0.005) continue;
 
       const vencimento = dateOnly(raw.data);
-      // Totais iguais ao Contas a Receber (saldo aberto atual).
       receitasAReceber += saldo;
       if (vencimento < hoje) {
         receitasInadimplencia += saldo;
@@ -199,10 +210,7 @@ export function calcularResumoFinanceiroDashboard(
     }
 
     if (l.tipo === "despesa" && l.status === "pendente") {
-      if (
-        filtrarDespesaMes &&
-        !vencimentoNoMesAno(raw.data, opcoes.mes!, opcoes.ano!)
-      ) {
+      if (filtrarMes && !vencimentoNoMesAno(raw.data, opcoes.mes!, opcoes.ano!)) {
         continue;
       }
       const vencimento = dateOnly(raw.data);

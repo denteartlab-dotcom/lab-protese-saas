@@ -103,4 +103,47 @@ if (inicioMes < hoje) {
   );
 }
 
-console.log("ok: despesas do Início acompanham o mês vigente");
+const receitas: LancamentoFinanceiroResumo[] = [
+  {
+    id: "r-mes",
+    tipo: "receita",
+    descricao: "Cobrança OS 10",
+    valor: 2630.3,
+    data: isoLocal(hoje),
+    status: "pendente",
+    clienteId: "cli-1",
+    clienteNome: "Cliente Ativo",
+  },
+  {
+    id: "r-antiga",
+    tipo: "receita",
+    descricao: "Cobrança OS 11",
+    valor: 9000,
+    data: isoLocal(mesAnterior),
+    status: "pendente",
+    clienteId: "cli-1",
+    clienteNome: "Cliente Ativo",
+  },
+  {
+    id: "r-inativo",
+    tipo: "receita",
+    descricao: "Cobrança OS 12",
+    valor: 500,
+    data: isoLocal(hoje),
+    status: "pendente",
+    clienteId: "cli-off",
+    clienteNome: "Cliente Inativo",
+  },
+];
+
+const receitasMes = calcularResumoFinanceiroDashboard(receitas, [], {
+  mes,
+  ano,
+  idsClientesAtivos: ["cli-1"],
+});
+assert(
+  Math.abs(receitasMes.receitasAReceber - 2630.3) < 0.01,
+  `receita do Início deve ignorar mês anterior e cliente inativo: ${receitasMes.receitasAReceber}`
+);
+
+console.log("ok: despesas e receitas do Início acompanham o mês vigente");

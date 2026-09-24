@@ -4,6 +4,7 @@ import {
   filtrarTrabalhosVencendoPeriodo,
 } from "@/lib/controle-producao-prazos";
 import { calcularResumoFinanceiroDashboard } from "@/lib/dashboard-financeiro";
+import { carregarDespesasPainelServidor } from "@/lib/despesa-fixa-servidor";
 import { lancamentoEfetivadoFinanceiro } from "@/lib/lancamento-financeiro-realizado";
 import {
   clienteAniversarioHoje,
@@ -146,6 +147,9 @@ export async function montarDashboard(params: ParametrosDashboard) {
   const fimMes = new Date(ano, mes + 1, 0, 23, 59, 59, 999);
   const incluirSecundario = escopo === "completo";
 
+  // Mesma sincronização de despesa fixa do Contas a pagar, senão o Início fica defasado.
+  await carregarDespesasPainelServidor(empresaId);
+
   const [
     totalClientes,
     totalPacientes,
@@ -154,6 +158,7 @@ export async function montarDashboard(params: ParametrosDashboard) {
     trabalhosProducao,
     trabalhosRecentes,
     lancamentos,
+    clientesAtivosIds,
     clientesAtivos,
     estoqueResumo,
     uploadsResumo,
@@ -221,6 +226,10 @@ export async function montarDashboard(params: ParametrosDashboard) {
         cliente: { select: { id: true, nome: true } },
         trabalho: { select: { id: true, numeroOs: true, status: true } },
       },
+    }),
+    prisma.cliente.findMany({
+      where: { ...filtroEmpresa, ativo: true },
+      select: { id: true },
     }),
     incluirSecundario
       ? prisma.cliente.findMany({
@@ -319,7 +328,11 @@ export async function montarDashboard(params: ParametrosDashboard) {
       numeroOs: t.numeroOs,
       status: t.status,
     })),
-    { mes, ano }
+    {
+      mes,
+      ano,
+      idsClientesAtivos: clientesAtivosIds.map((c) => c.id),
+    }
   );
 
   let aniversariantesMes: AniversarianteMesItem[] | undefined;

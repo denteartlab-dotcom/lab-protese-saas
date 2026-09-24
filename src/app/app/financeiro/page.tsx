@@ -576,7 +576,7 @@ function FinanceiroReceberConteudo() {
     const termo = busca.trim().toLowerCase();
 
     return lancamentos.filter((l) => {
-      const dataLancamento = new Date(l.data);
+      const dataLancamento = dateOnly(l.data);
       if (inicio && dataLancamento < inicio) return false;
       if (fim && dataLancamento > fim) return false;
       if (situacao === "receber" && l.status === "pago") return false;

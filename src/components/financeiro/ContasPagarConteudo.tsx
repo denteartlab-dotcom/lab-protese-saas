@@ -698,7 +698,7 @@ export function ContasPagarConteudo() {
         if (noMesVigente) pagas += lancamento.valor;
       } else if (lancamento.status === "pendente") {
         if (noMesVigente) aPagar += lancamento.valor;
-        if (dataVencimento < hoje) atraso += lancamento.valor;
+        if (noMesVigente && dataVencimento < hoje) atraso += lancamento.valor;
       }
     }
 
