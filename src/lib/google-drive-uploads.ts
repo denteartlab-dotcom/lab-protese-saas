@@ -9,6 +9,7 @@ import {
   criarClienteGoogleDrive,
   escaparConsultaDrive,
   extrairFileIdGdrive,
+  googleDriveOAuthConfigurado,
   googleDriveStorageConfigurado,
   limparCachePastasGoogleDrive,
   montarRemotePathGdrive,
@@ -65,6 +66,13 @@ export function googleDriveUploadsConfigurado() {
 
 function exigirDrive(drive: drive_v3.Drive | null): drive_v3.Drive {
   if (!drive) {
+    if (googleDriveOAuthConfigurado()) {
+      throw new Error(
+        "Google Drive: refresh_token expirado ou revogado. Gere outro com " +
+          "npm run uploads:gdrive-token e atualize GOOGLE_DRIVE_REFRESH_TOKEN " +
+          "(e o arquivo .gdrive-refresh-token, se existir)."
+      );
+    }
     throw new Error(
       "Google Drive não configurado. Defina GOOGLE_DRIVE_FOLDER_ID e GOOGLE_APPLICATION_CREDENTIALS (ou GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON)."
     );
