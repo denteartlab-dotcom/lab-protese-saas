@@ -538,8 +538,6 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                         ? t("settings.backupAutoSalvando")
                         : t("settings.backupAutoSalvar")}
                     </Button>
-                    {!statusAuto?.hospedagemVercel ||
-                    statusAuto.googleDrive?.configurado ? (
                     <Button
                       type="button"
                       variant="outline"
@@ -551,10 +549,12 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                         ? t("settings.backupGdriveReconectando")
                         : t("settings.backupGdriveReconectar")}
                     </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={
+                    {!statusAuto?.hospedagemVercel ||
+                    statusAuto.googleDrive?.configurado ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={
                           gerandoBackupServidor ||
                           salvandoAuto ||
                           reconectandoGdrive ||
@@ -563,7 +563,7 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                               !statusAuto.googleDrive.configurado
                           )
                         }
-                      onClick={() => void gerarBackupServidorAgora()}
+                        onClick={() => void gerarBackupServidorAgora()}
                         className="inline-flex items-center gap-2 rounded border-emerald-500 bg-white px-4 py-2 text-sm text-emerald-900 hover:bg-emerald-50 dark:border-emerald-600 dark:bg-slate-800 dark:text-emerald-200 dark:hover:bg-emerald-950/50"
                       >
                         {gerandoBackupServidor
