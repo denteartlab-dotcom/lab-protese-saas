@@ -23,6 +23,7 @@ import {
   type TipoPrazoProducao,
 } from "@/lib/controle-producao-prazos";
 import { PRODUTOS_ESTOQUE_EVENT } from "@/lib/estoque";
+import { FINANCEIRO_ATUALIZADO_EVENT } from "@/lib/financeiro-events";
 import { UPLOADS_ATUALIZADO_EVENT } from "@/lib/uploads-armazenamento";
 import { apiFetch } from "@/lib/fetch-client";
 import Link from "next/link";
@@ -218,21 +219,27 @@ export default function DashboardPage() {
     function atualizarEstoque() {
       void carregarDashboard();
     }
+    function atualizarFinanceiro() {
+      void carregarDashboard();
+    }
     function atualizarUploads() {
       // Após exclusão/upload: força recálculo; no foco normal usa cache.
       void carregarUploadsResumo(true);
     }
     function onVisivel() {
       if (document.visibilityState === "visible") {
+        void carregarDashboard();
         void carregarUploadsResumo(false);
       }
     }
     window.addEventListener(PRODUTOS_ESTOQUE_EVENT, atualizarEstoque);
+    window.addEventListener(FINANCEIRO_ATUALIZADO_EVENT, atualizarFinanceiro);
     window.addEventListener(UPLOADS_ATUALIZADO_EVENT, atualizarUploads);
     document.addEventListener("visibilitychange", onVisivel);
     window.addEventListener("focus", onVisivel);
     return () => {
       window.removeEventListener(PRODUTOS_ESTOQUE_EVENT, atualizarEstoque);
+      window.removeEventListener(FINANCEIRO_ATUALIZADO_EVENT, atualizarFinanceiro);
       window.removeEventListener(UPLOADS_ATUALIZADO_EVENT, atualizarUploads);
       document.removeEventListener("visibilitychange", onVisivel);
       window.removeEventListener("focus", onVisivel);

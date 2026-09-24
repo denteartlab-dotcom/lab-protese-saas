@@ -46,10 +46,19 @@ export type ResumoFinanceiroDashboard = {
 };
 
 export type OpcoesResumoFinanceiroDashboard = {
-  /** Mês 0–11; quando informado com `ano`, “a receber/a pagar” filtram o vencimento nesse mês. */
+  /** Mês 0–11; quando informado com `ano`, despesas a pagar/vencidas usam o vencimento desse mês. */
   mes?: number;
   ano?: number;
 };
+
+export function vencimentoNoMesAno(
+  value: string | Date,
+  mes: number,
+  ano: number
+) {
+  const data = dateOnly(value);
+  return data.getMonth() === mes && data.getFullYear() === ano;
+}
 
 function dateOnly(value: string | Date) {
   const raw = typeof value === "string" ? value : value.toISOString();
@@ -151,13 +160,17 @@ export function saldoFaturaCobrancaOs(
 export function calcularResumoFinanceiroDashboard(
   lancamentos: LancamentoFinanceiroResumo[],
   trabalhos: TrabalhoFinanceiroRef[],
-  _opcoes?: OpcoesResumoFinanceiroDashboard
+  opcoes?: OpcoesResumoFinanceiroDashboard
 ): ResumoFinanceiroDashboard {
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
 
   const mapped = mapearLancamentos(lancamentos);
   const trabalhosMapped = trabalhos as TrabalhoContasReceber[];
+  const filtrarDespesaMes =
+    opcoes != null &&
+    Number.isInteger(opcoes.mes) &&
+    Number.isInteger(opcoes.ano);
 
   let receitasAReceber = 0;
   let receitasInadimplencia = 0;
@@ -186,6 +199,12 @@ export function calcularResumoFinanceiroDashboard(
     }
 
     if (l.tipo === "despesa" && l.status === "pendente") {
+      if (
+        filtrarDespesaMes &&
+        !vencimentoNoMesAno(raw.data, opcoes.mes!, opcoes.ano!)
+      ) {
+        continue;
+      }
       const vencimento = dateOnly(raw.data);
       despesasAPagar += l.valor;
       if (vencimento < hoje) {
