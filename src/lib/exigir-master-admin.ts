@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { sessaoEhSuporteMaster } from "@/lib/auth";
+import { requireEmpresaContext } from "@/lib/empresa-context";
 import { definirTenantNoRequest, executarSemRls } from "@/lib/prisma-tenant";
 import { getMasterSession } from "@/lib/master-auth";
 
@@ -39,4 +41,41 @@ export async function emailEhMasterAdmin(email: string): Promise<boolean> {
     })
   );
   return Boolean(master?.ativo && master.role === "MASTER_ADMIN");
+}
+
+/** Admin master no laboratório (impersonação ou e-mail cadastrado em master_users). */
+export async function exigirAdminMasterNoLaboratorio() {
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
+    return { erro: NextResponse.json({ error: "Não autorizado." }, { status: 401 }) };
+  }
+
+  const ehMasterSessao = sessaoEhSuporteMaster(ctx.user);
+  const ehMasterEmail = ctx.user.email
+    ? await emailEhMasterAdmin(ctx.user.email)
+    : false;
+
+  if (!ehMasterSessao && !ehMasterEmail) {
+    return {
+      erro: NextResponse.json(
+        {
+          error:
+            "Apenas o administrador master pode reconectar o Google Drive.",
+        },
+        { status: 403 }
+      ),
+    };
+  }
+
+  return {
+    session: {
+      id: ctx.user.id,
+      name: ctx.user.name,
+      email: ctx.user.email,
+      role: ctx.user.role,
+      empresaId: ctx.empresaId,
+      empresaSlug: ctx.empresaSlug,
+      empresaNome: ctx.empresaNome,
+    },
+  };
 }

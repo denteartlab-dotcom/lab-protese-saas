@@ -706,7 +706,7 @@ export function traduzirErroGoogleDrive(err: unknown): Error {
 
   if (/invalid_grant|Token has been expired or revoked|invalid_rapt/i.test(texto)) {
     return new Error(
-      "Google Drive: token expirado. Clique em Reconectar Google Drive na tela de Backup."
+      "Google Drive: token expirado. Peça ao administrador master para reconectar o Google Drive na tela de Backup."
     );
   }
 
