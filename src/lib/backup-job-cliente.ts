@@ -184,11 +184,34 @@ export async function gerarBackupServidorComJob(
     signal: opcoes?.signal,
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok || !data.jobId) {
-    throw new ErroJobCliente(data.error || "Não foi possível iniciar o backup no servidor.", "rede");
+  if (!res.ok) {
+    throw new ErroJobCliente(
+      (data as { error?: string }).error || "Não foi possível enviar o backup para o Google Drive.",
+      "rede"
+    );
+  }
+  if ((data as { destino?: string; status?: string }).destino && (data as { status?: string }).status === "concluido") {
+    const imediato = data as ResultadoBackupServidorJob & { destino: string };
+    opcoes?.onFase?.("finalizado", 100);
+    return {
+      fase: "finalizado",
+      percentual: 100,
+      destino: imediato.destino,
+      exportedAt: imediato.exportedAt || new Date().toISOString(),
+      uploadsArquivos: imediato.uploadsArquivos ?? 0,
+      pastaUploads: imediato.pastaUploads,
+      pastaPadrao: imediato.pastaPadrao,
+      drive: imediato.drive,
+    };
+  }
+  if (!(data as { jobId?: string }).jobId) {
+    throw new ErroJobCliente(
+      (data as { error?: string }).error || "Não foi possível iniciar o backup no servidor.",
+      "rede"
+    );
   }
 
-  const job = await aguardarJobCliente(data.jobId, {
+  const job = await aguardarJobCliente((data as { jobId: string }).jobId, {
     ...opcoes,
     timeoutMs: opcoes?.timeoutMs ?? TIMEOUT_BACKUP_MS,
     onJob: (j) => {

@@ -104,13 +104,8 @@ export async function executarBackupNoServidor(
       const pastaLocal = await garantirPastaBackupEmpresa(slug, nome);
       const caminhoLocal = path.join(pastaLocal, nomeArquivo);
       await writeFile(caminhoLocal, conteudo);
-      await registrarExecucaoBackupAutomatico(
-        empresaId,
-        backup.exportedAt,
-        caminhoLocal
-      );
       console.warn(
-        `[backup-servidor] ${slug}: Drive falhou; JSON salvo em ${caminhoLocal}`
+        `[backup-servidor] ${slug}: Drive falhou; JSON local em ${caminhoLocal}`
       );
     } catch (erroLocal) {
       console.error(`[backup-servidor] ${slug}: fallback local também falhou`, erroLocal);

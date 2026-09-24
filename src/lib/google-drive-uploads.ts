@@ -2,6 +2,10 @@
  * Uploads / listagem / cota no Google Drive (service account).
  * Estrutura: {raiz}/Lab_Protese_Backups/{Empresa}/uploads/{modulo}/...
  */
+import { createReadStream } from "fs";
+import { mkdtemp, rm, writeFile } from "fs/promises";
+import os from "os";
+import path from "path";
 import { Readable } from "stream";
 import type { drive_v3 } from "googleapis";
 import {
@@ -580,14 +584,28 @@ export async function garantirPastaBackupsEmpresaGoogleDrive(
   return pastaBackupsId;
 }
 
-export async function uploadArquivoLocalParaPastaGoogleDrive(
+async function confirmarArquivoNoDrive(drive: drive_v3.Drive, fileId: string) {
+  const meta = await drive.files.get({
+    fileId,
+    fields: "id,name,size,trashed",
+    supportsAllDrives: true,
+  });
+  if (!meta.data.id || meta.data.trashed === true) {
+    throw new Error("Arquivo de backup não ficou visível no Google Drive.");
+  }
+  if (meta.data.size != null && Number(meta.data.size) < 1) {
+    throw new Error("Upload no Google Drive ficou vazio.");
+  }
+  return meta.data.id;
+}
+
+async function enviarArquivoLocalParaPastaDrive(
+  drive: drive_v3.Drive,
   pastaId: string,
   caminhoLocal: string,
   nomeArquivo: string,
-  mimeType = "application/octet-stream"
+  mimeType: string
 ) {
-  const { createReadStream } = await import("fs");
-  const drive = exigirDrive(await criarClienteGoogleDrive());
   const existente = await buscarArquivoPorNome(drive, pastaId, nomeArquivo);
   const media = {
     mimeType,
@@ -600,7 +618,7 @@ export async function uploadArquivoLocalParaPastaGoogleDrive(
       media,
       supportsAllDrives: true,
     });
-    return existente;
+    return confirmarArquivoNoDrive(drive, existente);
   }
 
   const criado = await drive.files.create({
@@ -609,16 +627,32 @@ export async function uploadArquivoLocalParaPastaGoogleDrive(
       parents: [pastaId],
     },
     media,
-    fields: "id",
+    fields: "id,size",
     supportsAllDrives: true,
   });
   if (!criado.data.id) {
     throw new Error("Falha ao enviar arquivo para o Google Drive.");
   }
-  return criado.data.id;
+  return confirmarArquivoNoDrive(drive, criado.data.id);
 }
 
-/** Envia bytes direto para uma pasta do Drive (sem gravar arquivo na VPS). */
+export async function uploadArquivoLocalParaPastaGoogleDrive(
+  pastaId: string,
+  caminhoLocal: string,
+  nomeArquivo: string,
+  mimeType = "application/octet-stream"
+) {
+  const drive = exigirDrive(await criarClienteGoogleDrive());
+  return enviarArquivoLocalParaPastaDrive(
+    drive,
+    pastaId,
+    caminhoLocal,
+    nomeArquivo,
+    mimeType
+  );
+}
+
+/** Grava temporário e envia com createReadStream — o stream de Buffer falha no Drive. */
 export async function uploadBufferParaPastaGoogleDrive(
   pastaId: string,
   bytes: Buffer,
@@ -626,34 +660,21 @@ export async function uploadBufferParaPastaGoogleDrive(
   mimeType = "application/octet-stream"
 ) {
   const drive = exigirDrive(await criarClienteGoogleDrive());
-  const existente = await buscarArquivoPorNome(drive, pastaId, nomeArquivo);
-  const media = {
-    mimeType,
-    body: bufferParaStream(bytes),
-  };
-
-  if (existente) {
-    await drive.files.update({
-      fileId: existente,
-      media,
-      supportsAllDrives: true,
-    });
-    return existente;
+  const pastaTmp = await mkdtemp(path.join(os.tmpdir(), "gdrive-backup-"));
+  const seguro = nomeArquivo.replace(/[^\w.-]+/g, "_") || "backup.json";
+  const caminhoTmp = path.join(pastaTmp, seguro);
+  await writeFile(caminhoTmp, bytes);
+  try {
+    return await enviarArquivoLocalParaPastaDrive(
+      drive,
+      pastaId,
+      caminhoTmp,
+      nomeArquivo,
+      mimeType
+    );
+  } finally {
+    await rm(pastaTmp, { recursive: true, force: true }).catch(() => undefined);
   }
-
-  const criado = await drive.files.create({
-    requestBody: {
-      name: nomeArquivo,
-      parents: [pastaId],
-    },
-    media,
-    fields: "id",
-    supportsAllDrives: true,
-  });
-  if (!criado.data.id) {
-    throw new Error("Falha ao enviar arquivo para o Google Drive.");
-  }
-  return criado.data.id;
 }
 
 export type ArquivoJsonPastaGoogleDrive = {

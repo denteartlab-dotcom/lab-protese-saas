@@ -317,10 +317,11 @@ export async function uploadBackupParaGoogleDrive(params: {
   });
 
   if (!pasta.ok || !pasta.pastaId) {
-    return {
-      ok: false,
-      erro: mensagemErroDriveObrigatorio(pasta.erro ?? "pasta_indisponivel"),
-    };
+    const erro = mensagemErroDriveObrigatorio(pasta.erro ?? "pasta_indisponivel");
+    await registrarUploadDriveBackupAutomatico(params.empresaId, {
+      ultimoUploadDriveErro: erro,
+    }).catch(() => undefined);
+    return { ok: false, erro };
   }
 
   const pastaId = pasta.pastaId;
@@ -336,7 +337,7 @@ export async function uploadBackupParaGoogleDrive(params: {
         pastaId,
         bytes,
         nomeArquivo,
-        "application/json"
+        "application/octet-stream"
       )
     );
 

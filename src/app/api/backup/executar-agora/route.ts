@@ -6,7 +6,12 @@ import {
   garantirPastaDriveEmpresa,
 } from "@/lib/backup-google-drive";
 import { exigirProprietario } from "@/lib/exigir-proprietario";
-import { criarJob, executarJobEmBackground } from "@/lib/jobs";
+import {
+  criarJob,
+  executarJob,
+  executarJobEmBackground,
+  obterJobTenant,
+} from "@/lib/jobs";
 
 export const dynamic = "force-dynamic";
 
@@ -48,18 +53,57 @@ export async function POST() {
       empresaSlug,
       empresaNome,
     });
-    executarJobEmBackground(job.id, empresaId);
+
+    if (hospedagemVercel()) {
+      executarJobEmBackground(job.id, empresaId);
+      return NextResponse.json({
+        jobId: job.id,
+        status: job.status,
+        pastaPadrao: pasta.caminhoDrive || caminhoDriveEmpresa(empresaSlug, empresaNome),
+        destino: "gdrive",
+      });
+    }
+
+    await executarJob(job.id, empresaId);
+    const feito = await obterJobTenant(empresaId, job.id);
+    if (!feito || feito.status === "falhou") {
+      return NextResponse.json(
+        {
+          error:
+            feito?.erro ||
+            "Não foi possível enviar o backup para o Google Drive.",
+        },
+        { status: 500 }
+      );
+    }
+
+    let resultado: Record<string, unknown> = {};
+    try {
+      resultado = feito.resultado
+        ? (JSON.parse(feito.resultado) as Record<string, unknown>)
+        : {};
+    } catch {
+      resultado = {};
+    }
 
     return NextResponse.json({
+      ok: true,
       jobId: job.id,
-      status: job.status,
+      status: feito.status,
       pastaPadrao: pasta.caminhoDrive || caminhoDriveEmpresa(empresaSlug, empresaNome),
-      destino: "gdrive",
+      destino: resultado.destino || pasta.caminhoDrive,
+      exportedAt: resultado.exportedAt,
+      drive: resultado.drive,
     });
   } catch (erro) {
     console.error("[backup/executar-agora]", erro);
     return NextResponse.json(
-      { error: "Não foi possível iniciar o backup no Google Drive." },
+      {
+        error:
+          erro instanceof Error
+            ? erro.message
+            : "Não foi possível enviar o backup para o Google Drive.",
+      },
       { status: 500 }
     );
   }
