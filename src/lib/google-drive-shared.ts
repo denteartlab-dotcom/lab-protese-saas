@@ -64,23 +64,51 @@ function caminhoRefreshTokenGdrive() {
   return path.join(process.cwd(), ".gdrive-refresh-token");
 }
 
-/** Prefere token em arquivo (rotação) e depois .env. */
-export function obterRefreshTokenGoogleDrive(): string {
+export function normalizarPrivateKeyServiceAccount(privateKey: string) {
+  return privateKey.replace(/\\n/g, "\n").replace(/\r\n/g, "\n");
+}
+
+function credencialServiceAccountNormalizada(
+  cred: CredenciaisServiceAccount
+): CredenciaisServiceAccount {
+  return {
+    ...cred,
+    private_key: normalizarPrivateKeyServiceAccount(String(cred.private_key || "")),
+  };
+}
+
+function tokenRefreshUtilizavel(valor?: string | null) {
+  const token = (valor || "").trim();
+  return token.length > 20 ? token : "";
+}
+
+/** .env primeiro (token novo) e depois o arquivo (rotação). Sem duplicar. */
+export function listarRefreshTokensGoogleDrive(): string[] {
   carregarEnvArquivoRuntime();
+  const tokens: string[] = [];
+  const adicionar = (valor?: string | null) => {
+    const token = tokenRefreshUtilizavel(valor);
+    if (token && !tokens.includes(token)) tokens.push(token);
+  };
+
+  adicionar(envRuntime("GOOGLE_DRIVE_REFRESH_TOKEN"));
+  adicionar(process.env.GOOGLE_DRIVE_REFRESH_TOKEN);
+
   try {
     const arquivo = caminhoRefreshTokenGdrive();
     if (existsSync(arquivo)) {
-      const valor = readFileSync(arquivo, "utf8").trim();
-      if (valor.length > 20) return valor;
+      adicionar(readFileSync(arquivo, "utf8"));
     }
   } catch {
-    /* .env */
+    /* segue só com .env */
   }
-  return (
-    envRuntime("GOOGLE_DRIVE_REFRESH_TOKEN").trim() ||
-    process.env.GOOGLE_DRIVE_REFRESH_TOKEN?.trim() ||
-    ""
-  );
+
+  return tokens;
+}
+
+/** Primeiro token utilizável: .env e, se faltar, arquivo de rotação. */
+export function obterRefreshTokenGoogleDrive(): string {
+  return listarRefreshTokensGoogleDrive()[0] ?? "";
 }
 
 export function persistirRefreshTokenGoogleDrive(novoToken: string) {
@@ -157,11 +185,15 @@ export async function lerCredenciaisGoogleDriveServiceAccount(): Promise<Credenc
     "";
   if (inline) {
     try {
-      return JSON.parse(inline) as CredenciaisServiceAccount;
+      return credencialServiceAccountNormalizada(
+        JSON.parse(inline) as CredenciaisServiceAccount
+      );
     } catch {
       try {
         const decodificado = Buffer.from(inline, "base64").toString("utf8");
-        return JSON.parse(decodificado) as CredenciaisServiceAccount;
+        return credencialServiceAccountNormalizada(
+          JSON.parse(decodificado) as CredenciaisServiceAccount
+        );
       } catch {
         console.error("[gdrive] GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON inválido.");
         return null;
@@ -177,7 +209,9 @@ export async function lerCredenciaisGoogleDriveServiceAccount(): Promise<Credenc
 
   try {
     const conteudo = await readFile(arquivo, "utf8");
-    return JSON.parse(conteudo) as CredenciaisServiceAccount;
+    return credencialServiceAccountNormalizada(
+      JSON.parse(conteudo) as CredenciaisServiceAccount
+    );
   } catch (erro) {
     console.error("[gdrive] falha ao ler GOOGLE_APPLICATION_CREDENTIALS:", erro);
     return null;
@@ -198,22 +232,26 @@ function oauthClientIds() {
   };
 }
 
-/** Cliente Drive: OAuth primeiro (conta Google); senão service account. */
-export async function criarClienteGoogleDrive(): Promise<drive_v3.Drive | null> {
-  const { clientId, clientSecret } = oauthClientIds();
-  const refreshToken = obterRefreshTokenGoogleDrive();
-
-  if (clientId && clientSecret && refreshToken) {
-    const oauth2 = new google.auth.OAuth2(clientId, clientSecret);
-    oauth2.setCredentials({ refresh_token: refreshToken });
-    oauth2.on("tokens", (tokens) => {
-      if (tokens.refresh_token) {
-        persistirRefreshTokenGoogleDrive(tokens.refresh_token);
-      }
-    });
-    return google.drive({ version: "v3", auth: oauth2 });
+async function criarClienteOAuthGoogleDrive(
+  clientId: string,
+  clientSecret: string,
+  refreshToken: string
+) {
+  const oauth2 = new google.auth.OAuth2(clientId, clientSecret);
+  oauth2.setCredentials({ refresh_token: refreshToken });
+  oauth2.on("tokens", (tokens) => {
+    if (tokens.refresh_token) {
+      persistirRefreshTokenGoogleDrive(tokens.refresh_token);
+    }
+  });
+  const renovado = await oauth2.getAccessToken();
+  if (!renovado?.token) {
+    throw new Error("Google Drive: não foi possível renovar o access_token.");
   }
+  return google.drive({ version: "v3", auth: oauth2 });
+}
 
+async function criarClienteServiceAccountGoogleDrive() {
   const credenciais = await lerCredenciaisGoogleDriveServiceAccount();
   if (!credenciais?.client_email || !credenciais.private_key) return null;
 
@@ -223,6 +261,39 @@ export async function criarClienteGoogleDrive(): Promise<drive_v3.Drive | null> 
   });
 
   return google.drive({ version: "v3", auth });
+}
+
+/** Cliente Drive: OAuth validado (tenta todos os tokens); senão service account. */
+export async function criarClienteGoogleDrive(): Promise<drive_v3.Drive | null> {
+  const { clientId, clientSecret } = oauthClientIds();
+  const tokens = listarRefreshTokensGoogleDrive();
+
+  if (clientId && clientSecret && tokens.length) {
+    let ultimoErro: unknown;
+    for (const refreshToken of tokens) {
+      try {
+        const cliente = await criarClienteOAuthGoogleDrive(
+          clientId,
+          clientSecret,
+          refreshToken
+        );
+        persistirRefreshTokenGoogleDrive(refreshToken);
+        return cliente;
+      } catch (erro) {
+        ultimoErro = erro;
+        console.warn(
+          "[gdrive] refresh_token recusado, tentando o próximo:",
+          erro instanceof Error ? erro.message : erro
+        );
+      }
+    }
+    console.warn(
+      "[gdrive] OAuth inválido, tentando service account:",
+      ultimoErro instanceof Error ? ultimoErro.message : ultimoErro
+    );
+  }
+
+  return criarClienteServiceAccountGoogleDrive();
 }
 
 export function escaparConsultaDrive(valor: string) {
@@ -307,6 +378,15 @@ export async function obterOuCriarPastaDrive(
   return id;
 }
 
+export function pastaDriveJaEhRaizBackup(
+  nomeAtual?: string | null,
+  nomeRaiz?: string | null
+) {
+  const atual = (nomeAtual || "").trim().toLowerCase();
+  const raiz = (nomeRaiz || nomePastaRaizGoogleDrive()).trim().toLowerCase();
+  return Boolean(atual && raiz && atual === raiz);
+}
+
 export async function resolverPastaRaizGoogleDrive(drive: drive_v3.Drive) {
   const parentCompartilhado = pastaRaizGoogleDriveId();
   if (!parentCompartilhado) return null;
@@ -315,6 +395,24 @@ export async function resolverPastaRaizGoogleDrive(drive: drive_v3.Drive) {
   const chaveCache = `root:${parentCompartilhado}:${nomeRaiz}`;
   const emCache = cachePastasDrive().get(chaveCache);
   if (emCache) return emCache;
+
+  try {
+    const meta = await drive.files.get({
+      fileId: parentCompartilhado,
+      fields: "id,name,trashed,mimeType",
+      supportsAllDrives: true,
+    });
+    if (
+      meta.data.id &&
+      meta.data.trashed !== true &&
+      pastaDriveJaEhRaizBackup(meta.data.name, nomeRaiz)
+    ) {
+      cachePastasDrive().set(chaveCache, meta.data.id);
+      return meta.data.id;
+    }
+  } catch {
+    /* FOLDER_ID pode ser só o parent; segue criando/buscando a raiz */
+  }
 
   const existenteNaRaiz = await buscarPastaPorNome(
     drive,
@@ -361,6 +459,14 @@ export function traduzirErroGoogleDrive(err: unknown): Error {
         )
       : "";
   const texto = `${msg} ${extra}`;
+
+  if (/invalid_grant|Token has been expired or revoked|invalid_rapt/i.test(texto)) {
+    return new Error(
+      "Google Drive: refresh_token expirado ou revogado. Gere outro com " +
+        "npm run uploads:gdrive-token e atualize GOOGLE_DRIVE_REFRESH_TOKEN " +
+        "(e o arquivo .gdrive-refresh-token, se existir)."
+    );
+  }
 
   if (
     /Service Accounts do not have storage quota|storageQuotaExceeded|does not have storage quota/i.test(

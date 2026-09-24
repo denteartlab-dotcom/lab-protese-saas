@@ -187,9 +187,8 @@ export async function garantirPastaDriveEmpresa(params: {
 
   try {
     const config = await carregarConfigBackupAutomatico(params.empresaId);
-    const pastaBackupsId = await garantirPastaBackupsEmpresaGoogleDrive(
-      params.slug,
-      nomeEmpresa
+    const pastaBackupsId = await comRetryDrive(() =>
+      garantirPastaBackupsEmpresaGoogleDrive(params.slug, nomeEmpresa)
     );
     const criada = config.pastaDriveId !== pastaBackupsId;
 
@@ -256,6 +255,33 @@ export type ResultadoUploadGoogleDrive = {
   erro?: string;
 };
 
+function erroDriveNaoRecuperavel(erro: unknown) {
+  const msg = erro instanceof Error ? erro.message : String(erro);
+  return /invalid_grant|nao_configurado|desativado|insufficientPermissions|não configurado|sem permissão|storage quota|refresh_token expirado/i.test(
+    msg
+  );
+}
+
+async function comRetryDrive<T>(fn: () => Promise<T>, tentativas = 3): Promise<T> {
+  let ultimo: unknown;
+  for (let i = 0; i < tentativas; i += 1) {
+    try {
+      return await fn();
+    } catch (erro) {
+      ultimo = traduzirErroGoogleDrive(erro);
+      if (erroDriveNaoRecuperavel(ultimo) || i === tentativas - 1) {
+        throw ultimo;
+      }
+      console.warn(
+        `[backup-drive] tentativa ${i + 1} falhou, repetindo…`,
+        ultimo instanceof Error ? ultimo.message : ultimo
+      );
+      await new Promise((resolver) => setTimeout(resolver, 400 * 2 ** i));
+    }
+  }
+  throw ultimo instanceof Error ? ultimo : new Error(String(ultimo));
+}
+
 function mensagemErroDriveObrigatorio(erro?: string) {
   if (erro === "desativado") {
     return "Backup no Google Drive está desligado (GOOGLE_DRIVE_BACKUP_ENABLED=false).";
@@ -287,6 +313,7 @@ export async function uploadBackupParaGoogleDrive(params: {
     };
   }
 
+  const pastaId = pasta.pastaId;
   const nomeArquivo = params.nomeArquivo.trim();
   const caminhoDrive = `${pasta.caminhoDrive}/${nomeArquivo}`;
   const bytes = Buffer.isBuffer(params.conteudo)
@@ -294,11 +321,13 @@ export async function uploadBackupParaGoogleDrive(params: {
     : Buffer.from(params.conteudo, "utf8");
 
   try {
-    const arquivoId = await uploadBufferParaPastaGoogleDrive(
-      pasta.pastaId,
-      bytes,
-      nomeArquivo,
-      "application/json"
+    const arquivoId = await comRetryDrive(() =>
+      uploadBufferParaPastaGoogleDrive(
+        pastaId,
+        bytes,
+        nomeArquivo,
+        "application/json"
+      )
     );
 
     const retencao = retencaoGoogleDriveBackupDias();

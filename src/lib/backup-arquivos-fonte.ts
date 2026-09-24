@@ -36,19 +36,24 @@ export async function listarArquivosBackupFonte(params: {
   nome?: string;
 }): Promise<ListaBackupFonte> {
   if (driveProntoParaListar()) {
-    const arquivos = await listarArquivosBackupEmpresaGoogleDrive(params);
-    return {
-      origem: "gdrive",
-      pasta: caminhoDriveEmpresa(params.slug, params.nome),
-      arquivos: arquivos.map(({ nome, bytes, modificadoEm }) => ({
-        nome,
-        bytes,
-        modificadoEm,
-      })),
-    };
-  }
-
-  if (googleDriveBackupHabilitado()) {
+    try {
+      const arquivos = await listarArquivosBackupEmpresaGoogleDrive(params);
+      return {
+        origem: "gdrive",
+        pasta: caminhoDriveEmpresa(params.slug, params.nome),
+        arquivos: arquivos.map(({ nome, bytes, modificadoEm }) => ({
+          nome,
+          bytes,
+          modificadoEm,
+        })),
+      };
+    } catch (erro) {
+      console.warn(
+        "[backup-fonte] Drive indisponível na listagem, usando pasta local:",
+        erro
+      );
+    }
+  } else if (googleDriveBackupHabilitado()) {
     return {
       origem: "gdrive",
       pasta: caminhoDriveEmpresa(params.slug, params.nome),

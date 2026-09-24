@@ -1,3 +1,4 @@
+import path from "path";
 import { z } from "zod";
 import { fusoBackupAutomatico } from "@/lib/backup-automatico-servidor";
 import {
@@ -178,12 +179,28 @@ export function normalizarConfigBackupAutomatico(
   return base;
 }
 
+/** Caminho lógico do Drive não existe no disco da VPS — não pode ser apagado no status. */
+export function caminhoBackupEhRemotoDrive(caminho?: string | null) {
+  const bruto = (caminho || "").trim();
+  if (!bruto) return false;
+  const normalizado = bruto.replace(/\\/g, "/");
+  if (normalizado.startsWith("gdrive:")) return true;
+  if (/Lab_Protese_Backups/i.test(normalizado)) return true;
+  if (/^lab-protese-backup-\d{4}-\d{2}-\d{2}\.json$/i.test(normalizado)) {
+    return true;
+  }
+  if (path.isAbsolute(bruto)) return false;
+  return /\/backups\//.test(normalizado);
+}
+
 export async function sincronizarRegistroUltimoBackup(
   empresaId: string,
   config: BackupAutomaticoConfig
 ): Promise<BackupAutomaticoConfig> {
   if (!config.ultimoBackupEm && !config.ultimoArquivo) return config;
   if (!config.ultimoArquivo) return config;
+  if (caminhoBackupEhRemotoDrive(config.ultimoArquivo)) return config;
+  if (caminhoBackupEhRemotoDrive(config.ultimoUploadDriveArquivo)) return config;
 
   try {
     const { access } = await import("fs/promises");

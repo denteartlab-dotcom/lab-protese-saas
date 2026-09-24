@@ -1,3 +1,5 @@
+import { writeFile } from "fs/promises";
+import path from "path";
 import { prisma } from "@/lib/db";
 import { exportarBackupEmpresa } from "@/lib/backup-laboratorio";
 import {
@@ -7,6 +9,7 @@ import {
 } from "@/lib/backup-zip";
 import {
   fusoBackupAutomatico,
+  garantirPastaBackupEmpresa,
   nomeArquivoBackupAutomatico,
 } from "@/lib/backup-automatico-servidor";
 import {
@@ -85,6 +88,21 @@ export async function executarBackupNoServidor(
   });
 
   if (!drive.ok || !drive.caminhoDrive) {
+    try {
+      const pastaLocal = await garantirPastaBackupEmpresa(slug, nome);
+      const caminhoLocal = path.join(pastaLocal, nomeArquivo);
+      await writeFile(caminhoLocal, conteudo);
+      await registrarExecucaoBackupAutomatico(
+        empresaId,
+        backup.exportedAt,
+        caminhoLocal
+      );
+      console.warn(
+        `[backup-servidor] ${slug}: Drive falhou; JSON salvo em ${caminhoLocal}`
+      );
+    } catch (erroLocal) {
+      console.error(`[backup-servidor] ${slug}: fallback local também falhou`, erroLocal);
+    }
     throw new Error(
       drive.erro || "Não foi possível enviar o backup para o Google Drive."
     );

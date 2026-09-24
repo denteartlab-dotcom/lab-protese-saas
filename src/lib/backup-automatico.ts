@@ -158,7 +158,17 @@ export async function iniciarBackupAutomaticoDiario() {
     console.log(
       `[backup-automatico] destino Google Drive: ${pastaExemplo}/${nomeArquivoBackupAutomatico()} fuso=${fusoBackupAutomatico()}`
     );
+  } catch (erro) {
+    console.error("[backup-automatico] falha ao listar empresas:", erro);
+  }
+
+  try {
     await sincronizarPastasDriveEmpresasAtivas();
+  } catch (erro) {
+    console.error("[backup-automatico] falha ao sincronizar pastas Drive:", erro);
+  }
+
+  try {
     await reagendarBackupAutomatico();
   } catch (erro) {
     console.error("[backup-automatico] falha ao iniciar agendamento:", erro);

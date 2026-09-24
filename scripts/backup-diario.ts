@@ -11,7 +11,11 @@ import { carregarConfigBackupAutomatico } from "../src/lib/backup-automatico-con
 import { sincronizarPastasDriveEmpresasAtivas } from "../src/lib/backup-google-drive";
 
 async function main() {
-  await sincronizarPastasDriveEmpresasAtivas();
+  try {
+    await sincronizarPastasDriveEmpresasAtivas();
+  } catch (erro) {
+    console.error("[backup-diario] falha ao sincronizar pastas Drive:", erro);
+  }
   const empresas = await executarSemRls((tx) =>
     tx.empresa.findMany({
       where: { status: "ativo" },
