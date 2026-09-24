@@ -1,6 +1,5 @@
 import type { drive_v3 } from "googleapis";
 import {
-  caminhoRelativoPastaBackupEmpresa,
   nomePastaBackupEmpresa,
 } from "@/lib/backup-empresa-pasta";
 import {
@@ -17,6 +16,7 @@ import {
 import { carregarEnvArquivoRuntime, envRuntime } from "@/lib/env-runtime";
 import {
   buscarPastaPorNome,
+  candidatosNomePastaEmpresaDrive,
   criarClienteGoogleDrive,
   escaparConsultaDrive,
   googleDriveStorageConfigurado,
@@ -55,16 +55,16 @@ function flagLigaBackup(valor: string) {
   return valor === "1" || valor === "true" || valor === "yes" || valor === "on";
 }
 
-/** Réplica no Drive: desliga só com false explícito; se a flag faltar, usa as mesmas credenciais dos anexos. */
+/** Réplica no Drive: se os anexos já vão para o Drive, o backup também vai. */
 export function googleDriveBackupHabilitado() {
   carregarEnvArquivoRuntime();
+  if (googleDriveStorageConfigurado()) return true;
   const bruto = flagEnvBackup(
     envRuntime("GOOGLE_DRIVE_BACKUP_ENABLED") ||
       process.env.GOOGLE_DRIVE_BACKUP_ENABLED
   );
   if (flagDesligaBackup(bruto)) return false;
-  if (flagLigaBackup(bruto)) return true;
-  return googleDriveStorageConfigurado();
+  return flagLigaBackup(bruto);
 }
 
 export function pastaRaizGoogleDriveBackup() {
@@ -99,9 +99,9 @@ export function statusGoogleDriveBackup(): StatusGoogleDriveBackup {
 
 export function caminhoDriveEmpresa(slug: string, nome?: string) {
   const status = statusGoogleDriveBackup();
-  const pastaLocal = caminhoRelativoPastaBackupEmpresa(slug, nome);
   const pastaEmpresa =
-    pastaLocal.split("/").pop() ?? nomePastaBackupEmpresa(slug, nome);
+    candidatosNomePastaEmpresaDrive(slug, nome)[0] ||
+    nomePastaBackupEmpresa(slug, nome);
   return `${status.pastaRaizNome}/${pastaEmpresa}/backups`;
 }
 
@@ -174,30 +174,40 @@ export async function garantirPastaDriveEmpresa(params: {
   nome?: string;
 }): Promise<ResultadoPastaDriveEmpresa> {
   const status = statusGoogleDriveBackup();
-  if (!status.habilitado) {
-    return { ok: false, erro: "desativado" };
-  }
-  if (!status.configurado || !status.pastaRaizId) {
-    return { ok: false, erro: "nao_configurado" };
+  if (!status.habilitado || !status.configurado || !status.pastaRaizId) {
+    return {
+      ok: false,
+      erro: status.habilitado ? "nao_configurado" : "desativado",
+    };
   }
 
   const nomeEmpresa = await nomeEmpresaBackup(params.empresaId, params.slug, params.nome);
-  const pastaEmpresaNome = nomePastaBackupEmpresa(params.slug, nomeEmpresa);
-  const caminhoDrive = caminhoDriveEmpresa(params.slug, nomeEmpresa);
 
   try {
-    const config = await carregarConfigBackupAutomatico(params.empresaId);
+    let config: BackupAutomaticoConfig | null = null;
+    try {
+      config = await carregarConfigBackupAutomatico(params.empresaId);
+    } catch (erroConfig) {
+      console.warn(`[backup-drive] ${params.slug}: config ignorada`, erroConfig);
+    }
+
     const pastaBackupsId = await comRetryDrive(() =>
       garantirPastaBackupsEmpresaGoogleDrive(params.slug, nomeEmpresa)
     );
-    const criada = config.pastaDriveId !== pastaBackupsId;
+    const pastaEmpresaNome =
+      candidatosNomePastaEmpresaDrive(params.slug, nomeEmpresa)[0] ||
+      nomePastaBackupEmpresa(params.slug, nomeEmpresa);
+    const caminhoDrive = `${status.pastaRaizNome}/${pastaEmpresaNome}/backups`;
+    const criada = config?.pastaDriveId !== pastaBackupsId;
 
     if (criada) {
       await registrarPastaDriveEmpresa(
         params.empresaId,
         pastaBackupsId,
         pastaEmpresaNome
-      );
+      ).catch((erro) => {
+        console.warn(`[backup-drive] ${params.slug}: não gravou pasta na config`, erro);
+      });
       console.log(`[backup-drive] pasta criada: ${caminhoDrive} (${pastaBackupsId})`);
     }
 

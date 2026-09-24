@@ -2,6 +2,7 @@ import {
   caminhoBackupEhRemotoDrive,
 } from "../src/lib/backup-automatico-config";
 import {
+  candidatosNomePastaEmpresaDrive,
   listarRefreshTokensGoogleDrive,
   normalizarPrivateKeyServiceAccount,
   pastaDriveJaEhRaizBackup,
@@ -70,4 +71,11 @@ assert(
   `invalid_grant deve virar mensagem amigável: ${traduzido.message}`
 );
 
-console.log("ok: backup Google Drive (token, status e pasta raiz)");
+const candidatos = candidatosNomePastaEmpresaDrive("denteart-1", "Dente Art");
+assert(candidatos[0] === "denteart-1", `slug deve vir primeiro: ${candidatos.join(",")}`);
+assert(
+  candidatos.some((nome) => /dente/i.test(nome) && nome !== "denteart-1"),
+  `candidatos devem incluir o nome fantasia: ${candidatos.join(",")}`
+);
+
+console.log("ok: backup Google Drive (token, status, pasta raiz e pasta da empresa)");

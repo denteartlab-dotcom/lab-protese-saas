@@ -19,6 +19,7 @@ import {
   obterOuCriarPastaDrive,
   opcoesDriveCompartilhado,
   pastaDriveExiste,
+  resolverPastaEmpresaGoogleDrive,
   resolverPastaRaizGoogleDrive,
   traduzirErroGoogleDrive,
 } from "@/lib/google-drive-shared";
@@ -85,22 +86,22 @@ async function garantirPastaEmpresaUploads(
   slug: string,
   nomeEmpresa?: string
 ) {
-  const pastaRaizId = await resolverPastaRaizGoogleDrive(drive);
-  if (!pastaRaizId) {
-    throw new Error("Pasta raiz do Google Drive indisponível.");
-  }
-  const pastaEmpresaNome = nomePastaEmpresaDrive(slug, nomeEmpresa);
-  const pastaEmpresaId = await obterOuCriarPastaDrive(
+  const { pastaEmpresaId, pastaEmpresaNome } = await resolverPastaEmpresaGoogleDrive(
     drive,
-    pastaRaizId,
-    pastaEmpresaNome
+    slug,
+    nomeEmpresa
   );
   const pastaUploadsId = await obterOuCriarPastaDrive(
     drive,
     pastaEmpresaId,
     "uploads"
   );
-  return { pastaEmpresaId, pastaUploadsId, pastaEmpresaNome };
+  const pastaBackupsId = await obterOuCriarPastaDrive(
+    drive,
+    pastaEmpresaId,
+    "backups"
+  );
+  return { pastaEmpresaId, pastaUploadsId, pastaBackupsId, pastaEmpresaNome };
 }
 
 /** Garante {Empresa}/uploads/{modulo}[/subpastas]. */
@@ -571,12 +572,12 @@ export async function garantirPastaBackupsEmpresaGoogleDrive(
 ) {
   const drive = exigirDrive(await criarClienteGoogleDrive());
   const slug = normalizarSlugEmpresaDrive(empresaSlug);
-  const { pastaEmpresaId } = await garantirPastaEmpresaUploads(
+  const { pastaBackupsId } = await garantirPastaEmpresaUploads(
     drive,
     slug,
     nomeEmpresa
   );
-  return obterOuCriarPastaDrive(drive, pastaEmpresaId, "backups");
+  return pastaBackupsId;
 }
 
 export async function uploadArquivoLocalParaPastaGoogleDrive(

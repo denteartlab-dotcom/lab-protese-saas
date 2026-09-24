@@ -17,6 +17,7 @@ import {
 } from "@/lib/backup-automatico-config";
 import {
   exigirGoogleDriveBackupPronto,
+  garantirPastaDriveEmpresa,
   uploadBackupParaGoogleDrive,
 } from "@/lib/backup-google-drive";
 import {
@@ -73,6 +74,17 @@ export async function executarBackupNoServidor(
 
   await reportar?.({ fase: "iniciando", percentual: 5, arquivo: nomeArquivo });
   exigirGoogleDriveBackupPronto();
+
+  const pastaInicial = await garantirPastaDriveEmpresa({
+    empresaId,
+    slug,
+    nome,
+  });
+  if (!pastaInicial.ok || !pastaInicial.pastaId) {
+    throw new Error(
+      pastaInicial.erro || "Não foi possível criar a pasta backups no Google Drive."
+    );
+  }
 
   await reportar?.({ fase: "exportando_dados", percentual: 25, arquivo: nomeArquivo });
   const backup = await exportarBackupEmpresa(prisma, empresaId);

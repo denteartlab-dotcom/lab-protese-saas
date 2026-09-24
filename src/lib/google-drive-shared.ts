@@ -232,7 +232,7 @@ function oauthClientIds() {
   };
 }
 
-async function criarClienteOAuthGoogleDrive(
+function montarClienteOAuthGoogleDrive(
   clientId: string,
   clientSecret: string,
   refreshToken: string
@@ -244,9 +244,25 @@ async function criarClienteOAuthGoogleDrive(
       persistirRefreshTokenGoogleDrive(tokens.refresh_token);
     }
   });
-  const renovado = await oauth2.getAccessToken();
-  if (!renovado?.token) {
-    throw new Error("Google Drive: não foi possível renovar o access_token.");
+  return oauth2;
+}
+
+async function criarClienteOAuthGoogleDrive(
+  clientId: string,
+  clientSecret: string,
+  refreshToken: string
+) {
+  const oauth2 = montarClienteOAuthGoogleDrive(clientId, clientSecret, refreshToken);
+  try {
+    const renovado = await oauth2.getAccessToken();
+    if (!renovado?.token) {
+      console.warn("[gdrive] getAccessToken sem token; segue com refresh_token.");
+    }
+  } catch (erro) {
+    console.warn(
+      "[gdrive] getAccessToken falhou; segue com refresh_token (anexos já usam este modo):",
+      erro instanceof Error ? erro.message : erro
+    );
   }
   return google.drive({ version: "v3", auth: oauth2 });
 }
@@ -263,34 +279,23 @@ async function criarClienteServiceAccountGoogleDrive() {
   return google.drive({ version: "v3", auth });
 }
 
-/** Cliente Drive: OAuth validado (tenta todos os tokens); senão service account. */
+/**
+ * Cliente Drive: OAuth da conta Google (a mesma dos anexos).
+ * Não cai para service account quando o OAuth existe — SA não grava no "Meu Drive".
+ */
 export async function criarClienteGoogleDrive(): Promise<drive_v3.Drive | null> {
   const { clientId, clientSecret } = oauthClientIds();
   const tokens = listarRefreshTokensGoogleDrive();
 
   if (clientId && clientSecret && tokens.length) {
-    let ultimoErro: unknown;
-    for (const refreshToken of tokens) {
-      try {
-        const cliente = await criarClienteOAuthGoogleDrive(
-          clientId,
-          clientSecret,
-          refreshToken
-        );
-        persistirRefreshTokenGoogleDrive(refreshToken);
-        return cliente;
-      } catch (erro) {
-        ultimoErro = erro;
-        console.warn(
-          "[gdrive] refresh_token recusado, tentando o próximo:",
-          erro instanceof Error ? erro.message : erro
-        );
-      }
-    }
-    console.warn(
-      "[gdrive] OAuth inválido, tentando service account:",
-      ultimoErro instanceof Error ? ultimoErro.message : ultimoErro
+    const refreshToken = tokens[0];
+    const cliente = await criarClienteOAuthGoogleDrive(
+      clientId,
+      clientSecret,
+      refreshToken
     );
+    persistirRefreshTokenGoogleDrive(refreshToken);
+    return cliente;
   }
 
   return criarClienteServiceAccountGoogleDrive();
@@ -378,6 +383,69 @@ export async function obterOuCriarPastaDrive(
   return id;
 }
 
+export async function listarPastasFilhasDrive(
+  drive: drive_v3.Drive,
+  parentId: string
+) {
+  const pastas: { id: string; name: string }[] = [];
+  let pageToken: string | undefined;
+  do {
+    const resposta = await drive.files.list({
+      q: [
+        `'${escaparConsultaDrive(parentId)}' in parents`,
+        `mimeType='${GOOGLE_DRIVE_MIME_FOLDER}'`,
+        "trashed=false",
+      ].join(" and "),
+      fields: "nextPageToken, files(id,name)",
+      pageSize: 100,
+      pageToken,
+      ...opcoesDriveCompartilhado(),
+    });
+    for (const pasta of resposta.data.files ?? []) {
+      if (pasta.id && pasta.name) {
+        pastas.push({ id: pasta.id, name: pasta.name });
+      }
+    }
+    pageToken = resposta.data.nextPageToken ?? undefined;
+  } while (pageToken);
+  return pastas;
+}
+
+/** Reusa a pasta já criada pelos anexos (ex.: denteart-1) em vez de abrir outra pelo nome fantasia. */
+export async function resolverPastaEmpresaGoogleDrive(
+  drive: drive_v3.Drive,
+  slug: string,
+  nomeEmpresa?: string
+) {
+  const pastaRaizId = await resolverPastaRaizGoogleDrive(drive);
+  if (!pastaRaizId) {
+    throw new Error("Pasta raiz do Google Drive indisponível.");
+  }
+
+  const candidatos = candidatosNomePastaEmpresaDrive(slug, nomeEmpresa);
+  for (const nome of candidatos) {
+    const id = await buscarPastaPorNome(drive, pastaRaizId, nome);
+    if (id) {
+      return { pastaEmpresaId: id, pastaEmpresaNome: nome, pastaRaizId };
+    }
+  }
+
+  const filhas = await listarPastasFilhasDrive(drive, pastaRaizId);
+  const alvo = new Set(candidatos.map((nome) => nome.toLowerCase()));
+  const achada = filhas.find((pasta) => alvo.has(pasta.name.toLowerCase()));
+  if (achada) {
+    return {
+      pastaEmpresaId: achada.id,
+      pastaEmpresaNome: achada.name,
+      pastaRaizId,
+    };
+  }
+
+  const nomeCriar = candidatos[0] || slug;
+  const pastaEmpresaId = await obterOuCriarPastaDrive(drive, pastaRaizId, nomeCriar);
+  return { pastaEmpresaId, pastaEmpresaNome: nomeCriar, pastaRaizId };
+}
+
 export function pastaDriveJaEhRaizBackup(
   nomeAtual?: string | null,
   nomeRaiz?: string | null
@@ -443,6 +511,28 @@ export function normalizarSlugEmpresaDrive(empresaSlug: string) {
 
 export function nomePastaEmpresaDrive(slug: string, nomeEmpresa?: string) {
   return nomePastaBackupEmpresa(slug, nomeEmpresa);
+}
+
+/** Nomes possíveis da pasta da empresa no Drive. Slug primeiro (é o que os anexos criam). */
+export function candidatosNomePastaEmpresaDrive(
+  slug: string,
+  nomeEmpresa?: string
+) {
+  const nomes: string[] = [];
+  const adicionar = (valor?: string | null) => {
+    const nome = (valor || "").trim();
+    if (!nome) return;
+    if (!nomes.some((atual) => atual.toLowerCase() === nome.toLowerCase())) {
+      nomes.push(nome);
+    }
+  };
+  const slugNorm = normalizarSlugEmpresaDrive(slug);
+  adicionar(slugNorm);
+  adicionar(slug);
+  adicionar(nomePastaBackupEmpresa(slugNorm));
+  adicionar(nomePastaBackupEmpresa(slug, nomeEmpresa));
+  adicionar(nomeEmpresa);
+  return nomes;
 }
 
 export function limparCachePastasGoogleDrive() {

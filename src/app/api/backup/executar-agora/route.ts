@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { executarBackupAutomatico } from "@/lib/backup-automatico";
-import { caminhoDriveEmpresa, exigirGoogleDriveBackupPronto } from "@/lib/backup-google-drive";
+import {
+  caminhoDriveEmpresa,
+  exigirGoogleDriveBackupPronto,
+  garantirPastaDriveEmpresa,
+} from "@/lib/backup-google-drive";
 import { exigirProprietario } from "@/lib/exigir-proprietario";
 import { criarJob, executarJobEmBackground } from "@/lib/jobs";
 
@@ -28,6 +32,18 @@ export async function POST() {
   const { empresaId, empresaSlug, empresaNome } = auth.session!;
 
   try {
+    const pasta = await garantirPastaDriveEmpresa({
+      empresaId,
+      slug: empresaSlug,
+      nome: empresaNome,
+    });
+    if (!pasta.ok) {
+      return NextResponse.json(
+        { error: pasta.erro || "Não foi possível criar a pasta backups no Google Drive." },
+        { status: 400 }
+      );
+    }
+
     const job = await criarJob(empresaId, "backup_servidor", {
       empresaSlug,
       empresaNome,
@@ -37,7 +53,7 @@ export async function POST() {
     return NextResponse.json({
       jobId: job.id,
       status: job.status,
-      pastaPadrao: caminhoDriveEmpresa(empresaSlug, empresaNome),
+      pastaPadrao: pasta.caminhoDrive || caminhoDriveEmpresa(empresaSlug, empresaNome),
       destino: "gdrive",
     });
   } catch (erro) {

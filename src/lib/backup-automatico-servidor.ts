@@ -264,5 +264,10 @@ export function backupAutomaticoHabilitadoNoServidor() {
   const flag =
     envRuntime("BACKUP_AUTOMATICO_ENABLED") ||
     process.env.BACKUP_AUTOMATICO_ENABLED;
-  return flag !== "0" && flag !== "false";
+  if (flag !== "0" && flag !== "false") return true;
+  const pastaDrive =
+    envRuntime("GOOGLE_DRIVE_FOLDER_ID") ||
+    process.env.GOOGLE_DRIVE_FOLDER_ID?.trim() ||
+    "";
+  return Boolean(pastaDrive);
 }
