@@ -1,8 +1,10 @@
 import {
   calcularDebitoAbertoOutrasFaturas,
+  calcularUltimoPagamentoClienteFatura,
   formatarSaldoAnteriorDebitoFatura,
   formatarSaldoAnteriorCreditoFatura,
   listarFaturasDebitoAberto,
+  type LancamentoResumoFatura,
 } from "../src/lib/fatura-cliente-financeiro";
 import {
   descricaoSaldoAnteriorIncorporado,
@@ -28,9 +30,9 @@ const debitoFmt = formatarSaldoAnteriorDebitoFatura(2014.3, money);
 assert(debitoFmt.startsWith("-"), `débito deve ter sinal negativo: ${debitoFmt}`);
 assert(debitoFmt.includes("D"), `débito deve manter sufixo D: ${debitoFmt}`);
 
-const creditoFmt = formatarSaldoAnteriorCreditoFatura(350, money);
-assert(creditoFmt.startsWith("-"), `crédito continua com sinal negativo: ${creditoFmt}`);
-assert(creditoFmt.includes("C"), `crédito deve manter sufixo C: ${creditoFmt}`);
+const creditoFmt = formatarSaldoAnteriorCreditoFatura(50, money);
+assert(!creditoFmt.startsWith("-"), `crédito positivo sem sinal de menos: ${creditoFmt}`);
+assert(/50/.test(creditoFmt) && creditoFmt.endsWith("C"), `crédito deve ser 50,00 C: ${creditoFmt}`);
 
 const empacotado = empacotarSaldoDevedorIncorporado("Cobrança OS 10 @@trab:abc@@", 2014.3, [
   "fat-antiga-1",
@@ -102,5 +104,60 @@ assert(
 
 const abertasDepois = listarFaturasDebitoAberto(todos, "cli-1", "fat-nova");
 assert(abertasDepois.length === 0, "depois da incorporação o débito antigo some do saldo aberto");
+
+function formatDateIso(iso: string) {
+  const [y, m, d] = iso.slice(0, 10).split("-");
+  return `${d}/${m}/${y}`;
+}
+
+const faturaQuitada: LancamentoResumoFatura = {
+  id: "fat-71",
+  tipo: "receita",
+  descricao: "Cobrança OS 71 @@trab:os71@@",
+  valor: 1500,
+  data: "2026-09-29",
+  status: "pago",
+  createdAt: "2026-09-10T10:00:00.000Z",
+  cliente: { id: "cli-pgto" },
+};
+const parcialPrimeiro: LancamentoResumoFatura = {
+  id: "parc-71",
+  tipo: "receita",
+  descricao: "Recebimento parcial - Cobrança OS 71 @@trab:os71@@",
+  valor: 1000,
+  data: "2026-09-17",
+  status: "pago",
+  createdAt: "2026-09-17T12:00:00.000Z",
+  cliente: { id: "cli-pgto" },
+};
+
+const ultimoUnido = calcularUltimoPagamentoClienteFatura({
+  lancamentos: [faturaQuitada, parcialPrimeiro],
+  clienteId: "cli-pgto",
+  formatDate: formatDateIso,
+  money,
+});
+assert(
+  /1\.?500,00/.test(ultimoUnido),
+  `último pgto deve unir o total da nota: ${ultimoUnido}`
+);
+assert(
+  ultimoUnido.startsWith("29/09/2026"),
+  `último pgto usa a data do acerto: ${ultimoUnido}`
+);
+
+const soParcial = calcularUltimoPagamentoClienteFatura({
+  lancamentos: [
+    { ...faturaQuitada, status: "pendente", data: "2026-09-10" },
+    parcialPrimeiro,
+  ],
+  clienteId: "cli-pgto",
+  formatDate: formatDateIso,
+  money,
+});
+assert(
+  /1\.?000,00/.test(soParcial),
+  `enquanto a nota está em aberto, último pgto é a parcial: ${soParcial}`
+);
 
 console.log("ok saldo-devedor-fatura");
