@@ -1,5 +1,8 @@
 import {
+  descricaoFaturaVinculadaAoPagamento,
   ehDescricaoFaturaContasReceber,
+  localizarFaturaPorDescricao,
+  recebidoNaFatura,
   saldoFatura,
   type LancamentoContasReceber,
 } from "@/lib/contas-receber-financeiro";
@@ -42,9 +45,32 @@ export function isPagamentoClienteFatura(lancamento: LancamentoResumoFatura) {
 function instanteLancamento(lancamento: LancamentoResumoFatura) {
   const criado = lancamento.createdAt ? Date.parse(lancamento.createdAt) : NaN;
   const data = Date.parse(lancamento.data);
-  if (Number.isFinite(criado)) return criado;
-  if (Number.isFinite(data)) return data;
-  return 0;
+  // Fatura quitada depois: `data` é a data do acerto, não a emissão.
+  if (
+    lancamento.status === "pago" &&
+    ehDescricaoFaturaContasReceber(lancamento.descricao)
+  ) {
+    if (Number.isFinite(data)) return data;
+    if (Number.isFinite(criado)) return criado;
+    return 0;
+  }
+  const instantes = [criado, data].filter((n) => Number.isFinite(n)) as number[];
+  return instantes.length ? Math.max(...instantes) : 0;
+}
+
+function faturaDoPagamento(
+  pagamento: LancamentoResumoFatura,
+  lancamentos: LancamentoResumoFatura[]
+): LancamentoResumoFatura | null {
+  const refs = lancamentos as LancamentoContasReceber[];
+  if (ehDescricaoFaturaContasReceber(pagamento.descricao)) return pagamento;
+  const vinculo = descricaoFaturaVinculadaAoPagamento(pagamento.descricao);
+  if (!vinculo || !pagamento.cliente?.id) return null;
+  return (
+    (localizarFaturaPorDescricao(vinculo, pagamento.cliente.id, refs) as
+      | LancamentoResumoFatura
+      | undefined) ?? null
+  );
 }
 
 function valorMonetarioSemPrefixo(valor: number, money: (n: number) => string) {
@@ -61,13 +87,13 @@ export function formatarUltimoPagamentoFatura(
   return `${formatDate(dataIso)} ${valorMonetarioSemPrefixo(valor, money)}`;
 }
 
-/** Crédito de adiantamento — formato Smart: `- 350,00 C` ou `0,00`. */
+/** Crédito de adiantamento — saldo positivo: `50,00 C` (sem sinal de menos). */
 export function formatarSaldoAnteriorCreditoFatura(
   credito: number,
   money: (n: number) => string
 ) {
   if (credito <= 0.009) return "0,00";
-  return `- ${valorMonetarioSemPrefixo(credito, money)} C`;
+  return `${valorMonetarioSemPrefixo(credito, money)} C`;
 }
 
 /** Débito em aberto (outras faturas) — formato Smart: `- 350,00 D`. */
@@ -181,7 +207,23 @@ export function calcularUltimoPagamentoClienteFatura(params: {
 
   const ultimo = pagamentos[0];
   if (!ultimo) return "—";
-  return formatarUltimoPagamentoFatura(ultimo.data, ultimo.valor, formatDate, money);
+
+  const fatura = faturaDoPagamento(ultimo, lancamentos);
+  const refs = lancamentos as LancamentoContasReceber[];
+  let valor = ultimo.valor;
+  let data = ultimo.data;
+
+  if (fatura && fatura.status === "pago") {
+    const totalNota = recebidoNaFatura(fatura as LancamentoContasReceber, refs);
+    if (totalNota > 0.009) valor = totalNota;
+    const eventos = pagamentos.filter(
+      (l) => faturaDoPagamento(l, lancamentos)?.id === fatura.id
+    );
+    const maisRecente = eventos[0] ?? ultimo;
+    data = maisRecente.data;
+  }
+
+  return formatarUltimoPagamentoFatura(data, valor, formatDate, money);
 }
 
 export function calcularSaldoAnteriorCreditoFatura(
@@ -196,7 +238,7 @@ export function calcularSaldoAnteriorCreditoFatura(
 /**
  * Saldo anterior na fatura — formato Smart:
  * - saldo ainda em aberto → `1.070,00 D`
- * - adiantamento disponível → `- 1.000,00 C`
+ * - adiantamento disponível → `1.000,00 C`
  * - ambos → líquido (débito − crédito)
  */
 export function calcularSaldoAnteriorFatura(params: {
@@ -239,7 +281,7 @@ export function calcularSaldoAnteriorFatura(params: {
 
 /**
  * Formata saldo do extrato / cabeçalho:
- * débito em aberto → `1.070,00 D`; adiantamento disponível → `- 1.000,00 C`.
+ * débito em aberto → `- 1.070,00 D`; adiantamento disponível → `1.000,00 C`.
  */
 export function formatarSaldoDebitoOuCreditoExtrato(
   saldo: number,
