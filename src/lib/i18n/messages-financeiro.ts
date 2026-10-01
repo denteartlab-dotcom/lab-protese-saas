@@ -414,6 +414,10 @@ export const messagesFinanceiroPt = {
   "financeiro.receber.situacao.emDia": "Em dia",
   "financeiro.receber.situacao.aReceberUpper": "A RECEBER",
   "financeiro.receber.situacao.vencidoUpper": "VENCIDO",
+  "financeiro.receber.cobranca.tituloWhatsapp":
+    "Enviar lembrete de cobrança no WhatsApp Web",
+  "financeiro.receber.cobranca.semWhatsapp":
+    "Cliente sem WhatsApp cadastrado. O WhatsApp Web será aberto para você escolher o contato.",
   "financeiro.receber.confirmExcluirTitulo": "Excluir Lançamento",
   "financeiro.receber.confirmExcluirMensagem": "Deseja realmente excluir esse lançamento?",
   "financeiro.receber.confirmEstornarTitulo": "Excluir Recebimento",
@@ -888,6 +892,10 @@ export const messagesFinanceiroEn = {
   "financeiro.receber.situacao.emDia": "On time",
   "financeiro.receber.situacao.aReceberUpper": "TO RECEIVE",
   "financeiro.receber.situacao.vencidoUpper": "OVERDUE",
+  "financeiro.receber.cobranca.tituloWhatsapp":
+    "Send overdue payment reminder on WhatsApp Web",
+  "financeiro.receber.cobranca.semWhatsapp":
+    "Client has no WhatsApp number. WhatsApp Web will open so you can choose a contact.",
   "financeiro.receber.confirmExcluirTitulo": "Delete Entry",
   "financeiro.receber.confirmExcluirMensagem": "Do you really want to delete this entry?",
   "financeiro.receber.confirmEstornarTitulo": "Delete Receipt",
@@ -1362,6 +1370,10 @@ export const messagesFinanceiroEs = {
   "financeiro.receber.situacao.emDia": "Al día",
   "financeiro.receber.situacao.aReceberUpper": "POR COBRAR",
   "financeiro.receber.situacao.vencidoUpper": "VENCIDO",
+  "financeiro.receber.cobranca.tituloWhatsapp":
+    "Enviar recordatorio de cobro en WhatsApp Web",
+  "financeiro.receber.cobranca.semWhatsapp":
+    "El cliente no tiene WhatsApp registrado. Se abrirá WhatsApp Web para que elija el contacto.",
   "financeiro.receber.confirmExcluirTitulo": "Eliminar Registro",
   "financeiro.receber.confirmExcluirMensagem": "¿Desea realmente eliminar este registro?",
   "financeiro.receber.confirmEstornarTitulo": "Eliminar Cobro",

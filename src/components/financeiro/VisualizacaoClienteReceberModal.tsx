@@ -1,6 +1,7 @@
 "use client";
 
 import { I18nPortal } from "@/components/I18nPortal";
+import { useI18n } from "@/components/i18n-provider";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal, flushSync } from "react-dom";
 import {
@@ -39,6 +40,11 @@ import { baixarCsv } from "@/lib/exportar-csv";
 import { exportarExtratoRelatorioExcel } from "@/lib/extrato-relatorio-export";
 import type { ModeloRelatorioReceitas } from "@/lib/relatorio-receitas-modelos";
 import { cn } from "@/lib/utils";
+import {
+  carregarConfigLaboratorio,
+  nomeExibicaoLaboratorio,
+} from "@/lib/configuracoes-lab";
+import { abrirWhatsAppWebLembreteCobrancaFatura } from "@/lib/mensagem-cobranca-fatura";
 
 export type FiltrosPainelContasReceber = {
   dataInicio: string;
@@ -258,14 +264,25 @@ function badgeSituacaoFatura(
     aReceber: boolean;
     vencido?: boolean;
   },
-  onReceberFatura?: (l: LancamentoClienteModal) => void
+  onReceberFatura?: (l: LancamentoClienteModal) => void,
+  onCobrancaVencida?: (l: LancamentoClienteModal) => void,
+  tituloCobranca?: string
 ) {
   const sit = situacaoFaturaLabel(l);
   if (sit.vencido || sit.label.toUpperCase().includes("VENCID")) {
     return (
-      <span className="inline-block whitespace-nowrap rounded bg-[#dc2626] px-3 py-1 text-[10px] font-semibold text-white">
+      <button
+        type="button"
+        title={tituloCobranca || "Enviar lembrete de cobrança no WhatsApp Web"}
+        aria-label={tituloCobranca || "Enviar lembrete de cobrança no WhatsApp Web"}
+        onClick={(e) => {
+          e.stopPropagation();
+          onCobrancaVencida?.(l);
+        }}
+        className="inline-block whitespace-nowrap rounded bg-[#dc2626] px-3 py-1 text-[10px] font-semibold text-white hover:bg-[#b91c1c]"
+      >
         Vencido
-      </span>
+      </button>
     );
   }
   if (sit.aReceber) {
@@ -334,6 +351,7 @@ export function VisualizacaoClienteReceberModal({
   clienteTelefone,
   onRecarregarDados,
 }: Props) {
+  const { t } = useI18n();
   const [mounted, setMounted] = useState(false);
   const [aba, setAba] = useState<"faturas" | "recebimentos" | "extrato">("faturas");
   const [mes, setMes] = useState<number | "todos">(new Date().getMonth());
@@ -349,6 +367,19 @@ export function VisualizacaoClienteReceberModal({
   const [gerandoExtrato, setGerandoExtrato] = useState(false);
   const [whatsappExtratoAberto, setWhatsappExtratoAberto] = useState(false);
   const fechandoRef = useRef(false);
+
+  function abrirCobrancaWhatsapp(l: LancamentoClienteModal) {
+    const cfg = carregarConfigLaboratorio();
+    abrirWhatsAppWebLembreteCobrancaFatura({
+      telefone: clienteTelefone,
+      nomeCliente: cliente?.nome || l.cliente?.nome || "",
+      numeroFatura: numeroFatura(l),
+      vencimento: formatDate(l.data),
+      saldoFormatado: money(saldoFatura(l)),
+      nomeLaboratorio: nomeExibicaoLaboratorio(cfg),
+      alertaSemTelefone: t("financeiro.receber.cobranca.semWhatsapp"),
+    });
+  }
 
   useEffect(() => setMounted(true), []);
 
@@ -1120,7 +1151,13 @@ export function VisualizacaoClienteReceberModal({
                             {money(saldo)}
                           </td>
                           <td className={cn(tdFaturasClass, "text-center")}>
-                            {badgeSituacaoFatura(l, situacaoFaturaLabel, onReceberFatura)}
+                            {badgeSituacaoFatura(
+                              l,
+                              situacaoFaturaLabel,
+                              onReceberFatura,
+                              abrirCobrancaWhatsapp,
+                              t("financeiro.receber.cobranca.tituloWhatsapp")
+                            )}
                           </td>
                           <td
                             className={cn(tdFaturasClass, "text-right")}

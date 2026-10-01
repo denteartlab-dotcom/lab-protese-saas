@@ -68,7 +68,7 @@ import {
   type ItemOsLinha,
 } from "@/lib/trabalho-os-segmento";
 import { cn, formatDate, STATUS_TRABALHO } from "@/lib/utils";
-import { carregarConfigLaboratorio } from "@/lib/configuracoes-lab";
+import { carregarConfigLaboratorio, nomeExibicaoLaboratorio } from "@/lib/configuracoes-lab";
 import {
   carregarConfiguracoesFaturas,
 } from "@/lib/configuracoes-faturas";
@@ -109,6 +109,7 @@ import {
 import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, isRecebimentoParcial, isSaldoAnteriorIncorporado, deveExibirNoHistoricoRecebimentos, valorHistoricoRecebimentoCliente, referenciaLancamento as referenciaHistoricoRecebimento, recebidoNaFatura as recebidoNaFaturaLib, saldoFatura as saldoFaturaLib, valorNotaFatura as valorNotaFaturaLib, classeReferenciaHistoricoRecebimento, faturaExibeSituacaoParcial, faturasExibicaoPainelCliente, faturaQuitada, faturaTemNotaImprimivel, recebimentosHistoricoCliente, movimentacoesRecebimentoDaFatura, ehFaturaCobrancaOsParaExclusao, idsLancamentosExclusaoAoRemoverFatura, ehDescricaoFaturaContasReceber, empacotarSaldoDevedorIncorporado, extrairSaldoDevedorIncorporado, descricaoSaldoAnteriorIncorporado, FORMA_PAGAMENTO_SALDO_ANTERIOR_INCORPORADO, listarAbatimentosCreditoSemFatura, listarFaturasAbatimentoComValorZerado, payloadReparoFaturaDeAbatimento, type LancamentoContasReceber } from "@/lib/contas-receber-financeiro";
 import { calcularContasRecebidasPeriodo } from "@/lib/lancamento-valor-caixa";
 import { telefoneWhatsappCliente } from "@/lib/cliente-observacoes";
+import { abrirWhatsAppWebLembreteCobrancaFatura } from "@/lib/mensagem-cobranca-fatura";
 import { fetchPainelFinanceiro } from "@/lib/financeiro-painel-cliente";
 import type { PainelFinanceiroReceita } from "@/lib/financeiro-painel-types";
 import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
@@ -2247,6 +2248,26 @@ function FinanceiroReceberConteudo() {
     };
   }
 
+  function abrirLembreteCobrancaFatura(cliente: ClienteReceber, lancamento: Lancamento) {
+    const telefone = telefoneWhatsappCliente(
+      clientes.find(
+        (c) =>
+          c.id === cliente.clienteId ||
+          c.nome.trim().toLowerCase() === cliente.nome.trim().toLowerCase()
+      ) || {}
+    );
+    const cfg = carregarConfigLaboratorio();
+    abrirWhatsAppWebLembreteCobrancaFatura({
+      telefone,
+      nomeCliente: cliente.nome,
+      numeroFatura: numeroFatura(lancamento),
+      vencimento: formatDate(lancamento.data),
+      saldoFormatado: money(saldoFatura(lancamento)),
+      nomeLaboratorio: nomeExibicaoLaboratorio(cfg),
+      alertaSemTelefone: t("financeiro.receber.cobranca.semWhatsapp"),
+    });
+  }
+
   function enriquecerClienteReceber(cliente: ClienteReceber): ClienteReceber {
     if (!cliente.clienteId || !data?.lancamentos?.length) return cliente;
     const todosDoCliente = data.lancamentos.filter(
@@ -2824,9 +2845,24 @@ function FinanceiroReceberConteudo() {
                                           </td>
                                           <td className="px-2 py-2 text-right">{money(saldoFatura(l))}</td>
                                           <td className="px-2 py-2">
-                                            <span className={`rounded px-2 py-1 ${situacao.color}`}>
-                                              {t(situacao.key)}
-                                            </span>
+                                            {situacao.key === "financeiro.receber.situacao.vencido" ? (
+                                              <button
+                                                type="button"
+                                                title={t("financeiro.receber.cobranca.tituloWhatsapp")}
+                                                aria-label={t("financeiro.receber.cobranca.tituloWhatsapp")}
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  abrirLembreteCobrancaFatura(cliente, l);
+                                                }}
+                                                className={`rounded px-2 py-1 ${situacao.color} hover:brightness-110`}
+                                              >
+                                                {t(situacao.key)}
+                                              </button>
+                                            ) : (
+                                              <span className={`rounded px-2 py-1 ${situacao.color}`}>
+                                                {t(situacao.key)}
+                                              </span>
+                                            )}
                                           </td>
                                           <td className="px-2 py-2">
                                             <div className="flex items-center justify-center gap-1">
