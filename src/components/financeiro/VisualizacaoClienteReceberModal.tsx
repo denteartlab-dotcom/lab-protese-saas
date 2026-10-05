@@ -27,6 +27,7 @@ import {
 import { textoSaldoExtratoComPrefixo } from "@/lib/fatura-cliente-financeiro";
 import {
   isCreditoUtilizado,
+  lancamentoVencidoEmAberto,
   observacaoRecebimentoCurta,
   recebimentosHistoricoCliente,
   valorHistoricoRecebimentoCliente,
@@ -451,14 +452,17 @@ export function VisualizacaoClienteReceberModal({
   const lancamentosMes = useMemo(() => {
     if (!cliente) return [];
     return cliente.lancamentos.filter((l) => {
-      if (!lancamentoNoPeriodoPainel(l.data, filtrosPainel)) return false;
-      const { mes: lm, ano: la } = parseDataMesAno(l.data);
-      if (la !== ano) return false;
-      if (mes !== "todos" && lm !== mes) return false;
+      const vencida = lancamentoVencidoEmAberto(l, { saldo: saldoFatura(l) });
+      if (!vencida) {
+        if (!lancamentoNoPeriodoPainel(l.data, filtrosPainel)) return false;
+        const { mes: lm, ano: la } = parseDataMesAno(l.data);
+        if (la !== ano) return false;
+        if (mes !== "todos" && lm !== mes) return false;
+      }
       if (formaPagamento !== "todos" && l.formaPagamento !== formaPagamento) return false;
       return true;
     });
-  }, [cliente, mes, ano, formaPagamento, filtrosPainel]);
+  }, [cliente, mes, ano, formaPagamento, filtrosPainel, saldoFatura]);
 
   const periodoSelecionado = useMemo(() => periodoExtrato(mes, ano), [mes, ano]);
 

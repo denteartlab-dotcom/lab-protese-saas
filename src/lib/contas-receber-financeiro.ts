@@ -640,6 +640,31 @@ export function faturaQuitada(
   return fatura.status === "pago" || saldoFatura(fatura, lancamentos) <= 0.009;
 }
 
+/** Conta em aberto cujo vencimento já passou — permanece visível em qualquer período. */
+export function lancamentoVencidoEmAberto(
+  lancamento: Pick<LancamentoContasReceber, "data" | "status">,
+  opts?: { saldo?: number; hoje?: Date }
+) {
+  if (lancamento.status === "pago" || lancamento.status === "cancelado") return false;
+  if (opts?.saldo != null && opts.saldo <= 0.009) return false;
+  const hoje = opts?.hoje ? new Date(opts.hoje) : new Date();
+  hoje.setHours(0, 0, 0, 0);
+  return dateOnly(lancamento.data) < hoje;
+}
+
+export function passaFiltroPeriodoOuVencido(
+  lancamento: Pick<LancamentoContasReceber, "data" | "status">,
+  inicio?: Date | null,
+  fim?: Date | null,
+  opts?: { saldo?: number; hoje?: Date }
+) {
+  if (lancamentoVencidoEmAberto(lancamento, opts)) return true;
+  const vencimento = dateOnly(lancamento.data);
+  if (inicio && vencimento < inicio) return false;
+  if (fim && vencimento > fim) return false;
+  return true;
+}
+
 export function faturasExibicaoPainelCliente(
   clienteId: string,
   lancamentos: LancamentoContasReceber[],
@@ -657,10 +682,16 @@ export function faturasExibicaoPainelCliente(
   return faturasCobrancaOsDoCliente(clienteId, lancamentos).filter((fatura) => {
     if (faturaQuitada(fatura, lancamentos)) return true;
     const vencimento = dateOnly(fatura.data);
-    if (inicio && vencimento < inicio) return false;
-    if (fim && vencimento > fim) return false;
+    const vencida = lancamentoVencidoEmAberto(fatura, {
+      saldo: saldoFatura(fatura, lancamentos),
+      hoje,
+    });
+    if (!vencida) {
+      if (inicio && vencimento < inicio) return false;
+      if (fim && vencimento > fim) return false;
+    }
     if (opcoes?.situacao === "receber") return true;
-    if (opcoes?.situacao === "atraso") return vencimento < hoje;
+    if (opcoes?.situacao === "atraso") return vencida;
     return true;
   });
 }

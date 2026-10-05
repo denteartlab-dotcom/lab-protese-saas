@@ -194,28 +194,30 @@ export function calcularResumoFinanceiroDashboard(
       if (idsAtivos && !idsAtivos.has(raw.clienteId)) continue;
       if (!isFaturaContasReceberLib(l, mapped, trabalhosMapped)) continue;
       if (l.status === "pago") continue;
-      if (filtrarMes && !vencimentoNoMesAno(raw.data, opcoes.mes!, opcoes.ano!)) {
+      const vencimento = dateOnly(raw.data);
+      const vencida = vencimento < hoje;
+      if (filtrarMes && !vencimentoNoMesAno(raw.data, opcoes.mes!, opcoes.ano!) && !vencida) {
         continue;
       }
 
       const saldo = saldoFaturaLib(l, mapped);
       if (saldo <= 0.005) continue;
 
-      const vencimento = dateOnly(raw.data);
       receitasAReceber += saldo;
-      if (vencimento < hoje) {
+      if (vencida) {
         receitasInadimplencia += saldo;
       }
       continue;
     }
 
     if (l.tipo === "despesa" && l.status === "pendente") {
-      if (filtrarMes && !vencimentoNoMesAno(raw.data, opcoes.mes!, opcoes.ano!)) {
+      const vencimento = dateOnly(raw.data);
+      const vencida = vencimento < hoje;
+      if (filtrarMes && !vencimentoNoMesAno(raw.data, opcoes.mes!, opcoes.ano!) && !vencida) {
         continue;
       }
-      const vencimento = dateOnly(raw.data);
       despesasAPagar += l.valor;
-      if (vencimento < hoje) {
+      if (vencida) {
         despesasVencidas += l.valor;
       }
     }

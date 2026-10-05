@@ -106,7 +106,7 @@ import {
   exportarContasReceberClientesCsv,
   gerarContasReceberClientesPdf,
 } from "@/lib/contas-receber-clientes-export";
-import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, isRecebimentoParcial, isSaldoAnteriorIncorporado, deveExibirNoHistoricoRecebimentos, valorHistoricoRecebimentoCliente, referenciaLancamento as referenciaHistoricoRecebimento, recebidoNaFatura as recebidoNaFaturaLib, saldoFatura as saldoFaturaLib, valorNotaFatura as valorNotaFaturaLib, classeReferenciaHistoricoRecebimento, faturaExibeSituacaoParcial, faturasExibicaoPainelCliente, faturaQuitada, faturaTemNotaImprimivel, recebimentosHistoricoCliente, movimentacoesRecebimentoDaFatura, ehFaturaCobrancaOsParaExclusao, idsLancamentosExclusaoAoRemoverFatura, ehDescricaoFaturaContasReceber, empacotarSaldoDevedorIncorporado, extrairSaldoDevedorIncorporado, descricaoSaldoAnteriorIncorporado, FORMA_PAGAMENTO_SALDO_ANTERIOR_INCORPORADO, listarAbatimentosCreditoSemFatura, listarFaturasAbatimentoComValorZerado, payloadReparoFaturaDeAbatimento, type LancamentoContasReceber } from "@/lib/contas-receber-financeiro";
+import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, isRecebimentoParcial, isSaldoAnteriorIncorporado, deveExibirNoHistoricoRecebimentos, valorHistoricoRecebimentoCliente, referenciaLancamento as referenciaHistoricoRecebimento, recebidoNaFatura as recebidoNaFaturaLib, saldoFatura as saldoFaturaLib, valorNotaFatura as valorNotaFaturaLib, classeReferenciaHistoricoRecebimento, faturaExibeSituacaoParcial, faturasExibicaoPainelCliente, faturaQuitada, faturaTemNotaImprimivel, recebimentosHistoricoCliente, movimentacoesRecebimentoDaFatura, ehFaturaCobrancaOsParaExclusao, idsLancamentosExclusaoAoRemoverFatura, ehDescricaoFaturaContasReceber, empacotarSaldoDevedorIncorporado, extrairSaldoDevedorIncorporado, descricaoSaldoAnteriorIncorporado, FORMA_PAGAMENTO_SALDO_ANTERIOR_INCORPORADO, listarAbatimentosCreditoSemFatura, listarFaturasAbatimentoComValorZerado, payloadReparoFaturaDeAbatimento, passaFiltroPeriodoOuVencido, type LancamentoContasReceber } from "@/lib/contas-receber-financeiro";
 import { calcularContasRecebidasPeriodo } from "@/lib/lancamento-valor-caixa";
 import { telefoneWhatsappCliente } from "@/lib/cliente-observacoes";
 import { abrirWhatsAppWebLembreteCobrancaFatura } from "@/lib/mensagem-cobranca-fatura";
@@ -577,9 +577,13 @@ function FinanceiroReceberConteudo() {
     const termo = busca.trim().toLowerCase();
 
     return lancamentos.filter((l) => {
-      const dataLancamento = dateOnly(l.data);
-      if (inicio && dataLancamento < inicio) return false;
-      if (fim && dataLancamento > fim) return false;
+      if (
+        !passaFiltroPeriodoOuVencido(l, inicio, fim, {
+          saldo: saldoFaturaLib(l, data?.lancamentos || []),
+        })
+      ) {
+        return false;
+      }
       if (situacao === "receber" && l.status === "pago") return false;
       if (situacao === "atraso") {
         const hoje = new Date();

@@ -87,21 +87,20 @@ assert(
 );
 
 const doMes = calcularResumoFinanceiroDashboard(lancamentos, [], { mes, ano });
-const esperadoMes = 1500 + (inicioMes < hoje ? 200 : 0);
+const esperadoMes = 1500 + 94264 + (inicioMes < hoje ? 200 : 0);
 assert(
   Math.abs(doMes.despesasAPagar - esperadoMes) < 0.01,
-  `mês vigente não pode incluir 94.264: ${doMes.despesasAPagar}`
+  `mês vigente inclui despesa vencida de outro mês: ${doMes.despesasAPagar}`
 );
 assert(
   doMes.despesasVencidas <= doMes.despesasAPagar,
-  "contas vencidas são recorte de a pagar do mês"
+  "contas vencidas são recorte de a pagar visível"
 );
-if (inicioMes < hoje) {
-  assert(
-    Math.abs(doMes.despesasVencidas - 200) < 0.01,
-    `só a vencida do mês entra: ${doMes.despesasVencidas}`
-  );
-}
+const vencidasEsperadas = 94264 + (inicioMes < hoje ? 200 : 0);
+assert(
+  Math.abs(doMes.despesasVencidas - vencidasEsperadas) < 0.01,
+  `vencidas de qualquer mês entram: ${doMes.despesasVencidas}`
+);
 
 const receitas: LancamentoFinanceiroResumo[] = [
   {
@@ -142,8 +141,8 @@ const receitasMes = calcularResumoFinanceiroDashboard(receitas, [], {
   idsClientesAtivos: ["cli-1"],
 });
 assert(
-  Math.abs(receitasMes.receitasAReceber - 2630.3) < 0.01,
-  `receita do Início deve ignorar mês anterior e cliente inativo: ${receitasMes.receitasAReceber}`
+  Math.abs(receitasMes.receitasAReceber - (2630.3 + 9000)) < 0.01,
+  `receita do Início inclui vencida de outro mês e ignora cliente inativo: ${receitasMes.receitasAReceber}`
 );
 
-console.log("ok: despesas e receitas do Início acompanham o mês vigente");
+console.log("ok: despesas e receitas do Início acompanham o mês vigente e as vencidas");

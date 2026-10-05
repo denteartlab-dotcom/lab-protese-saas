@@ -83,6 +83,7 @@ import {
 } from "@/lib/despesas-lista-export";
 import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
 import { cn, formatDate } from "@/lib/utils";
+import { lancamentoVencidoEmAberto } from "@/lib/contas-receber-financeiro";
 
 type Lancamento = {
   id: string;
@@ -594,8 +595,12 @@ export function ContasPagarConteudo() {
       })
       .filter(({ lancamento, pack, entidade, ref }) => {
         const dataVencimento = dateOnly(lancamento.data);
-        if (inicio && dataVencimento < inicio) return false;
-        if (fim && dataVencimento > fim) return false;
+        if (
+          !lancamentoVencidoEmAberto(lancamento) &&
+          ((inicio && dataVencimento < inicio) || (fim && dataVencimento > fim))
+        ) {
+          return false;
+        }
 
         if (entidadeAtiva !== "todos" && entidade !== entidadeAtiva) return false;
 
