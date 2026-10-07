@@ -10,7 +10,6 @@ import { useI18n } from "@/components/i18n-provider";
 import { BreadcrumbProducao } from "@/components/producao/BreadcrumbProducao";
 import { RelatorioComissaoColaboradoresModal } from "@/components/RelatorioComissaoColaboradoresModal";
 import { CampoDataBr } from "@/components/ui";
-import { DIA_PAGAMENTO_COMISSAO_PADRAO } from "@/lib/comissao-colaboradores-pagamento";
 import {
   exportarComissaoColaboradoresCsv,
   formatarMoedaComissao,
@@ -19,15 +18,11 @@ import {
   type TrabalhoComissao,
 } from "@/lib/comissoes-colaboradores";
 import {
-  desmarcarLinhaComissaoEfetivada,
   lerComissoesEfetivadas,
   linhaComissaoEfetivada,
-  marcarLinhaComissaoEfetivada,
-  salvarComissoesEfetivadas,
-  totalEfetivadoColaboradorMes,
   type ComissoesEfetivadasStore,
 } from "@/lib/comissoes-efetivadas";
-import { sincronizarDespesaComissaoColaborador } from "@/lib/despesa-comissao-colaborador";
+import { aplicarEfetivacaoComissoes } from "@/lib/efetivar-comissao-colaborador";
 import { gerarRelatorioComissaoColaboradoresModelo1Pdf } from "@/lib/pdf-relatorio-comissao-colaboradores-modelo1";
 import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
 import { carregarColaboradoresListagem } from "@/lib/colaboradores-listagem";
@@ -366,45 +361,7 @@ export function ControleComissoesColaboradores() {
     if (linhasAlvo.length === 0 || efetivando) return;
     setEfetivando(true);
     try {
-      let store = lerComissoesEfetivadas();
-      const cadastro = carregarColaboradoresListagem();
-      const grupos = new Map<string, { colaborador: string; mesCompetencia: string }>();
-
-      for (const linha of linhasAlvo) {
-        if (efetivar) {
-          if (linha.comissaoValor <= 0) continue;
-          store = marcarLinhaComissaoEfetivada(store, linha.id, {
-            colaborador: linha.colaborador,
-            mesCompetencia: linha.mesCompetencia,
-            valor: linha.comissaoValor,
-            numeroOs: linha.numeroOs,
-            efetivadoEm: new Date().toISOString(),
-          });
-        } else {
-          store = desmarcarLinhaComissaoEfetivada(store, linha.id);
-        }
-        grupos.set(`${linha.colaborador}::${linha.mesCompetencia}`, {
-          colaborador: linha.colaborador,
-          mesCompetencia: linha.mesCompetencia,
-        });
-      }
-
-      for (const grupo of grupos.values()) {
-        const dia =
-          cadastro.find(
-            (c) => c.nome.trim().toLowerCase() === grupo.colaborador.trim().toLowerCase()
-          )?.diaPagamentoComissao ?? DIA_PAGAMENTO_COMISSAO_PADRAO;
-        store = await sincronizarDespesaComissaoColaborador({
-          store,
-          colaborador: grupo.colaborador,
-          mesCompetencia: grupo.mesCompetencia,
-          valor: totalEfetivadoColaboradorMes(store, grupo.colaborador, grupo.mesCompetencia),
-          diaPagamento: dia,
-        });
-      }
-
-      salvarComissoesEfetivadas(store);
-      setEfetivadasStore(store);
+      setEfetivadasStore(await aplicarEfetivacaoComissoes(linhasAlvo, efetivar));
     } catch (err) {
       console.error("efetivar comissao colaborador", err);
       const paga = err instanceof Error && err.name === "DespesaComissaoPagaError";

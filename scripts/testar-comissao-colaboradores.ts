@@ -14,6 +14,7 @@ import {
   montarLinhasComissaoColaboradores,
   type TrabalhoComissao,
 } from "../src/lib/comissoes-colaboradores";
+import { situacaoItemInstrucaoOs } from "../src/lib/modulo-producao-os";
 import type { ColaboradorListagem } from "../src/lib/colaboradores-listagem";
 
 function cadastro(parcial: Partial<ColaboradorListagem> = {}): ColaboradorListagem {
@@ -153,5 +154,30 @@ const mapaChaveLegada = montarLinhasComissaoColaboradores(
 assert.equal(mapaChaveLegada.length, 1);
 assert.equal(mapaChaveLegada[0].comissaoValor, 49);
 ok("reconhece etapa concluida pela OS mesmo com chave de item diferente");
+
+assert.equal(
+  situacaoItemInstrucaoOs(
+    "Item adicionado: PPR - dentes 11 - cor A2 - qtd 1 - valor 490,00 - situação producao - desc 5,00 - desconto percentual",
+    "pedido"
+  ),
+  "producao"
+);
+assert.equal(
+  situacaoItemInstrucaoOs(
+    "Item adicionado: PPR - dentes 11 - cor A2 - qtd 1 - valor 490,00",
+    "finalizado"
+  ),
+  "finalizado"
+);
+ok("situacao do item na OS ignora desconto e usa o status real");
+
+const pendenteComValor = montarLinhasComissaoColaboradores(
+  [trabalho({ status: "producao" })],
+  { cadastro: [cadastro()], mapaEtapasConcluidas: {}, incluirPendentes: true }
+);
+assert.equal(pendenteComValor.length, 1);
+assert.equal(pendenteComValor[0].comissaoValor, 49);
+assert.equal(pendenteComValor[0].elegivel, false);
+ok("modulo mostra comissao da OS mesmo com etapa pendente, sem aceitar ainda");
 
 console.log("\nTodos os testes de comissao de colaboradores passaram.");

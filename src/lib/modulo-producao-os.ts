@@ -3,6 +3,7 @@ import {
   parseEtapasInstrucoes,
   type EtapaOsLinha,
 } from "@/lib/etapas-os";
+import { normalizarChaveStatusOs } from "@/lib/status-os";
 import { segmentoEfetivoTrabalho } from "@/lib/trabalho-os-segmento";
 import { STATUS_TRABALHO } from "@/lib/utils";
 
@@ -124,6 +125,16 @@ export function contextoEtapasControleLinha<
   return { etapas, trabalhoId: servicoRef.id, itemId, servicoRef };
 }
 
+/** Situação real do item (chave de status), sem resíduos de desconto/categoria da linha. */
+export function situacaoItemInstrucaoOs(linha: string, fallbackStatus: string) {
+  const match = (linha || "").match(
+    / - situação\s+(.+?)(?:\s+-\s+(?:produtoId|urgente|repetição|repeticao|obs|desc|descTipo|categoria)\b|$)/i
+  );
+  const bruto = (match?.[1] || fallbackStatus || "").trim();
+  const token = bruto.split(/\s+-\s+/)[0]?.trim() || bruto;
+  return normalizarChaveStatusOs(token || fallbackStatus);
+}
+
 export function itensDaOsModulo<T extends TrabalhoContextoEtapas>(trabalho: T): ItemModuloOs[] {
   const linhas = (trabalho.instrucoes || "")
     .split("\n")
@@ -134,9 +145,7 @@ export function itensDaOsModulo<T extends TrabalhoContextoEtapas>(trabalho: T): 
       /^Item adicionado:\s*(.*?)\s*-\s*dentes\s*(.*?)\s*-\s*cor\s*(.*?)\s*-\s*qtd\s*(.*?)\s*-\s*valor\s*(.*?)(?:\s*-\s*categoria|\s*-\s*desc|\s*-\s*situação|\s*-\s*produtoId|\s*-\s*urgente|\s*-\s*repetição|\s*-\s*repeticao|\s*-\s*obs|$)/i
     );
     const descricao = match?.[1]?.trim() || trabalho.tipoProtese;
-    const situacao =
-      line.match(/ - situação (.*?)(?: - produtoId| - urgente| - repetição| - repeticao| - obs|$)/i)?.[1]?.trim() ||
-      trabalho.status;
+    const situacao = situacaoItemInstrucaoOs(line, trabalho.status);
 
     return {
       id: `${trabalho.id}-${index}`,
