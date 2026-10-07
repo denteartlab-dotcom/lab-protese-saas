@@ -16,7 +16,7 @@ import {
 import { useI18n } from "@/components/i18n-provider";
 import { LeitorCodigoBarrasModal } from "@/components/LeitorCodigoBarrasModal";
 import { InputLeitorCodigoOs } from "@/components/InputLeitorCodigoOs";
-import { CampoDataBr } from "@/components/ui";
+import { CampoDataBr, Select } from "@/components/ui";
 import { extrairNumeroOsCodigo } from "@/lib/codigo-barras-os";
 import type { MessageKey } from "@/lib/i18n";
 import {
@@ -534,6 +534,35 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
                   {t("producao.modulo.pesquisarPaciente")}
                 </button>
               </div>
+              <div className="mt-3 grid min-w-0 grid-cols-1 items-end gap-2 sm:grid-cols-3">
+                <Select
+                  label={t("producao.comum.colaboradores")}
+                  value={colaboradorFiltro}
+                  onChange={(e) => setColaboradorFiltro(e.target.value)}
+                  className="h-[38px] !py-1.5"
+                >
+                  <option value="">{t("common.todos")}</option>
+                  {nomesFiltroColaboradores.map((nome) => (
+                    <option key={nome} value={nome}>
+                      {nome}
+                    </option>
+                  ))}
+                </Select>
+                <CampoDataBr
+                  label={t("producao.comum.dataInicio")}
+                  value={dataInicio}
+                  onChange={setDataInicio}
+                  placeholder="dd/mm/aaaa"
+                  inputClassName="h-[38px] !py-0"
+                />
+                <CampoDataBr
+                  label={t("producao.comum.dataFim")}
+                  value={dataFim}
+                  onChange={setDataFim}
+                  placeholder="dd/mm/aaaa"
+                  inputClassName="h-[38px] !py-0"
+                />
+              </div>
             </div>
 
             {osSelecionada ? (
@@ -855,47 +884,6 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
           </div>
 
           <aside className="flex flex-col gap-4">
-            <div className="rounded border border-[#e5e7eb] bg-white px-4 py-3">
-              <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-[#6b7280]">
-                {t("producao.comum.periodo")}
-              </p>
-              <div className="space-y-2">
-                <div>
-                  <span className="mb-0.5 block text-[11px] text-slate-600">
-                    {t("producao.comum.colaboradores")}
-                  </span>
-                  <select
-                    value={colaboradorFiltro}
-                    onChange={(e) => setColaboradorFiltro(e.target.value)}
-                    className="h-8 w-full rounded border border-[#d1d5db] bg-white px-2 text-[11px] text-slate-700 focus:border-blue-500 focus:outline-none"
-                  >
-                    <option value="">{t("common.todos")}</option>
-                    {nomesFiltroColaboradores.map((nome) => (
-                      <option key={nome} value={nome}>
-                        {nome}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <CampoDataBr
-                  label={t("producao.comum.dataInicio")}
-                  value={dataInicio}
-                  onChange={setDataInicio}
-                  placeholder="dd/mm/aaaa"
-                  inputClassName="h-8 text-[11px]"
-                  className="[&_label]:text-[11px]"
-                />
-                <CampoDataBr
-                  label={t("producao.comum.dataFim")}
-                  value={dataFim}
-                  onChange={setDataFim}
-                  placeholder="dd/mm/aaaa"
-                  inputClassName="h-8 text-[11px]"
-                  className="[&_label]:text-[11px]"
-                />
-              </div>
-            </div>
-
             <div className="relative rounded border border-[#e5e7eb] bg-white px-4 py-4">
               <p className="text-[13px] font-semibold text-[#374151]">{t("producao.modulo.totalComissoes")}</p>
               <div className="mt-1 flex items-center gap-2">
@@ -926,7 +914,7 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
               </div>
               <p
                 className={cn(
-                  "mt-2 pr-20 text-[26px] font-semibold leading-none text-[#374151]",
+                  "mt-2 text-[26px] font-semibold leading-none text-[#374151]",
                   !comissaoVisivel && "blur-md select-none"
                 )}
               >
@@ -938,7 +926,7 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
               >
                 {t("producao.modulo.verDetalhes")}
               </Link>
-              <div className="absolute right-4 top-8 flex h-[72px] w-[72px] items-center justify-center rounded-full bg-[#dbeafe]">
+              <div className="absolute right-4 top-1/2 flex h-[72px] w-[72px] -translate-y-1/2 items-center justify-center rounded-full bg-[#dbeafe]">
                 <DollarSign className="h-9 w-9 text-[#3b82f6]" strokeWidth={1.5} />
               </div>
             </div>
