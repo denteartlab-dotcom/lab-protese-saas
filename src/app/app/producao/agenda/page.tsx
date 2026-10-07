@@ -2,6 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Edit3, Eye, Printer, Search, Trash2 } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
 import { BreadcrumbProducao } from "@/components/producao/BreadcrumbProducao";
@@ -33,6 +34,7 @@ import {
 } from "@/lib/trabalhos-events";
 import {
   filtrarTrabalhosAgenda,
+  filtroAgendaDaUrl,
   trabalhoAtrasadoAgenda,
 } from "@/lib/agenda-producao";
 import { prazoTrabalho } from "@/lib/controle-producao-prazos";
@@ -146,13 +148,15 @@ const COMPARADORES_AGENDA: Record<
 
 export default function AgendaPage() {
   const { t } = useI18n();
+  const searchParams = useSearchParams();
+  const filtroUrl = filtroAgendaDaUrl(searchParams);
   const [trabalhos, setTrabalhos] = useState<TrabalhoAgendaGrupo[]>([]);
   const [lancamentosFatura, setLancamentosFatura] = useState<LancamentoFaturaOs[]>([]);
   const [cliente, setCliente] = useState("");
   const [colaborador, setColaborador] = useState("");
   const [busca, setBusca] = useState("");
-  const [filtroAgenda, setFiltroAgenda] = useState("todos");
-  const [semanaOffset, setSemanaOffset] = useState(0);
+  const [filtroAgenda, setFiltroAgenda] = useState(filtroUrl.filtro);
+  const [semanaOffset, setSemanaOffset] = useState(filtroUrl.semanaOffset);
   const [imprimirOs, setImprimirOs] = useState<TrabalhoAgendaGrupo | null>(null);
   const [osAberta, setOsAberta] = useState<string | null>(null);
   const [osExcluindo, setOsExcluindo] = useState<LinhaAgendaGrupoOs | null>(null);
@@ -200,6 +204,13 @@ export default function AgendaPage() {
     return () =>
       window.removeEventListener(TRABALHOS_ATUALIZADOS_EVENT, onTrabalhosAtualizados);
   }, [load]);
+
+  useEffect(() => {
+    if (!searchParams.get("dia") && !searchParams.get("filtro")) return;
+    const proximo = filtroAgendaDaUrl(searchParams);
+    setFiltroAgenda(proximo.filtro);
+    setSemanaOffset(proximo.semanaOffset);
+  }, [searchParams]);
 
   useEffect(() => {
     fetch("/api/financeiro?tipo=receita", { cache: "no-store" })

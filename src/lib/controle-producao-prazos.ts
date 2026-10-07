@@ -5,7 +5,7 @@ export type TipoPrazoProducao = "lab" | "dentista";
 
 export type TrabalhoComPrazo = {
   status: string;
-  dataEntrada: string | Date;
+  dataEntrada?: string | Date | null;
   dataPrevista?: string | null | Date;
   instrucoes?: string | null;
 };
@@ -46,7 +46,7 @@ export function prazoTrabalho(trabalho: TrabalhoComPrazo, tipo: TipoPrazoProduca
   }
   const fromInstrucoes = prazoFromInstructions(trabalho.instrucoes, tipo);
   if (fromInstrucoes) return fromInstrucoes;
-  const entrada = new Date(trabalho.dataEntrada);
+  const entrada = new Date(trabalho.dataEntrada || "");
   if (!Number.isNaN(entrada.getTime())) return localDate(entrada);
   return null;
 }

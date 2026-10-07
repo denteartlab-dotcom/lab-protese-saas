@@ -65,6 +65,7 @@ export const CHAVES_ARMAZENAMENTO_LAB = [
   "labProteseTheme",
   "labProteseControleComissaoZero",
   "labProteseComissoesEfetivadas",
+  "labProteseDiariasColaboradores",
   "labProteseControlePrestadoresComissaoZero",
   "labProteseControleProdutor",
   "labProteseControleEntregas",
