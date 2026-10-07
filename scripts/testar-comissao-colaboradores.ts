@@ -137,4 +137,21 @@ assert.equal(semEtapaFinalizado.length, 1);
 assert.equal(semEtapaFinalizado[0].comissaoValor, 49);
 ok("OS finalizada sem etapa usa percentual/R$ gravado na OS");
 
+const finalizadoEtapaPendente = montarLinhasComissaoColaboradores([trabalho()], {
+  cadastro: [cadastro()],
+  mapaEtapasConcluidas: {},
+});
+assert.equal(finalizadoEtapaPendente.length, 1);
+assert.equal(finalizadoEtapaPendente[0].comissaoValor, 49);
+assert.equal(finalizadoEtapaPendente[0].etapaFinalizada, false);
+ok("OS finalizada mostra a comissao da OS mesmo sem etapa marcada no modulo");
+
+const mapaChaveLegada = montarLinhasComissaoColaboradores(
+  [trabalho({ status: "producao" })],
+  { cadastro: [cadastro()], mapaEtapasConcluidas: { "t1:outro-item": [0] } }
+);
+assert.equal(mapaChaveLegada.length, 1);
+assert.equal(mapaChaveLegada[0].comissaoValor, 49);
+ok("reconhece etapa concluida pela OS mesmo com chave de item diferente");
+
 console.log("\nTodos os testes de comissao de colaboradores passaram.");

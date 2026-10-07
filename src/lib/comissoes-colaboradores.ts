@@ -146,8 +146,25 @@ function segmentoElegivelComissao(segmento?: string | null) {
   return valor === "servico";
 }
 
+function indicesConcluidosDoItem(
+  chaveItem: string,
+  trabalhoId: string,
+  mapaConcluidas: Record<string, number[]>
+) {
+  const direto = mapaConcluidas[chaveItem];
+  if (Array.isArray(direto)) return direto;
+
+  const prefixo = `${trabalhoId}:`;
+  for (const [chave, indices] of Object.entries(mapaConcluidas)) {
+    if (!Array.isArray(indices)) continue;
+    if (chave === trabalhoId || chave.startsWith(prefixo)) return indices;
+  }
+  return [];
+}
+
 function etapaColaboradorFinalizada(
   chaveItem: string,
+  trabalhoId: string,
   nomeEtapaColaborador: string,
   etapas: EtapaOsLinha[],
   mapaConcluidas: Record<string, number[]>
@@ -163,32 +180,39 @@ function etapaColaboradorFinalizada(
   });
   if (indiceEtapa < 0) return false;
 
-  const concluidas = mapaConcluidas[chaveItem];
-  return Array.isArray(concluidas) && concluidas.includes(indiceEtapa);
+  const concluidas = indicesConcluidosDoItem(chaveItem, trabalhoId, mapaConcluidas);
+  return concluidas.includes(indiceEtapa);
 }
 
 function elegivelComissaoColaborador(
   situacaoKey: string,
   chaveItem: string,
+  trabalhoId: string,
   colaborador: ColaboradorOsLinha,
   etapas: EtapaOsLinha[],
   mapaConcluidas: Record<string, number[]>
 ) {
-  if (colaborador.etapa.trim()) {
-    return etapaColaboradorFinalizada(chaveItem, colaborador.etapa, etapas, mapaConcluidas);
-  }
-  return servicoFinalizado(situacaoKey);
+  if (servicoFinalizado(situacaoKey)) return true;
+  if (!colaborador.etapa.trim()) return false;
+  return etapaColaboradorFinalizada(
+    chaveItem,
+    trabalhoId,
+    colaborador.etapa,
+    etapas,
+    mapaConcluidas
+  );
 }
 
 function situacaoEtapaLabel(
   chaveItem: string,
+  trabalhoId: string,
   nomeEtapa: string,
   etapas: EtapaOsLinha[],
   mapaConcluidas: Record<string, number[]>
 ) {
   const nome = nomeEtapa.trim();
   if (!nome) return "—";
-  return etapaColaboradorFinalizada(chaveItem, nome, etapas, mapaConcluidas)
+  return etapaColaboradorFinalizada(chaveItem, trabalhoId, nome, etapas, mapaConcluidas)
     ? "Finalizada"
     : "Pendente";
 }
@@ -253,21 +277,29 @@ export function montarLinhasComissaoColaboradores(
         const chaveItem = `${trabalho.id}:${item.id}`;
 
         for (const colaborador of colaboradores) {
-          const etapaFinalizada = elegivelComissaoColaborador(
+          const etapaFinalizada = etapaColaboradorFinalizada(
+            chaveItem,
+            trabalho.id,
+            colaborador.etapa,
+            complementos.etapas,
+            mapaEtapasConcluidas
+          );
+          const geraComissao = elegivelComissaoColaborador(
             situacaoKey,
             chaveItem,
+            trabalho.id,
             colaborador,
             complementos.etapas,
             mapaEtapasConcluidas
           );
-          if (!etapaFinalizada && !incluirPendentes) continue;
+          if (!geraComissao && !incluirPendentes) continue;
 
           const calculada = calcularValorComissaoColaborador(
             valorServico,
             colaborador.comissao,
             cadastroDoColaborador(colaborador, cadastro)
           );
-          const comissaoValor = etapaFinalizada ? calculada.valor : 0;
+          const comissaoValor = geraComissao ? calculada.valor : 0;
 
           linhas.push({
             id: `${trabalho.id}-${item.id}-${colaborador.nome}`,
@@ -284,6 +316,7 @@ export function montarLinhasComissaoColaboradores(
             etapa: colaborador.etapa,
             situacaoEtapa: situacaoEtapaLabel(
               chaveItem,
+              trabalho.id,
               colaborador.etapa,
               complementos.etapas,
               mapaEtapasConcluidas
