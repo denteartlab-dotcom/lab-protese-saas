@@ -179,6 +179,7 @@ export const MODULOS_LIMPEZA: ModuloLimpezaDef[] = [
       "labProteseColaboradores",
       "labProteseColaboradoresExcluidos",
       "labProteseComissoesEfetivadas",
+      "labProteseDiariasColaboradores",
       "labProtesePrestadores",
       "labProtesePrestadoresExcluidos",
     ],
@@ -538,6 +539,7 @@ export async function limparModulosSelecionados(
         localStorageSet.labProteseColaboradores = "[]";
         localStorageSet.labProteseColaboradoresExcluidos = "[]";
         localStorageSet.labProteseComissoesEfetivadas = JSON.stringify({ linhas: {}, despesas: {} });
+        localStorageSet.labProteseDiariasColaboradores = JSON.stringify({ configs: {}, lancamentos: [] });
         localStorageSet.labProtesePrestadores = "[]";
         localStorageSet.labProtesePrestadoresExcluidos = "[]";
         break;

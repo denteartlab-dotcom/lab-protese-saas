@@ -1,0 +1,491 @@
+/**
+ * Diárias de colaboradores: jornada, horas trabalhadas e valor proporcional.
+ */
+import { parseValorNumericoBr, formatValorMonetarioInput } from "@/lib/colaborador-remuneracao";
+import { COLABORADORES_STORAGE_KEY } from "@/lib/colaboradores-listagem";
+import { dateKeyLocal } from "@/lib/controle-producao-prazos";
+import {
+  clonarHorarioFuncionamento,
+  DIAS_SEMANA_PADRAO,
+  type DiaFuncionamento,
+  type HorarioFuncionamentoConfig,
+} from "@/lib/horario-funcionamento";
+import { persistirArmazenamentoImediato, readStorage, writeStorage } from "@/lib/persisted-storage";
+
+export const DIARIAS_STORAGE_KEY = "labProteseDiariasColaboradores";
+export const DIARIAS_ATUALIZADAS_EVENT = "lab-protese-diarias-atualizadas";
+export const HORAS_JORNADA_PADRAO = 8;
+export const DIAS_UTEIS_MES_PADRAO = 22;
+export const ENTRADA_PADRAO = "08:00";
+export const SAIDA_PADRAO = "17:00";
+export const INTERVALO_PADRAO_MINUTOS = 60;
+
+export type ConfigDiariaColaborador = {
+  colaboradorId: string;
+  colaboradorNome: string;
+  valorDiaria: string;
+  horasJornada: number;
+};
+
+export type LancamentoDiaria = {
+  id: string;
+  colaboradorId: string;
+  data: string;
+  entrada: string;
+  saida: string;
+  intervaloMinutos: number;
+  horas: number;
+  valor: number;
+  observacao?: string;
+};
+
+export type DiariasStore = {
+  configs: Record<string, ConfigDiariaColaborador>;
+  lancamentos: LancamentoDiaria[];
+};
+
+export type ColaboradorDiariaOrigem = {
+  id: string;
+  nome: string;
+  valorSalario: string;
+  cargaHoraria: HorarioFuncionamentoConfig | null;
+};
+
+type ColaboradorStorageDiaria = {
+  id?: string;
+  nome?: string;
+  dados?: Record<string, string>;
+  cargaHoraria?: HorarioFuncionamentoConfig;
+};
+
+const JS_DAY_TO_ID = [
+  "domingo",
+  "segunda",
+  "terca",
+  "quarta",
+  "quinta",
+  "sexta",
+  "sabado",
+] as const;
+
+const STORE_VAZIO: DiariasStore = { configs: {}, lancamentos: [] };
+
+export function storeDiariasVazio(): DiariasStore {
+  return { configs: {}, lancamentos: [] };
+}
+
+export function minutosDeHora(hora: string): number | null {
+  const match = String(hora || "")
+    .trim()
+    .match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return null;
+  const h = Number(match[1]);
+  const m = Number(match[2]);
+  if (h > 23 || m > 59) return null;
+  return h * 60 + m;
+}
+
+export function minutosParaHora(minutos: number): string {
+  const ciclo = 24 * 60;
+  const normalizado = ((Math.round(minutos) % ciclo) + ciclo) % ciclo;
+  const h = Math.floor(normalizado / 60);
+  const m = normalizado % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+export function minutosLiquidosTurno(
+  entrada: string,
+  saida: string,
+  intervaloMinutos = 0
+): number {
+  const ini = minutosDeHora(entrada);
+  const fim = minutosDeHora(saida);
+  if (ini == null || fim == null) return 0;
+  let delta = fim - ini;
+  if (delta <= 0) delta += 24 * 60;
+  return Math.max(0, delta - Math.max(0, Number(intervaloMinutos) || 0));
+}
+
+export function horasTrabalhadas(
+  entrada: string,
+  saida: string,
+  intervaloMinutos = 0
+): number {
+  return minutosLiquidosTurno(entrada, saida, intervaloMinutos) / 60;
+}
+
+export function valorDiariaProporcional(
+  horas: number,
+  horasJornada: number,
+  valorDiaria: number
+): number {
+  const jornada = horasJornada > 0 ? horasJornada : HORAS_JORNADA_PADRAO;
+  if (horas <= 0 || valorDiaria <= 0) return 0;
+  return Math.round((horas / jornada) * valorDiaria * 100) / 100;
+}
+
+export function formatarHorasDecimais(horas: number): string {
+  const sinal = horas < 0 ? "-" : "";
+  const totalMin = Math.round(Math.abs(horas) * 60);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return `${sinal}${h}h${String(m).padStart(2, "0")}`;
+}
+
+export function minutosIntervalosDia(dia: Pick<DiaFuncionamento, "intervalos">): number {
+  return (dia.intervalos || []).reduce((soma, intervalo) => {
+    return soma + minutosLiquidosTurno(intervalo.inicio, intervalo.fim, 0);
+  }, 0);
+}
+
+export function horasJornadaDoDia(dia: DiaFuncionamento): number {
+  if (!dia.ativo || !dia.inicio || !dia.fim) return 0;
+  return minutosLiquidosTurno(dia.inicio, dia.fim, minutosIntervalosDia(dia)) / 60;
+}
+
+export function idDiaSemanaDeData(data: string): (typeof JS_DAY_TO_ID)[number] | null {
+  const [ano, mes, dia] = data.split("-").map(Number);
+  if (!ano || !mes || !dia) return null;
+  const date = new Date(ano, mes - 1, dia);
+  if (Number.isNaN(date.getTime()) || date.getFullYear() !== ano) return null;
+  return JS_DAY_TO_ID[date.getDay()] || null;
+}
+
+export function diaCargaPorData(
+  carga: HorarioFuncionamentoConfig | null | undefined,
+  data: string
+): DiaFuncionamento | null {
+  const id = idDiaSemanaDeData(data);
+  if (!id) return null;
+  const dias = carga?.dias?.length
+    ? carga.dias
+    : DIAS_SEMANA_PADRAO.map((d) => ({ ...d, intervalos: [] }));
+  return dias.find((item) => item.id === id) || null;
+}
+
+export function horarioPadraoDoDia(
+  carga: HorarioFuncionamentoConfig | null | undefined,
+  data: string
+): { entrada: string; saida: string; intervaloMinutos: number } {
+  const dia = diaCargaPorData(carga, data);
+  if (dia?.ativo && dia.inicio && dia.fim) {
+    return {
+      entrada: dia.inicio,
+      saida: dia.fim,
+      intervaloMinutos: minutosIntervalosDia(dia),
+    };
+  }
+  return {
+    entrada: ENTRADA_PADRAO,
+    saida: SAIDA_PADRAO,
+    intervaloMinutos: INTERVALO_PADRAO_MINUTOS,
+  };
+}
+
+export function horasJornadaDaCarga(
+  carga: HorarioFuncionamentoConfig | null | undefined
+): number {
+  const ativos = (carga?.dias || []).filter((dia) => dia.ativo && dia.inicio && dia.fim);
+  if (ativos.length === 0) return HORAS_JORNADA_PADRAO;
+  const media = ativos.reduce((soma, dia) => soma + horasJornadaDoDia(dia), 0) / ativos.length;
+  if (media <= 0) return HORAS_JORNADA_PADRAO;
+  return Math.round(media * 2) / 2;
+}
+
+export function sugerirValorDiaria(
+  valorSalario: string,
+  diasUteis = DIAS_UTEIS_MES_PADRAO
+): string {
+  const salario = parseValorNumericoBr(valorSalario);
+  if (salario <= 0) return "0,00";
+  const diaria = salario / Math.max(1, diasUteis);
+  return formatValorMonetarioInput(String(Math.round(diaria * 100)));
+}
+
+export function novoIdLancamento(): string {
+  return `dia-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export function recalcularLancamento(
+  lancamento: LancamentoDiaria,
+  config: ConfigDiariaColaborador
+): LancamentoDiaria {
+  const horas = horasTrabalhadas(
+    lancamento.entrada,
+    lancamento.saida,
+    lancamento.intervaloMinutos
+  );
+  const valor = valorDiariaProporcional(
+    horas,
+    config.horasJornada,
+    parseValorNumericoBr(config.valorDiaria)
+  );
+  return { ...lancamento, horas, valor };
+}
+
+export function criarLancamentoDiaria(
+  colaboradorId: string,
+  data: string,
+  config: ConfigDiariaColaborador,
+  horario: { entrada: string; saida: string; intervaloMinutos: number },
+  observacao?: string
+): LancamentoDiaria {
+  return recalcularLancamento(
+    {
+      id: novoIdLancamento(),
+      colaboradorId,
+      data,
+      entrada: horario.entrada,
+      saida: horario.saida,
+      intervaloMinutos: horario.intervaloMinutos,
+      horas: 0,
+      valor: 0,
+      observacao,
+    },
+    config
+  );
+}
+
+export function datasDoMes(ano: number, mes: number): string[] {
+  const ultimo = new Date(ano, mes, 0).getDate();
+  const lista: string[] = [];
+  for (let dia = 1; dia <= ultimo; dia += 1) {
+    lista.push(`${ano}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`);
+  }
+  return lista;
+}
+
+export function celulasCalendarioMes(ano: number, mes: number): Array<string | null> {
+  const primeiro = new Date(ano, mes - 1, 1);
+  const offset = primeiro.getDay() === 0 ? 6 : primeiro.getDay() - 1;
+  const celulas: Array<string | null> = Array.from({ length: offset }, () => null);
+  celulas.push(...datasDoMes(ano, mes));
+  while (celulas.length % 7 !== 0) celulas.push(null);
+  return celulas;
+}
+
+export function cargaTemJornada(carga: HorarioFuncionamentoConfig | null | undefined) {
+  return Boolean(carga?.dias?.some((dia) => dia.ativo && dia.inicio && dia.fim));
+}
+
+export function diaDeveTrabalhar(
+  carga: HorarioFuncionamentoConfig | null | undefined,
+  data: string
+) {
+  const id = idDiaSemanaDeData(data);
+  if (!id) return false;
+  if (cargaTemJornada(carga)) {
+    const dia = diaCargaPorData(carga, data);
+    return Boolean(dia?.ativo && dia.inicio && dia.fim);
+  }
+  return id !== "sabado" && id !== "domingo";
+}
+
+export function atualizarConfigERecalcular(
+  store: DiariasStore,
+  config: ConfigDiariaColaborador
+): DiariasStore {
+  const horasJornada = Math.min(24, Math.max(0.5, Number(config.horasJornada) || HORAS_JORNADA_PADRAO));
+  const normalizada: ConfigDiariaColaborador = { ...config, horasJornada };
+  return {
+    configs: { ...store.configs, [normalizada.colaboradorId]: normalizada },
+    lancamentos: store.lancamentos.map((lancamento) =>
+      lancamento.colaboradorId === normalizada.colaboradorId
+        ? recalcularLancamento(lancamento, normalizada)
+        : lancamento
+    ),
+  };
+}
+
+export function preencherMesComJornada(
+  store: DiariasStore,
+  colaboradorId: string,
+  ano: number,
+  mes: number,
+  carga: HorarioFuncionamentoConfig | null | undefined
+): DiariasStore {
+  const config = store.configs[colaboradorId];
+  if (!config) return store;
+  const existentes = new Set(
+    store.lancamentos
+      .filter((lancamento) => lancamento.colaboradorId === colaboradorId)
+      .map((lancamento) => lancamento.data)
+  );
+  const novos: LancamentoDiaria[] = [];
+  for (const data of datasDoMes(ano, mes)) {
+    if (existentes.has(data) || !diaDeveTrabalhar(carga, data)) continue;
+    novos.push(
+      criarLancamentoDiaria(colaboradorId, data, config, horarioPadraoDoDia(carga, data))
+    );
+  }
+  return { ...store, lancamentos: [...store.lancamentos, ...novos] };
+}
+
+export function limparLancamentosMes(
+  store: DiariasStore,
+  colaboradorId: string,
+  ano: number,
+  mes: number
+): DiariasStore {
+  const prefixo = `${ano}-${String(mes).padStart(2, "0")}-`;
+  return {
+    ...store,
+    lancamentos: store.lancamentos.filter(
+      (lancamento) =>
+        !(lancamento.colaboradorId === colaboradorId && lancamento.data.startsWith(prefixo))
+    ),
+  };
+}
+
+export function resumoDiariasMes(
+  store: DiariasStore,
+  colaboradorId: string,
+  ano: number,
+  mes: number
+) {
+  const prefixo = `${ano}-${String(mes).padStart(2, "0")}-`;
+  const itens = store.lancamentos.filter(
+    (lancamento) =>
+      lancamento.colaboradorId === colaboradorId && lancamento.data.startsWith(prefixo)
+  );
+  return {
+    dias: itens.length,
+    horas: itens.reduce((soma, item) => soma + item.horas, 0),
+    valor: itens.reduce((soma, item) => soma + item.valor, 0),
+  };
+}
+
+export function lancamentoDoDia(
+  store: DiariasStore,
+  colaboradorId: string,
+  data: string
+) {
+  return (
+    store.lancamentos.find(
+      (lancamento) => lancamento.colaboradorId === colaboradorId && lancamento.data === data
+    ) || null
+  );
+}
+
+export function upsertLancamento(store: DiariasStore, lancamento: LancamentoDiaria): DiariasStore {
+  const config = store.configs[lancamento.colaboradorId];
+  const calculado = config ? recalcularLancamento(lancamento, config) : lancamento;
+  const indice = store.lancamentos.findIndex(
+    (item) =>
+      item.id === calculado.id ||
+      (item.colaboradorId === calculado.colaboradorId && item.data === calculado.data)
+  );
+  if (indice < 0) {
+    return { ...store, lancamentos: [...store.lancamentos, calculado] };
+  }
+  const lista = [...store.lancamentos];
+  lista[indice] = { ...calculado, id: lista[indice].id };
+  return { ...store, lancamentos: lista };
+}
+
+export function removerLancamentoDia(
+  store: DiariasStore,
+  colaboradorId: string,
+  data: string
+): DiariasStore {
+  return {
+    ...store,
+    lancamentos: store.lancamentos.filter(
+      (lancamento) =>
+        !(lancamento.colaboradorId === colaboradorId && lancamento.data === data)
+    ),
+  };
+}
+
+export function garantirConfigColaborador(
+  store: DiariasStore,
+  colaborador: ColaboradorDiariaOrigem
+): DiariasStore {
+  const atual = store.configs[colaborador.id];
+  if (atual) {
+    return {
+      ...store,
+      configs: {
+        ...store.configs,
+        [colaborador.id]: { ...atual, colaboradorNome: colaborador.nome },
+      },
+    };
+  }
+  return atualizarConfigERecalcular(store, {
+    colaboradorId: colaborador.id,
+    colaboradorNome: colaborador.nome,
+    valorDiaria: sugerirValorDiaria(colaborador.valorSalario),
+    horasJornada: horasJornadaDaCarga(colaborador.cargaHoraria),
+  });
+}
+
+function normalizarStore(raw: Partial<DiariasStore> | null | undefined): DiariasStore {
+  const configs: Record<string, ConfigDiariaColaborador> = {};
+  if (raw?.configs && typeof raw.configs === "object") {
+    for (const [id, config] of Object.entries(raw.configs)) {
+      if (!config?.colaboradorId) continue;
+      configs[id] = {
+        colaboradorId: config.colaboradorId,
+        colaboradorNome: config.colaboradorNome || "",
+        valorDiaria: config.valorDiaria || "0,00",
+        horasJornada: Number(config.horasJornada) > 0 ? Number(config.horasJornada) : HORAS_JORNADA_PADRAO,
+      };
+    }
+  }
+  const lancamentos = Array.isArray(raw?.lancamentos)
+    ? raw.lancamentos
+        .filter((item) => item?.colaboradorId && /^\d{4}-\d{2}-\d{2}$/.test(item.data || ""))
+        .map((item) => ({
+          id: item.id || novoIdLancamento(),
+          colaboradorId: item.colaboradorId,
+          data: item.data,
+          entrada: item.entrada || ENTRADA_PADRAO,
+          saida: item.saida || SAIDA_PADRAO,
+          intervaloMinutos: Math.max(0, Number(item.intervaloMinutos) || 0),
+          horas: Number(item.horas) || 0,
+          valor: Number(item.valor) || 0,
+          observacao: item.observacao || "",
+        }))
+    : [];
+  return { configs, lancamentos };
+}
+
+export function lerDiariasColaboradores(): DiariasStore {
+  if (typeof window === "undefined") return storeDiariasVazio();
+  return normalizarStore(readStorage<Partial<DiariasStore>>(DIARIAS_STORAGE_KEY, STORE_VAZIO));
+}
+
+export function salvarDiariasColaboradores(store: DiariasStore) {
+  const normalizado = normalizarStore(store);
+  writeStorage(DIARIAS_STORAGE_KEY, normalizado);
+  void persistirArmazenamentoImediato(DIARIAS_STORAGE_KEY, normalizado);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(DIARIAS_ATUALIZADAS_EVENT));
+  }
+  return normalizado;
+}
+
+export function carregarColaboradoresDiaria(): ColaboradorDiariaOrigem[] {
+  const lista = readStorage<ColaboradorStorageDiaria[]>(COLABORADORES_STORAGE_KEY, []);
+  return lista
+    .map((item) => {
+      const nome = item.nome?.trim();
+      if (!nome) return null;
+      return {
+        id: item.id || nome,
+        nome,
+        valorSalario: item.dados?.valorSalario || "0,00",
+        cargaHoraria: item.cargaHoraria ? clonarHorarioFuncionamento(item.cargaHoraria) : null,
+      } satisfies ColaboradorDiariaOrigem;
+    })
+    .filter((item): item is ColaboradorDiariaOrigem => item !== null)
+    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+}
+
+export function chaveMesAtual(referencia = new Date()) {
+  return { ano: referencia.getFullYear(), mes: referencia.getMonth() + 1 };
+}
+
+export function dataHojeKey(referencia = new Date()) {
+  return dateKeyLocal(referencia);
+}

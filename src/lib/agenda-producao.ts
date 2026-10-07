@@ -17,11 +17,11 @@ export type TrabalhoAgenda = {
   numeroOs: number;
   tipoProtese: string;
   status: string;
-  dataEntrada: string | Date;
+  dataEntrada?: string | Date | null;
   dataPrevista?: string | null | Date;
   instrucoes?: string | null;
-  cliente?: { nome?: string | null; ativo?: boolean | null };
-  paciente?: { nome?: string | null };
+  cliente?: { nome?: string | null; ativo?: boolean | null } | null;
+  paciente?: { nome?: string | null } | null;
 };
 
 export type LinhaAgendaPdf = {
@@ -172,4 +172,72 @@ export function ordenarLinhasAgenda(linhas: LinhaAgendaPdf[]) {
 
 export function trabalhoAtrasadoAgenda(trabalho: TrabalhoAgenda) {
   return isTrabalhoAtrasado(trabalho, "lab");
+}
+
+export function horaPrazoAgenda(trabalho: TrabalhoAgenda) {
+  if (trabalho.dataPrevista) {
+    const date = new Date(trabalho.dataPrevista);
+    if (!Number.isNaN(date.getTime())) {
+      const hora = date.toLocaleTimeString("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+      if (hora !== "00:00") return hora;
+    }
+  }
+
+  const match = (trabalho.instrucoes || "").match(
+    /Data laboratório:\s*\d{2}\/\d{2}\/\d{2,4}\s+(\d{1,2}:\d{2})/i
+  );
+  return match?.[1] || "";
+}
+
+export function listarTrabalhosAgendaDoDia(trabalhos: TrabalhoAgenda[], diaKey: string) {
+  return filtrarTrabalhosAgenda(trabalhos, `data-${diaKey}`).sort((a, b) => {
+    const horaA = horaPrazoAgenda(a);
+    const horaB = horaPrazoAgenda(b);
+    if (horaA !== horaB) return horaA.localeCompare(horaB);
+    return a.numeroOs - b.numeroOs;
+  });
+}
+
+export function semanaOffsetParaData(diaKey: string, referencia = new Date()) {
+  const [ano, mes, dia] = diaKey.split("-").map(Number);
+  if (!ano || !mes || !dia) return 0;
+  const alvo = new Date(ano, mes - 1, dia);
+  alvo.setHours(0, 0, 0, 0);
+  if (Number.isNaN(alvo.getTime())) return 0;
+
+  const hoje = new Date(referencia);
+  hoje.setHours(0, 0, 0, 0);
+  const diffSegunda = hoje.getDay() === 0 ? 1 : 1 - hoje.getDay();
+  const segundaAtual = new Date(hoje);
+  segundaAtual.setDate(hoje.getDate() + diffSegunda);
+
+  const diffSegundaAlvo = alvo.getDay() === 0 ? 1 : 1 - alvo.getDay();
+  const segundaAlvo = new Date(alvo);
+  segundaAlvo.setDate(alvo.getDate() + diffSegundaAlvo);
+
+  return Math.round((segundaAlvo.getTime() - segundaAtual.getTime()) / (7 * 24 * 60 * 60 * 1000));
+}
+
+const DATA_ISO = /^\d{4}-\d{2}-\d{2}$/;
+
+export function filtroAgendaDaUrl(search: { get(name: string): string | null } | URLSearchParams) {
+  const dia = search.get("dia")?.trim() || "";
+  const filtro = search.get("filtro")?.trim() || "";
+  if (DATA_ISO.test(dia)) {
+    return { filtro: `data-${dia}` as const, semanaOffset: semanaOffsetParaData(dia) };
+  }
+  if (filtro.startsWith("data-") && DATA_ISO.test(filtro.slice(5))) {
+    return {
+      filtro: filtro as `data-${string}`,
+      semanaOffset: semanaOffsetParaData(filtro.slice(5)),
+    };
+  }
+  if (filtro === "atrasados" || filtro === "todos") {
+    return { filtro, semanaOffset: 0 };
+  }
+  return { filtro: "todos", semanaOffset: 0 };
 }

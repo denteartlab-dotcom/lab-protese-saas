@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
+import { DiariasColaboradoresModal } from "@/components/DiariasColaboradoresModal";
 import { LeitorCodigoBarrasModal } from "@/components/LeitorCodigoBarrasModal";
 import { InputLeitorCodigoOs } from "@/components/InputLeitorCodigoOs";
 import { CampoDataBr, Select } from "@/components/ui";
@@ -37,6 +38,11 @@ import {
   type ComissoesEfetivadasStore,
 } from "@/lib/comissoes-efetivadas";
 import { aplicarEfetivacaoComissoes } from "@/lib/efetivar-comissao-colaborador";
+import {
+  horaPrazoAgenda,
+  listarTrabalhosAgendaDoDia,
+} from "@/lib/agenda-producao";
+import { dateKeyLocal, trabalhoElegivelPrazoVencimento } from "@/lib/controle-producao-prazos";
 import { dateToBrShort, intervaloMesVigenteBr, parseBrDate } from "@/lib/datas-br";
 import type { EtapaOsLinha } from "@/lib/etapas-os";
 import {
@@ -116,6 +122,7 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
     despesas: {},
   });
   const [efetivando, setEfetivando] = useState(false);
+  const [diariasAberta, setDiariasAberta] = useState(false);
 
   const logoutPorInatividade = useCallback(async () => {
     try {
@@ -450,6 +457,17 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
     [linhasComissaoFiltradas]
   );
 
+  const diaAgendaHoje = dateKeyLocal(new Date());
+  const hrefAgendaHoje = `/app/producao/agenda?dia=${diaAgendaHoje}`;
+  const agendaHoje = useMemo(
+    () =>
+      listarTrabalhosAgendaDoDia(
+        trabalhos.filter((trabalho) => trabalhoElegivelPrazoVencimento(trabalho.status)),
+        diaAgendaHoje
+      ),
+    [diaAgendaHoje, trabalhos]
+  );
+
   const nomesFiltroColaboradores = useMemo(() => {
     const nomes = new Set(colaboradoresCadastro.map((c) => c.nome));
     for (const linha of linhasComissao) nomes.add(linha.colaborador);
@@ -714,22 +732,33 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
             </div>
 
             <div className="flex border-t border-[#e5e7eb]">
-              {ABAS_MODULO.map((aba, index) => (
+              {ABAS_MODULO.map((aba) => (
                 <button
                   key={aba.id}
                   type="button"
                   onClick={() => setAbaAtiva(aba.id)}
                   className={cn(
-                    "flex-1 border-r border-[#e5e7eb] py-2.5 text-[12px] font-semibold tracking-wide last:border-r-0",
-                    abaAtiva === aba.id
+                    "flex-1 border-r border-[#e5e7eb] py-2.5 text-[12px] font-semibold tracking-wide",
+                    abaAtiva === aba.id && !diariasAberta
                       ? "rounded-t-sm bg-[#3b82f6] text-white"
                       : "bg-white text-[#6b7280]"
                   )}
-                  style={index === 0 && abaAtiva === aba.id ? undefined : undefined}
                 >
                   {t(aba.labelKey)}
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => setDiariasAberta(true)}
+                className={cn(
+                  "flex-1 py-2.5 text-[12px] font-semibold tracking-wide",
+                  diariasAberta
+                    ? "rounded-t-sm bg-[#3b82f6] text-white"
+                    : "bg-white text-[#6b7280]"
+                )}
+              >
+                {t("producao.modulo.aba.diarias")}
+              </button>
             </div>
 
             {!servicoSelecionado ? (
@@ -970,10 +999,61 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
               </div>
             </div>
 
-            <div className="flex items-center gap-3 rounded border border-[#e5e7eb] bg-white px-4 py-6">
-              <Calendar className="h-6 w-6 text-[#6b7280]" strokeWidth={1.5} />
-              <span className="text-[14px] text-[#374151]">{t("producao.modulo.agenda")}</span>
-            </div>
+            <Link
+              href={hrefAgendaHoje}
+              className="block rounded border border-[#e5e7eb] bg-white hover:border-[#93c5fd]"
+            >
+              <div className="flex items-center justify-between gap-3 border-b border-[#f3f4f6] px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-[#3b82f6]" strokeWidth={1.5} />
+                  <div>
+                    <p className="text-[14px] font-semibold text-[#374151]">
+                      {t("producao.modulo.agendaHoje")}
+                    </p>
+                    <p className="text-[11px] text-[#6b7280]">{dateToBrShort(new Date())}</p>
+                  </div>
+                </div>
+                <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-[#3b82f6] px-2 py-0.5 text-[12px] font-bold text-white">
+                  {agendaHoje.length}
+                </span>
+              </div>
+              <div className="max-h-[280px] overflow-y-auto">
+                {agendaHoje.length === 0 ? (
+                  <p className="px-4 py-6 text-center text-[13px] text-[#9ca3af]">
+                    {t("producao.modulo.agendaVazia")}
+                  </p>
+                ) : (
+                  <ul>
+                    {agendaHoje.map((trabalho) => {
+                      const hora = horaPrazoAgenda(trabalho);
+                      return (
+                        <li
+                          key={trabalho.id}
+                          className="flex items-start justify-between gap-2 border-b border-[#f3f4f6] px-4 py-2.5 last:border-b-0"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-[13px] font-medium text-[#374151]">
+                              OS {trabalho.numeroOs} · {trabalho.tipoProtese || "—"}
+                            </p>
+                            <p className="truncate text-[11px] text-[#6b7280]">
+                              {trabalho.paciente?.nome || trabalho.cliente?.nome || "—"}
+                            </p>
+                          </div>
+                          {hora ? (
+                            <span className="shrink-0 text-[12px] font-semibold text-[#3b82f6]">
+                              {hora}
+                            </span>
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+              <p className="border-t border-[#f3f4f6] px-4 py-2 text-center text-[12px] font-medium text-[#3b82f6]">
+                {t("producao.modulo.agendaVerCompleta")}
+              </p>
+            </Link>
           </aside>
         </div>
       </main>
@@ -1023,6 +1103,11 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
           </div>
         </div>
       )}
+
+      <DiariasColaboradoresModal
+        open={diariasAberta}
+        onClose={() => setDiariasAberta(false)}
+      />
 
       <LeitorCodigoBarrasModal
         open={leitorAberto}
