@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Wallet } from "lucide-react";
+import { ChevronLeft, ChevronRight, Printer, Wallet } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
 import { Button, CampoHoraBr, Modal } from "@/components/ui";
 import { formatValorMonetarioInput, formatarValorMonetarioBr } from "@/lib/colaborador-remuneracao";
@@ -24,10 +24,12 @@ import {
   sugerirValorDiaria,
   upsertLancamento,
   formatarHorasDecimais,
+  lancamentosDoMes,
   type ColaboradorDiariaOrigem,
   type DiariasStore,
   type LancamentoDiaria,
 } from "@/lib/diarias-colaboradores";
+import { imprimirNotasPagamentoDiarias } from "@/lib/imprimir-nota-diarias";
 import type { MessageKey } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -60,6 +62,7 @@ export function DiariasColaboradoresModal({ open, onClose }: Props) {
   const [mes, setMes] = useState(mesInicial.mes);
   const [diaSelecionado, setDiaSelecionado] = useState(hojeKey);
   const [salvoMsg, setSalvoMsg] = useState("");
+  const [imprimindo, setImprimindo] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -151,6 +154,38 @@ export function DiariasColaboradoresModal({ open, onClose }: Props) {
   function gravar() {
     salvarDiariasColaboradores(store);
     setSalvoMsg(t("producao.diarias.salvo"));
+  }
+
+  async function imprimirNota() {
+    if (!colaborador || !config) return;
+    const lancamentos = lancamentosDoMes(store, colaborador.id, ano, mes);
+    if (lancamentos.length === 0) {
+      window.alert(t("producao.diarias.semLancamentosImprimir"));
+      return;
+    }
+    const totais = resumoDiariasMes(store, colaborador.id, ano, mes);
+    setImprimindo(true);
+    try {
+      await imprimirNotasPagamentoDiarias(
+        [
+          {
+            colaboradorId: colaborador.id,
+            colaboradorNome: colaborador.nome,
+            valorDiaria: config.valorDiaria,
+            horasJornada: config.horasJornada,
+            ...totais,
+            lancamentos,
+            ano,
+            mes,
+          },
+        ],
+        locale
+      );
+    } catch {
+      window.alert(t("producao.diarias.erroImprimir"));
+    } finally {
+      setImprimindo(false);
+    }
   }
 
   return (
@@ -473,6 +508,17 @@ export function DiariasColaboradoresModal({ open, onClose }: Props) {
           </div>
           <div className="flex items-center gap-3">
             {salvoMsg ? <span className="text-[13px] text-emerald-600">{salvoMsg}</span> : null}
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!colaborador || imprimindo}
+              onClick={() => void imprimirNota()}
+            >
+              <span className="inline-flex items-center gap-1">
+                <Printer className="h-4 w-4" />
+                {t("producao.diarias.imprimirNota")}
+              </span>
+            </Button>
             <Button type="button" variant="outline" onClick={onClose}>
               {t("common.cancelar")}
             </Button>
