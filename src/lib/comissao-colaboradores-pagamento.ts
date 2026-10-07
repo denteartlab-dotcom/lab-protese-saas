@@ -1,9 +1,9 @@
 import { parseBrDate } from "@/lib/datas-br";
 
 export const DIA_PAGAMENTO_COMISSAO_PADRAO = 10;
-export const DIA_PAGAMENTO_COMISSAO_MAX = 28;
+export const DIA_PAGAMENTO_COMISSAO_MAX = 31;
 
-/** Dia de vencimento da comissão no mês seguinte (1–28, padrão 10). */
+/** Dia de vencimento da comissão no mês seguinte (1–31, padrão 10). */
 export function diaPagamentoComissaoNormalizado(valor?: string | number | null): number {
   const n = typeof valor === "number" ? valor : Number(String(valor || "").replace(/\D/g, ""));
   if (!Number.isFinite(n) || n <= 0) return DIA_PAGAMENTO_COMISSAO_PADRAO;

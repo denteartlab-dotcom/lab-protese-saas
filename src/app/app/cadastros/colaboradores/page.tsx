@@ -1,7 +1,7 @@
 "use client";
 
 import { BriefcaseBusiness, CalendarDays, CreditCard, Download, Edit3, Eye, Home, MapPin, Percent, Printer, Trash2, UserRound } from "lucide-react";
-import { useEffect, useMemo, useState, Fragment } from "react";
+import { useEffect, useMemo, useRef, useState, Fragment } from "react";
 import { CargaHorariaColaboradorModal } from "@/components/colaboradores/CargaHorariaColaboradorModal";
 import { PdfViewerModal } from "@/components/dashboard/PdfViewerModal";
 import { CampoDataBr } from "@/components/campo-data-br";
@@ -17,7 +17,10 @@ import {
   type HorarioFuncionamentoConfig,
 } from "@/lib/horario-funcionamento";
 import { readStorage, writeStorage, readStorageArray } from "@/lib/persisted-storage";
-import { DIA_PAGAMENTO_COMISSAO_MAX } from "@/lib/comissao-colaboradores-pagamento";
+import {
+  DIA_PAGAMENTO_COMISSAO_MAX,
+  diaPagamentoComissaoNormalizado,
+} from "@/lib/comissao-colaboradores-pagamento";
 import {
   formatValorMonetarioInput,
   formatarSalarioExibicao,
@@ -186,44 +189,91 @@ function CampoDiaPagamentoComissao({
   valor,
   onChange,
   labelClass,
+  inputClass,
 }: {
   valor: string;
   onChange: (valor: string) => void;
   labelClass: string;
+  inputClass: string;
 }) {
   const { t } = useI18n();
-  const selecionado = valor || "10";
+  const [aberto, setAberto] = useState(false);
+  const caixaRef = useRef<HTMLDivElement>(null);
+  const selecionado = String(diaPagamentoComissaoNormalizado(valor));
+
+  useEffect(() => {
+    if (!aberto) return;
+    function fechar(evento: MouseEvent) {
+      if (caixaRef.current && !caixaRef.current.contains(evento.target as Node)) {
+        setAberto(false);
+      }
+    }
+    document.addEventListener("mousedown", fechar);
+    return () => document.removeEventListener("mousedown", fechar);
+  }, [aberto]);
+
+  function aplicarDigitado(texto: string) {
+    const digits = texto.replace(/\D/g, "").slice(0, 2);
+    if (!digits) {
+      onChange("");
+      return;
+    }
+    const n = Number(digits);
+    onChange(String(Math.min(DIA_PAGAMENTO_COMISSAO_MAX, n)));
+  }
+
+  function escolherDia(dia: string) {
+    onChange(dia);
+    setAberto(false);
+  }
 
   return (
-    <div className="max-w-[292px]">
+    <div ref={caixaRef} className="relative max-w-[220px]">
       <label className={labelClass}>{t("cadastros.comum.diaPagamentoComissao")}</label>
-      <div className="rounded-md border border-slate-300 bg-white p-2.5">
-        <div className="mb-2 flex items-center gap-1.5 text-[13px] font-medium text-slate-600">
-          <CalendarDays className="h-4 w-4 text-slate-500" />
-          {t("cadastros.comum.diaPagamentoComissaoSelecionado", { dia: selecionado })}
-        </div>
-        <div className="grid grid-cols-7 gap-1">
-          {Array.from({ length: DIA_PAGAMENTO_COMISSAO_MAX }, (_, i) => String(i + 1)).map((dia) => {
-            const ativo = selecionado === dia;
-            return (
-              <button
-                key={dia}
-                type="button"
-                onClick={() => onChange(dia)}
-                className={`h-9 rounded text-[13px] font-medium ${
-                  ativo
-                    ? "bg-blue-600 text-white"
-                    : "text-slate-700 hover:bg-blue-50"
-                }`}
-                aria-pressed={ativo}
-                aria-label={t("cadastros.comum.diaPagamentoComissaoSelecionado", { dia })}
-              >
-                {dia}
-              </button>
-            );
-          })}
-        </div>
+      <div className="relative">
+        <input
+          value={valor}
+          inputMode="numeric"
+          maxLength={2}
+          placeholder="1–31"
+          onChange={(event) => aplicarDigitado(event.target.value)}
+          onBlur={() => onChange(selecionado)}
+          className={`${inputClass} pr-9`}
+          aria-label={t("cadastros.comum.diaPagamentoComissaoSelecionado", { dia: selecionado })}
+        />
+        <button
+          type="button"
+          onClick={() => setAberto((atual) => !atual)}
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600"
+          aria-label={t("cadastros.comum.diaPagamentoComissao")}
+          aria-expanded={aberto}
+        >
+          <CalendarDays className="h-4 w-4" />
+        </button>
       </div>
+      {aberto ? (
+        <div className="absolute z-30 mt-1 w-[220px] rounded-md border border-slate-200 bg-white p-1.5 shadow-lg">
+          <div className="grid grid-cols-7 gap-0.5">
+            {Array.from({ length: DIA_PAGAMENTO_COMISSAO_MAX }, (_, i) => String(i + 1)).map((dia) => {
+              const ativo = selecionado === dia;
+              return (
+                <button
+                  key={dia}
+                  type="button"
+                  onClick={() => escolherDia(dia)}
+                  className={`h-7 rounded text-[12px] font-medium ${
+                    ativo ? "bg-blue-600 text-white" : "text-slate-700 hover:bg-blue-50"
+                  }`}
+                  aria-pressed={ativo}
+                  aria-label={t("cadastros.comum.diaPagamentoComissaoSelecionado", { dia })}
+                >
+                  {dia}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
       <p className="mt-1 text-[12px] text-slate-400">{t("cadastros.comum.diaPagamentoComissaoAjuda")}</p>
     </div>
   );
@@ -1052,6 +1102,7 @@ export default function ColaboradoresPage() {
                   valor={form.diaPagamentoComissao}
                   onChange={(valor) => setCampo("diaPagamentoComissao", valor)}
                   labelClass={labelClass}
+                  inputClass={inputClass}
                 />
               </section>
               )}
@@ -1067,6 +1118,7 @@ export default function ColaboradoresPage() {
                   valor={form.diaPagamentoComissao}
                   onChange={(valor) => setCampo("diaPagamentoComissao", valor)}
                   labelClass={labelClass}
+                  inputClass={inputClass}
                 />
               </section>
               )}

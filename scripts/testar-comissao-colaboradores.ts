@@ -75,12 +75,14 @@ assert.equal(cadastroRs.valor, 25);
 ok("fallback R$ do cadastro");
 
 assert.equal(diaPagamentoComissaoNormalizado(""), 10);
-assert.equal(diaPagamentoComissaoNormalizado(31), 28);
+assert.equal(diaPagamentoComissaoNormalizado(31), 31);
+assert.equal(diaPagamentoComissaoNormalizado(32), 31);
 assert.equal(diaPagamentoComissaoNormalizado("5"), 5);
-ok("dia de pagamento 1-28 com padrao 10");
+ok("dia de pagamento 1-31 com padrao 10");
 
 assert.equal(dataVencimentoComissaoMensal("2026-10", 10), "2026-11-10");
 assert.equal(dataVencimentoComissaoMensal("2026-12", 10), "2027-01-10");
+assert.equal(dataVencimentoComissaoMensal("2026-01", 31), "2026-02-28");
 assert.equal(mesCompetenciaDeData(new Date(2026, 9, 5)), "2026-10");
 assert.equal(slugColaboradorComissao("João Silva"), "joao-silva");
 assert.equal(
