@@ -73,6 +73,7 @@ const JSON_VAZIOS: Record<string, unknown> = {
   labProteseSetoresExcluidos: [],
   labProteseColaboradores: [],
   labProteseColaboradoresExcluidos: [],
+  labProteseComissoesEfetivadas: { linhas: {}, despesas: {} },
   labProtesePrestadores: [],
   labProtesePrestadoresExcluidos: [],
   labProteseEntregadores: [],

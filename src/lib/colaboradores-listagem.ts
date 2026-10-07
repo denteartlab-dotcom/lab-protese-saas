@@ -1,3 +1,4 @@
+import { diaPagamentoComissaoNormalizado } from "@/lib/comissao-colaboradores-pagamento";
 import { readStorage } from "@/lib/persisted-storage";
 
 export const COLABORADORES_STORAGE_KEY = "labProteseColaboradores";
@@ -11,6 +12,7 @@ export type ColaboradorListagem = {
   tipoContratacao: string;
   tipoValorComissao: string;
   tipoValorComissaoRepeticao: string;
+  diaPagamentoComissao: number;
 };
 
 type ColaboradorStorage = {
@@ -24,6 +26,7 @@ type ColaboradorStorage = {
     descricaoComissao?: string;
     tipoValorComissao?: string;
     tipoValorComissaoRepeticao?: string;
+    diaPagamentoComissao?: string;
   };
 };
 
@@ -46,6 +49,7 @@ function normalizarColaborador(colaborador: ColaboradorStorage): ColaboradorList
     tipoContratacao: dados.tipoContratacao || "Salário + Comissão",
     tipoValorComissao: dados.tipoValorComissao || "%",
     tipoValorComissaoRepeticao: dados.tipoValorComissaoRepeticao || "%",
+    diaPagamentoComissao: diaPagamentoComissaoNormalizado(dados.diaPagamentoComissao),
   };
 }
 
