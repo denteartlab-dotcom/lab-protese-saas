@@ -32,7 +32,7 @@ import { gerarRelatorioComissaoColaboradoresModelo1Pdf } from "@/lib/pdf-relator
 import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
 import { carregarColaboradoresListagem } from "@/lib/colaboradores-listagem";
 import { carregarEtapasCadastro } from "@/lib/etapas-os";
-import { intervaloMesVigenteBr, parseBrDate } from "@/lib/datas-br";
+import { intervaloMesVigente, parseBrDate } from "@/lib/datas-br";
 import { labelStatusTrabalho, metaStatusTrabalho } from "@/lib/i18n/status-trabalho-i18n";
 import { ARMAZENAMENTO_LAB_PRONTO_EVENT } from "@/lib/armazenamento-laboratorio";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
@@ -194,12 +194,11 @@ function selectClassName() {
 
 export function ControleComissoesColaboradores() {
   const { t } = useI18n();
-  const mesVigente = useMemo(() => intervaloMesVigenteBr(), []);
   const [trabalhos, setTrabalhos] = useState<TrabalhoComissao[]>([]);
   const [colaborador, setColaborador] = useState("");
   const [periodo, setPeriodo] = useState("lancamento");
-  const [dataInicio, setDataInicio] = useState(mesVigente.inicio);
-  const [dataFim, setDataFim] = useState(mesVigente.fim);
+  const [dataInicio, setDataInicio] = useState("");
+  const [dataFim, setDataFim] = useState("");
   const [situacao, setSituacao] = useState("");
   const [etapa, setEtapa] = useState("todos");
   const [comissaoZero, setComissaoZero] = useState(false);
@@ -305,6 +304,21 @@ export function ControleComissoesColaboradores() {
     dataFim,
     periodo,
   ]);
+
+  const totalComissoesMes = useMemo(() => {
+    const { inicio, fim } = intervaloMesVigente();
+    return linhasBase.reduce((soma, linha) => {
+      if (colaborador && linha.colaborador !== colaborador) return soma;
+      if (situacao && linha.situacaoKey !== situacao) return soma;
+      if (etapa !== "todos" && linha.etapa.trim().toLowerCase() !== etapa.toLowerCase()) {
+        return soma;
+      }
+      const campoData = periodo === "entrega" ? linha.dataEntrega : linha.dataLancamento;
+      const dataLinha = parseBrDate(campoData);
+      if (!dataLinha || dataLinha < inicio || dataLinha > fim) return soma;
+      return soma + linha.comissaoValor;
+    }, 0);
+  }, [linhasBase, colaborador, situacao, etapa, periodo]);
 
   const totalComissoes = useMemo(
     () => linhasFiltradas.reduce((s, l) => s + l.comissaoValor, 0),
@@ -516,8 +530,14 @@ export function ControleComissoesColaboradores() {
 
         <div className="mb-3 flex flex-wrap gap-3">
           <CardResumo
-            titulo={t("producao.comum.valorComissoesMes")}
-            valor={formatarMoedaComissao(totalComissoes)}
+            titulo={
+              dataInicio || dataFim
+                ? t("producao.comum.valorComissoes")
+                : t("producao.comum.valorComissoesMes")
+            }
+            valor={formatarMoedaComissao(
+              dataInicio || dataFim ? totalComissoes : totalComissoesMes
+            )}
             icone={<DollarSign className="h-5 w-5" strokeWidth={2} />}
           />
           <CardResumo
