@@ -16,6 +16,7 @@ import {
 import { useI18n } from "@/components/i18n-provider";
 import { LeitorCodigoBarrasModal } from "@/components/LeitorCodigoBarrasModal";
 import { InputLeitorCodigoOs } from "@/components/InputLeitorCodigoOs";
+import { CampoDataBr } from "@/components/ui";
 import { extrairNumeroOsCodigo } from "@/lib/codigo-barras-os";
 import type { MessageKey } from "@/lib/i18n";
 import {
@@ -23,6 +24,20 @@ import {
   metaStatusTrabalho,
   opcoesStatusTrabalho,
 } from "@/lib/i18n/status-trabalho-i18n";
+import { carregarColaboradoresListagem } from "@/lib/colaboradores-listagem";
+import {
+  formatarMoedaComissao,
+  montarLinhasComissaoColaboradores,
+  type LinhaComissaoColaborador,
+  type TrabalhoComissao,
+} from "@/lib/comissoes-colaboradores";
+import {
+  lerComissoesEfetivadas,
+  linhaComissaoEfetivada,
+  type ComissoesEfetivadasStore,
+} from "@/lib/comissoes-efetivadas";
+import { aplicarEfetivacaoComissoes } from "@/lib/efetivar-comissao-colaborador";
+import { intervaloMesVigenteBr, parseBrDate } from "@/lib/datas-br";
 import type { EtapaOsLinha } from "@/lib/etapas-os";
 import {
   complementosDaOs,
@@ -33,6 +48,9 @@ import {
   type ItemModuloOs,
   type TrabalhoModuloOs,
 } from "@/lib/modulo-producao-os";
+import { normalizarChaveStatusOs } from "@/lib/status-os";
+import { TRABALHOS_ATUALIZADOS_EVENT } from "@/lib/trabalhos-events";
+import { ARMAZENAMENTO_LAB_PRONTO_EVENT } from "@/lib/armazenamento-laboratorio";
 import { cn } from "@/lib/utils";
 import {
   carregarConfiguracoesGerais,
@@ -81,11 +99,22 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
   const [etapasOk, setEtapasOk] = useState<Set<number>>(new Set());
   const [anotacoes, setAnotacoes] = useState("");
   const [salvandoAnotacao, setSalvandoAnotacao] = useState(false);
-  const [comissaoVisivel, setComissaoVisivel] = useState(false);
+  const [comissaoVisivel, setComissaoVisivel] = useState(true);
   const [avisoEtapa, setAvisoEtapa] = useState("");
   const [exigeAnteriorFinalizada, setExigeAnteriorFinalizada] = useState(
     () => carregarConfiguracoesGerais().producaoEtapaExigeAnteriorFinalizada
   );
+  const mesVigente = useMemo(() => intervaloMesVigenteBr(), []);
+  const [trabalhos, setTrabalhos] = useState<TrabalhoComissao[]>([]);
+  const [colaboradorFiltro, setColaboradorFiltro] = useState("");
+  const [dataInicio, setDataInicio] = useState(mesVigente.inicio);
+  const [dataFim, setDataFim] = useState(mesVigente.fim);
+  const [mapaTick, setMapaTick] = useState(0);
+  const [efetivadasStore, setEfetivadasStore] = useState<ComissoesEfetivadasStore>({
+    linhas: {},
+    despesas: {},
+  });
+  const [efetivando, setEfetivando] = useState(false);
 
   const logoutPorInatividade = useCallback(async () => {
     try {
@@ -97,6 +126,37 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
   }, []);
 
   useSessaoInatividade(() => void logoutPorInatividade());
+
+  const carregarTrabalhos = useCallback(async () => {
+    const res = await fetch("/api/trabalhos", { cache: "no-store" });
+    const data = await res.json();
+    setTrabalhos(Array.isArray(data) ? data : []);
+  }, []);
+
+  useEffect(() => {
+    void carregarTrabalhos();
+  }, [carregarTrabalhos]);
+
+  useEffect(() => {
+    const atualizar = () => {
+      void carregarTrabalhos();
+    };
+    window.addEventListener(TRABALHOS_ATUALIZADOS_EVENT, atualizar);
+    return () => window.removeEventListener(TRABALHOS_ATUALIZADOS_EVENT, atualizar);
+  }, [carregarTrabalhos]);
+
+  useEffect(() => {
+    function hidratar() {
+      try {
+        setEfetivadasStore(lerComissoesEfetivadas());
+      } catch {
+        setEfetivadasStore({ linhas: {}, despesas: {} });
+      }
+    }
+    hidratar();
+    window.addEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, hidratar);
+    return () => window.removeEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, hidratar);
+  }, []);
 
   useEffect(() => {
     const atualizar = () => {
@@ -252,6 +312,7 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
     const indiceNovo = indiceEtapaAtualDeConcluidas(next, etapasOs.length);
     setEtapasOk(next);
     salvarEtapasConcluidasModulo(chaveEtapasConcluidas, next);
+    setMapaTick((n) => n + 1);
 
     void fetch("/api/relatorios/logs-auditoria", {
       method: "POST",
@@ -327,6 +388,86 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
     setResultadosOs((lista) =>
       lista.map((t) => (t.id === osSelecionada.id ? { ...t, status: novoStatus } : t))
     );
+  }
+
+  const colaboradoresCadastro = useMemo(() => carregarColaboradoresListagem(), [trabalhos]);
+
+  const linhasComissao = useMemo(
+    () => montarLinhasComissaoColaboradores(trabalhos),
+    [trabalhos, mapaTick]
+  );
+
+  const linhasComissaoFiltradas = useMemo(() => {
+    return linhasComissao.filter((linha) => {
+      if (colaboradorFiltro && linha.colaborador !== colaboradorFiltro) return false;
+      if (dataInicio || dataFim) {
+        const dataLinha = parseBrDate(linha.dataLancamento);
+        if (!dataLinha) return false;
+        if (dataInicio) {
+          const ini = parseBrDate(dataInicio);
+          if (ini && dataLinha < ini) return false;
+        }
+        if (dataFim) {
+          const fim = parseBrDate(dataFim);
+          if (fim) {
+            const fimDia = new Date(fim);
+            fimDia.setHours(23, 59, 59, 999);
+            if (dataLinha > fimDia) return false;
+          }
+        }
+      }
+      return true;
+    });
+  }, [linhasComissao, colaboradorFiltro, dataInicio, dataFim]);
+
+  const totalComissoes = useMemo(
+    () => linhasComissaoFiltradas.reduce((s, l) => s + l.comissaoValor, 0),
+    [linhasComissaoFiltradas]
+  );
+
+  const nomesFiltroColaboradores = useMemo(() => {
+    const nomes = new Set(colaboradoresCadastro.map((c) => c.nome));
+    for (const linha of linhasComissao) nomes.add(linha.colaborador);
+    return [...nomes].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [colaboradoresCadastro, linhasComissao]);
+
+  const linhasOsAtual = useMemo(() => {
+    if (!osSelecionada) return [];
+    return montarLinhasComissaoColaboradores(grupoOs.length ? grupoOs : [osSelecionada], {
+      incluirPendentes: true,
+    });
+  }, [osSelecionada, grupoOs, mapaTick]);
+
+  const idsEfetivados = useMemo(
+    () => new Set(Object.keys(efetivadasStore.linhas)),
+    [efetivadasStore]
+  );
+
+  async function sincronizarEfetivacao(
+    linhasAlvo: LinhaComissaoColaborador[],
+    efetivar: boolean
+  ) {
+    if (linhasAlvo.length === 0 || efetivando) return;
+    setEfetivando(true);
+    try {
+      setEfetivadasStore(await aplicarEfetivacaoComissoes(linhasAlvo, efetivar));
+    } catch (err) {
+      console.error("efetivar comissao modulo", err);
+      const paga = err instanceof Error && err.name === "DespesaComissaoPagaError";
+      alert(paga ? t("producao.comum.despesaPagaBloqueada") : t("producao.comum.erroEfetivar"));
+      try {
+        setEfetivadasStore(lerComissoesEfetivadas());
+      } catch {
+        /* ignore */
+      }
+    } finally {
+      setEfetivando(false);
+    }
+  }
+
+  function alternarEfetivacao(linha: LinhaComissaoColaborador) {
+    const ja = linhaComissaoEfetivada(efetivadasStore, linha.id);
+    void sincronizarEfetivacao([linha], !ja);
   }
 
   type LinhaTabela = ItemModuloOs & { _trabalho?: TrabalhoModuloOs };
@@ -461,7 +602,10 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
                   {linhasTabela.map((linha) => {
                     const ativo =
                       osSelecionada && itemAtivo ? itemAtivo.id === linha.id : false;
-                    const situacaoMeta = metaStatusTrabalho(linha.situacao);
+                    const statusReal = normalizarChaveStatusOs(
+                      linha._trabalho?.status || osSelecionada?.status || linha.situacao
+                    );
+                    const situacaoMeta = metaStatusTrabalho(statusReal);
                     return (
                       <tr
                         key={linha.id}
@@ -491,7 +635,7 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
                               situacaoMeta?.color ?? "bg-slate-100 text-slate-700"
                             )}
                           >
-                            {labelStatusTrabalho(t, linha.situacao)}
+                            {labelStatusTrabalho(t, statusReal)}
                           </span>
                         </td>
                       </tr>
@@ -526,74 +670,141 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
               </div>
             ) : (
               <div className="min-h-[200px] bg-white p-4 text-[13px] text-[#374151]">
-                {abaAtiva === "etapas" &&
-                  (etapasOs.length === 0 ? (
-                    <div className="bg-[#fde8d8] py-3 text-center text-[13px] font-normal text-[#e8913a]">
-                      {t("producao.modulo.semEtapasCadastradas")}
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      {avisoEtapa ? (
-                        <div className="mb-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-900">
-                          {avisoEtapa}
-                        </div>
-                      ) : null}
-                      <table className="w-full min-w-[520px] border-collapse text-[12px]">
-                        <thead>
-                          <tr className="border-b border-[#e5e7eb] bg-[#f9fafb] text-[11px] font-semibold uppercase text-[#6b7280]">
-                            <th className="w-10 px-2 py-2 text-center">✓</th>
-                            <th className="px-3 py-2 text-left">{t("producao.modulo.etapa")}</th>
-                            <th className="px-3 py-2 text-left">{t("producao.modulo.responsavel")}</th>
-                            <th className="px-3 py-2 text-left">{t("producao.modulo.tabela.prazo")}</th>
-                            <th className="px-3 py-2 text-left">{t("producao.modulo.observacao")}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {etapasOs.map((etapa, indiceEtapa) => {
-                            const ok = etapasOk.has(indiceEtapa);
-                            return (
-                              <tr
-                                key={`${indiceEtapa}-${etapa.nome}`}
-                                className="border-b border-[#f3f4f6] hover:bg-[#f9fafb]"
-                              >
-                                <td className="px-2 py-2 text-center">
-                                  <button
-                                    type="button"
-                                    onClick={() => alternarEtapa(indiceEtapa)}
-                                    className={cn(
-                                      "inline-flex h-5 w-5 items-center justify-center border",
-                                      ok
-                                        ? "border-[#22c55e] bg-[#22c55e] text-white"
-                                        : "border-[#d1d5db] bg-white"
-                                    )}
-                                    aria-label={
-                                      ok
-                                        ? t("producao.modulo.etapaConcluida")
-                                        : t("producao.modulo.marcarEtapa")
-                                    }
-                                  >
-                                    {ok ? <Check className="h-3 w-3" /> : null}
-                                  </button>
-                                </td>
-                                <td className="px-3 py-2 font-medium text-[#374151]">
-                                  {etapa.nome}
-                                </td>
-                                <td className="px-3 py-2 text-[#374151]">
-                                  {etapa.responsavel || "—"}
-                                </td>
-                                <td className="px-3 py-2 text-[#6b7280]">
-                                  {etapa.prazo || "—"}
-                                </td>
-                                <td className="px-3 py-2 text-[#6b7280]">
-                                  {etapa.observacao || "—"}
-                                </td>
+                {abaAtiva === "etapas" && (
+                  <div className="space-y-4">
+                    {etapasOs.length === 0 ? (
+                      <div className="bg-[#fde8d8] py-3 text-center text-[13px] font-normal text-[#e8913a]">
+                        {t("producao.modulo.semEtapasCadastradas")}
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        {avisoEtapa ? (
+                          <div className="mb-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-900">
+                            {avisoEtapa}
+                          </div>
+                        ) : null}
+                        <table className="w-full min-w-[520px] border-collapse text-[12px]">
+                          <thead>
+                            <tr className="border-b border-[#e5e7eb] bg-[#f9fafb] text-[11px] font-semibold uppercase text-[#6b7280]">
+                              <th className="w-10 px-2 py-2 text-center">✓</th>
+                              <th className="px-3 py-2 text-left">{t("producao.modulo.etapa")}</th>
+                              <th className="px-3 py-2 text-left">{t("producao.modulo.responsavel")}</th>
+                              <th className="px-3 py-2 text-left">{t("producao.modulo.tabela.prazo")}</th>
+                              <th className="px-3 py-2 text-left">{t("producao.modulo.observacao")}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {etapasOs.map((etapa, indiceEtapa) => {
+                              const ok = etapasOk.has(indiceEtapa);
+                              return (
+                                <tr
+                                  key={`${indiceEtapa}-${etapa.nome}`}
+                                  className="border-b border-[#f3f4f6] hover:bg-[#f9fafb]"
+                                >
+                                  <td className="px-2 py-2 text-center">
+                                    <button
+                                      type="button"
+                                      onClick={() => alternarEtapa(indiceEtapa)}
+                                      className={cn(
+                                        "inline-flex h-5 w-5 items-center justify-center border",
+                                        ok
+                                          ? "border-[#22c55e] bg-[#22c55e] text-white"
+                                          : "border-[#d1d5db] bg-white"
+                                      )}
+                                      aria-label={
+                                        ok
+                                          ? t("producao.modulo.etapaConcluida")
+                                          : t("producao.modulo.marcarEtapa")
+                                      }
+                                    >
+                                      {ok ? <Check className="h-3 w-3" /> : null}
+                                    </button>
+                                  </td>
+                                  <td className="px-3 py-2 font-medium text-[#374151]">
+                                    {etapa.nome}
+                                  </td>
+                                  <td className="px-3 py-2 text-[#374151]">
+                                    {etapa.responsavel || "—"}
+                                  </td>
+                                  <td className="px-3 py-2 text-[#6b7280]">
+                                    {etapa.prazo || "—"}
+                                  </td>
+                                  <td className="px-3 py-2 text-[#6b7280]">
+                                    {etapa.observacao || "—"}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    <div>
+                      <h3 className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-[#6b7280]">
+                        {t("producao.modulo.colaboradoresComissoes")}
+                      </h3>
+                      {linhasOsAtual.length === 0 ? (
+                        <p className="rounded border border-[#e5e7eb] bg-[#f9fafb] px-3 py-3 text-[12px] text-[#6b7280]">
+                          {t("producao.modulo.semColaboradores")}
+                        </p>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="w-full min-w-[520px] border-collapse text-[12px]">
+                            <thead>
+                              <tr className="border-b border-[#e5e7eb] bg-[#f9fafb] text-[11px] font-semibold uppercase text-[#6b7280]">
+                                <th className="px-3 py-2 text-left">{t("producao.comum.colaborador")}</th>
+                                <th className="px-3 py-2 text-left">{t("producao.modulo.etapa")}</th>
+                                <th className="px-3 py-2 text-left">{t("producao.modulo.situacaoEtapa")}</th>
+                                <th className="px-3 py-2 text-right">{t("producao.comum.comissao")}</th>
+                                <th className="w-16 px-2 py-2 text-center">{t("producao.modulo.aceitarComissao")}</th>
                               </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
+                            </thead>
+                            <tbody>
+                              {linhasOsAtual.map((linha) => {
+                                const efetivada = idsEfetivados.has(linha.id);
+                                const podeAceitar = linha.elegivel && linha.comissaoValor > 0;
+                                return (
+                                  <tr key={linha.id} className="border-b border-[#f3f4f6]">
+                                    <td className="px-3 py-2 font-medium text-[#374151]">
+                                      {linha.colaborador}
+                                    </td>
+                                    <td className="px-3 py-2 text-[#374151]">{linha.etapa || "—"}</td>
+                                    <td className="px-3 py-2 text-[#6b7280]">{linha.situacaoEtapa}</td>
+                                    <td className="px-3 py-2 text-right font-medium text-[#374151]">
+                                      {formatarMoedaComissao(linha.comissaoValor)}
+                                    </td>
+                                    <td className="px-2 py-2 text-center">
+                                      <button
+                                        type="button"
+                                        onClick={() => alternarEfetivacao(linha)}
+                                        disabled={efetivando || (!efetivada && !podeAceitar)}
+                                        title={
+                                          efetivada
+                                            ? t("producao.comum.desefetivarComissao")
+                                            : t("producao.comum.efetivarComissao")
+                                        }
+                                        className={cn(
+                                          "inline-flex h-6 w-6 items-center justify-center rounded-full",
+                                          efetivada
+                                            ? "bg-emerald-500 text-white hover:bg-emerald-600"
+                                            : "border border-emerald-400 text-emerald-600 hover:bg-emerald-50",
+                                          "disabled:cursor-not-allowed disabled:opacity-40"
+                                        )}
+                                      >
+                                        <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                                      </button>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
                     </div>
-                  ))}
+                  </div>
+                )}
                 {abaAtiva === "anotacoes" && (
                   <div className="space-y-3">
                     <textarea
@@ -644,6 +855,47 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
           </div>
 
           <aside className="flex flex-col gap-4">
+            <div className="rounded border border-[#e5e7eb] bg-white px-4 py-3">
+              <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-[#6b7280]">
+                {t("producao.comum.periodo")}
+              </p>
+              <div className="space-y-2">
+                <div>
+                  <span className="mb-0.5 block text-[11px] text-slate-600">
+                    {t("producao.comum.colaboradores")}
+                  </span>
+                  <select
+                    value={colaboradorFiltro}
+                    onChange={(e) => setColaboradorFiltro(e.target.value)}
+                    className="h-8 w-full rounded border border-[#d1d5db] bg-white px-2 text-[11px] text-slate-700 focus:border-blue-500 focus:outline-none"
+                  >
+                    <option value="">{t("common.todos")}</option>
+                    {nomesFiltroColaboradores.map((nome) => (
+                      <option key={nome} value={nome}>
+                        {nome}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <CampoDataBr
+                  label={t("producao.comum.dataInicio")}
+                  value={dataInicio}
+                  onChange={setDataInicio}
+                  placeholder="dd/mm/aaaa"
+                  inputClassName="h-8 text-[11px]"
+                  className="[&_label]:text-[11px]"
+                />
+                <CampoDataBr
+                  label={t("producao.comum.dataFim")}
+                  value={dataFim}
+                  onChange={setDataFim}
+                  placeholder="dd/mm/aaaa"
+                  inputClassName="h-8 text-[11px]"
+                  className="[&_label]:text-[11px]"
+                />
+              </div>
+            </div>
+
             <div className="relative rounded border border-[#e5e7eb] bg-white px-4 py-4">
               <p className="text-[13px] font-semibold text-[#374151]">{t("producao.modulo.totalComissoes")}</p>
               <div className="mt-1 flex items-center gap-2">
@@ -665,7 +917,7 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
                 </button>
                 <button
                   type="button"
-                  onClick={() => window.location.reload()}
+                  onClick={() => void carregarTrabalhos()}
                   className="text-[#9ca3af] hover:text-[#6b7280]"
                   aria-label={t("producao.modulo.atualizar")}
                 >
@@ -674,11 +926,11 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
               </div>
               <p
                 className={cn(
-                  "mt-2 text-[26px] font-semibold leading-none text-[#374151]",
+                  "mt-2 pr-20 text-[26px] font-semibold leading-none text-[#374151]",
                   !comissaoVisivel && "blur-md select-none"
                 )}
               >
-                R$ 0,00
+                {formatarMoedaComissao(totalComissoes)}
               </p>
               <Link
                 href="/app/producao/comissao"
@@ -686,7 +938,7 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
               >
                 {t("producao.modulo.verDetalhes")}
               </Link>
-              <div className="absolute right-4 top-1/2 flex h-[72px] w-[72px] -translate-y-1/2 items-center justify-center rounded-full bg-[#dbeafe]">
+              <div className="absolute right-4 top-8 flex h-[72px] w-[72px] items-center justify-center rounded-full bg-[#dbeafe]">
                 <DollarSign className="h-9 w-9 text-[#3b82f6]" strokeWidth={1.5} />
               </div>
             </div>

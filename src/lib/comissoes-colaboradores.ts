@@ -55,6 +55,7 @@ export type LinhaComissaoColaborador = {
   comissaoValor: number;
   mesCompetencia: string;
   etapaFinalizada: boolean;
+  elegivel: boolean;
 };
 
 function chaveGrupoOs(t: { numeroOs: number; grupoOsId?: string | null }) {
@@ -299,7 +300,8 @@ export function montarLinhasComissaoColaboradores(
             colaborador.comissao,
             cadastroDoColaborador(colaborador, cadastro)
           );
-          const comissaoValor = geraComissao ? calculada.valor : 0;
+          const comissaoValor =
+            geraComissao || incluirPendentes ? calculada.valor : 0;
 
           linhas.push({
             id: `${trabalho.id}-${item.id}-${colaborador.nome}`,
@@ -329,6 +331,7 @@ export function montarLinhasComissaoColaboradores(
             comissaoValor,
             mesCompetencia: mesCompetenciaDeEntrada(trabalho.dataEntrada),
             etapaFinalizada,
+            elegivel: geraComissao,
           });
         }
       }
