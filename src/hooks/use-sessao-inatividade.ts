@@ -15,6 +15,17 @@ const EVENTOS_ATIVIDADE = [
 ] as const;
 
 const INTERVALO_VERIFICACAO_MS = 60_000;
+const RENOVAR_SESSAO_ATIVIDADE_MS = 5 * 60 * 1000;
+
+function renovarCookieSessao() {
+  void fetch("/api/auth/renovar-sessao", {
+    method: "POST",
+    credentials: "same-origin",
+    cache: "no-store",
+  }).catch(() => {
+    /* rede — o cookie segue o TTL até a próxima tentativa */
+  });
+}
 
 type OpcoesSessaoInatividade = {
   /** Ex.: Módulo TV — não encerra por inatividade nesta aba. */
@@ -23,7 +34,7 @@ type OpcoesSessaoInatividade = {
 
 /**
  * Encerra a sessão após 2h sem interação.
- * O carimbo fica no localStorage: fecha o navegador e o tempo continua contando.
+ * O cookie JWT também dura 2h: com o site fechado a sessão cai sozinha.
  * Com Módulo TV aberto (heartbeat), a conta não cai por inatividade.
  */
 export function useSessaoInatividade(
@@ -47,12 +58,20 @@ export function useSessaoInatividade(
 
     if (verificarExpiracao()) return;
 
+    registrarAtividadeSessao();
+    renovarCookieSessao();
+
     let ultimoRegistro = Date.now();
+    let ultimaRenovacao = Date.now();
     const registrar = () => {
       const agora = Date.now();
       if (agora - ultimoRegistro < 15_000) return;
       ultimoRegistro = agora;
       registrarAtividadeSessao();
+      if (agora - ultimaRenovacao >= RENOVAR_SESSAO_ATIVIDADE_MS) {
+        ultimaRenovacao = agora;
+        renovarCookieSessao();
+      }
     };
 
     for (const evento of EVENTOS_ATIVIDADE) {
@@ -61,13 +80,15 @@ export function useSessaoInatividade(
 
     const onVisivel = () => {
       if (document.visibilityState === "visible") {
-        verificarExpiracao();
+        if (verificarExpiracao()) return;
+        registrar();
       }
     };
     document.addEventListener("visibilitychange", onVisivel);
 
     const onPageShow = () => {
-      verificarExpiracao();
+      if (verificarExpiracao()) return;
+      registrar();
     };
     window.addEventListener("pageshow", onPageShow);
 

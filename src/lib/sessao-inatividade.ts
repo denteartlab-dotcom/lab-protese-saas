@@ -1,6 +1,8 @@
-/** Logout automático após 2 horas sem interação (persiste se o navegador fechar). */
-export const SESSAO_INATIVIDADE_MS = 2 * 60 * 60 * 1000;
+import { SESSAO_INATIVIDADE_MS } from "@/lib/sessao-ttl";
 
+export { SESSAO_INATIVIDADE_MS };
+
+/** Heartbeat local da última interação — reforço do cookie de 2h. */
 export const SESSAO_ULTIMA_ATIVIDADE_KEY = "labProteseUltimaAtividade";
 
 /** Heartbeat do Módulo TV — enquanto fresco, a sessão não cai por inatividade. */

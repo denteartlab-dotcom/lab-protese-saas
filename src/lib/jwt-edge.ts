@@ -4,6 +4,7 @@
  */
 export type JwtPayloadBasico = Record<string, unknown> & {
   exp?: number;
+  iat?: number;
   id?: string;
 };
 

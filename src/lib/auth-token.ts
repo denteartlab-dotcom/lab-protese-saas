@@ -1,9 +1,18 @@
 import { SignJWT, jwtVerify } from "jose";
+import {
+  SESSAO_INATIVIDADE_S,
+  sessaoInativaPorIat,
+  ttlCookieSessaoLabSegundos,
+} from "@/lib/sessao-ttl";
 
 export const COOKIE_NAME = "lab-protese-session";
 
-/** Sem "lembrar": 12h. Com "lembrar": 7 dias. */
-export const SESSAO_TTL_SEM_LEMBRAR_S = 12 * 60 * 60;
+/**
+ * Sessão do laboratório: 2h com renovação enquanto o usuário usa o sistema.
+ * "Lembrar e-mail" não mantém a sessão — o cookie cai sozinho com o site fechado.
+ */
+export const SESSAO_TTL_SEM_LEMBRAR_S = SESSAO_INATIVIDADE_S;
+/** Legado: cookies antigos de 7 dias ainda podem existir até expirarem. */
 export const SESSAO_TTL_LEMBRAR_S = 7 * 24 * 60 * 60;
 /** Visualização auditada do admin master em empresa cliente. */
 export const SESSAO_TTL_SUPORTE_MASTER_S = 30 * 60;
@@ -43,7 +52,7 @@ export type SessionUser = {
 };
 
 export function ttlSessaoSegundos(remember?: boolean) {
-  return remember ? SESSAO_TTL_LEMBRAR_S : SESSAO_TTL_SEM_LEMBRAR_S;
+  return ttlCookieSessaoLabSegundos(remember);
 }
 
 export function sessaoEhSuporteMaster(
@@ -117,6 +126,9 @@ export async function verifySessionToken(
           ? payload.exp * 1000
           : undefined;
     if (suporteMaster && suporteExpiraEm && suporteExpiraEm <= Date.now()) {
+      return null;
+    }
+    if (!suporteMaster && sessaoInativaPorIat(payload.iat)) {
       return null;
     }
     return {

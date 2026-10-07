@@ -1,22 +1,16 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { decodeJwt } from "jose";
 import {
   anexarCookieSessao,
-  COOKIE_NAME,
   getSession,
   sessaoEhSuporteMaster,
   SESSAO_TTL_SUPORTE_MASTER_S,
 } from "@/lib/auth";
-import {
-  SESSAO_TTL_LEMBRAR_S,
-  SESSAO_TTL_SEM_LEMBRAR_S,
-} from "@/lib/auth-token";
+import { SESSAO_TTL_SEM_LEMBRAR_S } from "@/lib/auth-token";
 import { sessaoUsuarioVersaoValida } from "@/lib/session-version";
 
 /**
- * Renova o cookie JWT com o mesmo TTL da sessão atual.
- * Usado pelo Módulo TV para kiosk sem logout por TTL absoluto.
+ * Renova o cookie JWT (2h a partir de agora).
+ * Com o site fechado o cookie anterior expira sozinho; com o sistema em uso, a sessão desliza.
  */
 export async function POST(request: Request) {
   const session = await getSession();
@@ -40,31 +34,6 @@ export async function POST(request: Request) {
   let ttlSegundos = sessaoEhSuporteMaster(session)
     ? SESSAO_TTL_SUPORTE_MASTER_S
     : SESSAO_TTL_SEM_LEMBRAR_S;
-
-  try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get(COOKIE_NAME)?.value;
-    if (token) {
-      const payload = decodeJwt(token);
-      if (
-        typeof payload.iat === "number" &&
-        typeof payload.exp === "number" &&
-        payload.exp > payload.iat
-      ) {
-        const ttlOriginal = Math.floor(payload.exp - payload.iat);
-        if (ttlOriginal >= SESSAO_TTL_LEMBRAR_S * 0.9) {
-          ttlSegundos = SESSAO_TTL_LEMBRAR_S;
-        } else if (ttlOriginal >= 60) {
-          ttlSegundos = Math.min(
-            Math.max(ttlOriginal, SESSAO_TTL_SEM_LEMBRAR_S),
-            SESSAO_TTL_LEMBRAR_S
-          );
-        }
-      }
-    }
-  } catch {
-    /* usa default */
-  }
 
   if (sessaoEhSuporteMaster(session) && session.suporteExpiraEm) {
     ttlSegundos = Math.max(

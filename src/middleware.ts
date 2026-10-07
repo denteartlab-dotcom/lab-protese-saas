@@ -10,6 +10,7 @@ import {
   montarCaminhoAppComSlug,
 } from "@/lib/rotas-app";
 import { rotaLiberadaAssinaturaVencida, apiLiberadaAssinaturaVencida } from "@/lib/rotas-assinatura-vencida";
+import { sessaoInativaPorIat } from "@/lib/sessao-ttl";
 
 const COOKIE_NAME = "lab-protese-session";
 const MASTER_COOKIE_NAME = "lab-protese-master-session";
@@ -26,6 +27,7 @@ const PUBLIC = [
 
 type PayloadSessao = {
   exp?: number;
+  iat?: number;
   id?: string;
   empresaSlug?: string;
   master?: boolean;
@@ -69,10 +71,16 @@ async function verificarPayloadMaster(token: string): Promise<PayloadSessao | nu
   return null;
 }
 
+function payloadSessaoLabValida(payload: PayloadSessao | null): payload is PayloadSessao {
+  if (!payload || typeof payload.id !== "string" || !payload.id) return false;
+  if (payload.suporteMaster === true) return true;
+  if (sessaoInativaPorIat(payload.iat)) return false;
+  return true;
+}
+
 async function sessionTokenAceito(token: string): Promise<boolean> {
   const payload = await verificarPayloadSessao(token);
-  if (!payload) return false;
-  return typeof payload.id === "string" && payload.id.length > 0;
+  return payloadSessaoLabValida(payload);
 }
 
 async function masterTokenAceito(token: string): Promise<boolean> {
@@ -448,7 +456,10 @@ export async function middleware(request: NextRequest) {
   }
 
   const token = request.cookies.get(COOKIE_NAME)?.value;
-  const payloadSessao = token ? await verificarPayloadSessao(token) : null;
+  const payloadSessaoBruto = token ? await verificarPayloadSessao(token) : null;
+  const payloadSessao = payloadSessaoLabValida(payloadSessaoBruto)
+    ? payloadSessaoBruto
+    : null;
   if (!token || !payloadSessao?.id) {
     if (pathname.startsWith("/api")) {
       return aplicarCsp(
