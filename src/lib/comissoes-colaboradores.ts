@@ -1,11 +1,22 @@
-import { carregarColaboradoresListagem } from "@/lib/colaboradores-listagem";
+import { mesCompetenciaDeDataBr } from "@/lib/comissao-colaboradores-pagamento";
+import {
+  calcularComissaoTrabalho,
+  usaComissaoColaborador,
+} from "@/lib/colaborador-remuneracao";
+import {
+  carregarColaboradoresListagem,
+  type ColaboradorListagem,
+} from "@/lib/colaboradores-listagem";
 import {
   colaboradoresParaExibicaoControle,
   nomeEtapaSemSetor,
   normalizarNomeEtapaCadastro,
   parseComplementosInstrucoesGrupo,
+  tipoComissaoDeTexto,
+  valorNumericoComissaoTexto,
   type ColaboradorOsLinha,
   type EtapaOsLinha,
+  type TipoComissaoOs,
 } from "@/lib/etapas-os";
 import { parseCurrencyBr } from "@/lib/cliente-financeiro";
 import { itensDaOsModulo, type ItemModuloOs, type TrabalhoModuloOs } from "@/lib/modulo-producao-os";
@@ -39,18 +50,15 @@ export type LinhaComissaoColaborador = {
   situacao: string;
   situacaoKey: string;
   comissaoPercentual: number;
+  comissaoTipo: TipoComissaoOs;
   valorServico: number;
   comissaoValor: number;
+  mesCompetencia: string;
+  etapaFinalizada: boolean;
 };
 
 function chaveGrupoOs(t: { numeroOs: number; grupoOsId?: string | null }) {
   return t.grupoOsId?.trim() || String(t.numeroOs);
-}
-
-function parsePercentual(value: string) {
-  const limpo = (value || "0").replace(/%/g, "").trim().replace(/\./g, "").replace(",", ".");
-  const n = Number(limpo);
-  return Number.isFinite(n) ? n : 0;
 }
 
 function valorItemLinha(instrucoes: string, descricaoItem: string) {
@@ -68,16 +76,50 @@ function valorItemLinha(instrucoes: string, descricaoItem: string) {
   return 0;
 }
 
-function percentualColaborador(
+export function calcularValorComissaoColaborador(
+  valorServico: number,
+  comissaoOs: string,
+  cadastro?: ColaboradorListagem
+): { valor: number; percentual: number; tipo: TipoComissaoOs } {
+  const textoOs = (comissaoOs || "").trim();
+  const valorOs = textoOs ? valorNumericoComissaoTexto(textoOs) : "";
+  if (textoOs && valorOs && valorOs !== "0,00") {
+    const tipo = tipoComissaoDeTexto(textoOs);
+    const valor = calcularComissaoTrabalho(valorServico, valorOs, tipo);
+    return {
+      valor,
+      percentual: tipo === "%" ? Number(valorOs.replace(/\./g, "").replace(",", ".")) || 0 : 0,
+      tipo,
+    };
+  }
+
+  if (cadastro && usaComissaoColaborador(cadastro.tipoContratacao)) {
+    const tipo: TipoComissaoOs = cadastro.tipoValorComissao === "R$" ? "R$" : "%";
+    const valorTexto = cadastro.comissaoPercentual || "0,00";
+    const valor = calcularComissaoTrabalho(valorServico, valorTexto, tipo);
+    return {
+      valor,
+      percentual: tipo === "%" ? Number(valorTexto.replace(/\./g, "").replace(",", ".")) || 0 : 0,
+      tipo,
+    };
+  }
+
+  return { valor: 0, percentual: 0, tipo: "%" };
+}
+
+function cadastroDoColaborador(
   colaborador: ColaboradorOsLinha,
-  cadastro = carregarColaboradoresListagem()
+  cadastro: ColaboradorListagem[]
 ) {
-  const daOs = parsePercentual(colaborador.comissao);
-  if (daOs > 0) return daOs;
-  const item = cadastro.find(
+  return cadastro.find(
     (c) => c.nome.trim().toLowerCase() === colaborador.nome.trim().toLowerCase()
   );
-  return item ? parsePercentual(item.comissaoPercentual) : 0;
+}
+
+function mesCompetenciaDeEntrada(dataEntrada?: string | null) {
+  const iso = (dataEntrada || "").match(/^(\d{4})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}`;
+  return mesCompetenciaDeDataBr(formatDate(dataEntrada || ""));
 }
 
 function descricaoItem(trabalho: TrabalhoComissao, servico: string) {
@@ -132,10 +174,10 @@ function elegivelComissaoColaborador(
   etapas: EtapaOsLinha[],
   mapaConcluidas: Record<string, number[]>
 ) {
-  return (
-    servicoFinalizado(situacaoKey) ||
-    etapaColaboradorFinalizada(chaveItem, colaborador.etapa, etapas, mapaConcluidas)
-  );
+  if (colaborador.etapa.trim()) {
+    return etapaColaboradorFinalizada(chaveItem, colaborador.etapa, etapas, mapaConcluidas);
+  }
+  return servicoFinalizado(situacaoKey);
 }
 
 function situacaoEtapaLabel(
@@ -152,9 +194,14 @@ function situacaoEtapaLabel(
 }
 
 export function montarLinhasComissaoColaboradores(
-  trabalhos: TrabalhoComissao[]
+  trabalhos: TrabalhoComissao[],
+  opts?: {
+    cadastro?: ColaboradorListagem[];
+    mapaEtapasConcluidas?: Record<string, number[]>;
+    incluirPendentes?: boolean;
+  }
 ): LinhaComissaoColaborador[] {
-  const cadastro = carregarColaboradoresListagem();
+  const cadastro = opts?.cadastro ?? carregarColaboradoresListagem();
   const grupos = new Map<string, TrabalhoComissao[]>();
 
   for (const t of trabalhos) {
@@ -165,7 +212,8 @@ export function montarLinhasComissaoColaboradores(
   }
 
   const linhas: LinhaComissaoColaborador[] = [];
-  const mapaEtapasConcluidas = lerMapaEtapasConcluidasModulo();
+  const mapaEtapasConcluidas = opts?.mapaEtapasConcluidas ?? lerMapaEtapasConcluidasModulo();
+  const incluirPendentes = Boolean(opts?.incluirPendentes);
 
   for (const grupo of grupos.values()) {
     const textos = grupo.map((t) => t.instrucoes || "");
@@ -205,15 +253,21 @@ export function montarLinhasComissaoColaboradores(
         const chaveItem = `${trabalho.id}:${item.id}`;
 
         for (const colaborador of colaboradores) {
-          const pct = percentualColaborador(colaborador, cadastro);
-          const geraComissao = elegivelComissaoColaborador(
+          const etapaFinalizada = elegivelComissaoColaborador(
             situacaoKey,
             chaveItem,
             colaborador,
             complementos.etapas,
             mapaEtapasConcluidas
           );
-          const comissaoValor = geraComissao ? (valorServico * pct) / 100 : 0;
+          if (!etapaFinalizada && !incluirPendentes) continue;
+
+          const calculada = calcularValorComissaoColaborador(
+            valorServico,
+            colaborador.comissao,
+            cadastroDoColaborador(colaborador, cadastro)
+          );
+          const comissaoValor = etapaFinalizada ? calculada.valor : 0;
 
           linhas.push({
             id: `${trabalho.id}-${item.id}-${colaborador.nome}`,
@@ -236,9 +290,12 @@ export function montarLinhasComissaoColaboradores(
             ),
             situacao: STATUS_TRABALHO[situacaoKey]?.label || situacaoKey,
             situacaoKey,
-            comissaoPercentual: pct,
+            comissaoPercentual: calculada.percentual,
+            comissaoTipo: calculada.tipo,
             valorServico,
             comissaoValor,
+            mesCompetencia: mesCompetenciaDeEntrada(trabalho.dataEntrada),
+            etapaFinalizada,
           });
         }
       }

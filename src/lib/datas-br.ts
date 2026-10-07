@@ -99,3 +99,9 @@ export function dataNoMesVigente(data: Date, base = new Date()) {
   valor.setHours(12, 0, 0, 0);
   return valor >= inicio && valor <= fim;
 }
+
+/** Início e fim do mês vigente em dd/mm/aaaa (filtros de período). */
+export function intervaloMesVigenteBr(base = new Date()) {
+  const { inicio, fim } = intervaloMesVigente(base);
+  return { inicio: dateToBrShort(inicio), fim: dateToBrShort(fim) };
+}

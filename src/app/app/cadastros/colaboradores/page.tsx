@@ -17,6 +17,7 @@ import {
   type HorarioFuncionamentoConfig,
 } from "@/lib/horario-funcionamento";
 import { readStorage, writeStorage, readStorageArray } from "@/lib/persisted-storage";
+import { DIA_PAGAMENTO_COMISSAO_MAX } from "@/lib/comissao-colaboradores-pagamento";
 import {
   formatValorMonetarioInput,
   formatarSalarioExibicao,
@@ -77,6 +78,7 @@ const formularioVazio = {
   comissaoRepeticao: "0,00",
   tipoValorComissaoRepeticao: "%",
   descricaoComissao: "Não",
+  diaPagamentoComissao: "10",
   cep: "",
   rua: "",
   numero: "",
@@ -176,6 +178,37 @@ function CampoValorComissao({
           className="w-full px-2 text-[10px] text-slate-600 outline-none"
         />
       </div>
+    </div>
+  );
+}
+
+function CampoDiaPagamentoComissao({
+  valor,
+  onChange,
+  labelClass,
+  inputClass,
+}: {
+  valor: string;
+  onChange: (valor: string) => void;
+  labelClass: string;
+  inputClass: string;
+}) {
+  const { t } = useI18n();
+  return (
+    <div>
+      <label className={labelClass}>{t("cadastros.comum.diaPagamentoComissao")}</label>
+      <select
+        value={valor || "10"}
+        onChange={(event) => onChange(event.target.value)}
+        className={inputClass}
+      >
+        {Array.from({ length: DIA_PAGAMENTO_COMISSAO_MAX }, (_, i) => String(i + 1)).map((dia) => (
+          <option key={dia} value={dia}>
+            {dia}
+          </option>
+        ))}
+      </select>
+      <p className="mt-1 text-[9px] text-slate-400">{t("cadastros.comum.diaPagamentoComissaoAjuda")}</p>
     </div>
   );
 }
@@ -455,6 +488,7 @@ export default function ColaboradoresPage() {
       tipoValorComissao: dados.tipoValorComissao || formularioVazio.tipoValorComissao,
       tipoValorComissaoRepeticao:
         dados.tipoValorComissaoRepeticao || formularioVazio.tipoValorComissaoRepeticao,
+      diaPagamentoComissao: dados.diaPagamentoComissao || formularioVazio.diaPagamentoComissao,
     });
     setCargaHoraria(clonarHorarioFuncionamento(colaborador.cargaHoraria));
     setModalAberto(true);
@@ -706,6 +740,7 @@ export default function ColaboradoresPage() {
                               <p><strong>{t("cadastros.colaboradores.detalheCargo")}</strong> {dados.cargo || ""}</p>
                               <p><strong>{t("cadastros.colaboradores.detalheTipoRemuneracao")}</strong> {dados.tipoContratacao || ""}</p>
                               <p><strong>{t("cadastros.colaboradores.detalheSalario")}</strong> {formatarSalarioExibicao(dados.valorSalario || "0,00")}</p>
+                              <p><strong>{t("cadastros.colaboradores.detalheDiaPagamento")}</strong> {dados.diaPagamentoComissao || "10"}</p>
                               <p><strong>{t("cadastros.colaboradores.detalheTelResidencial")}</strong> {dados.telefoneResidencial || ""}</p>
                               <p><strong>{t("cadastros.colaboradores.detalheTelComercial")}</strong> {dados.telefoneComercial || ""}</p>
                               <p><strong>{t("cadastros.colaboradores.detalheCelular")}</strong> {dados.celular || colaborador.celular}</p>
@@ -996,6 +1031,12 @@ export default function ColaboradoresPage() {
                     onValorChange={(valor) => setCampo("comissaoRepeticao", valor)}
                     onTipoChange={(tipo) => setCampo("tipoValorComissaoRepeticao", tipo)}
                   />
+                  <CampoDiaPagamentoComissao
+                    valor={form.diaPagamentoComissao}
+                    onChange={(valor) => setCampo("diaPagamentoComissao", valor)}
+                    labelClass={labelClass}
+                    inputClass={inputClass}
+                  />
                 </div>
               </section>
               )}
@@ -1007,6 +1048,14 @@ export default function ColaboradoresPage() {
                   {t("cadastros.comum.secaoRemuneracao")}
                 </h3>
                 <p className="text-[10px] text-slate-400">{textoExemploRemuneracao}</p>
+                <div className="grid gap-3 md:grid-cols-3">
+                  <CampoDiaPagamentoComissao
+                    valor={form.diaPagamentoComissao}
+                    onChange={(valor) => setCampo("diaPagamentoComissao", valor)}
+                    labelClass={labelClass}
+                    inputClass={inputClass}
+                  />
+                </div>
               </section>
               )}
 
