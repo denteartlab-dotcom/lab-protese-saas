@@ -8,9 +8,11 @@ import {
   DollarSign,
   Eye,
   EyeOff,
+  Printer,
   RefreshCw,
   ScanBarcode,
   User,
+  Wallet,
   X,
 } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
@@ -73,6 +75,17 @@ import {
   aplicarControleEntregaAposMudancaStatus,
 } from "@/lib/controle-entregas-automatico-cliente";
 import { limparUltimaAtividadeSessao } from "@/lib/sessao-inatividade";
+import {
+  chaveMesAtual,
+  DIARIAS_ATUALIZADAS_EVENT,
+  formatarHorasDecimais,
+  lerDiariasColaboradores,
+  nomeMesAnoDiarias,
+  resumoGeralDiariasMes,
+  type DiariasStore,
+} from "@/lib/diarias-colaboradores";
+import { imprimirNotasPagamentoDiarias } from "@/lib/imprimir-nota-diarias";
+import { formatarValorMonetarioBr } from "@/lib/colaborador-remuneracao";
 
 type AbaModulo = "etapas" | "anotacoes" | "imagens" | "detalhes";
 
@@ -89,7 +102,7 @@ type Props = {
 };
 
 export function ModuloProducaoColaborador({ userName: _userName, userRole: _userRole }: Props) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const opcoesStatus = useMemo(() => opcoesStatusTrabalho(t), [t]);
   const [buscaOs, setBuscaOs] = useState("");
   const [buscandoOs, setBuscandoOs] = useState(false);
@@ -123,6 +136,8 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
   });
   const [efetivando, setEfetivando] = useState(false);
   const [diariasAberta, setDiariasAberta] = useState(false);
+  const [diariasStore, setDiariasStore] = useState<DiariasStore>({ configs: {}, lancamentos: [] });
+  const [imprimindoDiarias, setImprimindoDiarias] = useState(false);
 
   const logoutPorInatividade = useCallback(async () => {
     try {
@@ -164,6 +179,23 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
     hidratar();
     window.addEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, hidratar);
     return () => window.removeEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, hidratar);
+  }, []);
+
+  useEffect(() => {
+    function hidratarDiarias() {
+      try {
+        setDiariasStore(lerDiariasColaboradores());
+      } catch {
+        setDiariasStore({ configs: {}, lancamentos: [] });
+      }
+    }
+    hidratarDiarias();
+    window.addEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, hidratarDiarias);
+    window.addEventListener(DIARIAS_ATUALIZADAS_EVENT, hidratarDiarias);
+    return () => {
+      window.removeEventListener(ARMAZENAMENTO_LAB_PRONTO_EVENT, hidratarDiarias);
+      window.removeEventListener(DIARIAS_ATUALIZADAS_EVENT, hidratarDiarias);
+    };
   }, []);
 
   useEffect(() => {
@@ -456,6 +488,31 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
     () => linhasComissaoFiltradas.reduce((s, l) => s + l.comissaoValor, 0),
     [linhasComissaoFiltradas]
   );
+
+  const mesDiarias = useMemo(() => chaveMesAtual(), []);
+  const resumoDiarias = useMemo(
+    () => resumoGeralDiariasMes(diariasStore, mesDiarias.ano, mesDiarias.mes),
+    [diariasStore, mesDiarias]
+  );
+
+  async function imprimirNotasDiarias(colaboradorId?: string) {
+    const notas = (colaboradorId
+      ? resumoDiarias.itens.filter((item) => item.colaboradorId === colaboradorId)
+      : resumoDiarias.itens
+    ).map((item) => ({ ...item, ano: mesDiarias.ano, mes: mesDiarias.mes }));
+    if (notas.length === 0) {
+      window.alert(t("producao.diarias.semLancamentosImprimir"));
+      return;
+    }
+    setImprimindoDiarias(true);
+    try {
+      await imprimirNotasPagamentoDiarias(notas, locale);
+    } catch {
+      window.alert(t("producao.diarias.erroImprimir"));
+    } finally {
+      setImprimindoDiarias(false);
+    }
+  }
 
   const diaAgendaHoje = dateKeyLocal(new Date());
   const hrefAgendaHoje = `/app/producao/agenda?dia=${diaAgendaHoje}`;
@@ -996,6 +1053,80 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
               </Link>
               <div className="absolute right-4 top-1/2 flex h-[72px] w-[72px] -translate-y-1/2 items-center justify-center rounded-full bg-[#dbeafe]">
                 <DollarSign className="h-9 w-9 text-[#3b82f6]" strokeWidth={1.5} />
+              </div>
+            </div>
+
+            <div className="relative rounded border border-[#e5e7eb] bg-white px-4 py-4 pr-16">
+              <p className="text-[13px] font-semibold text-[#374151]">{t("producao.modulo.diarias")}</p>
+              <p className="text-[11px] text-[#6b7280]">
+                {nomeMesAnoDiarias(mesDiarias.ano, mesDiarias.mes, locale)}
+              </p>
+              <p className="mt-2 text-[22px] font-semibold leading-none text-[#374151]">
+                {formatarValorMonetarioBr(resumoDiarias.valor)}
+              </p>
+              <p className="mt-1 text-[12px] text-[#6b7280]">
+                {t("producao.modulo.diariasColaboradores", { n: resumoDiarias.colaboradores })} ·{" "}
+                {t("producao.diarias.dias", { n: resumoDiarias.dias })} ·{" "}
+                {formatarHorasDecimais(resumoDiarias.horas)}
+              </p>
+              {resumoDiarias.itens.length === 0 ? (
+                <p className="mt-3 text-[12px] text-[#9ca3af]">{t("producao.modulo.diariasVazio")}</p>
+              ) : (
+                <ul className="mt-3 max-h-[148px] space-y-1 overflow-y-auto">
+                  {resumoDiarias.itens.map((item) => (
+                    <li
+                      key={item.colaboradorId}
+                      className="flex items-center justify-between gap-2 rounded px-1 py-1 hover:bg-[#f8fafc]"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-[12px] font-medium text-[#374151]">
+                          {item.colaboradorNome}
+                        </p>
+                        <p className="text-[11px] text-[#6b7280]">
+                          {t("producao.diarias.dias", { n: item.dias })} · {formatarHorasDecimais(item.horas)}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <span className="text-[12px] font-semibold text-[#374151]">
+                          {formatarValorMonetarioBr(item.valor)}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={imprimindoDiarias}
+                          onClick={() => void imprimirNotasDiarias(item.colaboradorId)}
+                          className="rounded p-1 text-[#3b82f6] hover:bg-[#eff6ff] disabled:opacity-40"
+                          title={t("producao.modulo.imprimirNotaDiarias")}
+                          aria-label={t("producao.modulo.imprimirNotaDiarias")}
+                        >
+                          <Printer className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDiariasAberta(true)}
+                  className="rounded border border-[#3b82f6] px-3 py-1 text-[12px] text-[#3b82f6] hover:bg-[#eff6ff]"
+                >
+                  {t("producao.modulo.configurarDiarias")}
+                </button>
+                <button
+                  type="button"
+                  disabled={imprimindoDiarias || resumoDiarias.itens.length === 0}
+                  onClick={() => void imprimirNotasDiarias()}
+                  className="inline-flex items-center gap-1 rounded border border-[#d1d5db] px-3 py-1 text-[12px] text-[#374151] hover:bg-[#f9fafb] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <Printer className="h-3.5 w-3.5" />
+                  {resumoDiarias.colaboradores > 1
+                    ? t("producao.modulo.imprimirTodasDiarias")
+                    : t("producao.modulo.imprimirDiarias")}
+                </button>
+              </div>
+              <div className="absolute right-4 top-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#dbeafe]">
+                <Wallet className="h-6 w-6 text-[#3b82f6]" strokeWidth={1.5} />
               </div>
             </div>
 

@@ -319,6 +319,24 @@ export const messagesPrintPt = {
   "print.relatorio.col.aReceber": "A Receber",
   "print.relatorio.col.adiantamentos": "Adiantamentos",
   "print.relatorio.col.naoFaturados": "Não Faturados",
+  "print.diarias.titulo": "Nota de Pagamento de Diárias",
+  "print.diarias.valorDiaria": "Valor da diária",
+  "print.diarias.jornada": "Jornada",
+  "print.diarias.col.data": "Data",
+  "print.diarias.col.dia": "Dia",
+  "print.diarias.col.entrada": "Entrada",
+  "print.diarias.col.saida": "Saída",
+  "print.diarias.col.intervalo": "Intervalo",
+  "print.diarias.col.horas": "Horas",
+  "print.diarias.col.valor": "Valor",
+  "print.diarias.col.obs": "Obs.",
+  "print.diarias.total": "Total a pagar",
+  "print.diarias.diasAbrev": "dias",
+  "print.diarias.textoRecibo":
+    "Recebi do laboratório a quantia de {valor} referente às diárias trabalhadas por {colaborador} no período de {periodo}, conforme os horários descritos nesta nota.",
+  "print.diarias.assinaturaColaborador": "Colaborador",
+  "print.diarias.assinaturaLab": "Laboratório",
+  "print.diarias.emitidoEm": "Emitido em",
 } as const;
 
 export const messagesPrintEn: Record<keyof typeof messagesPrintPt, string> = {
@@ -641,6 +659,24 @@ export const messagesPrintEn: Record<keyof typeof messagesPrintPt, string> = {
   "print.relatorio.col.aReceber": "To Receive",
   "print.relatorio.col.adiantamentos": "Advances",
   "print.relatorio.col.naoFaturados": "Not Invoiced",
+  "print.diarias.titulo": "Daily Rate Payment Note",
+  "print.diarias.valorDiaria": "Daily rate",
+  "print.diarias.jornada": "Workday",
+  "print.diarias.col.data": "Date",
+  "print.diarias.col.dia": "Day",
+  "print.diarias.col.entrada": "In",
+  "print.diarias.col.saida": "Out",
+  "print.diarias.col.intervalo": "Break",
+  "print.diarias.col.horas": "Hours",
+  "print.diarias.col.valor": "Amount",
+  "print.diarias.col.obs": "Notes",
+  "print.diarias.total": "Amount due",
+  "print.diarias.diasAbrev": "days",
+  "print.diarias.textoRecibo":
+    "I received from the laboratory the amount of {valor} for the daily rates worked by {colaborador} in {periodo}, according to the hours listed in this note.",
+  "print.diarias.assinaturaColaborador": "Staff member",
+  "print.diarias.assinaturaLab": "Laboratory",
+  "print.diarias.emitidoEm": "Issued on",
 };
 
 export const messagesPrintEs: Record<keyof typeof messagesPrintPt, string> = {
@@ -963,6 +999,24 @@ export const messagesPrintEs: Record<keyof typeof messagesPrintPt, string> = {
   "print.relatorio.col.aReceber": "Por Cobrar",
   "print.relatorio.col.adiantamentos": "Anticipos",
   "print.relatorio.col.naoFaturados": "No Facturados",
+  "print.diarias.titulo": "Nota de Pago de Diarias",
+  "print.diarias.valorDiaria": "Valor de la diaria",
+  "print.diarias.jornada": "Jornada",
+  "print.diarias.col.data": "Fecha",
+  "print.diarias.col.dia": "Día",
+  "print.diarias.col.entrada": "Entrada",
+  "print.diarias.col.saida": "Salida",
+  "print.diarias.col.intervalo": "Intervalo",
+  "print.diarias.col.horas": "Horas",
+  "print.diarias.col.valor": "Valor",
+  "print.diarias.col.obs": "Obs.",
+  "print.diarias.total": "Total a pagar",
+  "print.diarias.diasAbrev": "días",
+  "print.diarias.textoRecibo":
+    "Recibí del laboratorio la cantidad de {valor} por las diarias trabajadas por {colaborador} en el período de {periodo}, según los horarios descritos en esta nota.",
+  "print.diarias.assinaturaColaborador": "Colaborador",
+  "print.diarias.assinaturaLab": "Laboratorio",
+  "print.diarias.emitidoEm": "Emitido el",
 };
 
 export type PrintMessageKey = keyof typeof messagesPrintPt;

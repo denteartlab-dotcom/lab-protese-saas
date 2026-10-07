@@ -337,22 +337,113 @@ export function limparLancamentosMes(
   };
 }
 
+export function prefixoMesDiarias(ano: number, mes: number) {
+  return `${ano}-${String(mes).padStart(2, "0")}-`;
+}
+
+export function lancamentosDoMes(
+  store: DiariasStore,
+  colaboradorId: string,
+  ano: number,
+  mes: number
+) {
+  const prefixo = prefixoMesDiarias(ano, mes);
+  return store.lancamentos
+    .filter(
+      (lancamento) =>
+        lancamento.colaboradorId === colaboradorId && lancamento.data.startsWith(prefixo)
+    )
+    .sort((a, b) => a.data.localeCompare(b.data));
+}
+
 export function resumoDiariasMes(
   store: DiariasStore,
   colaboradorId: string,
   ano: number,
   mes: number
 ) {
-  const prefixo = `${ano}-${String(mes).padStart(2, "0")}-`;
-  const itens = store.lancamentos.filter(
-    (lancamento) =>
-      lancamento.colaboradorId === colaboradorId && lancamento.data.startsWith(prefixo)
-  );
+  const itens = lancamentosDoMes(store, colaboradorId, ano, mes);
   return {
     dias: itens.length,
     horas: itens.reduce((soma, item) => soma + item.horas, 0),
     valor: itens.reduce((soma, item) => soma + item.valor, 0),
   };
+}
+
+export type ResumoColaboradorDiariaMes = {
+  colaboradorId: string;
+  colaboradorNome: string;
+  valorDiaria: string;
+  horasJornada: number;
+  dias: number;
+  horas: number;
+  valor: number;
+  lancamentos: LancamentoDiaria[];
+};
+
+export function resumosColaboradoresDiariasMes(
+  store: DiariasStore,
+  ano: number,
+  mes: number
+): ResumoColaboradorDiariaMes[] {
+  const ids = new Set<string>();
+  const prefixo = prefixoMesDiarias(ano, mes);
+  for (const lancamento of store.lancamentos) {
+    if (lancamento.data.startsWith(prefixo)) ids.add(lancamento.colaboradorId);
+  }
+  for (const id of Object.keys(store.configs)) ids.add(id);
+
+  const lista: ResumoColaboradorDiariaMes[] = [];
+  for (const id of ids) {
+    const config = store.configs[id];
+    const lancamentos = lancamentosDoMes(store, id, ano, mes);
+    if (lancamentos.length === 0 && !config) continue;
+    const resumo = resumoDiariasMes(store, id, ano, mes);
+    lista.push({
+      colaboradorId: id,
+      colaboradorNome: config?.colaboradorNome || lancamentos[0]?.colaboradorId || id,
+      valorDiaria: config?.valorDiaria || "0,00",
+      horasJornada: config?.horasJornada || HORAS_JORNADA_PADRAO,
+      ...resumo,
+      lancamentos,
+    });
+  }
+  return lista.sort((a, b) => {
+    if (b.valor !== a.valor) return b.valor - a.valor;
+    return a.colaboradorNome.localeCompare(b.colaboradorNome, "pt-BR");
+  });
+}
+
+export function resumoGeralDiariasMes(store: DiariasStore, ano: number, mes: number) {
+  const colaboradores = resumosColaboradoresDiariasMes(store, ano, mes).filter(
+    (item) => item.dias > 0
+  );
+  return {
+    colaboradores: colaboradores.length,
+    dias: colaboradores.reduce((soma, item) => soma + item.dias, 0),
+    horas: colaboradores.reduce((soma, item) => soma + item.horas, 0),
+    valor: colaboradores.reduce((soma, item) => soma + item.valor, 0),
+    itens: colaboradores,
+  };
+}
+
+export function nomeMesAnoDiarias(
+  ano: number,
+  mes: number,
+  locale: "pt" | "en" | "es" = "pt"
+) {
+  const tag = locale === "en" ? "en-US" : locale === "es" ? "es-ES" : "pt-BR";
+  const texto = new Date(ano, mes - 1, 1).toLocaleDateString(tag, {
+    month: "long",
+    year: "numeric",
+  });
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+}
+
+export function formatarDataIsoBr(data: string) {
+  const [ano, mes, dia] = data.split("-");
+  if (!ano || !mes || !dia) return data;
+  return `${dia}/${mes}/${ano}`;
 }
 
 export function lancamentoDoDia(

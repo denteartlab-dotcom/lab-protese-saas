@@ -7,14 +7,18 @@ import {
   celulasCalendarioMes,
   criarLancamentoDiaria,
   diaDeveTrabalhar,
+  formatarDataIsoBr,
   formatarHorasDecimais,
   horasJornadaDaCarga,
   horasTrabalhadas,
   idDiaSemanaDeData,
+  lancamentosDoMes,
   limparLancamentosMes,
   minutosLiquidosTurno,
+  nomeMesAnoDiarias,
   preencherMesComJornada,
   resumoDiariasMes,
+  resumoGeralDiariasMes,
   sugerirValorDiaria,
   valorDiariaProporcional,
   type ConfigDiariaColaborador,
@@ -22,6 +26,7 @@ import {
 } from "../src/lib/diarias-colaboradores";
 import { clonarHorarioFuncionamento } from "../src/lib/horario-funcionamento";
 import { filtroAgendaDaUrl, semanaOffsetParaData } from "../src/lib/agenda-producao";
+import { nomeArquivoNotaDiarias } from "../src/lib/pdf-nota-pagamento-diarias";
 
 function ok(nome: string) {
   console.log(`ok  ${nome}`);
@@ -87,6 +92,34 @@ store = atualizarConfigERecalcular(store, { ...config, valorDiaria: "200,00" });
 const depois = resumoDiariasMes(store, "c1", 2026, 10);
 assert.ok(depois.valor > outubro.valor);
 ok("recalcula o mês ao mudar o valor da diária");
+
+assert.equal(lancamentosDoMes(store, "c1", 2026, 10).length, 22);
+const geral = resumoGeralDiariasMes(store, 2026, 10);
+assert.equal(geral.colaboradores, 1);
+assert.equal(geral.dias, 22);
+assert.ok(geral.valor > 0);
+ok("resumo geral do mês só conta quem trabalhou");
+
+assert.equal(formatarDataIsoBr("2026-10-07"), "07/10/2026");
+assert.equal(nomeMesAnoDiarias(2026, 10, "pt").toLowerCase().includes("outubro"), true);
+assert.equal(
+  nomeArquivoNotaDiarias([
+    {
+      colaboradorId: "c1",
+      colaboradorNome: "Ana Souza",
+      valorDiaria: "160,00",
+      horasJornada: 8,
+      dias: 22,
+      horas: 176,
+      valor: 3520,
+      lancamentos: [],
+      ano: 2026,
+      mes: 10,
+    },
+  ]),
+  "nota-diarias-ana-souza-2026-10.pdf"
+);
+ok("nome do arquivo da nota de pagamento");
 
 store = limparLancamentosMes(store, "c1", 2026, 10);
 assert.equal(resumoDiariasMes(store, "c1", 2026, 10).dias, 0);
