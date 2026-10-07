@@ -38,6 +38,13 @@ export function situacaoEtapaServico(
   return "aguardando";
 }
 
+/** Clique na etapa: a atual é concluída; as demais viram etapa atual do serviço. */
+export function situacaoEtapaAposClique(
+  situacao: SituacaoEtapaServico
+): SituacaoEtapaServico {
+  return situacao === "atual" ? "concluida" : "atual";
+}
+
 /** Última etapa concluída em sequência (0, 1, 2…), ou -1 se nenhuma. */
 export function ultimoIndiceConcluidoSequencial(concluidas: Iterable<number>): number {
   const set = new Set(concluidas);

@@ -12,6 +12,7 @@ import {
 } from "@/components/ImprimirOsModal";
 import { Button, CampoDataBr, CampoHoraBr, Input, Modal, Select, SelectPesquisavel, Textarea } from "@/components/ui";
 import { EscalaCorCamposOs } from "@/components/producao/EscalaCorCamposOs";
+import { BadgeCliqueSituacaoEtapa } from "@/components/producao/EtapasOsEditor";
 import { formatDateBr, parseBrDate, dateToBrShort } from "@/lib/datas-br";
 import { dataEntradaParaApi } from "@/lib/os-data-criacao";
 import { corrigirMojibakeUtf8 } from "@/lib/corrigir-mojibake-utf8";
@@ -163,6 +164,7 @@ import {
   indiceEtapaAtualDeConcluidas,
   persistirEtapaAtualOs,
   podeAlterarSituacaoEtapaServico,
+  situacaoEtapaAposClique,
   situacaoEtapaServico,
   type SituacaoEtapaServico,
 } from "@/lib/modulo-producao-etapas";
@@ -4480,34 +4482,39 @@ export default function OrdemServicoPage() {
                             )}
                           >
                             <div className="mb-3 flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-sm font-semibold text-slate-800">
-                                  {nomeEtapaSemSetor(etapa.nome)}
-                                </span>
-                                <Info
-                                  className="h-4 w-4 shrink-0 text-primary-600"
-                                  aria-hidden
+                              <div className="flex min-w-0 items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    atualizarSituacaoEtapaOs(
+                                      index,
+                                      situacaoEtapaAposClique(situacao)
+                                    )
+                                  }
+                                  className="flex min-w-0 items-center gap-1.5 text-left"
+                                >
+                                  <span className="text-sm font-semibold text-slate-800">
+                                    {nomeEtapaSemSetor(etapa.nome)}
+                                  </span>
+                                  <Info
+                                    className="h-4 w-4 shrink-0 text-primary-600"
+                                    aria-hidden
+                                  />
+                                </button>
+                                <BadgeCliqueSituacaoEtapa
+                                  situacao={situacao}
+                                  onClick={() =>
+                                    atualizarSituacaoEtapaOs(
+                                      index,
+                                      situacaoEtapaAposClique(situacao)
+                                    )
+                                  }
                                 />
                               </div>
                               <span className="text-xs font-medium text-primary-600">{setorRotulo}</span>
                             </div>
 
-                            <div className="grid items-end gap-3 md:grid-cols-[minmax(9.5rem,1.1fr)_minmax(9rem,1fr)_minmax(6rem,0.75fr)_minmax(12rem,1.6fr)_minmax(9rem,1.1fr)_auto]">
-                              <Select
-                                label="Etapa do serviço"
-                                value={situacao}
-                                onChange={(e) =>
-                                  atualizarSituacaoEtapaOs(
-                                    index,
-                                    e.target.value as SituacaoEtapaServico
-                                  )
-                                }
-                              >
-                                <option value="concluida">Concluída</option>
-                                <option value="atual">Etapa atual</option>
-                                <option value="aguardando">Aguardando</option>
-                              </Select>
-
+                            <div className="grid items-end gap-3 md:grid-cols-[minmax(9rem,1fr)_minmax(6rem,0.75fr)_minmax(12rem,1.6fr)_minmax(9rem,1.1fr)_auto]">
                               <div>
                                 <label className="mb-1 block text-[11px] font-medium text-slate-600">
                                   Prazo

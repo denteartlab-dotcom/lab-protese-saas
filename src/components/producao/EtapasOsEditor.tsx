@@ -22,6 +22,7 @@ import {
 import { carregarSetoresCadastro, estiloBadgeSetor, type SetorCadastro } from "@/lib/setores-cadastro";
 import {
   situacaoEtapaServico,
+  situacaoEtapaAposClique,
   podeAlterarSituacaoEtapaServico,
   type SituacaoEtapaServico,
 } from "@/lib/modulo-producao-etapas";
@@ -73,6 +74,45 @@ function partesPrazoEtapaOs(prazo: string) {
     (partes[0] && /^\d{2}\/\d{2}\/\d{4}$/.test(partes[0]) ? partes[0] : "");
   const horaBruta = partes.find((parte) => /^\d{1,2}:\d{2}$/.test(parte));
   return { data, hora: horaBruta || "00:00" };
+}
+
+export function rotuloSituacaoEtapaServico(situacao: SituacaoEtapaServico) {
+  if (situacao === "concluida") return "Concluída";
+  if (situacao === "atual") return "Etapa atual";
+  return "Aguardando";
+}
+
+export function BadgeCliqueSituacaoEtapa({
+  situacao,
+  disabled,
+  onClick,
+}: {
+  situacao: SituacaoEtapaServico;
+  disabled?: boolean;
+  onClick?: () => void;
+}) {
+  const clicavel = Boolean(onClick) && !disabled;
+  return (
+    <button
+      type="button"
+      disabled={!clicavel}
+      onClick={onClick}
+      title={
+        situacao === "atual"
+          ? "Clique para concluir esta etapa"
+          : "Clique para definir como etapa atual do serviço"
+      }
+      className={cn(
+        "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
+        situacao === "concluida" && "bg-emerald-100 text-emerald-800",
+        situacao === "atual" && "bg-blue-100 text-blue-800",
+        situacao === "aguardando" && "bg-slate-100 text-slate-600",
+        clicavel && "cursor-pointer hover:brightness-95"
+      )}
+    >
+      {rotuloSituacaoEtapaServico(situacao)}
+    </button>
+  );
 }
 
 function formatComissaoReaisInput(value: string) {
@@ -363,11 +403,29 @@ export function EtapasOsEditor({
                 )}
               >
                 <div className="mb-3 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-semibold text-slate-800">
-                      {nomeEtapaSemSetor(etapa.nome) || `Etapa ${index + 1}`}
-                    </span>
-                    <Info className="h-4 w-4 shrink-0 text-primary-600" aria-hidden />
+                  <div className="flex min-w-0 items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={desabilitado || !onIndiceEtapaAtualChange}
+                      onClick={() =>
+                        atualizarSituacaoEtapa(index, situacaoEtapaAposClique(situacao))
+                      }
+                      className="flex min-w-0 items-center gap-1.5 text-left disabled:cursor-default"
+                    >
+                      <span className="text-sm font-semibold text-slate-800">
+                        {nomeEtapaSemSetor(etapa.nome) || `Etapa ${index + 1}`}
+                      </span>
+                      <Info className="h-4 w-4 shrink-0 text-primary-600" aria-hidden />
+                    </button>
+                    {onIndiceEtapaAtualChange ? (
+                      <BadgeCliqueSituacaoEtapa
+                        situacao={situacao}
+                        disabled={desabilitado}
+                        onClick={() =>
+                          atualizarSituacaoEtapa(index, situacaoEtapaAposClique(situacao))
+                        }
+                      />
+                    ) : null}
                   </div>
                   <span
                     className="inline-flex max-w-[160px] truncate rounded px-2 py-0.5 text-[10px] font-medium leading-tight"
@@ -378,22 +436,7 @@ export function EtapasOsEditor({
                   </span>
                 </div>
 
-                <div className="grid items-end gap-3 md:grid-cols-[minmax(9.5rem,1.1fr)_minmax(9rem,1fr)_minmax(6rem,0.75fr)_minmax(12rem,1.6fr)_minmax(9rem,1.1fr)_auto]">
-                  {onIndiceEtapaAtualChange && (
-                    <Select
-                      label="Etapa do serviço"
-                      value={situacao}
-                      disabled={desabilitado}
-                      onChange={(e) =>
-                        atualizarSituacaoEtapa(index, e.target.value as SituacaoEtapaServico)
-                      }
-                    >
-                      <option value="concluida">Concluída</option>
-                      <option value="atual">Etapa atual</option>
-                      <option value="aguardando">Aguardando</option>
-                    </Select>
-                  )}
-
+                <div className="grid items-end gap-3 md:grid-cols-[minmax(9rem,1fr)_minmax(6rem,0.75fr)_minmax(12rem,1.6fr)_minmax(9rem,1.1fr)_auto]">
                   <div>
                     <label className="mb-1 block text-[11px] font-medium text-slate-600">
                       Prazo
