@@ -37,7 +37,7 @@ import {
   type ComissoesEfetivadasStore,
 } from "@/lib/comissoes-efetivadas";
 import { aplicarEfetivacaoComissoes } from "@/lib/efetivar-comissao-colaborador";
-import { intervaloMesVigenteBr, parseBrDate } from "@/lib/datas-br";
+import { dateToBrShort, intervaloMesVigenteBr, parseBrDate } from "@/lib/datas-br";
 import type { EtapaOsLinha } from "@/lib/etapas-os";
 import {
   complementosDaOs,
@@ -107,6 +107,7 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
   const mesVigente = useMemo(() => intervaloMesVigenteBr(), []);
   const [trabalhos, setTrabalhos] = useState<TrabalhoComissao[]>([]);
   const [colaboradorFiltro, setColaboradorFiltro] = useState("");
+  const [periodoFiltro, setPeriodoFiltro] = useState("mes");
   const [dataInicio, setDataInicio] = useState(mesVigente.inicio);
   const [dataFim, setDataFim] = useState(mesVigente.fim);
   const [mapaTick, setMapaTick] = useState(0);
@@ -392,6 +393,30 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
 
   const colaboradoresCadastro = useMemo(() => carregarColaboradoresListagem(), [trabalhos]);
 
+  function aplicarPeriodo(value: string) {
+    setPeriodoFiltro(value);
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    if (value === "todos") {
+      setDataInicio("");
+      setDataFim("");
+      return;
+    }
+    if (value === "outro") return;
+    const inicio = new Date(hoje);
+    const fim = new Date(hoje);
+    if (value === "semana") {
+      const dia = hoje.getDay();
+      inicio.setDate(hoje.getDate() - dia);
+      fim.setDate(inicio.getDate() + 6);
+    } else if (value === "mes") {
+      inicio.setDate(1);
+      fim.setMonth(hoje.getMonth() + 1, 0);
+    }
+    setDataInicio(dateToBrShort(inicio));
+    setDataFim(dateToBrShort(fim));
+  }
+
   const linhasComissao = useMemo(
     () => montarLinhasComissaoColaboradores(trabalhos),
     [trabalhos, mapaTick]
@@ -534,7 +559,7 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
                   {t("producao.modulo.pesquisarPaciente")}
                 </button>
               </div>
-              <div className="mt-3 grid min-w-0 grid-cols-1 items-end gap-2 sm:grid-cols-3">
+              <div className="mt-3 grid min-w-0 grid-cols-1 items-end gap-2 sm:grid-cols-2 lg:grid-cols-4">
                 <Select
                   label={t("producao.comum.colaboradores")}
                   value={colaboradorFiltro}
@@ -548,10 +573,23 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
                     </option>
                   ))}
                 </Select>
+                <Select
+                  label={t("producao.comum.periodo")}
+                  value={periodoFiltro}
+                  onChange={(e) => aplicarPeriodo(e.target.value)}
+                  className="h-[38px] !py-1.5"
+                >
+                  <option value="mes">{t("producao.comum.periodoMes")}</option>
+                  <option value="hoje">{t("producao.comum.periodoHoje")}</option>
+                  <option value="semana">{t("producao.comum.periodoSemana")}</option>
+                  <option value="todos">{t("producao.comum.periodoTodos")}</option>
+                  <option value="outro">{t("producao.comum.periodoOutro")}</option>
+                </Select>
                 <CampoDataBr
                   label={t("producao.comum.dataInicio")}
                   value={dataInicio}
                   onChange={setDataInicio}
+                  onValueChange={() => setPeriodoFiltro("outro")}
                   placeholder="dd/mm/aaaa"
                   inputClassName="h-[38px] !py-0"
                 />
@@ -559,6 +597,7 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
                   label={t("producao.comum.dataFim")}
                   value={dataFim}
                   onChange={setDataFim}
+                  onValueChange={() => setPeriodoFiltro("outro")}
                   placeholder="dd/mm/aaaa"
                   inputClassName="h-[38px] !py-0"
                 />
