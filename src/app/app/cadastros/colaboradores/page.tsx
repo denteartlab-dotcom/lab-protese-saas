@@ -1,6 +1,6 @@
 "use client";
 
-import { BriefcaseBusiness, CreditCard, Download, Edit3, Eye, Home, MapPin, Percent, Printer, Trash2, UserRound } from "lucide-react";
+import { BriefcaseBusiness, CalendarDays, CreditCard, Download, Edit3, Eye, Home, MapPin, Percent, Printer, Trash2, UserRound } from "lucide-react";
 import { useEffect, useMemo, useState, Fragment } from "react";
 import { CargaHorariaColaboradorModal } from "@/components/colaboradores/CargaHorariaColaboradorModal";
 import { PdfViewerModal } from "@/components/dashboard/PdfViewerModal";
@@ -115,23 +115,23 @@ function CampoValorSalario({
   onChange: (valor: string) => void;
   disabled?: boolean;
 }) {
-  const labelClass = "mb-1 block text-[9px] text-slate-500";
+  const labelClass = "mb-1 block text-[12px] text-slate-500";
   return (
     <div>
       <label className={labelClass}>{label}</label>
       <div
-        className={`flex h-8 overflow-hidden rounded border border-slate-300 bg-white ${
+        className={`flex h-9 overflow-hidden rounded border border-slate-300 bg-white ${
           disabled ? "opacity-60" : ""
         }`}
       >
-        <span className="flex w-9 shrink-0 items-center justify-center border-r border-slate-200 bg-white text-[10px] text-slate-500">
+        <span className="flex w-10 shrink-0 items-center justify-center border-r border-slate-200 bg-white text-[12px] text-slate-500">
           R$
         </span>
         <input
           value={valor}
           disabled={disabled}
           onChange={(event) => onChange(formatValorMonetarioInput(event.target.value))}
-          className="w-full px-2 text-[10px] text-slate-600 outline-none disabled:cursor-not-allowed"
+          className="w-full px-2 text-[13px] text-slate-700 outline-none disabled:cursor-not-allowed"
         />
       </div>
     </div>
@@ -152,15 +152,15 @@ function CampoValorComissao({
   onTipoChange: (tipo: string) => void;
 }) {
   const { t } = useI18n();
-  const labelClass = "mb-1 block text-[9px] text-slate-500";
+  const labelClass = "mb-1 block text-[12px] text-slate-500";
   return (
     <div>
       <label className={labelClass}>{label}</label>
-      <div className="flex h-8 overflow-hidden rounded border border-slate-300 bg-white">
+      <div className="flex h-9 overflow-hidden rounded border border-slate-300 bg-white">
         <select
           value={tipo}
           onChange={(event) => onTipoChange(event.target.value)}
-          className="w-9 shrink-0 border-r border-slate-200 bg-white text-center text-[10px] text-slate-500 outline-none"
+          className="w-11 shrink-0 border-r border-slate-200 bg-white text-center text-[12px] text-slate-500 outline-none"
           aria-label={t("cadastros.comum.unidadeDe", { label })}
         >
           <option value="%">%</option>
@@ -175,7 +175,7 @@ function CampoValorComissao({
                 : formatPercentInput(event.target.value)
             )
           }
-          className="w-full px-2 text-[10px] text-slate-600 outline-none"
+          className="w-full px-2 text-[13px] text-slate-700 outline-none"
         />
       </div>
     </div>
@@ -186,29 +186,45 @@ function CampoDiaPagamentoComissao({
   valor,
   onChange,
   labelClass,
-  inputClass,
 }: {
   valor: string;
   onChange: (valor: string) => void;
   labelClass: string;
-  inputClass: string;
 }) {
   const { t } = useI18n();
+  const selecionado = valor || "10";
+
   return (
-    <div>
+    <div className="max-w-[292px]">
       <label className={labelClass}>{t("cadastros.comum.diaPagamentoComissao")}</label>
-      <select
-        value={valor || "10"}
-        onChange={(event) => onChange(event.target.value)}
-        className={inputClass}
-      >
-        {Array.from({ length: DIA_PAGAMENTO_COMISSAO_MAX }, (_, i) => String(i + 1)).map((dia) => (
-          <option key={dia} value={dia}>
-            {dia}
-          </option>
-        ))}
-      </select>
-      <p className="mt-1 text-[9px] text-slate-400">{t("cadastros.comum.diaPagamentoComissaoAjuda")}</p>
+      <div className="rounded-md border border-slate-300 bg-white p-2.5">
+        <div className="mb-2 flex items-center gap-1.5 text-[13px] font-medium text-slate-600">
+          <CalendarDays className="h-4 w-4 text-slate-500" />
+          {t("cadastros.comum.diaPagamentoComissaoSelecionado", { dia: selecionado })}
+        </div>
+        <div className="grid grid-cols-7 gap-1">
+          {Array.from({ length: DIA_PAGAMENTO_COMISSAO_MAX }, (_, i) => String(i + 1)).map((dia) => {
+            const ativo = selecionado === dia;
+            return (
+              <button
+                key={dia}
+                type="button"
+                onClick={() => onChange(dia)}
+                className={`h-9 rounded text-[13px] font-medium ${
+                  ativo
+                    ? "bg-blue-600 text-white"
+                    : "text-slate-700 hover:bg-blue-50"
+                }`}
+                aria-pressed={ativo}
+                aria-label={t("cadastros.comum.diaPagamentoComissaoSelecionado", { dia })}
+              >
+                {dia}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <p className="mt-1 text-[12px] text-slate-400">{t("cadastros.comum.diaPagamentoComissaoAjuda")}</p>
     </div>
   );
 }
@@ -552,8 +568,8 @@ export default function ColaboradoresPage() {
     }
   }
 
-  const inputClass = "h-8 w-full rounded border border-slate-300 bg-white px-2 text-[10px] text-slate-600 outline-none focus:border-blue-400";
-  const labelClass = "mb-1 block text-[9px] text-slate-500";
+  const inputClass = "h-9 w-full rounded border border-slate-300 bg-white px-2 text-[13px] text-slate-700 outline-none focus:border-blue-400";
+  const labelClass = "mb-1 block text-[12px] text-slate-500";
   const textoExemploRemuneracao = montarTextoExemploRemuneracao(form);
   const exibeSalario = usaSalarioColaborador(form.tipoContratacao);
   const exibeComissao = usaComissaoColaborador(form.tipoContratacao);
@@ -812,7 +828,7 @@ export default function ColaboradoresPage() {
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/45 p-4 pt-16">
           <div className="relative w-full max-w-[1180px] rounded bg-white shadow-2xl">
             <div className="flex h-9 items-center justify-between border-b border-slate-100 px-4">
-              <h2 className="text-[11px] font-medium text-slate-700">
+              <h2 className="text-[13px] font-medium text-slate-700">
                 {colaboradorEditando ? t("cadastros.colaboradores.modalTituloEditar") : t("cadastros.colaboradores.modalTituloCadastrar")}
               </h2>
               <button
@@ -825,9 +841,9 @@ export default function ColaboradoresPage() {
               </button>
             </div>
 
-            <div className="max-h-[78vh] space-y-4 overflow-y-auto px-4 py-4 text-[10px] text-slate-600">
+            <div className="max-h-[78vh] space-y-4 overflow-y-auto px-4 py-4 text-[13px] text-slate-600">
               <section className="space-y-3">
-                <h3 className="flex items-center gap-2 text-[12px] font-medium text-slate-600">
+                <h3 className="flex items-center gap-2 text-[13px] font-medium text-slate-600">
                   <UserRound className="h-3.5 w-3.5" />
                   {t("cadastros.comum.secaoDadosColaborador")}
                 </h3>
@@ -863,8 +879,8 @@ export default function ColaboradoresPage() {
                       placeholder={t("cadastros.comum.placeholderData")}
                       iconPosition="left"
                       calendarZIndex={9999}
-                      inputClassName="h-8 rounded border-slate-300 px-2 pl-8 text-[10px] text-slate-600 shadow-none focus:border-blue-400 focus:ring-0"
-                      className="[&_label]:mb-1 [&_label]:block [&_label]:text-[9px] [&_label]:font-normal [&_label]:text-slate-500"
+                      inputClassName="h-9 rounded border-slate-300 px-2 pl-8 text-[13px] text-slate-700 shadow-none focus:border-blue-400 focus:ring-0"
+                      className="[&_label]:mb-1 [&_label]:block [&_label]:text-[12px] [&_label]:font-normal [&_label]:text-slate-500"
                     />
                   </div>
                   <div>
@@ -893,7 +909,7 @@ export default function ColaboradoresPage() {
                 </div>
 
                 <div className="grid gap-3 md:grid-cols-[0.55fr_1fr_0.55fr]">
-                  <label className="flex h-8 items-center gap-2 pt-4 text-[10px] text-slate-500">
+                  <label className="flex h-9 items-center gap-2 pt-4 text-[13px] text-slate-500">
                     <input type="checkbox" className="h-3.5 w-3.5 accent-blue-600" />
                     {t("cadastros.comum.ativo")}
                   </label>
@@ -925,7 +941,7 @@ export default function ColaboradoresPage() {
                       <span className="text-slate-400">⌃</span>
                     </button>
                     {dropdownSetorAberto && (
-                      <div className="absolute left-0 top-full z-[70] mt-1 w-full overflow-hidden rounded border border-slate-200 bg-white text-[10px] shadow-xl">
+                      <div className="absolute left-0 top-full z-[70] mt-1 w-full overflow-hidden rounded border border-slate-200 bg-white text-[13px] shadow-xl">
                         <button
                           type="button"
                           onClick={() => {
@@ -969,7 +985,7 @@ export default function ColaboradoresPage() {
                   <button
                     type="button"
                     onClick={() => setModalCargaHorariaAberto(true)}
-                    className="mt-4 h-8 rounded bg-blue-500 px-3 text-[10px] font-semibold text-white hover:bg-blue-600"
+                    className="mt-4 h-9 rounded bg-blue-500 px-3 text-[12px] font-semibold text-white hover:bg-blue-600"
                   >
                     {t("cadastros.comum.configurarCargaHoraria")}
                   </button>
@@ -977,7 +993,7 @@ export default function ColaboradoresPage() {
               </section>
 
               <section className="space-y-3 border-t border-slate-100 pt-3">
-                <h3 className="flex items-center gap-2 text-[12px] font-medium text-slate-600">
+                <h3 className="flex items-center gap-2 text-[13px] font-medium text-slate-600">
                   <BriefcaseBusiness className="h-3.5 w-3.5" />
                   {t("cadastros.comum.secaoCarteiraTrabalho")}
                 </h3>
@@ -990,7 +1006,7 @@ export default function ColaboradoresPage() {
               </section>
 
               <section className="space-y-3 border-t border-slate-100 pt-3">
-                <h3 className="flex items-center gap-2 text-[12px] font-medium text-slate-600">
+                <h3 className="flex items-center gap-2 text-[13px] font-medium text-slate-600">
                   <CreditCard className="h-3.5 w-3.5" />
                   {t("cadastros.comum.secaoDadosBancarios")}
                 </h3>
@@ -1004,11 +1020,11 @@ export default function ColaboradoresPage() {
 
               {exibeComissao && (
               <section className="space-y-3 border-t border-slate-100 pt-3">
-                <h3 className="flex items-center gap-2 text-[12px] font-medium text-slate-600">
+                <h3 className="flex items-center gap-2 text-[13px] font-medium text-slate-600">
                   <Percent className="h-3.5 w-3.5" />
                   {t("cadastros.comum.secaoComissao")}
                 </h3>
-                <p className="text-[10px] text-slate-400">{textoExemploRemuneracao}</p>
+                <p className="text-[12px] text-slate-400">{textoExemploRemuneracao}</p>
                 <div className="grid gap-3 md:grid-cols-3">
                   <CampoValorComissao
                     label={t("cadastros.comum.valorComissao")}
@@ -1031,36 +1047,32 @@ export default function ColaboradoresPage() {
                     onValorChange={(valor) => setCampo("comissaoRepeticao", valor)}
                     onTipoChange={(tipo) => setCampo("tipoValorComissaoRepeticao", tipo)}
                   />
-                  <CampoDiaPagamentoComissao
-                    valor={form.diaPagamentoComissao}
-                    onChange={(valor) => setCampo("diaPagamentoComissao", valor)}
-                    labelClass={labelClass}
-                    inputClass={inputClass}
-                  />
                 </div>
+                <CampoDiaPagamentoComissao
+                  valor={form.diaPagamentoComissao}
+                  onChange={(valor) => setCampo("diaPagamentoComissao", valor)}
+                  labelClass={labelClass}
+                />
               </section>
               )}
 
               {!exibeComissao && (
               <section className="space-y-3 border-t border-slate-100 pt-3">
-                <h3 className="flex items-center gap-2 text-[12px] font-medium text-slate-600">
+                <h3 className="flex items-center gap-2 text-[13px] font-medium text-slate-600">
                   <Percent className="h-3.5 w-3.5" />
                   {t("cadastros.comum.secaoRemuneracao")}
                 </h3>
-                <p className="text-[10px] text-slate-400">{textoExemploRemuneracao}</p>
-                <div className="grid gap-3 md:grid-cols-3">
-                  <CampoDiaPagamentoComissao
-                    valor={form.diaPagamentoComissao}
-                    onChange={(valor) => setCampo("diaPagamentoComissao", valor)}
-                    labelClass={labelClass}
-                    inputClass={inputClass}
-                  />
-                </div>
+                <p className="text-[12px] text-slate-400">{textoExemploRemuneracao}</p>
+                <CampoDiaPagamentoComissao
+                  valor={form.diaPagamentoComissao}
+                  onChange={(valor) => setCampo("diaPagamentoComissao", valor)}
+                  labelClass={labelClass}
+                />
               </section>
               )}
 
               <section className="space-y-3 border-t border-slate-100 pt-3">
-                <h3 className="flex items-center gap-2 text-[12px] font-medium text-slate-600">
+                <h3 className="flex items-center gap-2 text-[13px] font-medium text-slate-600">
                   <MapPin className="h-3.5 w-3.5" />
                   {t("cadastros.comum.secaoEndereco")}
                 </h3>
@@ -1083,7 +1095,7 @@ export default function ColaboradoresPage() {
                         type="button"
                         onClick={() => buscarEnderecoPorCep()}
                         disabled={buscandoCep}
-                        className="h-8 rounded-r border border-l-0 border-slate-300 bg-white px-3 text-[10px] text-blue-600 hover:bg-slate-50 disabled:opacity-60"
+                        className="h-9 rounded-r border border-l-0 border-slate-300 bg-white px-3 text-[12px] text-blue-600 hover:bg-slate-50 disabled:opacity-60"
                       >
                         {buscandoCep ? t("cadastros.comum.buscando") : t("cadastros.comum.buscarEndereco")}
                       </button>
@@ -1104,14 +1116,14 @@ export default function ColaboradoresPage() {
                 <button
                   type="button"
                   onClick={cadastrarColaborador}
-                  className="h-8 rounded bg-blue-600 px-4 text-[10px] font-semibold text-white hover:bg-blue-700"
+                  className="h-9 rounded bg-blue-600 px-4 text-[12px] font-semibold text-white hover:bg-blue-700"
                 >
                   {colaboradorEditando ? t("cadastros.comum.editarAlteracoes") : t("cadastros.comum.cadastrar")}
                 </button>
                 <button
                   type="button"
                   onClick={fecharModalColaborador}
-                  className="h-8 rounded border border-slate-300 bg-white px-4 text-[10px] text-slate-600 hover:bg-slate-50"
+                  className="h-9 rounded border border-slate-300 bg-white px-4 text-[12px] text-slate-600 hover:bg-slate-50"
                 >
                   {colaboradorEditando ? t("cadastros.comum.cancelar") : t("cadastros.comum.fechar")}
                 </button>
@@ -1125,7 +1137,7 @@ export default function ColaboradoresPage() {
         <div className="fixed inset-0 z-[80] flex items-start justify-center bg-black/45 p-4 pt-24">
           <div className="relative w-full max-w-sm rounded bg-white shadow-2xl">
             <div className="flex h-9 items-center justify-between border-b border-slate-100 px-4">
-              <h2 className="text-[11px] font-medium text-slate-700">{t("cadastros.setores.cadastrar")}</h2>
+              <h2 className="text-[13px] font-medium text-slate-700">{t("cadastros.setores.cadastrar")}</h2>
               <button
                 type="button"
                 onClick={() => setModalSetorAberto(false)}
@@ -1135,7 +1147,7 @@ export default function ColaboradoresPage() {
                 ×
               </button>
             </div>
-            <div className="space-y-4 px-4 py-4 text-[10px] text-slate-600">
+            <div className="space-y-4 px-4 py-4 text-[13px] text-slate-600">
               <div>
                 <label className={labelClass}>{t("cadastros.comum.setor")}</label>
                 <input
@@ -1152,21 +1164,21 @@ export default function ColaboradoresPage() {
                   type="color"
                   value={novoSetor.cor}
                   onChange={(event) => setNovoSetor((atual) => ({ ...atual, cor: event.target.value }))}
-                  className="h-8 w-full cursor-pointer rounded border border-slate-300 bg-white p-1"
+                  className="h-9 w-full cursor-pointer rounded border border-slate-300 bg-white p-1"
                 />
               </div>
               <div className="flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={cadastrarSetor}
-                  className="h-8 rounded bg-blue-600 px-4 text-[10px] font-semibold text-white hover:bg-blue-700"
+                  className="h-9 rounded bg-blue-600 px-4 text-[12px] font-semibold text-white hover:bg-blue-700"
                 >
                   {t("cadastros.setores.cadastrar")}
                 </button>
                 <button
                   type="button"
                   onClick={() => setModalSetorAberto(false)}
-                  className="h-8 rounded border border-slate-300 bg-white px-4 text-[10px] text-slate-600 hover:bg-slate-50"
+                  className="h-9 rounded border border-slate-300 bg-white px-4 text-[12px] text-slate-600 hover:bg-slate-50"
                 >
                   Fechar
                 </button>
