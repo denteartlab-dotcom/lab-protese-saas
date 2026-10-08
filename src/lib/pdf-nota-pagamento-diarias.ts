@@ -3,6 +3,7 @@ import { slugColaboradorComissao } from "@/lib/comissao-colaboradores-pagamento"
 import {
   formatarHorasDecimais,
   formatarDataIsoBr,
+  horarioTemTurno,
   nomeMesAnoDiarias,
   type ResumoColaboradorDiariaMes,
 } from "@/lib/diarias-colaboradores";
@@ -40,14 +41,14 @@ function weekdayCurto(data: string) {
 
 function colunasNota(): ColunaNota[] {
   return [
-    { titulo: pl("print.diarias.col.data"), largura: 22, align: "left" },
-    { titulo: pl("print.diarias.col.dia"), largura: 16, align: "left" },
-    { titulo: pl("print.diarias.col.entrada"), largura: 20, align: "center" },
-    { titulo: pl("print.diarias.col.saida"), largura: 20, align: "center" },
-    { titulo: pl("print.diarias.col.intervalo"), largura: 18, align: "center" },
-    { titulo: pl("print.diarias.col.horas"), largura: 20, align: "right" },
-    { titulo: pl("print.diarias.col.valor"), largura: 28, align: "right" },
-    { titulo: pl("print.diarias.col.obs"), largura: 36, align: "left" },
+    { titulo: pl("print.diarias.col.data"), largura: 20, align: "left" },
+    { titulo: pl("print.diarias.col.dia"), largura: 14, align: "left" },
+    { titulo: pl("print.diarias.col.manha"), largura: 26, align: "center" },
+    { titulo: pl("print.diarias.col.tarde"), largura: 26, align: "center" },
+    { titulo: pl("print.diarias.col.intervalo"), largura: 22, align: "center" },
+    { titulo: pl("print.diarias.col.horas"), largura: 18, align: "right" },
+    { titulo: pl("print.diarias.col.valor"), largura: 26, align: "right" },
+    { titulo: pl("print.diarias.col.obs"), largura: 30, align: "left" },
   ];
 }
 
@@ -145,9 +146,15 @@ function desenharNota(
     const valores = [
       formatarDataIsoBr(lancamento.data),
       weekdayCurto(lancamento.data),
-      lancamento.entrada,
-      lancamento.saida,
-      `${lancamento.intervaloMinutos} min`,
+      horarioTemTurno(lancamento.entrada, lancamento.saidaManha)
+        ? `${lancamento.entrada}–${lancamento.saidaManha}`
+        : lancamento.entrada || "—",
+      horarioTemTurno(lancamento.entradaTarde, lancamento.saida)
+        ? `${lancamento.entradaTarde}–${lancamento.saida}`
+        : lancamento.saida || "—",
+      horarioTemTurno(lancamento.saidaManha, lancamento.entradaTarde)
+        ? `${lancamento.saidaManha}–${lancamento.entradaTarde}`
+        : "—",
       formatarHorasDecimais(lancamento.horas),
       formatMoneyImpressao(lancamento.valor),
       lancamento.observacao || "",
