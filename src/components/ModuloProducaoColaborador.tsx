@@ -228,10 +228,24 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
     itens.find((item) => item.id === itemSelecionado) || (itens.length === 1 ? itens[0] : null);
   const servicoSelecionado = Boolean(osSelecionada && itemAtivo);
 
+  function limparResultadoPesquisaOs() {
+    setResultadosOs([]);
+    setOsSelecionada(null);
+    setGrupoOs([]);
+    setItemSelecionado(null);
+    setEtapasOs([]);
+    setEtapasOk(new Set());
+    setAnotacoes("");
+    setAvisoEtapa("");
+  }
+
   const buscarOrdemServico = useCallback(
     async (termoInformado?: string) => {
       const bruto = (termoInformado ?? buscaOs).trim();
-      if (!bruto) return;
+      if (!bruto) {
+        limparResultadoPesquisaOs();
+        return;
+      }
       const numero = extrairNumeroOsCodigo(bruto);
       if (!numero) return;
       setBuscaOs(numero);
@@ -603,7 +617,10 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
               <div className="flex items-center gap-2">
                 <InputLeitorCodigoOs
                   value={buscaOs}
-                  onChange={setBuscaOs}
+                  onChange={(valor) => {
+                    setBuscaOs(valor);
+                    if (!valor.trim()) limparResultadoPesquisaOs();
+                  }}
                   onCodigoLido={(numero) => void buscarOrdemServico(numero)}
                   placeholder={t("producao.modulo.buscaOsPlaceholder")}
                   className="h-[38px] min-w-0 flex-1 rounded border border-[#d1d5db] px-3 text-[13px] text-[#374151] outline-none focus:border-[#3b82f6]"

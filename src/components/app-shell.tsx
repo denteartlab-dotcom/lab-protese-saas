@@ -440,9 +440,20 @@ function AppShellInner({
     }
   }
 
+  function limparResultadoPesquisaOs() {
+    setResultadosOs([]);
+    setOsSelecionada(null);
+    setItemOsSelecionado(null);
+    setBuscaOsExecutada(false);
+    setCodigoBarrasMensagem("");
+  }
+
   async function buscarOrdemServico(termoInformado?: string) {
     const bruto = (termoInformado ?? buscaOs).trim();
-    if (!bruto) return;
+    if (!bruto) {
+      limparResultadoPesquisaOs();
+      return;
+    }
     const numero = extrairNumeroOsCodigo(bruto);
     if (!numero) {
       setCodigoBarrasMensagem(
@@ -973,8 +984,10 @@ function AppShellInner({
                   <input
                     value={buscaOs}
                     onChange={(e) => {
-                      setBuscaOs(e.target.value);
+                      const valor = e.target.value;
+                      setBuscaOs(valor);
                       setCodigoBarrasMensagem("");
+                      if (!valor.trim()) limparResultadoPesquisaOs();
                     }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
