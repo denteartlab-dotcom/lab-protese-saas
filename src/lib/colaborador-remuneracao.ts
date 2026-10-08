@@ -1,6 +1,14 @@
 import { parseCurrencyBr } from "@/lib/cliente-financeiro";
 
-export type TipoContratacaoColaborador = "Salário" | "Comissão" | "Salário + Comissão";
+export const TIPOS_CONTRATACAO_COLABORADOR = [
+  "Salário",
+  "Comissão",
+  "Salário + Comissão",
+  "Diária",
+  "Diária + Comissão",
+] as const;
+
+export type TipoContratacaoColaborador = (typeof TIPOS_CONTRATACAO_COLABORADOR)[number];
 
 export function formatValorMonetarioInput(value: string): string {
   const amount = Number(value.replace(/\D/g, "")) / 100;
@@ -14,12 +22,45 @@ export function parseValorNumericoBr(value: string): number {
   return parseCurrencyBr(value);
 }
 
+function textoTipoContratacao(tipo: string): string {
+  return (tipo || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+/** Valores canônicos em português, inclusive rótulos antigos traduzidos. */
+export function normalizarTipoContratacaoCadastro(tipo: string): TipoContratacaoColaborador {
+  const n = textoTipoContratacao(tipo);
+  if (!n) return "Salário";
+  if (n === "terceirizado") return "Salário + Comissão";
+  const temDiaria = n.includes("diaria") || n.includes("daily");
+  const temComissao = n.includes("comiss") || n.includes("commission") || n.includes("comision");
+  const temSalario = n.includes("salar") || n.includes("salary");
+  if (temDiaria && temComissao) return "Diária + Comissão";
+  if (n === "diaria" || n === "daily rate" || n === "daily" || temDiaria) return "Diária";
+  if (temSalario && temComissao) return "Salário + Comissão";
+  if (n === "comissao" || n === "commission" || n === "comision" || (temComissao && !temSalario && !temDiaria)) {
+    return "Comissão";
+  }
+  if (n === "salario" || n === "salary" || temSalario) return "Salário";
+  return "Salário";
+}
+
 export function usaSalarioColaborador(tipo: string): boolean {
-  return tipo === "Salário" || tipo === "Salário + Comissão";
+  const n = normalizarTipoContratacaoCadastro(tipo);
+  return n === "Salário" || n === "Salário + Comissão";
 }
 
 export function usaComissaoColaborador(tipo: string): boolean {
-  return tipo === "Comissão" || tipo === "Salário + Comissão";
+  const n = normalizarTipoContratacaoCadastro(tipo);
+  return n === "Comissão" || n === "Salário + Comissão" || n === "Diária + Comissão";
+}
+
+export function usaDiariaColaborador(tipo: string): boolean {
+  const n = normalizarTipoContratacaoCadastro(tipo);
+  return n === "Diária" || n === "Diária + Comissão";
 }
 
 export function calcularComissaoTrabalho(
@@ -60,6 +101,7 @@ export function formatarSalarioExibicao(valorSalario: string): string {
 type DadosExemploRemuneracao = {
   tipoContratacao: string;
   valorSalario: string;
+  valorDiaria?: string;
   valorComissao: string;
   tipoValorComissao: string;
   comissaoRepeticao: string;
@@ -103,12 +145,24 @@ export function montarTextoExemploRemuneracao(
     valorTrabalho
   );
 
-  if (dados.tipoContratacao === "Salário") {
+  const tipo = normalizarTipoContratacaoCadastro(dados.tipoContratacao);
+  const diaria = parseValorNumericoBr(dados.valorDiaria || "0,00");
+  const diariaFmt = formatarValorMonetarioBr(diaria);
+
+  if (tipo === "Salário") {
     return `Remuneração fixa mensal de ${formatarValorMonetarioBr(salario)}. Comissão não se aplica neste tipo de contratação.`;
   }
 
-  if (dados.tipoContratacao === "Comissão") {
+  if (tipo === "Comissão") {
     return `A comissão será aplicada sobre os trabalhos. No comum, ${comumFmt}; na repetição, ${repFmt}.`;
+  }
+
+  if (tipo === "Diária") {
+    return `Remuneração por diária de ${diariaFmt}. O valor de cada dia é proporcional às horas trabalhadas em relação à jornada e fica sincronizado com o cadastro de diárias. Comissão não se aplica neste tipo de contratação.`;
+  }
+
+  if (tipo === "Diária + Comissão") {
+    return `Diária de ${diariaFmt}, proporcional às horas trabalhadas. A comissão será aplicada sobre os trabalhos. Exemplo: em um trabalho de ${trabalhoFmt}, recebe ${comumFmt} no comum e ${repFmt} na repetição.`;
   }
 
   const salarioFmt = formatarValorMonetarioBr(salario);

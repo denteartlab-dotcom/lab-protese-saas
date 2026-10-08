@@ -25,9 +25,13 @@ import {
   formatValorMonetarioInput,
   formatarSalarioExibicao,
   montarTextoExemploRemuneracao,
+  normalizarTipoContratacaoCadastro,
+  parseValorNumericoBr,
   usaComissaoColaborador,
+  usaDiariaColaborador,
   usaSalarioColaborador,
 } from "@/lib/colaborador-remuneracao";
+import { sincronizarCadastroComDiarias, sugerirValorDiaria } from "@/lib/diarias-colaboradores";
 
 type Colaborador = {
   id: string;
@@ -67,6 +71,7 @@ const formularioVazio = {
   dataContratacao: "",
   tipoContratacao: "Salário",
   valorSalario: "0,00",
+  valorDiaria: "0,00",
   setor: "",
   pisPasep: "",
   numeroCtps: "",
@@ -488,25 +493,33 @@ export default function ColaboradoresPage() {
     if (!form.nome.trim()) return;
     const setorSelecionado = setores.find((setor) => setor.nome === form.setor);
 
+    const nome = form.nome.trim();
+    const dados = {
+      ...form,
+      nome,
+      tipoContratacao: normalizarTipoContratacaoCadastro(form.tipoContratacao),
+    };
+    const carga = clonarHorarioFuncionamento(cargaHoraria);
+
     if (colaboradorEditando) {
+      const atualizado: Colaborador = {
+        ...colaboradorEditando,
+        nome,
+        email: form.email,
+        celular: form.celular,
+        whatsapp: form.whatsapp,
+        setorAtuacao: form.setor || form.cargo || "Prótese",
+        setorCor: setorSelecionado?.cor || colaboradorEditando.setorCor,
+        comissaoPercentual: form.valorComissao,
+        dados,
+        cargaHoraria: carga,
+      };
       setColaboradores((atuais) =>
         atuais.map((colaborador) =>
-          colaborador.id === colaboradorEditando.id
-            ? {
-                ...colaborador,
-                nome: form.nome.trim(),
-                email: form.email,
-                celular: form.celular,
-                whatsapp: form.whatsapp,
-                setorAtuacao: form.setor || form.cargo || "Prótese",
-                setorCor: setorSelecionado?.cor || colaborador.setorCor,
-                comissaoPercentual: form.valorComissao,
-                dados: { ...form },
-                cargaHoraria: clonarHorarioFuncionamento(cargaHoraria),
-              }
-            : colaborador
+          colaborador.id === colaboradorEditando.id ? atualizado : colaborador
         )
       );
+      sincronizarCadastroComDiarias(atualizado);
       setForm(formularioVazio);
       setColaboradorEditando(null);
       setCargaHoraria(clonarHorarioFuncionamento());
@@ -514,21 +527,20 @@ export default function ColaboradoresPage() {
       return;
     }
 
-    setColaboradores((atuais) => [
-      ...atuais,
-      {
-        id: `${Date.now()}`,
-        nome: form.nome.trim(),
-        email: form.email,
-        celular: form.celular,
-        whatsapp: form.whatsapp,
-        setorAtuacao: form.setor || form.cargo || "Prótese",
-        setorCor: setorSelecionado?.cor || "#3b82f6",
-        comissaoPercentual: form.valorComissao,
-        dados: { ...form },
-        cargaHoraria: clonarHorarioFuncionamento(cargaHoraria),
-      },
-    ]);
+    const novo: Colaborador = {
+      id: `${Date.now()}`,
+      nome,
+      email: form.email,
+      celular: form.celular,
+      whatsapp: form.whatsapp,
+      setorAtuacao: form.setor || form.cargo || "Prótese",
+      setorCor: setorSelecionado?.cor || "#3b82f6",
+      comissaoPercentual: form.valorComissao,
+      dados,
+      cargaHoraria: carga,
+    };
+    setColaboradores((atuais) => [...atuais, novo]);
+    sincronizarCadastroComDiarias(novo);
     setForm(formularioVazio);
     setCargaHoraria(clonarHorarioFuncionamento());
     setModalAberto(false);
@@ -537,10 +549,7 @@ export default function ColaboradoresPage() {
   function abrirEdicaoColaborador(colaborador: Colaborador) {
     setColaboradorEditando(colaborador);
     const dados = colaborador.dados || {};
-    const tipoRemuneracao =
-      dados.tipoContratacao === "Terceirizado"
-        ? t("cadastros.comum.remuneracaoSalarioComissao")
-        : dados.tipoContratacao;
+    const tipoRemuneracao = normalizarTipoContratacaoCadastro(dados.tipoContratacao || "");
     setForm({
       ...formularioVazio,
       ...dados,
@@ -623,6 +632,16 @@ export default function ColaboradoresPage() {
   const textoExemploRemuneracao = montarTextoExemploRemuneracao(form);
   const exibeSalario = usaSalarioColaborador(form.tipoContratacao);
   const exibeComissao = usaComissaoColaborador(form.tipoContratacao);
+  const exibeDiaria = usaDiariaColaborador(form.tipoContratacao);
+
+  function rotuloTipoRemuneracao(tipo: string) {
+    const n = normalizarTipoContratacaoCadastro(tipo);
+    if (n === "Comissão") return t("cadastros.comum.remuneracaoComissao");
+    if (n === "Salário + Comissão") return t("cadastros.comum.remuneracaoSalarioComissao");
+    if (n === "Diária") return t("cadastros.comum.remuneracaoDiaria");
+    if (n === "Diária + Comissão") return t("cadastros.comum.remuneracaoDiariaComissao");
+    return t("cadastros.comum.remuneracaoSalario");
+  }
 
   return (
     <div className="min-h-[calc(100vh-90px)] bg-slate-50 px-3 py-4 text-[11px] text-slate-600">
@@ -804,8 +823,17 @@ export default function ColaboradoresPage() {
                               <p><strong>{t("cadastros.colaboradores.detalheWhatsapp").replace("WHATSAPP", "EMAIL")}</strong> {dados.email || colaborador.email}</p>
                               <p><strong>{t("cadastros.colaboradores.detalheDataContratacao")}</strong> {dados.dataContratacao || ""}</p>
                               <p><strong>{t("cadastros.colaboradores.detalheCargo")}</strong> {dados.cargo || ""}</p>
-                              <p><strong>{t("cadastros.colaboradores.detalheTipoRemuneracao")}</strong> {dados.tipoContratacao || ""}</p>
-                              <p><strong>{t("cadastros.colaboradores.detalheSalario")}</strong> {formatarSalarioExibicao(dados.valorSalario || "0,00")}</p>
+                              <p><strong>{t("cadastros.colaboradores.detalheTipoRemuneracao")}</strong> {rotuloTipoRemuneracao(dados.tipoContratacao || "")}</p>
+                              {usaSalarioColaborador(dados.tipoContratacao || "") ? (
+                                <p><strong>{t("cadastros.colaboradores.detalheSalario")}</strong> {formatarSalarioExibicao(dados.valorSalario || "0,00")}</p>
+                              ) : null}
+                              {usaDiariaColaborador(dados.tipoContratacao || "") ? (
+                                <p><strong>{t("cadastros.colaboradores.detalheDiaria")}</strong> {formatarSalarioExibicao(dados.valorDiaria || "0,00")}</p>
+                              ) : null}
+                              {!usaSalarioColaborador(dados.tipoContratacao || "") &&
+                              !usaDiariaColaborador(dados.tipoContratacao || "") ? (
+                                <p><strong>{t("cadastros.colaboradores.detalheSalario")}</strong> {formatarSalarioExibicao(dados.valorSalario || "0,00")}</p>
+                              ) : null}
                               <p><strong>{t("cadastros.colaboradores.detalheDiaPagamento")}</strong> {dados.diaPagamentoComissao || "10"}</p>
                               <p><strong>{t("cadastros.colaboradores.detalheTelResidencial")}</strong> {dados.telefoneResidencial || ""}</p>
                               <p><strong>{t("cadastros.colaboradores.detalheTelComercial")}</strong> {dados.telefoneComercial || ""}</p>
@@ -964,20 +992,45 @@ export default function ColaboradoresPage() {
                     {t("cadastros.comum.ativo")}
                   </label>
                   <div>
-                    <label className={labelClass}>Tipo de {t("cadastros.comum.secaoRemuneracao")}</label>
-                    <select value={form.tipoContratacao} onChange={(event) => setCampo("tipoContratacao", event.target.value)} className={inputClass}>
-                      <option>{t("cadastros.comum.remuneracaoSalario")}</option>
-                      <option>{t("cadastros.comum.secaoComissao")}</option>
-                      <option>Salário + {t("cadastros.comum.secaoComissao")}</option>
+                    <label className={labelClass}>{t("cadastros.comum.tipoRemuneracao")}</label>
+                    <select
+                      value={normalizarTipoContratacaoCadastro(form.tipoContratacao)}
+                      onChange={(event) => {
+                        const tipo = event.target.value;
+                        setForm((atual) => {
+                          const next = { ...atual, tipoContratacao: tipo };
+                          if (
+                            usaDiariaColaborador(tipo) &&
+                            parseValorNumericoBr(atual.valorDiaria) <= 0 &&
+                            parseValorNumericoBr(atual.valorSalario) > 0
+                          ) {
+                            next.valorDiaria = sugerirValorDiaria(atual.valorSalario);
+                          }
+                          return next;
+                        });
+                      }}
+                      className={inputClass}
+                    >
+                      <option value="Salário">{t("cadastros.comum.remuneracaoSalario")}</option>
+                      <option value="Comissão">{t("cadastros.comum.remuneracaoComissao")}</option>
+                      <option value="Salário + Comissão">{t("cadastros.comum.remuneracaoSalarioComissao")}</option>
+                      <option value="Diária">{t("cadastros.comum.remuneracaoDiaria")}</option>
+                      <option value="Diária + Comissão">{t("cadastros.comum.remuneracaoDiariaComissao")}</option>
                     </select>
                   </div>
                   <CampoValorSalario
-                    label={t("cadastros.comum.valorSalario")}
-                    valor={form.valorSalario}
-                    onChange={(valor) => setCampo("valorSalario", valor)}
-                    disabled={!exibeSalario}
+                    label={exibeDiaria ? t("cadastros.comum.valorDiaria") : t("cadastros.comum.valorSalario")}
+                    valor={exibeDiaria ? form.valorDiaria : form.valorSalario}
+                    onChange={(valor) => setCampo(exibeDiaria ? "valorDiaria" : "valorSalario", valor)}
+                    disabled={!exibeSalario && !exibeDiaria}
                   />
                 </div>
+                {!exibeComissao ? (
+                  <p className="text-[12px] text-slate-400">{textoExemploRemuneracao}</p>
+                ) : null}
+                {exibeDiaria ? (
+                  <p className="text-[12px] text-slate-400">{t("cadastros.comum.ajudaValorDiaria")}</p>
+                ) : null}
 
                 <div className="grid gap-3 md:grid-cols-[1fr_0.32fr]">
                   <div className="relative">

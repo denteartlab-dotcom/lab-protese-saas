@@ -74,6 +74,20 @@ const cadastroRs = calcularValorComissaoColaborador(200, "", cadastro({
 assert.equal(cadastroRs.valor, 25);
 ok("fallback R$ do cadastro");
 
+const diariaSemComissao = calcularValorComissaoColaborador(200, "", cadastro({
+  tipoContratacao: "Diária",
+}));
+assert.equal(diariaSemComissao.valor, 0);
+ok("tipo diária não gera comissão");
+
+const diariaComComissao = calcularValorComissaoColaborador(200, "", cadastro({
+  tipoContratacao: "Diária + Comissão",
+  comissaoPercentual: "10,00",
+  tipoValorComissao: "%",
+}));
+assert.equal(diariaComComissao.valor, 20);
+ok("tipo diária + comissão usa a comissão do cadastro");
+
 assert.equal(diaPagamentoComissaoNormalizado(""), 10);
 assert.equal(diaPagamentoComissaoNormalizado(31), 31);
 assert.equal(diaPagamentoComissaoNormalizado(32), 31);

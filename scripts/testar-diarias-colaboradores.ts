@@ -24,10 +24,20 @@ import {
   ehReferenciaDespesaDiariaColaborador,
   sugerirValorDiaria,
   totaisDiariasPorCompetencia,
+  valorDiariaDeOrigem,
   valorDiariaProporcional,
+  aplicarCadastroNaConfigDiaria,
+  garantirConfigColaborador,
   type ConfigDiariaColaborador,
   type DiariasStore,
 } from "../src/lib/diarias-colaboradores";
+import {
+  montarTextoExemploRemuneracao,
+  normalizarTipoContratacaoCadastro,
+  usaComissaoColaborador,
+  usaDiariaColaborador,
+  usaSalarioColaborador,
+} from "../src/lib/colaborador-remuneracao";
 import { clonarHorarioFuncionamento } from "../src/lib/horario-funcionamento";
 import { filtroAgendaDaUrl, semanaOffsetParaData } from "../src/lib/agenda-producao";
 import { nomeArquivoNotaDiarias } from "../src/lib/pdf-nota-pagamento-diarias";
@@ -186,5 +196,66 @@ assert.equal(url.filtro, "data-2026-10-07");
 ok("filtro da agenda a partir da URL");
 
 assert.equal(carga.dias.length, 7);
+
+assert.equal(normalizarTipoContratacaoCadastro("Diária"), "Diária");
+assert.equal(normalizarTipoContratacaoCadastro("Daily rate"), "Diária");
+assert.equal(normalizarTipoContratacaoCadastro("Diaria + comisión"), "Diária + Comissão");
+assert.equal(usaDiariaColaborador("Diária"), true);
+assert.equal(usaDiariaColaborador("Diária + Comissão"), true);
+assert.equal(usaSalarioColaborador("Diária"), false);
+assert.equal(usaComissaoColaborador("Diária"), false);
+assert.equal(usaComissaoColaborador("Diária + Comissão"), true);
+assert.equal(usaComissaoColaborador("Salary + commission"), true);
+ok("tipos de remuneração com diária");
+
+assert.equal(valorDiariaDeOrigem({ valorDiaria: "150,00", valorSalario: "2.200,00" }), "150,00");
+assert.equal(valorDiariaDeOrigem({ valorDiaria: "0,00", valorSalario: "2.200,00" }, "80,00"), "80,00");
+assert.equal(valorDiariaDeOrigem({ valorDiaria: "0,00", valorSalario: "2.200,00" }), "100,00");
+ok("valor da diária prefere o cadastro, depois o atual, depois o salário");
+
+let storeCadastro: DiariasStore = { configs: {}, lancamentos: [], despesas: {} };
+storeCadastro = aplicarCadastroNaConfigDiaria(storeCadastro, {
+  id: "mateus",
+  nome: "Mateus Bonfim",
+  valorDiaria: "180,00",
+  valorSalario: "3.000,00",
+  cargaHoraria: carga,
+});
+assert.equal(storeCadastro.configs.mateus.valorDiaria, "180,00");
+assert.equal(storeCadastro.configs.mateus.colaboradorNome, "Mateus Bonfim");
+ok("cadastro de diária cria a config no módulo de diárias");
+
+storeCadastro = aplicarCadastroNaConfigDiaria(storeCadastro, {
+  id: "mateus",
+  nome: "Mateus Bonfim",
+  valorDiaria: "200,00",
+  valorSalario: "3.000,00",
+  cargaHoraria: carga,
+});
+assert.equal(storeCadastro.configs.mateus.valorDiaria, "200,00");
+ok("alterar o valor no cadastro atualiza a config de diárias");
+
+storeCadastro = garantirConfigColaborador(storeCadastro, {
+  id: "mateus",
+  nome: "Mateus Bonfim",
+  valorSalario: "3.000,00",
+  valorDiaria: "200,00",
+  tipoContratacao: "Diária",
+  cargaHoraria: carga,
+});
+assert.equal(storeCadastro.configs.mateus.valorDiaria, "200,00");
+ok("abrir diárias mantém o valor cadastrado");
+
+const exemploDiaria = montarTextoExemploRemuneracao({
+  tipoContratacao: "Diária",
+  valorSalario: "0,00",
+  valorDiaria: "180,00",
+  valorComissao: "0,00",
+  tipoValorComissao: "%",
+  comissaoRepeticao: "0,00",
+  tipoValorComissaoRepeticao: "%",
+});
+assert.equal(exemploDiaria.includes("180"), true);
+ok("texto de exemplo da remuneração por diária");
 
 console.log("todos os testes de diárias passaram");
