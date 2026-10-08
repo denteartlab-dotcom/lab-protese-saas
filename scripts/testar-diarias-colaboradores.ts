@@ -30,6 +30,8 @@ import {
   garantirConfigColaborador,
   horasLancamentoDiaria,
   horarioPadraoDoDia,
+  aplicarValorManualLancamento,
+  recalcularLancamento,
   type ConfigDiariaColaborador,
   type DiariasStore,
 } from "../src/lib/diarias-colaboradores";
@@ -127,6 +129,17 @@ const diaCompleto = criarLancamentoDiaria("c1", "2026-10-08", config, {
 assert.equal(diaCompleto.horas, 10);
 assert.equal(diaCompleto.valor, 200);
 ok("diária completa não desconta o almoço");
+
+const valorEditado = aplicarValorManualLancamento(diaCompleto, 175.5);
+assert.equal(valorEditado.valor, 175.5);
+assert.equal(valorEditado.valorManual, true);
+const depoisHorario = recalcularLancamento(
+  { ...valorEditado, saida: "16:00" },
+  config
+);
+assert.equal(depoisHorario.valor, 175.5);
+assert.ok(depoisHorario.horas < diaCompleto.horas);
+ok("valor editado no R$ permanece ao recalcular o horário");
 
 const padraoCarga = horarioPadraoDoDia(carga, "2026-10-07");
 assert.equal(padraoCarga.entrada, "08:00");

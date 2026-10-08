@@ -47,6 +47,7 @@ export type LancamentoDiaria = {
   intervaloMinutos: number;
   horas: number;
   valor: number;
+  valorManual?: boolean;
   observacao?: string;
 };
 
@@ -429,12 +430,30 @@ export function recalcularLancamento(
   config: ConfigDiariaColaborador
 ): LancamentoDiaria {
   const horas = horasLancamentoDiaria(lancamento);
+  if (lancamento.valorManual) {
+    return {
+      ...lancamento,
+      horas,
+      valor: Math.round(Math.max(0, Number(lancamento.valor) || 0) * 100) / 100,
+    };
+  }
   const valor = valorDiariaProporcional(
     horas,
     config.horasJornada,
     parseValorNumericoBr(config.valorDiaria)
   );
   return { ...lancamento, horas, valor };
+}
+
+export function aplicarValorManualLancamento(
+  lancamento: LancamentoDiaria,
+  valor: number
+): LancamentoDiaria {
+  return {
+    ...lancamento,
+    valor: Math.round(Math.max(0, Number(valor) || 0) * 100) / 100,
+    valorManual: true,
+  };
 }
 
 export function criarLancamentoDiaria(
@@ -834,6 +853,7 @@ function normalizarStore(raw: Partial<DiariasStore> | null | undefined): Diarias
           intervaloMinutos: Math.max(0, Number(item.intervaloMinutos) || 0),
           horas: Number(item.horas) || 0,
           valor: Number(item.valor) || 0,
+          valorManual: Boolean(item.valorManual),
           observacao: item.observacao || "",
         }))
     : [];
