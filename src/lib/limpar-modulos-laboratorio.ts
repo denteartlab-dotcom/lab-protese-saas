@@ -539,7 +539,11 @@ export async function limparModulosSelecionados(
         localStorageSet.labProteseColaboradores = "[]";
         localStorageSet.labProteseColaboradoresExcluidos = "[]";
         localStorageSet.labProteseComissoesEfetivadas = JSON.stringify({ linhas: {}, despesas: {} });
-        localStorageSet.labProteseDiariasColaboradores = JSON.stringify({ configs: {}, lancamentos: [] });
+        localStorageSet.labProteseDiariasColaboradores = JSON.stringify({
+          configs: {},
+          lancamentos: [],
+          despesas: {},
+        });
         localStorageSet.labProtesePrestadores = "[]";
         localStorageSet.labProtesePrestadoresExcluidos = "[]";
         break;

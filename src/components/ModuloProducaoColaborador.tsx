@@ -136,7 +136,11 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
   });
   const [efetivando, setEfetivando] = useState(false);
   const [diariasAberta, setDiariasAberta] = useState(false);
-  const [diariasStore, setDiariasStore] = useState<DiariasStore>({ configs: {}, lancamentos: [] });
+  const [diariasStore, setDiariasStore] = useState<DiariasStore>({
+    configs: {},
+    lancamentos: [],
+    despesas: {},
+  });
   const [imprimindoDiarias, setImprimindoDiarias] = useState(false);
 
   const logoutPorInatividade = useCallback(async () => {
@@ -186,7 +190,7 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
       try {
         setDiariasStore(lerDiariasColaboradores());
       } catch {
-        setDiariasStore({ configs: {}, lancamentos: [] });
+        setDiariasStore({ configs: {}, lancamentos: [], despesas: {} });
       }
     }
     hidratarDiarias();
