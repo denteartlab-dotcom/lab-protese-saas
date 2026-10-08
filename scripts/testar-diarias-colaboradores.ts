@@ -28,6 +28,8 @@ import {
   valorDiariaProporcional,
   aplicarCadastroNaConfigDiaria,
   garantirConfigColaborador,
+  horasLancamentoDiaria,
+  horarioPadraoDoDia,
   type ConfigDiariaColaborador,
   type DiariasStore,
 } from "../src/lib/diarias-colaboradores";
@@ -51,6 +53,17 @@ function ok(nome: string) {
 assert.equal(minutosLiquidosTurno("08:00", "18:00", 60), 540);
 assert.equal(horasTrabalhadas("08:00", "18:00", 60), 9);
 ok("jornada 08-18 com 1h de intervalo");
+
+assert.equal(
+  horasLancamentoDiaria({
+    entrada: "08:00",
+    saidaManha: "12:00",
+    entradaTarde: "13:00",
+    saida: "18:00",
+  }),
+  10
+);
+ok("dois turnos pagam das 08:00 às 18:00 sem descontar o intervalo");
 
 assert.equal(horasTrabalhadas("22:00", "06:00", 0), 8);
 ok("turno que atravessa a meia-noite");
@@ -97,12 +110,30 @@ ok("não duplica dias já lançados");
 
 const parcial = criarLancamentoDiaria("c1", "2026-10-07", config, {
   entrada: "08:00",
-  saida: "12:00",
-  intervaloMinutos: 0,
+  saidaManha: "12:00",
+  entradaTarde: "",
+  saida: "",
 });
 assert.equal(parcial.horas, 4);
 assert.equal(parcial.valor, 80);
 ok("meio período vale metade da diária");
+
+const diaCompleto = criarLancamentoDiaria("c1", "2026-10-08", config, {
+  entrada: "08:00",
+  saidaManha: "12:00",
+  entradaTarde: "13:00",
+  saida: "18:00",
+});
+assert.equal(diaCompleto.horas, 10);
+assert.equal(diaCompleto.valor, 200);
+ok("diária completa não desconta o almoço");
+
+const padraoCarga = horarioPadraoDoDia(carga, "2026-10-07");
+assert.equal(padraoCarga.entrada, "08:00");
+assert.equal(padraoCarga.saidaManha, "12:00");
+assert.equal(padraoCarga.entradaTarde, "13:00");
+assert.equal(padraoCarga.saida, "18:00");
+ok("jornada padrão divide manhã e tarde");
 
 store = atualizarConfigERecalcular(store, { ...config, valorDiaria: "200,00" });
 const depois = resumoDiariasMes(store, "c1", 2026, 10);

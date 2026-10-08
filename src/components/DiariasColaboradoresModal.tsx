@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Printer, Wallet } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
-import { Button, CampoHoraBr, Modal } from "@/components/ui";
+import { Button, Modal } from "@/components/ui";
 import { formatValorMonetarioInput, formatarValorMonetarioBr } from "@/lib/colaborador-remuneracao";
 import {
   atualizarConfigERecalcular,
@@ -11,21 +11,30 @@ import {
   celulasCalendarioMes,
   criarLancamentoDiaria,
   dataHojeKey,
+  ENTRADA_PADRAO,
+  ENTRADA_TARDE_PADRAO,
+  formatarHoraDigitada,
+  formatarHorasDecimais,
   garantirConfigColaborador,
   horarioPadraoDoDia,
+  horaTextoValida,
   chaveMesAtual,
   lancamentoDoDia,
+  lancamentosDoMes,
   lerDiariasColaboradores,
   limparLancamentosMes,
   preencherMesComJornada,
+  recalcularLancamento,
   removerLancamentoDia,
   resumoDiariasMes,
+  SAIDA_MANHA_PADRAO,
+  SAIDA_PADRAO,
   salvarDiariasColaboradores,
   sincronizarDiariasStoreNoCadastro,
   sugerirValorDiaria,
+  textoHorarioLancamento,
+  textoIntervaloLancamento,
   upsertLancamento,
-  formatarHorasDecimais,
-  lancamentosDoMes,
   type ColaboradorDiariaOrigem,
   type DiariasStore,
   type LancamentoDiaria,
@@ -45,12 +54,35 @@ const DIAS_CABECALHO: MessageKey[] = [
   "producao.agenda.dia.dom",
 ];
 
-const INTERVALOS = [0, 30, 60, 90, 120];
-
 type Props = {
   open: boolean;
   onClose: () => void;
 };
+
+function CampoHoraTexto({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="block text-sm">
+      <span className="mb-1 block text-slate-600">{label}</span>
+      <input
+        type="text"
+        inputMode="numeric"
+        placeholder="08:00"
+        value={value}
+        onChange={(event) => onChange(formatarHoraDigitada(event.target.value))}
+        onBlur={() => onChange(horaTextoValida(value))}
+        className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-blue-500"
+      />
+    </label>
+  );
+}
 
 export function DiariasColaboradoresModal({ open, onClose }: Props) {
   const { t, locale } = useI18n();
@@ -74,6 +106,13 @@ export function DiariasColaboradoresModal({ open, onClose }: Props) {
     for (const colaborador of lista) {
       atual = garantirConfigColaborador(atual, colaborador);
     }
+    atual = {
+      ...atual,
+      lancamentos: atual.lancamentos.map((lancamento) => {
+        const cfg = atual.configs[lancamento.colaboradorId];
+        return cfg ? recalcularLancamento(lancamento, cfg) : lancamento;
+      }),
+    };
     setColaboradores(lista);
     setStore(atual);
     setColaboradorId((id) => id || lista[0]?.id || "");
@@ -152,6 +191,21 @@ export function DiariasColaboradoresModal({ open, onClose }: Props) {
         ...parcial,
       })
     );
+  }
+
+  function alterarHorario(
+    campo: "entrada" | "saidaManha" | "entradaTarde" | "saida",
+    valor: string
+  ) {
+    if (!lancamento) return;
+    alterarLancamento({
+      entrada: campo === "entrada" ? valor : lancamento.entrada || ENTRADA_PADRAO,
+      saidaManha:
+        campo === "saidaManha" ? valor : lancamento.saidaManha || SAIDA_MANHA_PADRAO,
+      entradaTarde:
+        campo === "entradaTarde" ? valor : lancamento.entradaTarde || ENTRADA_TARDE_PADRAO,
+      saida: campo === "saida" ? valor : lancamento.saida || SAIDA_PADRAO,
+    });
   }
 
   async function gravar() {
@@ -425,8 +479,8 @@ export function DiariasColaboradoresModal({ open, onClose }: Props) {
                     </span>
                     {item ? (
                       <>
-                        <span className="mt-0.5 text-[10px] text-blue-700">
-                          {item.entrada}–{item.saida}
+                        <span className="mt-0.5 whitespace-pre-line text-[9px] leading-tight text-blue-700">
+                          {textoHorarioLancamento(item)}
                         </span>
                         <span className="text-[11px] font-semibold text-blue-900">
                           {formatarValorMonetarioBr(item.valor)}
@@ -444,45 +498,64 @@ export function DiariasColaboradoresModal({ open, onClose }: Props) {
               ) : !lancamento ? (
                 <p className="text-[13px] text-slate-500">{t("producao.diarias.diaLivre")}</p>
               ) : (
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  <CampoHoraBr
-                    label={t("producao.diarias.entrada")}
-                    value={lancamento.entrada}
-                    onChange={(value) => alterarLancamento({ entrada: value })}
-                    calendarZIndex={90}
-                  />
-                  <CampoHoraBr
-                    label={t("producao.diarias.saida")}
-                    value={lancamento.saida}
-                    onChange={(value) => alterarLancamento({ saida: value })}
-                    calendarZIndex={90}
-                  />
-                  <label className="block text-sm">
-                    <span className="mb-1 block text-slate-600">{t("producao.diarias.intervalo")}</span>
-                    <select
-                      value={lancamento.intervaloMinutos}
-                      onChange={(e) =>
-                        alterarLancamento({ intervaloMinutos: Number(e.target.value) || 0 })
-                      }
-                      className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"
-                    >
-                      {INTERVALOS.map((minutos) => (
-                        <option key={minutos} value={minutos}>
-                          {t("producao.diarias.minutos", { n: minutos })}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <div className="flex flex-col justify-end">
-                    <p className="text-[12px] text-slate-500">{t("producao.diarias.horas")}</p>
-                    <p className="text-[18px] font-semibold text-slate-800">
-                      {formatarHorasDecimais(lancamento.horas)}
-                    </p>
-                    <p className="text-[13px] font-medium text-blue-700">
-                      {formatarValorMonetarioBr(lancamento.valor)}
-                    </p>
+                <div className="space-y-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <CampoHoraTexto
+                      label={t("producao.diarias.entradaManha")}
+                      value={lancamento.entrada || ""}
+                      onChange={(value) => alterarHorario("entrada", value)}
+                    />
+                    <CampoHoraTexto
+                      label={t("producao.diarias.saidaManha")}
+                      value={lancamento.saidaManha || SAIDA_MANHA_PADRAO}
+                      onChange={(value) => alterarHorario("saidaManha", value)}
+                    />
+                    <CampoHoraTexto
+                      label={t("producao.diarias.entradaTarde")}
+                      value={lancamento.entradaTarde || ENTRADA_TARDE_PADRAO}
+                      onChange={(value) => alterarHorario("entradaTarde", value)}
+                    />
+                    <CampoHoraTexto
+                      label={t("producao.diarias.saidaTarde")}
+                      value={lancamento.saida || ""}
+                      onChange={(value) => alterarHorario("saida", value)}
+                    />
                   </div>
-                  <label className="block sm:col-span-2 lg:col-span-3">
+                  <p className="text-[12px] text-slate-500">
+                    {t("producao.diarias.intervalo")}:{" "}
+                    {textoIntervaloLancamento({
+                      saidaManha: lancamento.saidaManha || SAIDA_MANHA_PADRAO,
+                      entradaTarde: lancamento.entradaTarde || ENTRADA_TARDE_PADRAO,
+                    }) || "—"}
+                    . {t("producao.diarias.intervaloNaoDesconta")}
+                  </p>
+                  <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+                    <div>
+                      <p className="text-[12px] text-slate-500">{t("producao.diarias.horas")}</p>
+                      <p className="text-[18px] font-semibold text-slate-800">
+                        {formatarHorasDecimais(lancamento.horas)}
+                      </p>
+                      <p className="text-[13px] font-medium text-blue-700">
+                        {formatarValorMonetarioBr(lancamento.valor)}
+                      </p>
+                    </div>
+                    <div className="flex items-end">
+                      <Button
+                        type="button"
+                        variant="danger"
+                        size="sm"
+                        onClick={() => {
+                          if (!colaborador) return;
+                          setStore((atual) =>
+                            removerLancamentoDia(atual, colaborador.id, diaSelecionado)
+                          );
+                        }}
+                      >
+                        {t("producao.diarias.removerDia")}
+                      </Button>
+                    </div>
+                  </div>
+                  <label className="block">
                     <span className="mb-1 block text-[12px] text-slate-500">
                       {t("producao.diarias.observacao")}
                     </span>
@@ -492,19 +565,6 @@ export function DiariasColaboradoresModal({ open, onClose }: Props) {
                       className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-[13px] outline-none focus:border-blue-500"
                     />
                   </label>
-                  <div className="flex items-end">
-                    <Button
-                      type="button"
-                      variant="danger"
-                      size="sm"
-                      onClick={() => {
-                        if (!colaborador) return;
-                        setStore((atual) => removerLancamentoDia(atual, colaborador.id, diaSelecionado));
-                      }}
-                    >
-                      {t("producao.diarias.removerDia")}
-                    </Button>
-                  </div>
                 </div>
               )}
             </div>

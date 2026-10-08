@@ -25,8 +25,9 @@ export const DIARIAS_ATUALIZADAS_EVENT = "lab-protese-diarias-atualizadas";
 export const HORAS_JORNADA_PADRAO = 8;
 export const DIAS_UTEIS_MES_PADRAO = 22;
 export const ENTRADA_PADRAO = "08:00";
+export const SAIDA_MANHA_PADRAO = "12:00";
+export const ENTRADA_TARDE_PADRAO = "13:00";
 export const SAIDA_PADRAO = "17:00";
-export const INTERVALO_PADRAO_MINUTOS = 60;
 
 export type ConfigDiariaColaborador = {
   colaboradorId: string;
@@ -40,11 +41,20 @@ export type LancamentoDiaria = {
   colaboradorId: string;
   data: string;
   entrada: string;
+  saidaManha?: string;
+  entradaTarde?: string;
   saida: string;
   intervaloMinutos: number;
   horas: number;
   valor: number;
   observacao?: string;
+};
+
+export type HorarioDoisTurnos = {
+  entrada: string;
+  saidaManha: string;
+  entradaTarde: string;
+  saida: string;
 };
 
 export type DespesaDiariaRef = {
@@ -233,6 +243,74 @@ export function horasTrabalhadas(
   return minutosLiquidosTurno(entrada, saida, intervaloMinutos) / 60;
 }
 
+export function formatarHoraDigitada(value: string): string {
+  const limpo = String(value || "")
+    .replace(/[^\d:]/g, "")
+    .slice(0, 5);
+  const partes = limpo.split(":");
+  const hora = (partes[0] || "").slice(0, 2);
+  const minuto = (partes[1] || "").slice(0, 2);
+  if (!hora && !minuto) return "";
+  if (hora.length < 2) return hora;
+  if (!limpo.includes(":")) return hora;
+  return `${hora}:${minuto}`;
+}
+
+export function horaTextoValida(value: string): string {
+  const texto = String(value || "").trim();
+  if (!texto) return "";
+  const match = texto.match(/^(\d{1,2})(?::(\d{0,2}))?$/);
+  if (!match) return "";
+  const hora = Math.min(23, Math.max(0, Number(match[1]) || 0));
+  const minuto = Math.min(59, Math.max(0, Number(match[2] || "0") || 0));
+  return `${String(hora).padStart(2, "0")}:${String(minuto).padStart(2, "0")}`;
+}
+
+export function horarioTemTurno(inicio?: string, fim?: string): boolean {
+  return minutosDeHora(inicio || "") != null && minutosDeHora(fim || "") != null;
+}
+
+/** Horas pagas: da primeira entrada à última saída, sem descontar o intervalo. */
+export function horasLancamentoDiaria(
+  lancamento: Pick<LancamentoDiaria, "entrada" | "saida" | "saidaManha" | "entradaTarde">
+): number {
+  const temManha = horarioTemTurno(lancamento.entrada, lancamento.saidaManha);
+  const temTarde = horarioTemTurno(lancamento.entradaTarde, lancamento.saida);
+  if (temManha && temTarde) {
+    return minutosLiquidosTurno(lancamento.entrada, lancamento.saida, 0) / 60;
+  }
+  if (temManha) {
+    return minutosLiquidosTurno(lancamento.entrada, lancamento.saidaManha || "", 0) / 60;
+  }
+  if (temTarde) {
+    return minutosLiquidosTurno(lancamento.entradaTarde || "", lancamento.saida, 0) / 60;
+  }
+  return minutosLiquidosTurno(lancamento.entrada, lancamento.saida, 0) / 60;
+}
+
+export function textoHorarioLancamento(
+  lancamento: Pick<LancamentoDiaria, "entrada" | "saida" | "saidaManha" | "entradaTarde">
+): string {
+  const temManha = horarioTemTurno(lancamento.entrada, lancamento.saidaManha);
+  const temTarde = horarioTemTurno(lancamento.entradaTarde, lancamento.saida);
+  if (temManha && temTarde) {
+    return `${lancamento.entrada}–${lancamento.saidaManha}\n${lancamento.entradaTarde}–${lancamento.saida}`;
+  }
+  if (temManha) return `${lancamento.entrada}–${lancamento.saidaManha}`;
+  if (temTarde) return `${lancamento.entradaTarde}–${lancamento.saida}`;
+  if (lancamento.entrada && lancamento.saida) return `${lancamento.entrada}–${lancamento.saida}`;
+  return "";
+}
+
+export function textoIntervaloLancamento(
+  lancamento: Pick<LancamentoDiaria, "saidaManha" | "entradaTarde">
+): string {
+  const saidaManha = horaTextoValida(lancamento.saidaManha || "");
+  const entradaTarde = horaTextoValida(lancamento.entradaTarde || "");
+  if (!saidaManha || !entradaTarde) return "";
+  return `${saidaManha} às ${entradaTarde}`;
+}
+
 export function valorDiariaProporcional(
   horas: number,
   horasJornada: number,
@@ -285,19 +363,22 @@ export function diaCargaPorData(
 export function horarioPadraoDoDia(
   carga: HorarioFuncionamentoConfig | null | undefined,
   data: string
-): { entrada: string; saida: string; intervaloMinutos: number } {
+): HorarioDoisTurnos {
   const dia = diaCargaPorData(carga, data);
   if (dia?.ativo && dia.inicio && dia.fim) {
+    const intervalo = (dia.intervalos || []).find((item) => item.inicio && item.fim);
     return {
       entrada: dia.inicio,
+      saidaManha: intervalo?.inicio || SAIDA_MANHA_PADRAO,
+      entradaTarde: intervalo?.fim || ENTRADA_TARDE_PADRAO,
       saida: dia.fim,
-      intervaloMinutos: minutosIntervalosDia(dia),
     };
   }
   return {
     entrada: ENTRADA_PADRAO,
+    saidaManha: SAIDA_MANHA_PADRAO,
+    entradaTarde: ENTRADA_TARDE_PADRAO,
     saida: SAIDA_PADRAO,
-    intervaloMinutos: INTERVALO_PADRAO_MINUTOS,
   };
 }
 
@@ -347,11 +428,7 @@ export function recalcularLancamento(
   lancamento: LancamentoDiaria,
   config: ConfigDiariaColaborador
 ): LancamentoDiaria {
-  const horas = horasTrabalhadas(
-    lancamento.entrada,
-    lancamento.saida,
-    lancamento.intervaloMinutos
-  );
+  const horas = horasLancamentoDiaria(lancamento);
   const valor = valorDiariaProporcional(
     horas,
     config.horasJornada,
@@ -364,7 +441,7 @@ export function criarLancamentoDiaria(
   colaboradorId: string,
   data: string,
   config: ConfigDiariaColaborador,
-  horario: { entrada: string; saida: string; intervaloMinutos: number },
+  horario: HorarioDoisTurnos,
   observacao?: string
 ): LancamentoDiaria {
   return recalcularLancamento(
@@ -373,8 +450,10 @@ export function criarLancamentoDiaria(
       colaboradorId,
       data,
       entrada: horario.entrada,
+      saidaManha: horario.saidaManha,
+      entradaTarde: horario.entradaTarde,
       saida: horario.saida,
-      intervaloMinutos: horario.intervaloMinutos,
+      intervaloMinutos: 0,
       horas: 0,
       valor: 0,
       observacao,
@@ -749,6 +828,8 @@ function normalizarStore(raw: Partial<DiariasStore> | null | undefined): Diarias
           colaboradorId: item.colaboradorId,
           data: item.data,
           entrada: item.entrada || ENTRADA_PADRAO,
+          saidaManha: item.saidaManha || "",
+          entradaTarde: item.entradaTarde || "",
           saida: item.saida || SAIDA_PADRAO,
           intervaloMinutos: Math.max(0, Number(item.intervaloMinutos) || 0),
           horas: Number(item.horas) || 0,
