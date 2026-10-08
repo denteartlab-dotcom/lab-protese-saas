@@ -5,7 +5,11 @@ import {
   nomeMesCompetenciaPt,
   slugColaboradorComissao,
 } from "@/lib/comissao-colaboradores-pagamento";
-import { parseValorNumericoBr, formatValorMonetarioInput } from "@/lib/colaborador-remuneracao";
+import {
+  parseValorNumericoBr,
+  formatValorMonetarioInput,
+  usaDiariaColaborador,
+} from "@/lib/colaborador-remuneracao";
 import { COLABORADORES_STORAGE_KEY } from "@/lib/colaboradores-listagem";
 import { dateKeyLocal } from "@/lib/controle-producao-prazos";
 import {
@@ -68,6 +72,8 @@ export type ColaboradorDiariaOrigem = {
   id: string;
   nome: string;
   valorSalario: string;
+  valorDiaria: string;
+  tipoContratacao: string;
   cargaHoraria: HorarioFuncionamentoConfig | null;
 };
 
@@ -313,6 +319,24 @@ export function sugerirValorDiaria(
   if (salario <= 0) return "0,00";
   const diaria = salario / Math.max(1, diasUteis);
   return formatValorMonetarioInput(String(Math.round(diaria * 100)));
+}
+
+export function formatarValorDiariaCadastro(valor: string): string {
+  const numero = parseValorNumericoBr(valor);
+  if (numero <= 0) return "0,00";
+  return formatValorMonetarioInput(String(Math.round(numero * 100)));
+}
+
+/** Prefere o valor cadastrado; se vazio, mantém o atual ou sugere pelo salário. */
+export function valorDiariaDeOrigem(
+  origem: Pick<ColaboradorDiariaOrigem, "valorDiaria" | "valorSalario">,
+  atual?: string
+): string {
+  if (parseValorNumericoBr(origem.valorDiaria || "") > 0) {
+    return formatarValorDiariaCadastro(origem.valorDiaria);
+  }
+  if (parseValorNumericoBr(atual || "") > 0) return atual || "0,00";
+  return sugerirValorDiaria(origem.valorSalario);
 }
 
 export function novoIdLancamento(): string {
@@ -607,21 +631,101 @@ export function garantirConfigColaborador(
   colaborador: ColaboradorDiariaOrigem
 ): DiariasStore {
   const atual = store.configs[colaborador.id];
+  const valorDiaria = valorDiariaDeOrigem(colaborador, atual?.valorDiaria);
   if (atual) {
-    return {
-      ...store,
-      configs: {
-        ...store.configs,
-        [colaborador.id]: { ...atual, colaboradorNome: colaborador.nome },
-      },
-    };
+    if (atual.colaboradorNome === colaborador.nome && atual.valorDiaria === valorDiaria) {
+      return store;
+    }
+    if (atual.valorDiaria === valorDiaria) {
+      return {
+        ...store,
+        configs: {
+          ...store.configs,
+          [colaborador.id]: { ...atual, colaboradorNome: colaborador.nome },
+        },
+      };
+    }
+    return atualizarConfigERecalcular(store, {
+      ...atual,
+      colaboradorNome: colaborador.nome,
+      valorDiaria,
+    });
   }
   return atualizarConfigERecalcular(store, {
     colaboradorId: colaborador.id,
     colaboradorNome: colaborador.nome,
-    valorDiaria: sugerirValorDiaria(colaborador.valorSalario),
+    valorDiaria,
     horasJornada: horasJornadaDaCarga(colaborador.cargaHoraria),
   });
+}
+
+export function aplicarCadastroNaConfigDiaria(
+  store: DiariasStore,
+  colaborador: {
+    id: string;
+    nome: string;
+    valorDiaria?: string;
+    valorSalario?: string;
+    cargaHoraria?: HorarioFuncionamentoConfig | null;
+  }
+): DiariasStore {
+  const atual = store.configs[colaborador.id];
+  const valorDiaria = valorDiariaDeOrigem(
+    {
+      valorDiaria: colaborador.valorDiaria || "0,00",
+      valorSalario: colaborador.valorSalario || "0,00",
+    },
+    atual?.valorDiaria
+  );
+  return atualizarConfigERecalcular(store, {
+    colaboradorId: colaborador.id,
+    colaboradorNome: colaborador.nome,
+    valorDiaria,
+    horasJornada: atual?.horasJornada ?? horasJornadaDaCarga(colaborador.cargaHoraria),
+  });
+}
+
+export function sincronizarCadastroComDiarias(colaborador: {
+  id: string;
+  nome: string;
+  dados?: Record<string, string>;
+  cargaHoraria?: HorarioFuncionamentoConfig;
+}) {
+  if (typeof window === "undefined") return;
+  const tipo = colaborador.dados?.tipoContratacao || "";
+  const valorDiaria = colaborador.dados?.valorDiaria || "";
+  if (!usaDiariaColaborador(tipo) && parseValorNumericoBr(valorDiaria) <= 0) return;
+  const store = aplicarCadastroNaConfigDiaria(lerDiariasColaboradores(), {
+    id: colaborador.id,
+    nome: colaborador.nome,
+    valorDiaria,
+    valorSalario: colaborador.dados?.valorSalario,
+    cargaHoraria: colaborador.cargaHoraria || null,
+  });
+  salvarDiariasColaboradores(store);
+}
+
+export function sincronizarDiariasStoreNoCadastro(store: DiariasStore) {
+  if (typeof window === "undefined") return;
+  const lista = readStorage<ColaboradorStorageDiaria[]>(COLABORADORES_STORAGE_KEY, []);
+  let mudou = false;
+  const atualizados = lista.map((item) => {
+    const id = item.id || item.nome?.trim() || "";
+    const config = store.configs[id];
+    if (!config) return item;
+    if ((item.dados?.valorDiaria || "") === config.valorDiaria) return item;
+    mudou = true;
+    return {
+      ...item,
+      dados: {
+        ...(item.dados || {}),
+        valorDiaria: config.valorDiaria,
+      },
+    };
+  });
+  if (!mudou) return;
+  writeStorage(COLABORADORES_STORAGE_KEY, atualizados);
+  void persistirArmazenamentoImediato(COLABORADORES_STORAGE_KEY, atualizados);
 }
 
 function normalizarStore(raw: Partial<DiariasStore> | null | undefined): DiariasStore {
@@ -693,6 +797,8 @@ export function carregarColaboradoresDiaria(): ColaboradorDiariaOrigem[] {
         id: item.id || nome,
         nome,
         valorSalario: item.dados?.valorSalario || "0,00",
+        valorDiaria: item.dados?.valorDiaria || "0,00",
+        tipoContratacao: item.dados?.tipoContratacao || "",
         cargaHoraria: item.cargaHoraria ? clonarHorarioFuncionamento(item.cargaHoraria) : null,
       } satisfies ColaboradorDiariaOrigem;
     })

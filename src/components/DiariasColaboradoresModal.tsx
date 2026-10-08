@@ -21,6 +21,7 @@ import {
   removerLancamentoDia,
   resumoDiariasMes,
   salvarDiariasColaboradores,
+  sincronizarDiariasStoreNoCadastro,
   sugerirValorDiaria,
   upsertLancamento,
   formatarHorasDecimais,
@@ -158,6 +159,7 @@ export function DiariasColaboradoresModal({ open, onClose }: Props) {
     setSalvoMsg("");
     try {
       const persistido = salvarDiariasColaboradores(store);
+      sincronizarDiariasStoreNoCadastro(persistido);
       const resultado = await sincronizarDespesasDiariasColaboradores(persistido);
       setStore(resultado.store);
       setSalvoMsg(
