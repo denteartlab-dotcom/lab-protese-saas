@@ -1,11 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Printer, Wallet } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
 import { Button, Modal } from "@/components/ui";
-import { formatValorMonetarioInput, formatarValorMonetarioBr } from "@/lib/colaborador-remuneracao";
 import {
+  formatValorMonetarioInput,
+  formatarValorMonetarioBr,
+  parseValorNumericoBr,
+} from "@/lib/colaborador-remuneracao";
+import {
+  aplicarValorManualLancamento,
   atualizarConfigERecalcular,
   carregarColaboradoresDiaria,
   celulasCalendarioMes,
@@ -81,6 +86,69 @@ function CampoHoraTexto({
         className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-blue-500"
       />
     </label>
+  );
+}
+
+function ValorDiariaEditavel({
+  valor,
+  onChange,
+  titulo,
+}: {
+  valor: number;
+  onChange: (valor: number) => void;
+  titulo: string;
+}) {
+  const [editando, setEditando] = useState(false);
+  const [texto, setTexto] = useState("0,00");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!editando) return;
+    inputRef.current?.focus();
+    inputRef.current?.select();
+  }, [editando]);
+
+  function confirmar() {
+    onChange(parseValorNumericoBr(texto));
+    setEditando(false);
+  }
+
+  if (!editando) {
+    return (
+      <button
+        type="button"
+        title={titulo}
+        onClick={() => {
+          setTexto(formatValorMonetarioInput(String(Math.round((Number(valor) || 0) * 100))));
+          setEditando(true);
+        }}
+        className="text-left text-[13px] font-medium text-blue-700 hover:underline"
+      >
+        {formatarValorMonetarioBr(valor)}
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex h-9 max-w-[160px] overflow-hidden rounded-lg border border-blue-400 bg-white">
+      <span className="flex w-10 shrink-0 items-center justify-center border-r border-slate-200 text-[12px] text-slate-500">
+        R$
+      </span>
+      <input
+        ref={inputRef}
+        value={texto}
+        onChange={(event) => setTexto(formatValorMonetarioInput(event.target.value))}
+        onBlur={confirmar}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            confirmar();
+          }
+          if (event.key === "Escape") setEditando(false);
+        }}
+        className="w-full px-2 text-[13px] text-slate-800 outline-none"
+      />
+    </div>
   );
 }
 
@@ -535,9 +603,14 @@ export function DiariasColaboradoresModal({ open, onClose }: Props) {
                       <p className="text-[18px] font-semibold text-slate-800">
                         {formatarHorasDecimais(lancamento.horas)}
                       </p>
-                      <p className="text-[13px] font-medium text-blue-700">
-                        {formatarValorMonetarioBr(lancamento.valor)}
-                      </p>
+                      <ValorDiariaEditavel
+                        key={`${lancamento.id}-${diaSelecionado}`}
+                        valor={lancamento.valor}
+                        titulo={t("producao.diarias.editarValor")}
+                        onChange={(valor) =>
+                          alterarLancamento(aplicarValorManualLancamento(lancamento, valor))
+                        }
+                      />
                     </div>
                     <div className="flex items-end">
                       <Button
