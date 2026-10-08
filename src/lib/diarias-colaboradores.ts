@@ -1,6 +1,10 @@
 /**
  * Diárias de colaboradores: jornada, horas trabalhadas e valor proporcional.
  */
+import {
+  nomeMesCompetenciaPt,
+  slugColaboradorComissao,
+} from "@/lib/comissao-colaboradores-pagamento";
 import { parseValorNumericoBr, formatValorMonetarioInput } from "@/lib/colaborador-remuneracao";
 import { COLABORADORES_STORAGE_KEY } from "@/lib/colaboradores-listagem";
 import { dateKeyLocal } from "@/lib/controle-producao-prazos";
@@ -39,9 +43,25 @@ export type LancamentoDiaria = {
   observacao?: string;
 };
 
+export type DespesaDiariaRef = {
+  id: string;
+  status?: string;
+  colaboradorId?: string;
+  colaboradorNome?: string;
+  mesCompetencia?: string;
+};
+
 export type DiariasStore = {
   configs: Record<string, ConfigDiariaColaborador>;
   lancamentos: LancamentoDiaria[];
+  despesas: Record<string, DespesaDiariaRef>;
+};
+
+export type TotalDiariaCompetencia = {
+  colaboradorId: string;
+  colaboradorNome: string;
+  mesCompetencia: string;
+  valor: number;
 };
 
 export type ColaboradorDiariaOrigem = {
@@ -68,10 +88,103 @@ const JS_DAY_TO_ID = [
   "sabado",
 ] as const;
 
-const STORE_VAZIO: DiariasStore = { configs: {}, lancamentos: [] };
+const STORE_VAZIO: DiariasStore = { configs: {}, lancamentos: [], despesas: {} };
 
 export function storeDiariasVazio(): DiariasStore {
-  return { configs: {}, lancamentos: [] };
+  return { configs: {}, lancamentos: [], despesas: {} };
+}
+
+export function referenciaDespesaDiariaColaborador(nome: string, mesCompetencia: string) {
+  return `diaria-colab:${slugColaboradorComissao(nome)}:${mesCompetencia}`;
+}
+
+export function ehReferenciaDespesaDiariaColaborador(referencia?: string | null) {
+  return /^diaria-colab:[a-z0-9-]+:\d{4}-\d{2}$/.test((referencia || "").trim());
+}
+
+export function descricaoDespesaDiariaColaborador(nome: string, mesCompetencia: string) {
+  return `Diária ${nome} — ${nomeMesCompetenciaPt(mesCompetencia)}`;
+}
+
+export function chaveDespesaDiariaStore(nome: string, mesCompetencia: string) {
+  return referenciaDespesaDiariaColaborador(nome, mesCompetencia);
+}
+
+export function mesCompetenciaDeDataIso(data: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(data) ? data.slice(0, 7) : "";
+}
+
+export function registrarDespesaDiariaStore(
+  store: DiariasStore,
+  colaboradorNome: string,
+  mesCompetencia: string,
+  despesa: DespesaDiariaRef
+): DiariasStore {
+  return {
+    ...store,
+    despesas: {
+      ...store.despesas,
+      [chaveDespesaDiariaStore(colaboradorNome, mesCompetencia)]: despesa,
+    },
+  };
+}
+
+export function removerDespesaDiariaStore(
+  store: DiariasStore,
+  colaboradorNome: string,
+  mesCompetencia: string
+): DiariasStore {
+  const despesas = { ...store.despesas };
+  delete despesas[chaveDespesaDiariaStore(colaboradorNome, mesCompetencia)];
+  return { ...store, despesas };
+}
+
+export function totaisDiariasPorCompetencia(store: DiariasStore): TotalDiariaCompetencia[] {
+  const mapa = new Map<string, TotalDiariaCompetencia>();
+
+  for (const lancamento of store.lancamentos) {
+    const mesCompetencia = mesCompetenciaDeDataIso(lancamento.data);
+    if (!mesCompetencia) continue;
+    const config = store.configs[lancamento.colaboradorId];
+    const colaboradorNome = config?.colaboradorNome?.trim() || lancamento.colaboradorId;
+    const chave = `${lancamento.colaboradorId}::${mesCompetencia}`;
+    const atual = mapa.get(chave);
+    if (atual) {
+      atual.valor += Number(lancamento.valor) || 0;
+    } else {
+      mapa.set(chave, {
+        colaboradorId: lancamento.colaboradorId,
+        colaboradorNome,
+        mesCompetencia,
+        valor: Number(lancamento.valor) || 0,
+      });
+    }
+  }
+
+  for (const [ref, despesa] of Object.entries(store.despesas || {})) {
+    if (!ehReferenciaDespesaDiariaColaborador(ref)) continue;
+    const mesCompetencia = despesa.mesCompetencia || ref.split(":").pop() || "";
+    const colaboradorId = despesa.colaboradorId || "";
+    const colaboradorNome = despesa.colaboradorNome?.trim() || "";
+    if (!mesCompetencia) continue;
+    const chaveLocal = colaboradorId
+      ? `${colaboradorId}::${mesCompetencia}`
+      : `ref::${ref}`;
+    if (mapa.has(chaveLocal) || [...mapa.values()].some((item) => chaveDespesaDiariaStore(item.colaboradorNome, item.mesCompetencia) === ref)) {
+      continue;
+    }
+    mapa.set(chaveLocal, {
+      colaboradorId: colaboradorId || ref,
+      colaboradorNome: colaboradorNome || ref,
+      mesCompetencia,
+      valor: 0,
+    });
+  }
+
+  return [...mapa.values()].map((item) => ({
+    ...item,
+    valor: Math.round(item.valor * 100) / 100,
+  }));
 }
 
 export function minutosDeHora(hora: string): number | null {
@@ -288,6 +401,7 @@ export function atualizarConfigERecalcular(
   const horasJornada = Math.min(24, Math.max(0.5, Number(config.horasJornada) || HORAS_JORNADA_PADRAO));
   const normalizada: ConfigDiariaColaborador = { ...config, horasJornada };
   return {
+    ...store,
     configs: { ...store.configs, [normalizada.colaboradorId]: normalizada },
     lancamentos: store.lancamentos.map((lancamento) =>
       lancamento.colaboradorId === normalizada.colaboradorId
@@ -538,7 +652,20 @@ function normalizarStore(raw: Partial<DiariasStore> | null | undefined): Diarias
           observacao: item.observacao || "",
         }))
     : [];
-  return { configs, lancamentos };
+  const despesas: Record<string, DespesaDiariaRef> = {};
+  if (raw?.despesas && typeof raw.despesas === "object") {
+    for (const [chave, despesa] of Object.entries(raw.despesas)) {
+      if (!despesa?.id) continue;
+      despesas[chave] = {
+        id: despesa.id,
+        status: despesa.status,
+        colaboradorId: despesa.colaboradorId,
+        colaboradorNome: despesa.colaboradorNome,
+        mesCompetencia: despesa.mesCompetencia,
+      };
+    }
+  }
+  return { configs, lancamentos, despesas };
 }
 
 export function lerDiariasColaboradores(): DiariasStore {

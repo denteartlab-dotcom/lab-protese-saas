@@ -29,6 +29,7 @@ import {
   type DiariasStore,
   type LancamentoDiaria,
 } from "@/lib/diarias-colaboradores";
+import { sincronizarDespesasDiariasColaboradores } from "@/lib/despesa-diaria-colaborador";
 import { imprimirNotasPagamentoDiarias } from "@/lib/imprimir-nota-diarias";
 import type { MessageKey } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -63,6 +64,7 @@ export function DiariasColaboradoresModal({ open, onClose }: Props) {
   const [diaSelecionado, setDiaSelecionado] = useState(hojeKey);
   const [salvoMsg, setSalvoMsg] = useState("");
   const [imprimindo, setImprimindo] = useState(false);
+  const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -151,9 +153,25 @@ export function DiariasColaboradoresModal({ open, onClose }: Props) {
     );
   }
 
-  function gravar() {
-    salvarDiariasColaboradores(store);
-    setSalvoMsg(t("producao.diarias.salvo"));
+  async function gravar() {
+    setSalvando(true);
+    setSalvoMsg("");
+    try {
+      const persistido = salvarDiariasColaboradores(store);
+      const resultado = await sincronizarDespesasDiariasColaboradores(persistido);
+      setStore(resultado.store);
+      setSalvoMsg(
+        resultado.pagas.length > 0
+          ? t("producao.diarias.salvoDespesaPaga")
+          : t("producao.diarias.salvoComDespesa")
+      );
+    } catch (err) {
+      console.error("despesa diaria colaborador", err);
+      window.alert(t("producao.diarias.erroDespesa"));
+      setSalvoMsg(t("producao.diarias.salvo"));
+    } finally {
+      setSalvando(false);
+    }
   }
 
   async function imprimirNota() {
@@ -522,8 +540,12 @@ export function DiariasColaboradoresModal({ open, onClose }: Props) {
             <Button type="button" variant="outline" onClick={onClose}>
               {t("common.cancelar")}
             </Button>
-            <Button type="button" onClick={gravar} disabled={!colaborador}>
-              {t("producao.diarias.gravar")}
+            <Button
+              type="button"
+              onClick={() => void gravar()}
+              disabled={!colaborador || salvando}
+            >
+              {salvando ? t("common.salvando") : t("producao.diarias.gravar")}
             </Button>
           </div>
         </div>

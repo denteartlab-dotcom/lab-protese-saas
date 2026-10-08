@@ -249,6 +249,11 @@ const pt = {
   "producao.diarias.totalMes": "Total do mês",
   "producao.diarias.gravar": "Gravar",
   "producao.diarias.salvo": "Diárias gravadas.",
+  "producao.diarias.salvoComDespesa": "Diárias gravadas e lançadas nas despesas.",
+  "producao.diarias.salvoDespesaPaga":
+    "Diárias gravadas. A despesa deste mês já foi paga e não foi alterada.",
+  "producao.diarias.erroDespesa":
+    "As diárias foram gravadas, mas não foi possível lançar a despesa.",
   "producao.diarias.minutos": "{n} min",
   "producao.diarias.mesAnterior": "Mês anterior",
   "producao.diarias.proximoMes": "Próximo mês",
@@ -545,6 +550,11 @@ const en: Record<keyof typeof pt, string> = {
   "producao.diarias.totalMes": "Month total",
   "producao.diarias.gravar": "Save",
   "producao.diarias.salvo": "Daily rates saved.",
+  "producao.diarias.salvoComDespesa": "Daily rates saved and posted to expenses.",
+  "producao.diarias.salvoDespesaPaga":
+    "Daily rates saved. This month's expense is already paid and was not changed.",
+  "producao.diarias.erroDespesa":
+    "Daily rates were saved, but the expense could not be posted.",
   "producao.diarias.minutos": "{n} min",
   "producao.diarias.mesAnterior": "Previous month",
   "producao.diarias.proximoMes": "Next month",
@@ -841,6 +851,11 @@ const es: Record<keyof typeof pt, string> = {
   "producao.diarias.totalMes": "Total del mes",
   "producao.diarias.gravar": "Guardar",
   "producao.diarias.salvo": "Diarias guardadas.",
+  "producao.diarias.salvoComDespesa": "Diarias guardadas y registradas en los gastos.",
+  "producao.diarias.salvoDespesaPaga":
+    "Diarias guardadas. El gasto de este mes ya está pagado y no fue modificado.",
+  "producao.diarias.erroDespesa":
+    "Las diarias se guardaron, pero no fue posible registrar el gasto.",
   "producao.diarias.minutos": "{n} min",
   "producao.diarias.mesAnterior": "Mes anterior",
   "producao.diarias.proximoMes": "Próximo mes",

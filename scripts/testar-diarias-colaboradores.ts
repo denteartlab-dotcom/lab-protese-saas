@@ -19,7 +19,11 @@ import {
   preencherMesComJornada,
   resumoDiariasMes,
   resumoGeralDiariasMes,
+  referenciaDespesaDiariaColaborador,
+  descricaoDespesaDiariaColaborador,
+  ehReferenciaDespesaDiariaColaborador,
   sugerirValorDiaria,
+  totaisDiariasPorCompetencia,
   valorDiariaProporcional,
   type ConfigDiariaColaborador,
   type DiariasStore,
@@ -27,6 +31,8 @@ import {
 import { clonarHorarioFuncionamento } from "../src/lib/horario-funcionamento";
 import { filtroAgendaDaUrl, semanaOffsetParaData } from "../src/lib/agenda-producao";
 import { nomeArquivoNotaDiarias } from "../src/lib/pdf-nota-pagamento-diarias";
+import { lancamentoEhDespesaDiariaColaborador } from "../src/lib/despesa-diaria-colaborador";
+import { empacotarDespesa } from "../src/lib/lancamento-despesa";
 
 function ok(nome: string) {
   console.log(`ok  ${nome}`);
@@ -68,7 +74,7 @@ const config: ConfigDiariaColaborador = {
   horasJornada: 8,
 };
 
-let store: DiariasStore = { configs: { c1: config }, lancamentos: [] };
+let store: DiariasStore = { configs: { c1: config }, lancamentos: [], despesas: {} };
 store = preencherMesComJornada(store, "c1", 2026, 10, carga);
 const outubro = resumoDiariasMes(store, "c1", 2026, 10);
 assert.equal(outubro.dias, 22);
@@ -120,6 +126,45 @@ assert.equal(
   "nota-diarias-ana-souza-2026-10.pdf"
 );
 ok("nome do arquivo da nota de pagamento");
+
+assert.equal(referenciaDespesaDiariaColaborador("João Silva", "2026-10"), "diaria-colab:joao-silva:2026-10");
+assert.equal(ehReferenciaDespesaDiariaColaborador("diaria-colab:joao-silva:2026-10"), true);
+assert.equal(ehReferenciaDespesaDiariaColaborador("comissao-colab:joao-silva:2026-10"), false);
+assert.equal(
+  descricaoDespesaDiariaColaborador("João Silva", "2026-10"),
+  "Diária João Silva — Outubro de 2026"
+);
+const totais = totaisDiariasPorCompetencia(store);
+assert.equal(totais.length, 1);
+assert.equal(totais[0].colaboradorNome, "Ana");
+assert.equal(totais[0].mesCompetencia, "2026-10");
+assert.ok(totais[0].valor > 0);
+const descricaoPack = empacotarDespesa("Diária João Silva — Outubro de 2026", {
+  entidade: "colaboradores",
+  categoria: "Comissões, Bônus ou Prêmios",
+  conta: "Caixa Principal",
+  parcela: "1",
+  referencia: "diaria-colab:joao-silva:2026-10",
+  nome: "João Silva",
+  fixaDiaVencimento: 10,
+});
+assert.equal(
+  lancamentoEhDespesaDiariaColaborador(
+    { id: "d1", tipo: "despesa", descricao: descricaoPack },
+    "João Silva",
+    "2026-10"
+  ),
+  true
+);
+assert.equal(
+  lancamentoEhDespesaDiariaColaborador(
+    { id: "d1", tipo: "despesa", descricao: descricaoPack },
+    "Maria",
+    "2026-10"
+  ),
+  false
+);
+ok("despesa de diária usa o mesmo formato da comissão");
 
 store = limparLancamentosMes(store, "c1", 2026, 10);
 assert.equal(resumoDiariasMes(store, "c1", 2026, 10).dias, 0);
