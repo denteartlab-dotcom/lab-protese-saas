@@ -115,6 +115,10 @@ import type { PainelFinanceiroReceita } from "@/lib/financeiro-painel-types";
 import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
 import { gerarRelatorioTabelaPdf } from "@/lib/pdf-relatorio-tabela";
 import type { LinhaReciboRecebimento } from "@/lib/recibo-recebimento";
+import {
+  agregarPacientesRecibo,
+  formatarEnderecoClienteRecibo,
+} from "@/lib/recibo-pacientes-fatura";
 import { empacotarReceitaConta, descricaoReceitaSemMeta } from "@/lib/receita-conta-bancaria";
 import { formaEhPixAsaas } from "@/lib/forma-pagamento-pix";
 import {
@@ -151,6 +155,10 @@ type Cliente = {
   cro?: string | null;
   celular?: string | null;
   telefone?: string | null;
+  endereco?: string | null;
+  cidade?: string | null;
+  uf?: string | null;
+  cep?: string | null;
   observacoes?: string | null;
 };
 
@@ -372,6 +380,7 @@ function FinanceiroReceberConteudo() {
   } | null>(null);
   const [reciboRecebimento, setReciboRecebimento] = useState<{
     clienteNome: string;
+    clienteEndereco?: string;
     linhas: LinhaReciboRecebimento[];
   } | null>(null);
   const [pixAsaasDisponivel, setPixAsaasDisponivel] = useState(false);
@@ -2457,19 +2466,32 @@ function FinanceiroReceberConteudo() {
       referencia: referenciaLancamento(l),
       descricao: l.descricao,
       numeroFatura: numeroFatura(l),
+      pacientes: agregarPacientesRecibo(trabalhosDaFatura(l, l.cliente?.id)),
     }));
   }
 
-  function abrirModalRecibo(clienteNome: string, lancamentos: Lancamento[]) {
+  function enderecoClienteRecibo(clienteId?: string | null) {
+    if (!clienteId) return "";
+    const cadastro = clientes.find((c) => c.id === clienteId);
+    return formatarEnderecoClienteRecibo(cadastro);
+  }
+
+  function abrirModalRecibo(
+    clienteNome: string,
+    lancamentos: Lancamento[],
+    clienteIdInformado?: string | null
+  ) {
     if (lancamentos.length === 0) return;
+    const clienteId = clienteIdInformado || lancamentos[0]?.cliente?.id;
     setReciboRecebimento({
       clienteNome,
+      clienteEndereco: enderecoClienteRecibo(clienteId),
       linhas: linhasReciboDeLancamentos(lancamentos),
     });
   }
 
   function imprimirRecibo(lancamento: Lancamento, cliente: ClienteReceber) {
-    abrirModalRecibo(cliente.nome, [lancamento]);
+    abrirModalRecibo(cliente.nome, [lancamento], cliente.clienteId);
   }
 
   function limparFiltros() {
@@ -3598,6 +3620,7 @@ function FinanceiroReceberConteudo() {
             open
             onClose={() => setReciboRecebimento(null)}
             clienteNome={reciboRecebimento.clienteNome}
+            clienteEndereco={reciboRecebimento.clienteEndereco}
             linhas={reciboRecebimento.linhas}
           />
         </Suspense>

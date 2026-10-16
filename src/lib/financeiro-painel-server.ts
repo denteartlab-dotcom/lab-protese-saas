@@ -99,6 +99,10 @@ async function listarClientesAtivosPainel(empresaId: string) {
       celular: true,
       telefone: true,
       email: true,
+      endereco: true,
+      cidade: true,
+      uf: true,
+      cep: true,
       observacoes: true,
     },
   });

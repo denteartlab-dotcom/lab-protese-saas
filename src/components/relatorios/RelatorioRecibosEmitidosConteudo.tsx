@@ -22,6 +22,7 @@ import {
   moneyRecibosEmitidos,
   type LancamentoReciboEmitido,
   type LinhaReciboEmitido,
+  type TrabalhoReciboEmitido,
 } from "@/lib/recibos-emitidos";
 import { cn } from "@/lib/utils";
 
@@ -52,15 +53,34 @@ export function RelatorioRecibosEmitidosConteudo() {
   const [linhasExibidas, setLinhasExibidas] = useState<LinhaReciboEmitido[]>([]);
   const [reciboImpressao, setReciboImpressao] = useState<{
     clienteNome: string;
+    clienteEndereco?: string;
     linhas: LinhaReciboEmitido["linhaRecibo"][];
   } | null>(null);
+  const [trabalhos, setTrabalhos] = useState<TrabalhoReciboEmitido[]>([]);
+  const [clientesCadastro, setClientesCadastro] = useState<
+    Array<{
+      id: string;
+      endereco?: string | null;
+      cidade?: string | null;
+      uf?: string | null;
+      cep?: string | null;
+    }>
+  >([]);
 
   const recarregar = useCallback(async () => {
     try {
-      const res = await fetch("/api/financeiro", { cache: "no-store" });
+      const [res, resClientes, resTrabalhos] = await Promise.all([
+        fetch("/api/financeiro", { cache: "no-store" }),
+        fetch("/api/clientes", { cache: "no-store" }),
+        fetch("/api/trabalhos", { cache: "no-store" }),
+      ]);
       const data = res.ok ? await res.json() : { lancamentos: [] };
       const lista = Array.isArray(data?.lancamentos) ? data.lancamentos : [];
       setLancamentos(lista as LancamentoReciboEmitido[]);
+      const clientesJson = resClientes.ok ? await resClientes.json() : [];
+      setClientesCadastro(Array.isArray(clientesJson) ? clientesJson : []);
+      const trabalhosJson = resTrabalhos.ok ? await resTrabalhos.json() : [];
+      setTrabalhos(Array.isArray(trabalhosJson) ? (trabalhosJson as TrabalhoReciboEmitido[]) : []);
     } catch {
       setLancamentos([]);
     }
@@ -83,11 +103,16 @@ export function RelatorioRecibosEmitidosConteudo() {
   );
 
   function gerarRelatorio() {
-    const linhas = filtrarRecibosEmitidos(lancamentos, {
-      clienteId,
-      dataInicio,
-      dataFim,
-    });
+    const extra = { trabalhos, clientes: clientesCadastro };
+    const linhas = filtrarRecibosEmitidos(
+      lancamentos,
+      {
+        clienteId,
+        dataInicio,
+        dataFim,
+      },
+      extra
+    );
     setLinhasExibidas(linhas);
     setGerado(true);
   }
@@ -95,7 +120,11 @@ export function RelatorioRecibosEmitidosConteudo() {
   function linhasParaPdf() {
     return gerado
       ? linhasExibidas
-      : filtrarRecibosEmitidos(lancamentos, { clienteId, dataInicio, dataFim });
+      : filtrarRecibosEmitidos(
+          lancamentos,
+          { clienteId, dataInicio, dataFim },
+          { trabalhos, clientes: clientesCadastro }
+        );
   }
 
   function imprimir() {
@@ -113,13 +142,18 @@ export function RelatorioRecibosEmitidosConteudo() {
   function exportarExcel() {
     const linhas = gerado
       ? linhasExibidas
-      : filtrarRecibosEmitidos(lancamentos, { clienteId, dataInicio, dataFim });
+      : filtrarRecibosEmitidos(
+          lancamentos,
+          { clienteId, dataInicio, dataFim },
+          { trabalhos, clientes: clientesCadastro }
+        );
     exportarRecibosEmitidosCsv(linhas);
   }
 
   function abrirReciboLinha(linha: LinhaReciboEmitido) {
     setReciboImpressao({
       clienteNome: linha.clienteNome,
+      clienteEndereco: linha.clienteEndereco,
       linhas: [linha.linhaRecibo],
     });
   }
@@ -270,6 +304,7 @@ export function RelatorioRecibosEmitidosConteudo() {
         open={Boolean(reciboImpressao)}
         onClose={() => setReciboImpressao(null)}
         clienteNome={reciboImpressao?.clienteNome ?? ""}
+        clienteEndereco={reciboImpressao?.clienteEndereco}
         linhas={reciboImpressao?.linhas ?? []}
       />
 
