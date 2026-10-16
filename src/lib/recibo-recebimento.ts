@@ -1,6 +1,7 @@
 import { carregarConfigLaboratorio } from "@/lib/configuracoes-lab";
 import { htmlCabecalhoLab, labImpressaoFromConfig } from "@/lib/lab-logo";
 import { dadosRodapeAssinaturaRecibo } from "@/lib/recibo-assinatura-lab";
+import type { PacienteRecibo } from "@/lib/recibo-pacientes-fatura";
 import { formatDate } from "@/lib/utils";
 
 export type ModeloReciboRecebimento = "simples" | "detalhado";
@@ -13,6 +14,7 @@ export type LinhaReciboRecebimento = {
   referencia?: string | null;
   descricao?: string;
   numeroFatura: number;
+  pacientes?: PacienteRecibo[];
 };
 
 function moneyBr(value: number) {
@@ -26,22 +28,38 @@ function currencyBr(value: number) {
   return `R$ ${moneyBr(value)}`;
 }
 
+function escapeHtml(texto: string) {
+  return texto
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+export function agregarPacientesDasLinhas(linhas: LinhaReciboRecebimento[]) {
+  const mapa = new Map<string, number>();
+  for (const linha of linhas) {
+    for (const paciente of linha.pacientes || []) {
+      const nome = paciente.nome.trim() || "—";
+      mapa.set(nome, (mapa.get(nome) || 0) + paciente.valor);
+    }
+  }
+  return [...mapa.entries()]
+    .map(([nome, valor]) => ({ nome, valor }))
+    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+}
+
+export function dataRecebimentoDasLinhas(linhas: LinhaReciboRecebimento[]) {
+  const datas = linhas.map((l) => l.data).filter(Boolean).sort();
+  return datas[datas.length - 1] || "";
+}
+
 /** Forma de pagamento + referência na mesma linha (ex.: PIX EXTERNO    Adiantamento). */
 export function textoFormaPagamentoRecibo(linha: LinhaReciboRecebimento) {
   const forma = (linha.formaPagamento || "Pix Externo").toUpperCase();
   const referencia = (linha.referencia || "").trim();
   if (!referencia) return forma;
   return `${forma}    ${referencia}`;
-}
-
-function dataPorExtenso(value: string | Date) {
-  const date = typeof value === "string" ? new Date(value) : value;
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
 }
 
 function estilosRecibo() {
@@ -65,14 +83,20 @@ function estilosRecibo() {
     .sign-line{border-top:1px solid #444;width:100%;margin:0;height:0}
     .sign-name{margin-top:10px;font-size:12px}
     .sign-cnpj{margin-top:8px;font-size:11px;color:#444}
+    .endereco{margin:4px 0 14px 0;color:#444;font-size:11px;line-height:1.4}
+    .pacientes-title{margin:18px 0 8px;font-weight:bold}
+    .table-pacientes{width:88%;margin:8px auto 0;border-collapse:collapse;font-size:11px}
+    .table-pacientes th,.table-pacientes td{border-bottom:1px solid #e5e7eb;padding:7px;text-align:left}
+    .table-pacientes td.valor,.table-pacientes th.valor{text-align:right}
+    .table-pacientes .total td{font-weight:bold;border-top:1px solid #222;border-bottom:none}
     @media print{body{padding:0}.page{max-width:none}}
   `;
 }
 
-function rodapeRecibo() {
+function rodapeRecibo(dataRecebimento?: string) {
   const labCfg = carregarConfigLaboratorio();
   const lab = labImpressaoFromConfig();
-  const rodape = dadosRodapeAssinaturaRecibo(labCfg, lab);
+  const rodape = dadosRodapeAssinaturaRecibo(labCfg, lab, dataRecebimento);
   const imgAssinatura = rodape.assinaturaDataUrl
     ? `<img src="${rodape.assinaturaDataUrl}" alt="Assinatura" class="sign-img"/>`
     : "";
@@ -94,6 +118,7 @@ export function gerarReciboRecebimentoHtml(
   modelo: ModeloReciboRecebimento,
   opts: {
     clienteNome: string;
+    clienteEndereco?: string;
     linhas: LinhaReciboRecebimento[];
   }
 ) {
@@ -101,6 +126,7 @@ export function gerarReciboRecebimentoHtml(
   const valorTotal = currencyBr(total);
   const lab = labImpressaoFromConfig();
   const cabecalhoRecibo = htmlCabecalhoLab(lab, { largura: 70, altura: 55 });
+  const dataRecebimento = dataRecebimentoDasLinhas(opts.linhas);
 
   const linhasTabela =
     modelo === "detalhado"
@@ -126,6 +152,26 @@ export function gerarReciboRecebimentoHtml(
       ? `Recebimento da fatura nº ${opts.linhas[0].numeroFatura}.`
       : `Recebimento de ${opts.linhas.length} cobranças descritas abaixo:`;
 
+  const pacientes =
+    modelo === "detalhado" ? agregarPacientesDasLinhas(opts.linhas) : [];
+  const blocoPacientes =
+    pacientes.length > 0
+      ? `
+        <div class="pacientes-title">Pacientes</div>
+        <table class="table-pacientes">
+          <thead><tr><th>Paciente</th><th class="valor">Valor</th></tr></thead>
+          <tbody>
+            ${pacientes
+              .map(
+                (p) =>
+                  `<tr><td>${escapeHtml(p.nome)}</td><td class="valor">${currencyBr(p.valor)}</td></tr>`
+              )
+              .join("")}
+            <tr class="total"><td>Total</td><td class="valor">${valorTotal}</td></tr>
+          </tbody>
+        </table>`
+      : "";
+
   const blocoTabela =
     modelo === "detalhado"
       ? `
@@ -134,6 +180,7 @@ export function gerarReciboRecebimentoHtml(
           <thead><tr><th>Forma Pagamento</th><th>Valor</th></tr></thead>
           <tbody>${linhasTabela}</tbody>
         </table>
+        ${blocoPacientes}
         <p>e para clareza firmo o presente.</p>`
       : `<div class="line"><strong>Referente a:</strong> ${referente}</div>
         <p>e para clareza firmo o presente.</p>`;
@@ -143,10 +190,11 @@ export function gerarReciboRecebimentoHtml(
       <div class="top">${cabecalhoRecibo}</div>
       <div class="title">RECIBO</div>
       <div class="amount">${valorTotal}</div>
-      <div class="line"><strong>Recebi de:</strong> ${opts.clienteNome}</div>
+      <div class="line"><strong>Recebi de:</strong> ${escapeHtml(opts.clienteNome)}</div>
+      ${opts.clienteEndereco ? `<div class="endereco">${escapeHtml(opts.clienteEndereco)}</div>` : ""}
       <div class="line"><strong>A quantia de:</strong> ${valorTotal}</div>
       ${blocoTabela}
-      ${rodapeRecibo()}
+      ${rodapeRecibo(dataRecebimento)}
     </div>
   </body></html>`;
 }

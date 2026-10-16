@@ -1,5 +1,11 @@
 import { dateToBrShort, parseBrDate } from "@/lib/datas-br";
 import { referenciaLancamento } from "@/lib/contas-receber-financeiro";
+import { trabalhosRelacionadosLancamentoFatura } from "@/lib/os-faturamento";
+import {
+  agregarPacientesRecibo,
+  formatarEnderecoClienteRecibo,
+  type TrabalhoReciboFatura,
+} from "@/lib/recibo-pacientes-fatura";
 import type { LinhaReciboRecebimento } from "@/lib/recibo-recebimento";
 
 export type LancamentoReciboEmitido = {
@@ -10,8 +16,23 @@ export type LancamentoReciboEmitido = {
   data: string;
   status: string;
   formaPagamento?: string | null;
-  cliente?: { id?: string; nome?: string | null } | null;
+  cliente?: {
+    id?: string;
+    nome?: string | null;
+    endereco?: string | null;
+    cidade?: string | null;
+    uf?: string | null;
+    cep?: string | null;
+  } | null;
   trabalho?: { id?: string; numeroOs?: number | null } | null;
+};
+
+export type TrabalhoReciboEmitido = TrabalhoReciboFatura & {
+  id: string;
+  numeroOs: number;
+  clienteId?: string | null;
+  cliente?: { id?: string | null } | null;
+  descricao?: string;
 };
 
 export type FiltrosRecibosEmitidos = {
@@ -29,6 +50,7 @@ export type LinhaReciboEmitido = {
   valor: number;
   lancamento: LancamentoReciboEmitido;
   linhaRecibo: LinhaReciboRecebimento;
+  clienteEndereco: string;
 };
 
 export function moneyRecibosEmitidos(value: number) {
@@ -58,7 +80,17 @@ function lancamentoNoPeriodo(dataIso: string, inicio: Date | null, fim: Date | n
 
 export function filtrarRecibosEmitidos(
   lancamentos: LancamentoReciboEmitido[],
-  filtros: FiltrosRecibosEmitidos
+  filtros: FiltrosRecibosEmitidos,
+  extra?: {
+    trabalhos?: TrabalhoReciboEmitido[];
+    clientes?: Array<{
+      id: string;
+      endereco?: string | null;
+      cidade?: string | null;
+      uf?: string | null;
+      cep?: string | null;
+    }>;
+  }
 ): LinhaReciboEmitido[] {
   const inicio = filtros.dataInicio ? parseBrDate(filtros.dataInicio) : null;
   const fim = filtros.dataFim ? parseBrDate(filtros.dataFim) : null;
@@ -81,6 +113,21 @@ export function filtrarRecibosEmitidos(
     }
 
     const data = new Date(l.data);
+    const trabalhosFatura = extra?.trabalhos?.length
+      ? trabalhosRelacionadosLancamentoFatura(
+          {
+            id: l.id,
+            status: l.status,
+            descricao: l.descricao,
+            trabalho: l.trabalho?.id
+              ? { id: l.trabalho.id, numeroOs: l.trabalho.numeroOs || 0 }
+              : null,
+            cliente: l.cliente?.id ? { id: l.cliente.id } : null,
+          },
+          extra.trabalhos
+        )
+      : [];
+    const cadastro = extra?.clientes?.find((c) => c.id === clienteId);
     const linhaRecibo: LinhaReciboRecebimento = {
       valor: l.valor,
       data: l.data,
@@ -109,6 +156,7 @@ export function filtrarRecibosEmitidos(
       ),
       descricao: l.descricao,
       numeroFatura: numeros.get(l.id) || 1,
+      pacientes: agregarPacientesRecibo(trabalhosFatura),
     };
 
     linhas.push({
@@ -120,6 +168,7 @@ export function filtrarRecibosEmitidos(
       valor: l.valor,
       lancamento: l,
       linhaRecibo,
+      clienteEndereco: formatarEnderecoClienteRecibo(cadastro || l.cliente),
     });
   }
 

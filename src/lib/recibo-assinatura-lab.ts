@@ -1,5 +1,6 @@
 import type { ConfigLaboratorio } from "@/lib/configuracoes-lab";
 import type { LabImpressaoConfig } from "@/lib/lab-impressao";
+import { normalizarTipoPessoaLab } from "@/lib/lab-nome-exibicao";
 
 function dataPorExtenso(value: Date) {
   return value.toLocaleDateString("pt-BR", {
@@ -7,6 +8,34 @@ function dataPorExtenso(value: Date) {
     month: "long",
     year: "numeric",
   });
+}
+
+function dataRecebimentoComoDate(value?: string | Date | null) {
+  if (!value) return new Date();
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? new Date() : value;
+  }
+  const texto = value.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(texto)) {
+    const [ano, mes, dia] = texto.split("-").map(Number);
+    return new Date(ano, mes - 1, dia, 12);
+  }
+  const parsed = new Date(texto);
+  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+}
+
+export function documentoAssinaturaLaboratorio(labCfg: ConfigLaboratorio) {
+  const tipo = normalizarTipoPessoaLab(labCfg.tipoPessoa);
+  const cpf = labCfg.cpf?.trim() || "";
+  const cnpj = labCfg.cnpj?.trim() || "";
+  if (tipo === "Física") {
+    if (cpf) return `CPF: ${cpf}`;
+    if (cnpj) return `CNPJ: ${cnpj}`;
+    return "";
+  }
+  if (cnpj) return `CNPJ: ${cnpj}`;
+  if (cpf) return `CPF: ${cpf}`;
+  return "";
 }
 
 /** Dimensões do canvas do editor de assinatura (espelhadas em AssinaturaReciboCampo). */
@@ -99,13 +128,14 @@ export const ASSINATURA_RECIBO_ALTURA_MM = 22;
 
 export function dadosRodapeAssinaturaRecibo(
   labCfg: ConfigLaboratorio,
-  lab: LabImpressaoConfig
+  lab: LabImpressaoConfig,
+  dataRecebimento?: string | Date | null
 ): RodapeAssinaturaRecibo {
   return {
     cidade: cidadeReciboLaboratorio(labCfg, lab),
-    dataExtenso: dataPorExtenso(new Date()),
+    dataExtenso: dataPorExtenso(dataRecebimentoComoDate(dataRecebimento)),
     responsavel: lab.responsavel?.trim() || labCfg.responsavel?.trim() || "",
-    cnpj: labCfg.cnpj?.trim() ? `CNPJ: ${labCfg.cnpj.trim()}` : "",
+    cnpj: documentoAssinaturaLaboratorio(labCfg),
     assinaturaDataUrl: labCfg.assinaturaReciboDataUrl?.trim() || "",
   };
 }

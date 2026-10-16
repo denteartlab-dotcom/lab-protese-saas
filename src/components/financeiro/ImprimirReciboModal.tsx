@@ -22,6 +22,7 @@ type ImprimirReciboModalProps = {
   open: boolean;
   onClose: () => void;
   clienteNome: string;
+  clienteEndereco?: string;
   linhas: LinhaReciboRecebimento[];
 };
 
@@ -29,6 +30,7 @@ export function ImprimirReciboModal({
   open,
   onClose,
   clienteNome,
+  clienteEndereco,
   linhas,
 }: ImprimirReciboModalProps) {
   const { locale } = useI18n();
@@ -44,7 +46,13 @@ export function ImprimirReciboModal({
     const janela = prepararAbaPdf();
     const nomeArquivo = proximoNomeArquivoReciboPdf(clienteNome);
     void abrirPdfGerandoComNomeNaUrl(
-      () => gerarReciboRecebimentoPdf(modelo, { clienteNome, linhas, locale }),
+      () =>
+        gerarReciboRecebimentoPdf(modelo, {
+          clienteNome,
+          clienteEndereco,
+          linhas,
+          locale,
+        }),
       `Recibo — ${clienteNome}`,
       nomeArquivo,
       { janela }

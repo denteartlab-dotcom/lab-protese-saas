@@ -17,6 +17,8 @@ import {
 } from "@/lib/i18n/print-i18n";
 import type { Locale } from "@/lib/i18n";
 import {
+  agregarPacientesDasLinhas,
+  dataRecebimentoDasLinhas,
   textoFormaPagamentoRecibo,
   type LinhaReciboRecebimento,
   type ModeloReciboRecebimento,
@@ -30,6 +32,7 @@ export async function gerarReciboRecebimentoPdf(
   modelo: ModeloReciboRecebimento,
   opts: {
     clienteNome: string;
+    clienteEndereco?: string;
     linhas: LinhaReciboRecebimento[];
     locale?: Locale;
   }
@@ -62,7 +65,20 @@ export async function gerarReciboRecebimentoPdf(
   pdf.text(pl("print.recibo.recebiDe"), margin, y);
   pdf.setFont("helvetica", "bold");
   pdf.text(opts.clienteNome, margin + pdf.getTextWidth(pl("print.recibo.recebiDe") + " ") + 1, y);
-  y += 7;
+  y += 6;
+
+  if (opts.clienteEndereco?.trim()) {
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(9);
+    pdf.setTextColor(70, 70, 70);
+    const linhasEndereco = pdf.splitTextToSize(opts.clienteEndereco.trim(), pageW - margin * 2);
+    pdf.text(linhasEndereco, margin, y);
+    y += linhasEndereco.length * 4.2 + 3;
+    pdf.setTextColor(0, 0, 0);
+    pdf.setFontSize(11);
+  } else {
+    y += 1;
+  }
 
   pdf.setFont("helvetica", "normal");
   pdf.text(pl("print.recibo.quantia"), margin, y);
@@ -102,7 +118,38 @@ export async function gerarReciboRecebimentoPdf(
       pdf.text(valor, colX[1] + colW[1] - 2, y, { align: "right" });
       y += altura + 2;
     }
-    y += 4;
+    y += 6;
+
+    const pacientes = agregarPacientesDasLinhas(opts.linhas);
+    if (pacientes.length > 0) {
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(11);
+      pdf.text(pl("print.recibo.pacientes"), margin, y);
+      y += 6;
+      pdf.setFontSize(9);
+      pdf.text(pl("print.os.paciente"), colX[0] + 2, y);
+      pdf.text(pl("print.recibo.valor"), colX[1] + colW[1] - 2, y, { align: "right" });
+      y += 3;
+      pdf.setDrawColor(200, 200, 200);
+      pdf.line(margin, y, pageW - margin, y);
+      y += 5;
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(10);
+      for (const paciente of pacientes) {
+        const nomeLinhas = pdf.splitTextToSize(paciente.nome, colW[0] - 4);
+        pdf.text(nomeLinhas, colX[0] + 2, y);
+        pdf.text(currencyBr(paciente.valor), colX[1] + colW[1] - 2, y, { align: "right" });
+        y += Math.max(nomeLinhas.length * 4.5, 6);
+      }
+      y += 1;
+      pdf.setDrawColor(40, 40, 40);
+      pdf.line(margin, y, pageW - margin, y);
+      y += 5;
+      pdf.setFont("helvetica", "bold");
+      pdf.text(pl("print.recibo.total"), colX[0] + 2, y);
+      pdf.text(valorTotal, colX[1] + colW[1] - 2, y, { align: "right" });
+      y += 8;
+    }
   } else {
     const referente =
       opts.linhas.length === 1
@@ -119,7 +166,11 @@ export async function gerarReciboRecebimentoPdf(
 
   const labCfg = carregarConfigLaboratorio();
   const lab = labImpressaoFromConfig();
-  const rodape = dadosRodapeAssinaturaRecibo(labCfg, lab);
+  const rodape = dadosRodapeAssinaturaRecibo(
+    labCfg,
+    lab,
+    dataRecebimentoDasLinhas(opts.linhas)
+  );
   if (rodape.assinaturaDataUrl) {
     rodape.assinaturaDataUrl = await assinaturaReciboSemLinhaGuia(
       rodape.assinaturaDataUrl
