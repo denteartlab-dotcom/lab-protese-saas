@@ -13,7 +13,6 @@ import {
   ScanBarcode,
   User,
   Wallet,
-  X,
 } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
 import { DiariasColaboradoresModal } from "@/components/DiariasColaboradoresModal";
@@ -113,6 +112,8 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
   const [leitorAberto, setLeitorAberto] = useState(false);
   const [buscaPacienteAberta, setBuscaPacienteAberta] = useState(false);
   const [buscaPaciente, setBuscaPaciente] = useState("");
+  const [resultadosPaciente, setResultadosPaciente] = useState<TrabalhoModuloOs[]>([]);
+  const [buscandoPaciente, setBuscandoPaciente] = useState(false);
   const [grupoOs, setGrupoOs] = useState<TrabalhoModuloOs[]>([]);
   const [etapasOs, setEtapasOs] = useState<EtapaOsLinha[]>([]);
   const [etapasOk, setEtapasOk] = useState<Set<number>>(new Set());
@@ -299,19 +300,19 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
     if (!buscaPacienteAberta) return;
     const termo = buscaPaciente.trim();
     if (termo.length < 2) {
-      setResultadosOs([]);
+      setResultadosPaciente([]);
       return;
     }
     const timeout = window.setTimeout(async () => {
-      setBuscandoOs(true);
+      setBuscandoPaciente(true);
       try {
         const response = await fetch(`/api/trabalhos?q=${encodeURIComponent(termo)}`, {
           cache: "no-store",
         });
         const data = await response.json();
-        setResultadosOs(Array.isArray(data) ? data : []);
+        setResultadosPaciente(Array.isArray(data) ? data : []);
       } finally {
-        setBuscandoOs(false);
+        setBuscandoPaciente(false);
       }
     }, 250);
     return () => window.clearTimeout(timeout);
@@ -636,7 +637,8 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
                     className="inline-flex"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setLeitorAberto(true);
+                      setBuscaPacienteAberta(false);
+                      setLeitorAberto((aberto) => !aberto);
                     }}
                   >
                     <ScanBarcode className="h-[18px] w-[18px]" strokeWidth={2} />
@@ -646,15 +648,79 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
                 <button
                   type="button"
                   onClick={() => {
+                    setLeitorAberto(false);
                     setBuscaPaciente("");
-                    setBuscaPacienteAberta(true);
+                    setResultadosPaciente([]);
+                    setBuscaPacienteAberta((aberto) => !aberto);
                   }}
-                  className="inline-flex h-[38px] shrink-0 items-center gap-2 rounded border border-[#93c5fd] bg-white px-4 text-[13px] font-normal text-[#3b82f6] hover:bg-[#eff6ff]"
+                  className={cn(
+                    "inline-flex h-[38px] shrink-0 items-center gap-2 rounded border px-4 text-[13px] font-normal",
+                    buscaPacienteAberta
+                      ? "border-[#3b82f6] bg-[#eff6ff] text-[#1d4ed8]"
+                      : "border-[#93c5fd] bg-white text-[#3b82f6] hover:bg-[#eff6ff]"
+                  )}
+                  aria-pressed={buscaPacienteAberta}
                 >
                   <User className="h-4 w-4" strokeWidth={2} />
                   {t("producao.modulo.pesquisarPaciente")}
                 </button>
               </div>
+              {leitorAberto ? (
+                <div className="mt-3">
+                  <LeitorCodigoBarrasModal
+                    inline
+                    open={leitorAberto}
+                    onClose={() => setLeitorAberto(false)}
+                    onCodigoLido={(numero) => void buscarOrdemServico(numero)}
+                  />
+                </div>
+              ) : null}
+              {buscaPacienteAberta ? (
+                <div className="mt-3 rounded border border-[#e5e7eb] bg-[#f9fafb] p-3">
+                  <input
+                    value={buscaPaciente}
+                    onChange={(e) => setBuscaPaciente(e.target.value)}
+                    autoFocus
+                    placeholder={t("producao.modulo.buscaPacientePlaceholder")}
+                    className="h-[38px] w-full border border-[#d1d5db] bg-white px-3 text-[13px] outline-none focus:border-[#3b82f6]"
+                  />
+                  <div className="mt-2 max-h-56 space-y-2 overflow-y-auto">
+                    {buscaPaciente.trim().length < 2 ? (
+                      <p className="text-center text-[12px] text-[#9ca3af]">
+                        {t("shell.buscaPaciente.minChars")}
+                      </p>
+                    ) : null}
+                    {buscaPaciente.trim().length >= 2 && buscandoPaciente ? (
+                      <p className="text-center text-[12px] text-[#9ca3af]">
+                        {t("shell.buscaPaciente.buscando")}
+                      </p>
+                    ) : null}
+                    {buscaPaciente.trim().length >= 2 &&
+                    !buscandoPaciente &&
+                    resultadosPaciente.length === 0 ? (
+                      <p className="text-center text-[12px] text-[#9ca3af]">
+                        {t("shell.buscaPaciente.nenhumaOs")}
+                      </p>
+                    ) : null}
+                    {resultadosPaciente.map((trabalho) => (
+                      <button
+                        key={trabalho.id}
+                        type="button"
+                        onClick={() => {
+                          void selecionarOs(trabalho);
+                          setBuscaPacienteAberta(false);
+                        }}
+                        className="flex w-full items-center justify-between border border-[#e5e7eb] bg-white px-3 py-2 text-left text-[13px] hover:bg-[#eff6ff]"
+                      >
+                        <span>{trabalho.paciente?.nome || trabalho.cliente?.nome || "—"}</span>
+                        <span className="text-[12px] font-semibold text-[#3b82f6]">
+                          OS {trabalho.numeroOs}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               <div className="mt-3 grid min-w-0 grid-cols-1 items-end gap-2 sm:grid-cols-2 lg:grid-cols-4">
                 <Select
                   label={t("producao.comum.colaboradores")}
@@ -1210,61 +1276,9 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
         </div>
       </main>
 
-      {buscaPacienteAberta && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-28">
-          <div className="w-full max-w-md rounded border border-[#e5e7eb] bg-white shadow-lg">
-            <div className="flex items-center justify-between border-b border-[#e5e7eb] px-4 py-3">
-              <h2 className="text-[14px] font-semibold text-[#374151]">
-                {t("producao.modulo.pesquisarPaciente")}
-              </h2>
-              <button
-                type="button"
-                onClick={() => setBuscaPacienteAberta(false)}
-                aria-label={t("common.fechar")}
-              >
-                <X className="h-5 w-5 text-[#9ca3af]" />
-              </button>
-            </div>
-            <div className="space-y-3 p-4">
-              <input
-                value={buscaPaciente}
-                onChange={(e) => setBuscaPaciente(e.target.value)}
-                autoFocus
-                placeholder={t("producao.modulo.buscaPacientePlaceholder")}
-                className="h-[38px] w-full border border-[#d1d5db] px-3 text-[13px] outline-none focus:border-[#3b82f6]"
-              />
-              <div className="max-h-56 space-y-2 overflow-y-auto">
-                {resultadosOs.map((trabalho) => (
-                  <button
-                    key={trabalho.id}
-                    type="button"
-                    onClick={() => {
-                      selecionarOs(trabalho);
-                      setBuscaPacienteAberta(false);
-                    }}
-                    className="flex w-full items-center justify-between border border-[#e5e7eb] px-3 py-2 text-left text-[13px] hover:bg-[#eff6ff]"
-                  >
-                    <span>{trabalho.paciente?.nome || trabalho.cliente?.nome || "—"}</span>
-                    <span className="text-[12px] font-semibold text-[#3b82f6]">
-                      OS {trabalho.numeroOs}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       <DiariasColaboradoresModal
         open={diariasAberta}
         onClose={() => setDiariasAberta(false)}
-      />
-
-      <LeitorCodigoBarrasModal
-        open={leitorAberto}
-        onClose={() => setLeitorAberto(false)}
-        onCodigoLido={(numero) => void buscarOrdemServico(numero)}
       />
     </div>
   );

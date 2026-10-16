@@ -3,11 +3,11 @@
 **PRD:** §5.2 (Busca rápida OS), §12.1 (AppShell)  
 **Labels:** `otimizacao`, `fase-2`, `producao`  
 **Prioridade:** P2  
-**Status:** Parcial (API pronta — UI ainda empilha overlays)
+**Status:** Concluído (API + UI sem segundo overlay)
 
 ## Contexto
 
-`app-shell.tsx` abre modal grande de busca OS + opcionalmente `LeitorCodigoBarrasModal`. Múltiplas superfícies de ação no header.
+`app-shell.tsx` abre modal grande de busca OS. Leitor de código e busca por paciente ficavam em overlays extras (`z-[60]`).
 
 ## Objetivo
 
@@ -22,11 +22,12 @@
 - [x] UI usa `/api/trabalhos?q=` (payload completo para lançamentos/financeiro na busca)
 - [x] Modal central fullscreen mantido (decisão de produto)
 
-## Escopo — fase 2b (backlog restante)
+## Escopo — fase 2b (concluída)
 
-- [ ] Integrar `LeitorCodigoBarrasModal` **dentro** do modal de busca OS (toggle/seção, não segundo `fixed inset-0`)
-- [ ] Busca paciente no header: não abrir overlay `z-[60]` enquanto busca OS estiver aberta (fila ou desabilitar)
-- [ ] Garantir regra global: apenas 1 overlay `z-50+` ativo no shell por vez
+- [x] Integrar `LeitorCodigoBarrasModal` **dentro** do modal de busca OS (`inline`, sem segundo `fixed inset-0`)
+- [x] Busca paciente no mesmo modal (painel, não overlay `z-[60]`)
+- [x] Apenas 1 overlay `z-50+` ativo no shell da busca (leitor/paciente mutuamente exclusivos)
+- [x] Mesmo padrão no módulo de produção (sem empilhar leitor/paciente)
 - [ ] (Opcional) Migrar fetch para `/api/trabalhos/busca-rapida` quando payload enxuto bastar
 - [ ] (Opcional futuro) Reavaliar drawer se produto mudar de opinião
 
@@ -44,5 +45,6 @@
 
 - `src/components/app-shell.tsx` (buscaOsAberta)
 - `src/components/LeitorCodigoBarrasModal.tsx`
+- `src/components/ModuloProducaoColaborador.tsx`
 - `src/app/api/trabalhos/busca-rapida/route.ts`
 - Auditoria jul/2026: módulos sem issue → issues 031–036; shell permanece em 019
