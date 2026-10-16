@@ -131,13 +131,13 @@ export async function gerarReciboRecebimentoPdf(
     const pacientes = agregarPacientesDasLinhas(opts.linhas);
     if (pacientes.length > 0) {
       const util = pageW - margin * 2;
-      const wServico = util * 0.38;
       const wPaciente = util * 0.32;
+      const wServico = util * 0.38;
       const wQtd = util * 0.1;
       const wValor = util * 0.2;
-      const xServico = margin;
-      const xPaciente = xServico + wServico;
-      const xQtd = xPaciente + wPaciente;
+      const xPaciente = margin;
+      const xServico = xPaciente + wPaciente;
+      const xQtd = xServico + wServico;
       const xValor = xQtd + wQtd;
 
       pdf.setFont("helvetica", "bold");
@@ -145,8 +145,8 @@ export async function gerarReciboRecebimentoPdf(
       pdf.text(pl("print.recibo.pacientes"), margin, y);
       y += 6;
       pdf.setFontSize(9);
-      pdf.text(pl("print.recibo.servico"), xServico + 2, y);
       pdf.text(pl("print.os.paciente"), xPaciente + 2, y);
+      pdf.text(pl("print.recibo.servico"), xServico + 2, y);
       pdf.text(pl("print.recibo.qtd"), xQtd + wQtd - 2, y, { align: "right" });
       pdf.text(pl("print.recibo.valor"), xValor + wValor - 2, y, { align: "right" });
       y += 3;
@@ -156,11 +156,11 @@ export async function gerarReciboRecebimentoPdf(
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(10);
       for (const paciente of pacientes) {
-        const servicoLinhas = pdf.splitTextToSize(paciente.servico, wServico - 4);
         const nomeLinhas = pdf.splitTextToSize(paciente.nome, wPaciente - 4);
+        const servicoLinhas = pdf.splitTextToSize(paciente.servico, wServico - 4);
         const altura = Math.max(servicoLinhas.length, nomeLinhas.length) * 4.5;
-        pdf.text(servicoLinhas, xServico + 2, y);
         pdf.text(nomeLinhas, xPaciente + 2, y);
+        pdf.text(servicoLinhas, xServico + 2, y);
         pdf.text(formatarQtdRecibo(paciente.quantidade), xQtd + wQtd - 2, y, { align: "right" });
         pdf.text(currencyBr(paciente.valor), xValor + wValor - 2, y, { align: "right" });
         y += Math.max(altura, 6);
@@ -170,7 +170,7 @@ export async function gerarReciboRecebimentoPdf(
       pdf.line(margin, y, pageW - margin, y);
       y += 5;
       pdf.setFont("helvetica", "bold");
-      pdf.text(pl("print.recibo.total"), xServico + 2, y);
+      pdf.text(pl("print.recibo.total"), xPaciente + 2, y);
       pdf.text(valorTotal, xValor + wValor - 2, y, { align: "right" });
       y += 8;
     }

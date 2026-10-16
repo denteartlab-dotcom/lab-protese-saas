@@ -178,12 +178,12 @@ export function gerarReciboRecebimentoHtml(
       ? `
         <div class="pacientes-title">Pacientes</div>
         <table class="table-pacientes">
-          <thead><tr><th>Serviço</th><th>Paciente</th><th class="qtd">Qtd</th><th class="valor">Valor</th></tr></thead>
+          <thead><tr><th>Paciente</th><th>Serviço</th><th class="qtd">Qtd</th><th class="valor">Valor</th></tr></thead>
           <tbody>
             ${pacientes
               .map(
                 (p) =>
-                  `<tr><td>${escapeHtml(p.servico)}</td><td>${escapeHtml(p.nome)}</td><td class="qtd">${formatarQtdRecibo(p.quantidade)}</td><td class="valor">${currencyBr(p.valor)}</td></tr>`
+                  `<tr><td>${escapeHtml(p.nome)}</td><td>${escapeHtml(p.servico)}</td><td class="qtd">${formatarQtdRecibo(p.quantidade)}</td><td class="valor">${currencyBr(p.valor)}</td></tr>`
               )
               .join("")}
             <tr class="total"><td colspan="3">Total</td><td class="valor">${valorTotal}</td></tr>
