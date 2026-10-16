@@ -54,6 +54,7 @@ export function RelatorioRecibosEmitidosConteudo() {
   const [reciboImpressao, setReciboImpressao] = useState<{
     clienteNome: string;
     clienteEndereco?: string;
+    clienteDocumento?: string;
     linhas: LinhaReciboEmitido["linhaRecibo"][];
   } | null>(null);
   const [trabalhos, setTrabalhos] = useState<TrabalhoReciboEmitido[]>([]);
@@ -64,6 +65,7 @@ export function RelatorioRecibosEmitidosConteudo() {
       cidade?: string | null;
       uf?: string | null;
       cep?: string | null;
+      cnpjCpf?: string | null;
     }>
   >([]);
 
@@ -154,6 +156,7 @@ export function RelatorioRecibosEmitidosConteudo() {
     setReciboImpressao({
       clienteNome: linha.clienteNome,
       clienteEndereco: linha.clienteEndereco,
+      clienteDocumento: linha.clienteDocumento,
       linhas: [linha.linhaRecibo],
     });
   }
@@ -305,6 +308,7 @@ export function RelatorioRecibosEmitidosConteudo() {
         onClose={() => setReciboImpressao(null)}
         clienteNome={reciboImpressao?.clienteNome ?? ""}
         clienteEndereco={reciboImpressao?.clienteEndereco}
+        clienteDocumento={reciboImpressao?.clienteDocumento}
         linhas={reciboImpressao?.linhas ?? []}
       />
 

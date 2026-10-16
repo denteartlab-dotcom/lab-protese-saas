@@ -16,6 +16,7 @@ import {
   resolverLocaleImpressao,
 } from "@/lib/i18n/print-i18n";
 import type { Locale } from "@/lib/i18n";
+import { formatarQtdRecibo } from "@/lib/recibo-pacientes-fatura";
 import {
   agregarPacientesDasLinhas,
   dataRecebimentoDasLinhas,
@@ -33,6 +34,7 @@ export async function gerarReciboRecebimentoPdf(
   opts: {
     clienteNome: string;
     clienteEndereco?: string;
+    clienteDocumento?: string;
     linhas: LinhaReciboRecebimento[];
     locale?: Locale;
   }
@@ -67,13 +69,19 @@ export async function gerarReciboRecebimentoPdf(
   pdf.text(opts.clienteNome, margin + pdf.getTextWidth(pl("print.recibo.recebiDe") + " ") + 1, y);
   y += 6;
 
-  if (opts.clienteEndereco?.trim()) {
+  const dadosCliente = [opts.clienteDocumento?.trim(), opts.clienteEndereco?.trim()].filter(
+    Boolean
+  ) as string[];
+  if (dadosCliente.length > 0) {
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(9);
     pdf.setTextColor(70, 70, 70);
-    const linhasEndereco = pdf.splitTextToSize(opts.clienteEndereco.trim(), pageW - margin * 2);
-    pdf.text(linhasEndereco, margin, y);
-    y += linhasEndereco.length * 4.2 + 3;
+    for (const linha of dadosCliente) {
+      const partes = pdf.splitTextToSize(linha, pageW - margin * 2);
+      pdf.text(partes, margin, y);
+      y += partes.length * 4.2;
+    }
+    y += 3;
     pdf.setTextColor(0, 0, 0);
     pdf.setFontSize(11);
   } else {
@@ -122,13 +130,25 @@ export async function gerarReciboRecebimentoPdf(
 
     const pacientes = agregarPacientesDasLinhas(opts.linhas);
     if (pacientes.length > 0) {
+      const util = pageW - margin * 2;
+      const wServico = util * 0.38;
+      const wPaciente = util * 0.32;
+      const wQtd = util * 0.1;
+      const wValor = util * 0.2;
+      const xServico = margin;
+      const xPaciente = xServico + wServico;
+      const xQtd = xPaciente + wPaciente;
+      const xValor = xQtd + wQtd;
+
       pdf.setFont("helvetica", "bold");
       pdf.setFontSize(11);
       pdf.text(pl("print.recibo.pacientes"), margin, y);
       y += 6;
       pdf.setFontSize(9);
-      pdf.text(pl("print.os.paciente"), colX[0] + 2, y);
-      pdf.text(pl("print.recibo.valor"), colX[1] + colW[1] - 2, y, { align: "right" });
+      pdf.text(pl("print.recibo.servico"), xServico + 2, y);
+      pdf.text(pl("print.os.paciente"), xPaciente + 2, y);
+      pdf.text(pl("print.recibo.qtd"), xQtd + wQtd - 2, y, { align: "right" });
+      pdf.text(pl("print.recibo.valor"), xValor + wValor - 2, y, { align: "right" });
       y += 3;
       pdf.setDrawColor(200, 200, 200);
       pdf.line(margin, y, pageW - margin, y);
@@ -136,18 +156,22 @@ export async function gerarReciboRecebimentoPdf(
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(10);
       for (const paciente of pacientes) {
-        const nomeLinhas = pdf.splitTextToSize(paciente.nome, colW[0] - 4);
-        pdf.text(nomeLinhas, colX[0] + 2, y);
-        pdf.text(currencyBr(paciente.valor), colX[1] + colW[1] - 2, y, { align: "right" });
-        y += Math.max(nomeLinhas.length * 4.5, 6);
+        const servicoLinhas = pdf.splitTextToSize(paciente.servico, wServico - 4);
+        const nomeLinhas = pdf.splitTextToSize(paciente.nome, wPaciente - 4);
+        const altura = Math.max(servicoLinhas.length, nomeLinhas.length) * 4.5;
+        pdf.text(servicoLinhas, xServico + 2, y);
+        pdf.text(nomeLinhas, xPaciente + 2, y);
+        pdf.text(formatarQtdRecibo(paciente.quantidade), xQtd + wQtd - 2, y, { align: "right" });
+        pdf.text(currencyBr(paciente.valor), xValor + wValor - 2, y, { align: "right" });
+        y += Math.max(altura, 6);
       }
       y += 1;
       pdf.setDrawColor(40, 40, 40);
       pdf.line(margin, y, pageW - margin, y);
       y += 5;
       pdf.setFont("helvetica", "bold");
-      pdf.text(pl("print.recibo.total"), colX[0] + 2, y);
-      pdf.text(valorTotal, colX[1] + colW[1] - 2, y, { align: "right" });
+      pdf.text(pl("print.recibo.total"), xServico + 2, y);
+      pdf.text(valorTotal, xValor + wValor - 2, y, { align: "right" });
       y += 8;
     }
   } else {

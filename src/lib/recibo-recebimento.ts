@@ -1,7 +1,10 @@
 import { carregarConfigLaboratorio } from "@/lib/configuracoes-lab";
 import { htmlCabecalhoLab, labImpressaoFromConfig } from "@/lib/lab-logo";
 import { dadosRodapeAssinaturaRecibo } from "@/lib/recibo-assinatura-lab";
-import type { PacienteRecibo } from "@/lib/recibo-pacientes-fatura";
+import {
+  formatarQtdRecibo,
+  type PacienteRecibo,
+} from "@/lib/recibo-pacientes-fatura";
 import { formatDate } from "@/lib/utils";
 
 export type ModeloReciboRecebimento = "simples" | "detalhado";
@@ -37,16 +40,31 @@ function escapeHtml(texto: string) {
 }
 
 export function agregarPacientesDasLinhas(linhas: LinhaReciboRecebimento[]) {
-  const mapa = new Map<string, number>();
+  const mapa = new Map<string, PacienteRecibo>();
   for (const linha of linhas) {
     for (const paciente of linha.pacientes || []) {
       const nome = paciente.nome.trim() || "—";
-      mapa.set(nome, (mapa.get(nome) || 0) + paciente.valor);
+      const servico = paciente.servico?.trim() || "—";
+      const chave = `${nome}\0${servico}`;
+      const atual = mapa.get(chave);
+      if (atual) {
+        atual.quantidade += paciente.quantidade || 1;
+        atual.valor += paciente.valor;
+      } else {
+        mapa.set(chave, {
+          nome,
+          servico,
+          quantidade: paciente.quantidade || 1,
+          valor: paciente.valor,
+        });
+      }
     }
   }
-  return [...mapa.entries()]
-    .map(([nome, valor]) => ({ nome, valor }))
-    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  return [...mapa.values()].sort(
+    (a, b) =>
+      a.nome.localeCompare(b.nome, "pt-BR") ||
+      a.servico.localeCompare(b.servico, "pt-BR")
+  );
 }
 
 export function dataRecebimentoDasLinhas(linhas: LinhaReciboRecebimento[]) {
@@ -87,7 +105,7 @@ function estilosRecibo() {
     .pacientes-title{margin:18px 0 8px;font-weight:bold}
     .table-pacientes{width:88%;margin:8px auto 0;border-collapse:collapse;font-size:11px}
     .table-pacientes th,.table-pacientes td{border-bottom:1px solid #e5e7eb;padding:7px;text-align:left}
-    .table-pacientes td.valor,.table-pacientes th.valor{text-align:right}
+    .table-pacientes td.valor,.table-pacientes th.valor,.table-pacientes td.qtd,.table-pacientes th.qtd{text-align:right}
     .table-pacientes .total td{font-weight:bold;border-top:1px solid #222;border-bottom:none}
     @media print{body{padding:0}.page{max-width:none}}
   `;
@@ -119,6 +137,7 @@ export function gerarReciboRecebimentoHtml(
   opts: {
     clienteNome: string;
     clienteEndereco?: string;
+    clienteDocumento?: string;
     linhas: LinhaReciboRecebimento[];
   }
 ) {
@@ -159,15 +178,15 @@ export function gerarReciboRecebimentoHtml(
       ? `
         <div class="pacientes-title">Pacientes</div>
         <table class="table-pacientes">
-          <thead><tr><th>Paciente</th><th class="valor">Valor</th></tr></thead>
+          <thead><tr><th>Serviço</th><th>Paciente</th><th class="qtd">Qtd</th><th class="valor">Valor</th></tr></thead>
           <tbody>
             ${pacientes
               .map(
                 (p) =>
-                  `<tr><td>${escapeHtml(p.nome)}</td><td class="valor">${currencyBr(p.valor)}</td></tr>`
+                  `<tr><td>${escapeHtml(p.servico)}</td><td>${escapeHtml(p.nome)}</td><td class="qtd">${formatarQtdRecibo(p.quantidade)}</td><td class="valor">${currencyBr(p.valor)}</td></tr>`
               )
               .join("")}
-            <tr class="total"><td>Total</td><td class="valor">${valorTotal}</td></tr>
+            <tr class="total"><td colspan="3">Total</td><td class="valor">${valorTotal}</td></tr>
           </tbody>
         </table>`
       : "";
@@ -191,6 +210,7 @@ export function gerarReciboRecebimentoHtml(
       <div class="title">RECIBO</div>
       <div class="amount">${valorTotal}</div>
       <div class="line"><strong>Recebi de:</strong> ${escapeHtml(opts.clienteNome)}</div>
+      ${opts.clienteDocumento ? `<div class="endereco">${escapeHtml(opts.clienteDocumento)}</div>` : ""}
       ${opts.clienteEndereco ? `<div class="endereco">${escapeHtml(opts.clienteEndereco)}</div>` : ""}
       <div class="line"><strong>A quantia de:</strong> ${valorTotal}</div>
       ${blocoTabela}

@@ -117,6 +117,7 @@ import { gerarRelatorioTabelaPdf } from "@/lib/pdf-relatorio-tabela";
 import type { LinhaReciboRecebimento } from "@/lib/recibo-recebimento";
 import {
   agregarPacientesRecibo,
+  formatarDocumentoClienteRecibo,
   formatarEnderecoClienteRecibo,
 } from "@/lib/recibo-pacientes-fatura";
 import { empacotarReceitaConta, descricaoReceitaSemMeta } from "@/lib/receita-conta-bancaria";
@@ -155,6 +156,7 @@ type Cliente = {
   cro?: string | null;
   celular?: string | null;
   telefone?: string | null;
+  cnpjCpf?: string | null;
   endereco?: string | null;
   cidade?: string | null;
   uf?: string | null;
@@ -381,6 +383,7 @@ function FinanceiroReceberConteudo() {
   const [reciboRecebimento, setReciboRecebimento] = useState<{
     clienteNome: string;
     clienteEndereco?: string;
+    clienteDocumento?: string;
     linhas: LinhaReciboRecebimento[];
   } | null>(null);
   const [pixAsaasDisponivel, setPixAsaasDisponivel] = useState(false);
@@ -2470,10 +2473,9 @@ function FinanceiroReceberConteudo() {
     }));
   }
 
-  function enderecoClienteRecibo(clienteId?: string | null) {
-    if (!clienteId) return "";
-    const cadastro = clientes.find((c) => c.id === clienteId);
-    return formatarEnderecoClienteRecibo(cadastro);
+  function cadastroClienteRecibo(clienteId?: string | null) {
+    if (!clienteId) return undefined;
+    return clientes.find((c) => c.id === clienteId);
   }
 
   function abrirModalRecibo(
@@ -2483,9 +2485,11 @@ function FinanceiroReceberConteudo() {
   ) {
     if (lancamentos.length === 0) return;
     const clienteId = clienteIdInformado || lancamentos[0]?.cliente?.id;
+    const cadastro = cadastroClienteRecibo(clienteId);
     setReciboRecebimento({
       clienteNome,
-      clienteEndereco: enderecoClienteRecibo(clienteId),
+      clienteEndereco: formatarEnderecoClienteRecibo(cadastro),
+      clienteDocumento: formatarDocumentoClienteRecibo(cadastro?.cnpjCpf),
       linhas: linhasReciboDeLancamentos(lancamentos),
     });
   }
@@ -3621,6 +3625,7 @@ function FinanceiroReceberConteudo() {
             onClose={() => setReciboRecebimento(null)}
             clienteNome={reciboRecebimento.clienteNome}
             clienteEndereco={reciboRecebimento.clienteEndereco}
+            clienteDocumento={reciboRecebimento.clienteDocumento}
             linhas={reciboRecebimento.linhas}
           />
         </Suspense>

@@ -86,6 +86,7 @@ export type PainelFinanceiroReceita = {
     celular: string | null;
     telefone: string | null;
     email: string | null;
+    cnpjCpf?: string | null;
     endereco?: string | null;
     cidade?: string | null;
     uf?: string | null;

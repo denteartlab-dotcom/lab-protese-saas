@@ -3,6 +3,7 @@ import { referenciaLancamento } from "@/lib/contas-receber-financeiro";
 import { trabalhosRelacionadosLancamentoFatura } from "@/lib/os-faturamento";
 import {
   agregarPacientesRecibo,
+  formatarDocumentoClienteRecibo,
   formatarEnderecoClienteRecibo,
   type TrabalhoReciboFatura,
 } from "@/lib/recibo-pacientes-fatura";
@@ -23,6 +24,7 @@ export type LancamentoReciboEmitido = {
     cidade?: string | null;
     uf?: string | null;
     cep?: string | null;
+    cnpjCpf?: string | null;
   } | null;
   trabalho?: { id?: string; numeroOs?: number | null } | null;
 };
@@ -51,6 +53,7 @@ export type LinhaReciboEmitido = {
   lancamento: LancamentoReciboEmitido;
   linhaRecibo: LinhaReciboRecebimento;
   clienteEndereco: string;
+  clienteDocumento: string;
 };
 
 export function moneyRecibosEmitidos(value: number) {
@@ -89,6 +92,7 @@ export function filtrarRecibosEmitidos(
       cidade?: string | null;
       uf?: string | null;
       cep?: string | null;
+      cnpjCpf?: string | null;
     }>;
   }
 ): LinhaReciboEmitido[] {
@@ -169,6 +173,9 @@ export function filtrarRecibosEmitidos(
       lancamento: l,
       linhaRecibo,
       clienteEndereco: formatarEnderecoClienteRecibo(cadastro || l.cliente),
+      clienteDocumento: formatarDocumentoClienteRecibo(
+        cadastro?.cnpjCpf || l.cliente?.cnpjCpf
+      ),
     });
   }
 

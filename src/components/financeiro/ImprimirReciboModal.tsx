@@ -23,6 +23,7 @@ type ImprimirReciboModalProps = {
   onClose: () => void;
   clienteNome: string;
   clienteEndereco?: string;
+  clienteDocumento?: string;
   linhas: LinhaReciboRecebimento[];
 };
 
@@ -31,6 +32,7 @@ export function ImprimirReciboModal({
   onClose,
   clienteNome,
   clienteEndereco,
+  clienteDocumento,
   linhas,
 }: ImprimirReciboModalProps) {
   const { locale } = useI18n();
@@ -50,6 +52,7 @@ export function ImprimirReciboModal({
         gerarReciboRecebimentoPdf(modelo, {
           clienteNome,
           clienteEndereco,
+          clienteDocumento,
           linhas,
           locale,
         }),

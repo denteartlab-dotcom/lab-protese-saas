@@ -99,6 +99,7 @@ async function listarClientesAtivosPainel(empresaId: string) {
       celular: true,
       telefone: true,
       email: true,
+      cnpjCpf: true,
       endereco: true,
       cidade: true,
       uf: true,
