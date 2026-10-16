@@ -34,7 +34,7 @@
 | 012 | Concluído | import Excel async clientes + fornecedores via jobs |
 | 015 | Concluído | PDF DRE e fluxo de caixa via job + visualizador único |
 | 010 | Parcial | Fase 2a ok (recibo/fatura/extrato); fase 2b: despesas, SNC, extrato bancário, anexos |
-| 019 | Parcial | API busca-rapida ok; fase 2b: leitor código inline, evitar empilhar busca paciente |
+| 019 | Concluído | Leitor e busca paciente inline no modal de OS; módulo de produção sem segundo overlay |
 | 002 | Concluído | `JobExecucao`, `lib/jobs/`, `/api/jobs` |
 | 006 | Concluído | `/api/dashboard?escopo=core|secundario`; widgets secundários lazy no início |
 | 017 | Concluído | `/api/lab/bootstrap`, cache 60s, `lab-bootstrap-cliente.ts`, invalidação central |

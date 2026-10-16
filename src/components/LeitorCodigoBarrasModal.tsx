@@ -1,11 +1,11 @@
 "use client";
 
-import { I18nPortal } from "@/components/I18nPortal";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ScanBarcode } from "lucide-react";
 import { Modal } from "@/components/ui";
 import { extrairNumeroOsCodigo } from "@/lib/codigo-barras-os";
 import { useEntradaLeitorCodigo } from "@/hooks/use-entrada-leitor-codigo-barras";
+import { cn } from "@/lib/utils";
 
 type BarcodeDetectorLike = {
   detect: (source: ImageBitmapSource) => Promise<Array<{ rawValue: string }>>;
@@ -15,9 +15,16 @@ type Props = {
   open: boolean;
   onClose: () => void;
   onCodigoLido: (numeroOs: string, bruto?: string) => void;
+  /** Renderiza no fluxo atual, sem segundo overlay. */
+  inline?: boolean;
 };
 
-export function LeitorCodigoBarrasModal({ open, onClose, onCodigoLido }: Props) {
+export function LeitorCodigoBarrasModal({
+  open,
+  onClose,
+  onCodigoLido,
+  inline = false,
+}: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [valor, setValor] = useState("");
@@ -139,10 +146,121 @@ export function LeitorCodigoBarrasModal({ open, onClose, onCodigoLido }: Props) 
     return () => {
       ativo = false;
       window.cancelAnimationFrame(frame);
-      stream?.getTracks().forEach((track) => track.stop());
+      stream?.getTracks().forEach((track) => stopTrack(track));
       if (videoRef.current) videoRef.current.srcObject = null;
     };
   }, [open, cameraAtiva, suportaCamera, confirmarLeitura]);
+
+  if (!open && inline) return null;
+
+  const corpo = (
+    <div className={cn("space-y-3 text-[13px] text-slate-600", inline && "p-3")}>
+      <div className="flex flex-col items-center rounded-lg border border-dashed border-blue-200 bg-blue-50/60 px-4 py-4">
+        <ScanBarcode className={cn("text-blue-600", inline ? "h-10 w-10" : "h-14 w-14")} strokeWidth={1.5} />
+        <p className="mt-2 text-center text-[12px] leading-relaxed text-slate-600">
+          Passe o leitor na etiqueta da OS. Formatos aceitos: <strong>OS7</strong>,{" "}
+          <strong>*OS7*</strong> ou só o número.
+        </p>
+        {leitorUsbAtivo && (
+          <p className="mt-2 text-[11px] font-semibold text-emerald-600">
+            Leitor USB detectado — aguardando código...
+          </p>
+        )}
+        {codigoLido && (
+          <p className="mt-2 text-[12px] font-semibold text-blue-700">
+            Código lido: OS {codigoLido} — buscando ordem de serviço...
+          </p>
+        )}
+        {codigoInvalido && !codigoLido && (
+          <p className="mt-2 text-[12px] font-semibold text-amber-700">
+            Código não reconhecido: {codigoInvalido}
+          </p>
+        )}
+        {!codigoLido && !codigoInvalido && ultimoBruto && (
+          <p className="mt-2 text-[11px] text-slate-500">Lido: {ultimoBruto}</p>
+        )}
+      </div>
+
+      <div className="space-y-1">
+        <label className="block text-[11px] font-medium text-slate-500">Código lido</label>
+        <input
+          ref={inputRef}
+          value={valor}
+          onChange={(e) => onChange(e, setValor)}
+          onInput={(e) => onInput(e, setValor)}
+          onKeyDown={(e) => onKeyDown(e, setValor)}
+          placeholder={valor ? "" : "Aguardando leitura do leitor USB..."}
+          className="h-10 w-full rounded-lg border border-slate-300 px-3 text-center text-lg tracking-wide outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+          autoComplete="off"
+          spellCheck={false}
+        />
+      </div>
+
+      {suportaCamera && (
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={() => setCameraAtiva((v) => !v)}
+            className="w-full rounded-lg border border-slate-200 bg-white py-2 text-[12px] font-medium text-slate-700 hover:bg-slate-50"
+          >
+            {cameraAtiva ? "Desligar câmera" : "Ler pela câmera do celular / webcam"}
+          </button>
+          {cameraAtiva && (
+            <div className="overflow-hidden rounded-lg border border-slate-200 bg-black">
+              <video
+                ref={videoRef}
+                className="aspect-video w-full object-cover"
+                muted
+                playsInline
+              />
+            </div>
+          )}
+          {cameraErro && <p className="text-[11px] text-amber-700">{cameraErro}</p>}
+        </div>
+      )}
+
+      <div className="flex justify-end gap-2 border-t border-slate-100 pt-3">
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-lg border border-slate-200 px-4 py-2 text-[12px] font-medium text-slate-600 hover:bg-slate-50"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            const numero = extrairNumeroOsCodigo(valor);
+            if (numero) confirmarLeitura(numero, valor);
+            else if (valor.trim()) setCodigoInvalido(valor.trim());
+          }}
+          disabled={!valor.trim()}
+          className="rounded-lg bg-blue-600 px-4 py-2 text-[12px] font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+        >
+          Buscar OS
+        </button>
+      </div>
+    </div>
+  );
+
+  if (inline) {
+    return (
+      <div className="overflow-hidden rounded border border-blue-100 bg-white">
+        <div className="flex h-8 items-center justify-between border-b border-slate-100 bg-blue-50/80 px-3">
+          <p className="text-[11px] font-medium text-slate-700">Leitor de código de barras</p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-6 w-6 items-center justify-center rounded text-lg leading-none text-slate-500 hover:bg-white"
+            aria-label="Fechar"
+          >
+            ×
+          </button>
+        </div>
+        {corpo}
+      </div>
+    );
+  }
 
   return (
     <Modal
@@ -152,97 +270,11 @@ export function LeitorCodigoBarrasModal({ open, onClose, onCodigoLido }: Props) 
       size="md"
       layerClassName="z-[60]"
     >
-      <div className="space-y-4 text-[13px] text-slate-600">
-        <div className="flex flex-col items-center rounded-lg border border-dashed border-blue-200 bg-blue-50/60 px-4 py-6">
-          <ScanBarcode className="h-14 w-14 text-blue-600" strokeWidth={1.5} />
-          <p className="mt-3 text-center text-[12px] leading-relaxed text-slate-600">
-            Passe o leitor na etiqueta da OS. Formatos aceitos: <strong>OS7</strong>,{" "}
-            <strong>*OS7*</strong> ou só o número.
-          </p>
-          {leitorUsbAtivo && (
-            <p className="mt-2 text-[11px] font-semibold text-emerald-600">
-              Leitor USB detectado — aguardando código...
-            </p>
-          )}
-          {codigoLido && (
-            <p className="mt-2 text-[12px] font-semibold text-blue-700">
-              Código lido: OS {codigoLido} — buscando ordem de serviço...
-            </p>
-          )}
-          {codigoInvalido && !codigoLido && (
-            <p className="mt-2 text-[12px] font-semibold text-amber-700">
-              Código não reconhecido: {codigoInvalido}
-            </p>
-          )}
-          {!codigoLido && !codigoInvalido && ultimoBruto && (
-            <p className="mt-2 text-[11px] text-slate-500">Lido: {ultimoBruto}</p>
-          )}
-        </div>
-
-        <div className="space-y-1">
-          <label className="block text-[11px] font-medium text-slate-500">
-            Código lido
-          </label>
-          <input
-            ref={inputRef}
-            value={valor}
-            onChange={(e) => onChange(e, setValor)}
-            onInput={(e) => onInput(e, setValor)}
-            onKeyDown={(e) => onKeyDown(e, setValor)}
-            placeholder={valor ? "" : "Aguardando leitura do leitor USB..."}
-            className="h-10 w-full rounded-lg border border-slate-300 px-3 text-center text-lg tracking-wide outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-            autoComplete="off"
-            spellCheck={false}
-          />
-        </div>
-
-        {suportaCamera && (
-          <div className="space-y-2">
-            <button
-              type="button"
-              onClick={() => setCameraAtiva((v) => !v)}
-              className="w-full rounded-lg border border-slate-200 bg-white py-2 text-[12px] font-medium text-slate-700 hover:bg-slate-50"
-            >
-              {cameraAtiva ? "Desligar câmera" : "Ler pela câmera do celular / webcam"}
-            </button>
-            {cameraAtiva && (
-              <div className="overflow-hidden rounded-lg border border-slate-200 bg-black">
-                <video
-                  ref={videoRef}
-                  className="aspect-video w-full object-cover"
-                  muted
-                  playsInline
-                />
-              </div>
-            )}
-            {cameraErro && (
-              <p className="text-[11px] text-amber-700">{cameraErro}</p>
-            )}
-          </div>
-        )}
-
-        <div className="flex justify-end gap-2 border-t border-slate-100 pt-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg border border-slate-200 px-4 py-2 text-[12px] font-medium text-slate-600 hover:bg-slate-50"
-          >
-            Cancelar
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              const numero = extrairNumeroOsCodigo(valor);
-              if (numero) confirmarLeitura(numero, valor);
-              else if (valor.trim()) setCodigoInvalido(valor.trim());
-            }}
-            disabled={!valor.trim()}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-[12px] font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
-          >
-            Buscar OS
-          </button>
-        </div>
-      </div>
+      {corpo}
     </Modal>
   );
+}
+
+function stopTrack(track: MediaStreamTrack) {
+  track.stop();
 }

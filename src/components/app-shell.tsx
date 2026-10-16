@@ -271,6 +271,8 @@ function AppShellInner({
   const [buscaOsExecutada, setBuscaOsExecutada] = useState(false);
   const [leitorCodigoAberto, setLeitorCodigoAberto] = useState(false);
   const [codigoBarrasMensagem, setCodigoBarrasMensagem] = useState("");
+  const [resultadosPaciente, setResultadosPaciente] = useState<TrabalhoBuscaOs[]>([]);
+  const [buscandoPaciente, setBuscandoPaciente] = useState(false);
   const [menuMobileAberto, setMenuMobileAberto] = useState(false);
   const { acessoTotal, permissoesModulos } = usePermissoesApp();
   const { montado, lab, nomeLaboratorio, nomeServidor } = useLabConfigClient({
@@ -341,6 +343,7 @@ function AppShellInner({
     if (!ehPaginaInicioApp(pathname)) {
       setBuscaOsAberta(false);
       setBuscaPacienteAberta(false);
+      setLeitorCodigoAberto(false);
     }
   }, [pathname]);
 
@@ -383,20 +386,20 @@ function AppShellInner({
     if (!buscaPacienteAberta) return;
     const termo = buscaPaciente.trim();
     if (termo.length < 2) {
-      setResultadosOs([]);
+      setResultadosPaciente([]);
       return;
     }
 
     const timeout = window.setTimeout(async () => {
-      setBuscandoOs(true);
+      setBuscandoPaciente(true);
       try {
         const response = await fetch(`/api/trabalhos?q=${encodeURIComponent(termo)}`, {
           cache: "no-store",
         });
         const data = await response.json();
-        setResultadosOs(Array.isArray(data) ? data : []);
+        setResultadosPaciente(Array.isArray(data) ? data : []);
       } finally {
-        setBuscandoOs(false);
+        setBuscandoPaciente(false);
       }
     }, 250);
 
@@ -488,8 +491,10 @@ function AppShellInner({
 
   function aoCodigoBarrasLido(numero: string, bruto?: string) {
     if (!isDashboard) return;
+    setBuscaSiteAberta(false);
     setBuscaOsAberta(true);
     setBuscaOs(numero);
+    setBuscaPacienteAberta(false);
     setLeitorCodigoAberto(false);
     setCodigoBarrasMensagem(
       bruto?.trim()
@@ -503,7 +508,7 @@ function AppShellInner({
     const termo = buscaPaciente.trim();
     if (!termo) return;
 
-    setBuscandoOs(true);
+    setBuscandoPaciente(true);
     setBuscaOsExecutada(true);
     try {
       const response = await fetch(`/api/trabalhos?q=${encodeURIComponent(termo)}`, {
@@ -511,19 +516,21 @@ function AppShellInner({
       });
       const data = await response.json();
       const resultados = Array.isArray(data) ? data : [];
+      setResultadosPaciente(resultados);
       setResultadosOs(resultados);
       setOsSelecionada(resultados.length > 0 ? resultados[0] : null);
       setItemOsSelecionado(null);
       setBuscaOs(termo);
       setBuscaPacienteAberta(false);
     } finally {
-      setBuscandoOs(false);
+      setBuscandoPaciente(false);
     }
   }
 
   function abrirBuscaOs() {
     if (!isDashboard) return;
 
+    setBuscaSiteAberta(false);
     setBuscaOsAberta(true);
     setBuscaOs("");
     setResultadosOs([]);
@@ -532,6 +539,14 @@ function AppShellInner({
     setBuscaOsExecutada(false);
     setCodigoBarrasMensagem("");
     setLeitorCodigoAberto(false);
+    setBuscaPacienteAberta(false);
+    setResultadosPaciente([]);
+  }
+
+  function fecharBuscaOs() {
+    setBuscaOsAberta(false);
+    setLeitorCodigoAberto(false);
+    setBuscaPacienteAberta(false);
   }
 
   function abrirOs(trabalho: TrabalhoBuscaOs) {
@@ -759,7 +774,12 @@ function AppShellInner({
             direita={
               <>
                 <LanguageMenu />
-                <SiteSearchButton onAbrir={() => setBuscaSiteAberta(true)} />
+                <SiteSearchButton
+                  onAbrir={() => {
+                    fecharBuscaOs();
+                    setBuscaSiteAberta(true);
+                  }}
+                />
                 <NotificationsBell />
               </>
             }
@@ -966,10 +986,7 @@ function AppShellInner({
               </span>
               <button
                 type="button"
-                onClick={() => {
-                  setLeitorCodigoAberto(false);
-                  setBuscaOsAberta(false);
-                }}
+                onClick={fecharBuscaOs}
                 className="flex h-7 w-7 items-center justify-center rounded text-lg leading-none text-slate-500 hover:bg-slate-100"
                 aria-label={t("cadastros.comum.fechar")}
               >
@@ -1010,24 +1027,99 @@ function AppShellInner({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setLeitorCodigoAberto(true)}
-                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-blue-600 text-white shadow-sm transition hover:bg-blue-700"
+                    onClick={() => {
+                      setBuscaPacienteAberta(false);
+                      setLeitorCodigoAberto((aberto) => !aberto);
+                    }}
+                    className={cn(
+                      "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-sm text-white shadow-sm transition",
+                      leitorCodigoAberto ? "bg-blue-800" : "bg-blue-600 hover:bg-blue-700"
+                    )}
                     title={t("shell.buscaOs.abrirLeitor")}
                     aria-label={t("shell.buscaOs.abrirLeitor")}
+                    aria-pressed={leitorCodigoAberto}
                   >
                     <ScanBarcode className="h-4 w-4" strokeWidth={2.4} />
                   </button>
                   <button
                     type="button"
                     onClick={() => {
+                      setLeitorCodigoAberto(false);
                       setBuscaPaciente("");
-                      setBuscaPacienteAberta(true);
+                      setResultadosPaciente([]);
+                      setBuscaPacienteAberta((aberto) => !aberto);
                     }}
-                    className="inline-flex h-7 shrink-0 items-center justify-center rounded border border-slate-300 bg-white px-2.5 text-[10px] font-semibold leading-none text-slate-600 hover:bg-slate-50"
+                    className={cn(
+                      "inline-flex h-7 shrink-0 items-center justify-center rounded border px-2.5 text-[10px] font-semibold leading-none",
+                      buscaPacienteAberta
+                        ? "border-blue-400 bg-blue-50 text-blue-700"
+                        : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+                    )}
+                    aria-pressed={buscaPacienteAberta}
                   >
                     {t("shell.buscaOs.pesquisarPaciente")}
                   </button>
                 </div>
+                {leitorCodigoAberto ? (
+                  <LeitorCodigoBarrasModal
+                    inline
+                    open={leitorCodigoAberto}
+                    onClose={() => setLeitorCodigoAberto(false)}
+                    onCodigoLido={aoCodigoBarrasLido}
+                  />
+                ) : null}
+                {buscaPacienteAberta ? (
+                  <div className="rounded border border-slate-200 bg-slate-50/80 p-3">
+                    <p className="mb-2 text-[10px] font-medium text-slate-600">
+                      {t("shell.buscaPaciente.titulo")}
+                    </p>
+                    <input
+                      value={buscaPaciente}
+                      onChange={(event) => setBuscaPaciente(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          void buscarPorPaciente();
+                        }
+                      }}
+                      autoFocus
+                      placeholder={t("shell.buscaPaciente.placeholder")}
+                      className="h-8 w-full rounded border border-slate-300 bg-white px-3 text-[11px] outline-none focus:border-blue-500"
+                    />
+                    <div className="mt-2 max-h-40 space-y-1 overflow-y-auto">
+                      {buscaPaciente.trim().length < 2 && (
+                        <p className="text-center text-[10px] text-slate-400">
+                          {t("shell.buscaPaciente.minChars")}
+                        </p>
+                      )}
+                      {buscaPaciente.trim().length >= 2 && buscandoPaciente && (
+                        <p className="text-center text-[10px] text-slate-400">
+                          {t("shell.buscaPaciente.buscando")}
+                        </p>
+                      )}
+                      {buscaPaciente.trim().length >= 2 &&
+                        !buscandoPaciente &&
+                        resultadosPaciente.length === 0 && (
+                          <p className="text-center text-[10px] text-slate-400">
+                            {t("shell.buscaPaciente.nenhumaOs")}
+                          </p>
+                        )}
+                      {resultadosPaciente.map((trabalho) => (
+                        <button
+                          type="button"
+                          key={trabalho.id}
+                          onClick={() => abrirOsDoPaciente(trabalho)}
+                          className="flex w-full items-center justify-between rounded border border-slate-200 bg-white px-3 py-2 text-left text-[11px] hover:bg-blue-50"
+                        >
+                          <span>{trabalho.paciente?.nome || trabalho.cliente?.nome || "-"}</span>
+                          <span className="rounded bg-blue-50 px-2 py-1 text-[10px] font-semibold text-blue-600">
+                            OS {trabalho.numeroOs}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
               {codigoBarrasMensagem ? (
@@ -1262,7 +1354,7 @@ function AppShellInner({
                       <button
                         type="button"
                         onClick={() => {
-                          setBuscaOsAberta(false);
+                          fecharBuscaOs();
                           router.push(`/app/producao/controle?q=${osSelecionada.numeroOs}`);
                         }}
                         className="h-8 rounded border border-emerald-200 bg-white px-3 text-[10px] font-semibold text-emerald-600 hover:bg-emerald-50"
@@ -1273,7 +1365,7 @@ function AppShellInner({
                         <button
                           type="button"
                           onClick={() => {
-                            setBuscaOsAberta(false);
+                            fecharBuscaOs();
                             router.push(`/app/producao/os?edit=${osSelecionada.id}`);
                           }}
                           className="h-8 rounded border border-emerald-200 bg-white px-3 text-[10px] font-semibold text-emerald-600 hover:bg-emerald-50"
@@ -1284,7 +1376,7 @@ function AppShellInner({
                       <button
                         type="button"
                         onClick={() => {
-                          setBuscaOsAberta(false);
+                          fecharBuscaOs();
                           router.push(`/app/producao/os?edit=${osSelecionada.id}`);
                         }}
                         className="h-8 rounded bg-blue-600 px-4 text-[10px] font-semibold text-white hover:bg-blue-700"
@@ -1293,7 +1385,7 @@ function AppShellInner({
                       </button>
                       <button
                         type="button"
-                        onClick={() => setBuscaOsAberta(false)}
+                        onClick={fecharBuscaOs}
                         className="h-8 rounded border border-slate-300 bg-white px-4 text-[10px] text-slate-600 hover:bg-slate-50"
                       >
                         {t("cadastros.comum.fechar")}
@@ -1307,71 +1399,6 @@ function AppShellInner({
           </div>
         </div>
       )}
-      {buscaPacienteAberta && (
-        <div className="fixed inset-0 z-[60] flex items-start justify-center bg-black/20 p-4 pt-24">
-          <div className="relative w-full max-w-md rounded bg-white shadow-2xl">
-            <div className="flex h-9 items-center justify-between border-b border-slate-100 px-4">
-              <h2 className="text-[11px] font-medium text-slate-700">{t("shell.buscaPaciente.titulo")}</h2>
-              <button
-                type="button"
-                onClick={() => setBuscaPacienteAberta(false)}
-                className="flex h-7 w-7 items-center justify-center rounded text-lg leading-none text-slate-500 hover:bg-slate-100"
-                aria-label={t("cadastros.comum.fechar")}
-              >
-                ×
-              </button>
-            </div>
-            <div className="space-y-3 px-4 py-4 text-[11px] text-slate-600">
-              <input
-                value={buscaPaciente}
-                onChange={(event) => setBuscaPaciente(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    void buscarPorPaciente();
-                  }
-                }}
-                autoFocus
-                placeholder={t("shell.buscaPaciente.placeholder")}
-                className="h-8 w-full rounded border border-slate-300 px-3 text-[11px] outline-none focus:border-blue-500"
-              />
-              <div className="space-y-1">
-                {buscaPaciente.trim().length < 2 && (
-                  <p className="text-center text-[10px] text-slate-400">
-                    {t("shell.buscaPaciente.minChars")}
-                  </p>
-                )}
-                {buscaPaciente.trim().length >= 2 && buscandoOs && (
-                  <p className="text-center text-[10px] text-slate-400">{t("shell.buscaPaciente.buscando")}</p>
-                )}
-                {buscaPaciente.trim().length >= 2 && !buscandoOs && resultadosOs.length === 0 && (
-                  <p className="text-center text-[10px] text-slate-400">{t("shell.buscaPaciente.nenhumaOs")}</p>
-                )}
-                {resultadosOs.map((trabalho) => (
-                  <button
-                    type="button"
-                    key={trabalho.id}
-                    onClick={() => abrirOsDoPaciente(trabalho)}
-                    className="flex w-full items-center justify-between rounded border border-slate-200 bg-white px-3 py-2 text-left text-[11px] hover:bg-blue-50"
-                  >
-                    <span>{trabalho.paciente?.nome || trabalho.cliente?.nome || "-"}</span>
-                    <span className="rounded bg-blue-50 px-2 py-1 text-[10px] font-semibold text-blue-600">
-                      OS {trabalho.numeroOs}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <LeitorCodigoBarrasModal
-        open={leitorCodigoAberto}
-        onClose={() => setLeitorCodigoAberto(false)}
-        onCodigoLido={aoCodigoBarrasLido}
-      />
-
       <main
         className={cn(
           (isModuloTv || isRelatorioImersivo || isPrint) &&
