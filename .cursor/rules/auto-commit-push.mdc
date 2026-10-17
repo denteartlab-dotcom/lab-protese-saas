@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Commit e push automaticos
 
-Ao concluir alteracoes de codigo neste projeto, **sempre** faca commit e push para `origin` sem esperar o usuario pedir.
+Ao concluir alteracoes de codigo neste projeto, **sempre** faca commit e push para `origin/main` sem esperar o usuario pedir. Nao deixar a mudanca so em branch de feature.
 
 ## Quando aplicar
 
@@ -23,7 +23,8 @@ Ao concluir alteracoes de codigo neste projeto, **sempre** faca commit e push pa
 
 1. `git status`, `git diff` e `git log` para mensagem coerente
 2. Mensagem em portugues, 1-2 frases focadas no **porque**
-3. `git add` dos arquivos relevantes, `git commit`, `git push -u origin HEAD`
-4. Informar hash e intervalo do push na resposta
+3. Trabalhar em `main` (ou fazer merge fast-forward em `main` se a alteracao estiver em outra branch)
+4. `git add` dos arquivos relevantes, `git commit`, `git push -u origin main`
+5. Informar hash e intervalo do push na resposta
 
 Seguir o protocolo de seguranca do git (sem force push em main, sem amend salvo excecoes do protocolo).
