@@ -25,11 +25,13 @@ fi
 
 echo ""
 echo "==> Dependências..."
+# --no-audit/--no-fund: o relatório de CVE/deprecated não é erro e assusta no log.
 if [[ -f package-lock.json ]]; then
-  npm ci --include=dev || npm install --include=dev
+  npm ci --include=dev --no-audit --no-fund || npm install --include=dev --no-audit --no-fund
 else
-  npm install --include=dev
+  npm install --include=dev --no-audit --no-fund
 fi
+echo "    dependências OK (avisos amarelos de pacote deprecated não param o deploy)"
 
 if [[ ! -f node_modules/tsx/dist/cli.mjs ]]; then
   echo "ERRO: tsx não instalado. Rode: npm install --include=dev"
