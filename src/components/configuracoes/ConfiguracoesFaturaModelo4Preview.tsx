@@ -186,8 +186,19 @@ export function PreviewFaturaModelo4Termica({
               </tr>
             </thead>
             <tbody>
-              {amostra.linhas.map((linha) => (
-                <Fragment key={linha.os}>
+              {amostra.linhas.map((linha, indice) => {
+                const ultimaDaOs =
+                  !amostra.linhas[indice + 1] || amostra.linhas[indice + 1].os !== linha.os;
+                const mostrarDentes = layout.numDente || layout.corDente;
+                const mostrarCabecalhoOs =
+                  ultimaDaOs &&
+                  (layout.numOs || layout.paciente || layout.dentista);
+                const mostrarDatas =
+                  ultimaDaOs && (layout.data || layout.finalizado);
+                const mostrarMeta =
+                  exibirMetaItem && (mostrarDentes || mostrarCabecalhoOs || mostrarDatas);
+                return (
+                <Fragment key={`${linha.os}-${indice}`}>
                   <tr>
                     {layout.qtd ? (
                       <td className="align-top font-bold">{linha.qtd}</td>
@@ -202,7 +213,7 @@ export function PreviewFaturaModelo4Termica({
                       <td className="align-top text-right font-normal">{linha.desconto}</td>
                     ) : null}
                   </tr>
-                  {exibirMetaItem ? (
+                  {mostrarMeta ? (
                     <tr>
                       <td
                         colSpan={
@@ -210,33 +221,10 @@ export function PreviewFaturaModelo4Termica({
                             Boolean
                           ).length || 1
                         }
-                        className="pb-1.5 pt-0.5 align-top font-normal"
+                        className={ultimaDaOs ? "pb-1.5 pt-0.5 align-top font-normal" : "pb-0.5 pt-0 align-top font-normal"}
                       >
                         <div className="space-y-0.5">
-                          {layout.numOs ? (
-                            <p>
-                              <span>{t("print.fatura.col.os")}: </span>
-                              <span className="font-bold">{linha.os}</span>
-                            </p>
-                          ) : null}
-                          {layout.paciente || layout.dentista ? (
-                            <p>
-                              {layout.paciente ? (
-                                <>
-                                  <span>{t("print.os.paciente")}: </span>
-                                  <span className="font-bold">{linha.paciente}</span>
-                                </>
-                              ) : null}
-                              {layout.paciente && layout.dentista ? " " : null}
-                              {layout.dentista ? (
-                                <>
-                                  <span>{t("print.os.dentista")}: </span>
-                                  <span className="font-bold">{amostra.dentista}</span>
-                                </>
-                              ) : null}
-                            </p>
-                          ) : null}
-                          {layout.numDente || layout.corDente ? (
+                          {mostrarDentes ? (
                             <p>
                               {layout.numDente ? (
                                 <>
@@ -253,7 +241,30 @@ export function PreviewFaturaModelo4Termica({
                               ) : null}
                             </p>
                           ) : null}
-                          {layout.data || layout.finalizado ? (
+                          {mostrarCabecalhoOs && layout.numOs ? (
+                            <p>
+                              <span>{t("print.fatura.col.os")}: </span>
+                              <span className="font-bold">{linha.os}</span>
+                            </p>
+                          ) : null}
+                          {mostrarCabecalhoOs && (layout.paciente || layout.dentista) ? (
+                            <p>
+                              {layout.paciente ? (
+                                <>
+                                  <span>{t("print.os.paciente")}: </span>
+                                  <span className="font-bold">{linha.paciente}</span>
+                                </>
+                              ) : null}
+                              {layout.paciente && layout.dentista ? " " : null}
+                              {layout.dentista ? (
+                                <>
+                                  <span>{t("print.os.dentista")}: </span>
+                                  <span className="font-bold">{amostra.dentista}</span>
+                                </>
+                              ) : null}
+                            </p>
+                          ) : null}
+                          {mostrarDatas ? (
                             <p>
                               {layout.data ? (
                                 <>
@@ -277,7 +288,8 @@ export function PreviewFaturaModelo4Termica({
                     </tr>
                   ) : null}
                 </Fragment>
-              ))}
+                );
+              })}
             </tbody>
           </table>
           <LinhaSeparador cor={corLinha} className="mt-1.5" />

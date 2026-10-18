@@ -206,13 +206,41 @@ function osExternaResumoFatura(linhas: LinhaFaturaImpressao[]): string {
   return valores.length ? valores.join(", ") : "—";
 }
 
+function numeroOsLinhaFatura(os: string) {
+  const n = Number(String(os).replace(/\D/g, ""));
+  return Number.isFinite(n) ? n : Number.MAX_SAFE_INTEGER;
+}
+
+/** Serviços da mesma OS (e paciente) ficam juntos, um abaixo do outro. */
+function ordenarLinhasFaturaPorOs(linhas: LinhaFaturaImpressao[]) {
+  return linhas
+    .map((linha, indice) => ({ linha, indice }))
+    .sort((a, b) => {
+      const osA = numeroOsLinhaFatura(a.linha.os);
+      const osB = numeroOsLinhaFatura(b.linha.os);
+      if (osA !== osB) return osA - osB;
+      const paciente = a.linha.paciente.localeCompare(b.linha.paciente, "pt-BR", {
+        sensitivity: "base",
+      });
+      if (paciente) return paciente;
+      return a.indice - b.indice;
+    })
+    .map((item) => item.linha);
+}
+
+function ehUltimaLinhaDaOs(linhas: LinhaFaturaImpressao[], indice: number) {
+  const atual = linhas[indice];
+  const proxima = linhas[indice + 1];
+  if (!atual) return true;
+  return !proxima || proxima.os !== atual.os;
+}
+
 function htmlMetaDatasFaturaLinha(
   linha: LinhaFaturaImpressao,
   layout: FaturaModeloLayout,
   rotuloFinalizado = pl("print.fatura.finalizadoMeta"),
   termica = false
 ): string {
-  if (linha.segmento !== "servico") return "";
   const temData = layout.data;
   const temFinalizado = layout.finalizado;
   if (!temData && !temFinalizado) return "";
@@ -495,7 +523,13 @@ export function montarDadosFaturaImpressao(params: {
   let descontoServicos = 0;
 
   if (trabalhos.length) {
-    for (const trabalho of trabalhos) {
+    const trabalhosOrdenados = trabalhos.slice().sort((a, b) => {
+      if (a.numeroOs !== b.numeroOs) return a.numeroOs - b.numeroOs;
+      const pacA = a.paciente?.nome?.trim() || "";
+      const pacB = b.paciente?.nome?.trim() || "";
+      return pacA.localeCompare(pacB, "pt-BR", { sensitivity: "base" });
+    });
+    for (const trabalho of trabalhosOrdenados) {
       const dataOs = trabalho.dataPrevista ? formatDate(trabalho.dataPrevista) : formatDate(lancamento.data);
       const finalizado =
         resolverDataFinalizadoImpressao({
@@ -592,7 +626,7 @@ export function montarDadosFaturaImpressao(params: {
     clienteEndereco: params.clienteEndereco,
     ultimoPgto: params.ultimoPgto,
     saldoAnterior: params.saldoAnterior,
-    linhas,
+    linhas: ordenarLinhasFaturaPorOs(linhas),
     parcelas: montarParcelasCondicaoPagamentoFatura({
       lancamento: { ...lancamento, valor: totalFinal },
       clienteId: params.clienteId,
@@ -630,21 +664,23 @@ export function montarDadosFaturaPreviewAmostra(): DadosFaturaImpressao {
     ultimoPgto: a.ultimoPgto,
     saldoAnterior: a.saldoAnterior,
     descontoServicos: parsePreviewMoney(a.descontoServicos),
-    linhas: a.linhas.map((linha) => ({
-      os: linha.os,
-      osExterna: linha.osExterna,
-      dataOs: linha.dataOs,
-      finalizado: linha.finalizado,
-      cor: linha.cor,
-      servico: linha.servico,
-      dentes: linha.dentes,
-      paciente: linha.paciente,
-      qtd: linha.qtd,
-      unitario: linha.unitario.replace(/^R\$\s*/i, ""),
-      desconto: linha.desconto,
-      subtotal: linha.subtotal.replace(/^R\$\s*/i, ""),
-      segmento: classificarItemOs({ servico: linha.servico }),
-    })),
+    linhas: ordenarLinhasFaturaPorOs(
+      a.linhas.map((linha) => ({
+        os: linha.os,
+        osExterna: linha.osExterna,
+        dataOs: linha.dataOs,
+        finalizado: linha.finalizado,
+        cor: linha.cor,
+        servico: linha.servico,
+        dentes: linha.dentes,
+        paciente: linha.paciente,
+        qtd: linha.qtd,
+        unitario: linha.unitario.replace(/^R\$\s*/i, ""),
+        desconto: linha.desconto,
+        subtotal: linha.subtotal.replace(/^R\$\s*/i, ""),
+        segmento: classificarItemOs({ servico: linha.servico }),
+      }))
+    ),
     parcelas: a.parcelas.map((p) => ({
       parcela: p.parcela,
       vencimento: p.vencimento,
@@ -730,6 +766,8 @@ function estilosBaseA4(fs: number, smartModelo1: boolean) {
     }
     table.items.smart td,table.items.pay.smart td{background:#fff}
     table.items.smart .cel-servico{line-height:1.35;word-break:break-word;overflow-wrap:break-word;padding-bottom:2px}
+    table.items.smart tr.servico-mesmo-os td{padding-top:0;padding-bottom:0}
+    table.items.smart tr.servico-mesmo-os td.cel-servico{padding-bottom:1px}
     table.items.smart tr.meta-row td{padding-top:2px;padding-bottom:4px}
     table.items.smart thead tr,table.items.pay.smart thead tr{background:#fff}
   `
@@ -752,6 +790,7 @@ function estilosBaseA4(fs: number, smartModelo1: boolean) {
     th,td{border:none;padding:2px 3px;vertical-align:top;word-wrap:break-word;overflow-wrap:break-word}
     .items th{font-size:${fsCab}px;font-weight:bold;text-align:left;padding:4px 3px;background:${thBg}}
     .items td{font-size:${fsTabela}px;line-height:1.25}
+    .items tr.servico-mesmo-os td{padding-top:0;padding-bottom:1px}
     .items tr.meta-row td{padding-top:1px;padding-bottom:5px}
     .items tr.meta-row td .meta-linha-datas{margin:0;line-height:1.35}
     .items tr.meta-row td .meta-data-item{font-size:${Math.max(10, fs - 2)}px;color:#111;line-height:1.35}
@@ -829,13 +868,12 @@ function htmlTabelaItensA4(
       ${layout.subtotal ? `<th class="right">${pl("print.fatura.col.subtotal")}</th>` : ""}
     </tr></thead>`;
 
-    let osAnterior = "";
     const colunas = contarColunasItensSmart(layout);
     const linhas = dados.linhas
-      .flatMap((linha) => {
-        const novaOs = linha.os !== osAnterior;
-        osAnterior = linha.os;
-        const trPrincipal = `<tr>
+      .flatMap((linha, indice) => {
+        const novaOs = indice === 0 || linha.os !== dados.linhas[indice - 1]?.os;
+        const ultimaDaOs = ehUltimaLinhaDaOs(dados.linhas, indice);
+        const trPrincipal = `<tr${novaOs ? "" : ' class="servico-mesmo-os"'}>
           ${layout.numOs ? celulaOsFatura(linha, novaOs, layout) : ""}
           ${layout.qtd ? `<td class="center">${escapeHtml(linha.qtd)}</td>` : ""}
           ${layout.servico ? `<td class="cel-servico">${escapeHtml(linha.servico)}</td>` : ""}
@@ -846,7 +884,7 @@ function htmlTabelaItensA4(
           ${layout.subtotal ? `<td class="right">${escapeHtml(formatarMoedaReais(linha.subtotal, money))}</td>` : ""}
         </tr>`;
 
-        const meta = metaLinhaOsSmart(linha, layout);
+        const meta = ultimaDaOs ? metaLinhaOsSmart(linha, layout) : "";
         if (!meta) return [trPrincipal];
 
         const trMeta = trMetaAbaixoServico(meta, layout, colunas, true);
@@ -880,13 +918,12 @@ function htmlTabelaItensA4(
     ${layout.subtotal ? '<th class="right">${pl("print.fatura.col.subtotal")}</th>' : ""}
   </tr></thead>`;
 
-  let osAnterior = "";
   const colunas = contarColunasItensFatura(layout);
   const linhas = dados.linhas
-    .flatMap((linha) => {
-      const novaOs = linha.os !== osAnterior;
-      osAnterior = linha.os;
-      const trPrincipal = `<tr>
+    .flatMap((linha, indice) => {
+      const novaOs = indice === 0 || linha.os !== dados.linhas[indice - 1]?.os;
+      const ultimaDaOs = ehUltimaLinhaDaOs(dados.linhas, indice);
+      const trPrincipal = `<tr${novaOs ? "" : ' class="servico-mesmo-os"'}>
         ${layout.numOs ? celulaOsFatura(linha, novaOs, layout) : ""}
         ${layout.servico ? `<td>${escapeHtml(linha.servico)}</td>` : ""}
         ${layout.numDente ? `<td>${escapeHtml(linha.dentes)}</td>` : ""}
@@ -897,7 +934,7 @@ function htmlTabelaItensA4(
         ${layout.subtotal ? `<td class="right">${escapeHtml(linha.subtotal)}</td>` : ""}
       </tr>`;
 
-      if (linha.segmento !== "servico" || !(layout.data || layout.finalizado)) {
+      if (!ultimaDaOs || !(layout.data || layout.finalizado)) {
         return [trPrincipal];
       }
 
@@ -1281,17 +1318,26 @@ function gerarHtmlFaturaTermica(
           </thead>
           <tbody>
             ${dados.linhas
-              .map((linha) => {
+              .map((linha, indice) => {
+                const ultimaDaOs = ehUltimaLinhaDaOs(dados.linhas, indice);
                 const metaPrazo =
-                  linha.segmento === "servico" && (layout.data || layout.finalizado)
+                  ultimaDaOs && (layout.data || layout.finalizado)
                     ? htmlMetaDatasFaturaLinha(linha, layout, "Entregue", true)
                     : "";
-                const meta =
-                  exibirMeta && linha.segmento === "servico"
-                    ? `<tr><td colspan="4" style="padding-bottom:6px">
-                      ${layout.numOs ? `<p style="margin:0">OS: <strong>${escapeHtml(linha.os)}</strong></p>` : ""}
-                      ${layout.paciente || layout.dentista ? `<p style="margin:0">${layout.paciente ? `Paciente: <strong>${escapeHtml(linha.paciente)}</strong>` : ""}${layout.paciente && layout.dentista ? " " : ""}${layout.dentista ? `Dr: <strong>${escapeHtml(dados.dentista)}</strong>` : ""}</p>` : ""}
-                      ${layout.numDente || layout.corDente ? `<p style="margin:0">${layout.numDente ? `Mat/Dente: <strong>${escapeHtml(linha.dentes)}</strong>` : ""}${layout.numDente && layout.corDente ? " " : ""}${layout.corDente ? `Cor Dente: <strong>${escapeHtml(linha.cor)}</strong>` : ""}</p>` : ""}
+                const dentesCor =
+                  layout.numDente || layout.corDente
+                    ? `<p style="margin:0">${layout.numDente ? `Mat/Dente: <strong>${escapeHtml(linha.dentes)}</strong>` : ""}${layout.numDente && layout.corDente ? " " : ""}${layout.corDente ? `Cor Dente: <strong>${escapeHtml(linha.cor)}</strong>` : ""}</p>`
+                    : "";
+                const cabecalhoOs =
+                  ultimaDaOs && exibirMeta
+                    ? `${layout.numOs ? `<p style="margin:0">OS: <strong>${escapeHtml(linha.os)}</strong></p>` : ""}
+                      ${layout.paciente || layout.dentista ? `<p style="margin:0">${layout.paciente ? `Paciente: <strong>${escapeHtml(linha.paciente)}</strong>` : ""}${layout.paciente && layout.dentista ? " " : ""}${layout.dentista ? `Dr: <strong>${escapeHtml(dados.dentista)}</strong>` : ""}</p>` : ""}`
+                    : "";
+                const temMeta = Boolean(dentesCor || cabecalhoOs || metaPrazo);
+                const meta = temMeta
+                  ? `<tr><td colspan="4" style="padding-bottom:${ultimaDaOs ? "6px" : "1px"}">
+                      ${dentesCor}
+                      ${cabecalhoOs}
                       ${metaPrazo}
                     </td></tr>`
                     : "";

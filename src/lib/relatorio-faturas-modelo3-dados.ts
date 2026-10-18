@@ -357,7 +357,13 @@ export function montarFaturasModelo3(
     }
 
     const itens: ItemFaturaModelo3[] = [];
-    for (const t of trabalhosRelacionados.values()) {
+    const trabalhosOrdenados = Array.from(trabalhosRelacionados.values()).sort((a, b) => {
+      if (a.numeroOs !== b.numeroOs) return a.numeroOs - b.numeroOs;
+      return nomePacienteTrabalho(a).localeCompare(nomePacienteTrabalho(b), "pt-BR", {
+        sensitivity: "base",
+      });
+    });
+    for (const t of trabalhosOrdenados) {
       itens.push(...itensDoTrabalho(t));
     }
 

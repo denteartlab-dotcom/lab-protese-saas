@@ -313,7 +313,6 @@ function desenharMetaLinhaServico(
   fsMeta: number,
   xBase: number
 ) {
-  if (linha.segmento !== "servico") return y;
   if (!layout.data && !layout.finalizado) return y;
 
   const idxServico = indiceColunaServico(cols);
@@ -362,24 +361,26 @@ function desenharTabelaItens(
   linhaRequisicaoPdf(pdf, y, pageWidth);
   y += 4;
 
-  let osAnterior = "";
-  for (const linha of dados.linhas) {
+  for (let indice = 0; indice < dados.linhas.length; indice++) {
+    const linha = dados.linhas[indice];
     if (y > pageHeight - 35) {
       pdf.addPage();
       y = OS_REQUISICAO_TOPO_MM + 8;
     }
 
-    const novaOs = linha.os !== osAnterior;
-    osAnterior = linha.os;
+    const novaOs = indice === 0 || linha.os !== dados.linhas[indice - 1]?.os;
+    const ultimaDaOs = !dados.linhas[indice + 1] || dados.linhas[indice + 1].os !== linha.os;
     const valores = cols.map((col) => {
       if (col.chave === "numOs" && !novaOs) return "";
       return textoCelula(linha, col);
     });
 
     const alturaLinha = desenharLinhaTabela(pdf, cols, valores, y, fs - 1, m.tabelaEsq);
-    y += Math.max(alturaLinha, 3.5) + 0.6;
-    y = desenharMetaLinhaServico(pdf, cols, linha, layout, y, fsMeta, m.tabelaEsq);
-    y += 1.2;
+    y += Math.max(alturaLinha, 3.5) + (ultimaDaOs ? 0.6 : 0.2);
+    if (ultimaDaOs) {
+      y = desenharMetaLinhaServico(pdf, cols, linha, layout, y, fsMeta, m.tabelaEsq);
+      y += 1.2;
+    }
   }
 
   linhaRequisicaoPdf(pdf, y, pageWidth);
