@@ -1,5 +1,6 @@
 import {
   dimensoesLogoCabecalhoPdf,
+  ehLinhaEmailCabecalho,
   montarTextosCabecalhoRequisicao,
   normalizarCabecalhoRequisicao,
   pxCabecalhoParaMm,
@@ -49,6 +50,15 @@ export type PdfCabecalhoApi = {
 
 function formatoPdfImagem(dataUrl: string): "PNG" | "JPEG" {
   return dataUrl.toLowerCase().includes("image/png") ? "PNG" : "JPEG";
+}
+
+function linhasTextoCabecalho(
+  pdf: PdfCabecalhoApi,
+  linha: string,
+  larguraColEsq: number
+) {
+  if (ehLinhaEmailCabecalho(linha)) return [linha];
+  return pdf.splitTextToSize(linha, larguraColEsq);
 }
 
 function desenharLogoLab(
@@ -142,7 +152,7 @@ export function desenharCabecalhoRequisicaoPdf(
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(fonteInfoPdf);
     for (const linha of textos.linhas) {
-      const linhasBloco = pdf.splitTextToSize(linha, larguraColEsq);
+      const linhasBloco = linhasTextoCabecalho(pdf, linha, larguraColEsq);
       alturaInfo += linhasBloco.length * (fonteInfoPdf * 0.52);
     }
   }
@@ -172,7 +182,7 @@ export function desenharCabecalhoRequisicaoPdf(
 
   if (exibirInfoLab) {
     for (const linha of textos.linhas) {
-      const linhasBloco = pdf.splitTextToSize(linha, larguraColEsq);
+      const linhasBloco = linhasTextoCabecalho(pdf, linha, larguraColEsq);
       pdf.text(linhasBloco, labX, yLab);
       yLab += linhasBloco.length * (fonteInfoPdf * 0.52);
     }

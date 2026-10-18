@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useI18n } from "@/components/i18n-provider";
 import { Code39Barcode } from "@/lib/code39-barcode";
 import {
+  ehLinhaEmailCabecalho,
   montarTextosCabecalhoRequisicao,
   normalizarCabecalhoRequisicao,
 } from "@/lib/cabecalho-requisicao";
@@ -147,7 +148,11 @@ export function PreviewOsModeloComprovante({
                 {textos.nome || "Mateus Bonfim"}
               </p>
               {textos.linhas.map((linha) => (
-                <p key={linha} className="leading-snug" style={{ fontSize: `${fsSmall}px` }}>
+                <p
+                  key={linha}
+                  className={ehLinhaEmailCabecalho(linha) ? "whitespace-nowrap leading-snug" : "leading-snug"}
+                  style={{ fontSize: `${fsSmall}px` }}
+                >
                   {linha}
                 </p>
               ))}

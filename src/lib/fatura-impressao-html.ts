@@ -1,4 +1,5 @@
 import {
+  ehLinhaEmailCabecalho,
   montarTextosCabecalhoRequisicao,
   normalizarCabecalhoRequisicao,
 } from "@/lib/cabecalho-requisicao";
@@ -193,6 +194,17 @@ function contarColunasItensSmart(layout: FaturaModeloLayout) {
   if (layout.desconto) n += 1;
   if (layout.subtotal) n += 1;
   return n;
+}
+
+function htmlLinhasInfoLab(linhas: string[], fontSizePx: number) {
+  return linhas
+    .map((linha) => {
+      const nowrap = ehLinhaEmailCabecalho(linha)
+        ? "white-space:nowrap;overflow:visible;"
+        : "";
+      return `<span style="display:block;font-size:${fontSizePx}px;${nowrap}">${escapeHtml(linha)}</span>`;
+    })
+    .join("");
 }
 
 function osExternaResumoFatura(linhas: LinhaFaturaImpressao[]): string {
@@ -1178,7 +1190,7 @@ function gerarHtmlFaturaA4(
             layout.infoLab
               ? `<div class="lab" style="line-height:1.3;min-width:0">
                   <strong style="display:block;font-size:${fs + 2}px;margin-bottom:3px;font-weight:bold">${escapeHtml(textos.nome || lab.responsavel)}</strong>
-                  ${textos.linhas.map((l) => `<span style="display:block;font-size:${fsSmall}px">${escapeHtml(l)}</span>`).join("")}
+                  ${htmlLinhasInfoLab(textos.linhas, fsSmall)}
                 </div>`
               : "<div></div>"
           }
@@ -1199,7 +1211,7 @@ function gerarHtmlFaturaA4(
       layout.infoLab
         ? `<div class="lab" style="line-height:1.2">
             <strong style="display:block;font-size:16px;margin-bottom:3px">${escapeHtml(textos.nome || lab.responsavel)}</strong>
-            ${textos.linhas.map((l) => `<span style="display:block;font-size:13px">${escapeHtml(l)}</span>`).join("")}
+            ${htmlLinhasInfoLab(textos.linhas, 13)}
           </div>`
         : "<div></div>"
     }
@@ -1380,7 +1392,7 @@ function gerarHtmlFaturaTermica(
     <p style="margin:0">${escapeHtml(lab.enderecoLinha1)}</p>
     <p style="margin:0">${escapeHtml((lab.enderecoLinha2 || "").replace(" / ", "/"))}</p>
     <p style="margin:0">${escapeHtml(lab.telefones)}</p>
-    <p style="margin:0">email: ${escapeHtml(lab.email)}</p>
+    <p style="margin:0;white-space:nowrap">email: ${escapeHtml(lab.email)}</p>
   </div>`;
 
   const pix = layout.pix

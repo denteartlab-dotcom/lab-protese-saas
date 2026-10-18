@@ -6,6 +6,7 @@ import { Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui";
 import { useI18n } from "@/components/i18n-provider";
 import {
+  ehLinhaEmailCabecalho,
   montarTextosCabecalhoRequisicao,
   normalizarCabecalhoRequisicao,
   type CabecalhoRequisicaoConfig,
@@ -128,7 +129,11 @@ function PreviewCabecalho({
           {textos.linhas.map((linha) => (
             <p
               key={linha}
-              className="mt-0.5 text-slate-700"
+              className={
+                ehLinhaEmailCabecalho(linha)
+                  ? "mt-0.5 whitespace-nowrap text-slate-700"
+                  : "mt-0.5 text-slate-700"
+              }
               style={{ fontSize: cab.fonteInfoPt }}
             >
               {linha}

@@ -396,7 +396,7 @@ export function PreviewFaturaModelo4Termica({
         <p>{lab.enderecoLinha1}</p>
         <p>{lab.enderecoLinha2?.replace(" / ", "/")}</p>
         <p>{lab.telefones}</p>
-        <p>{t("print.os.email").toLowerCase()}: {lab.email}</p>
+        <p className="whitespace-nowrap">{t("print.os.email").toLowerCase()}: {lab.email}</p>
       </div>
 
       {layout.pix ? (

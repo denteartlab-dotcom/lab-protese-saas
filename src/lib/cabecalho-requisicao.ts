@@ -103,6 +103,13 @@ export type TextosCabecalhoRequisicao = {
   linhas: string[];
 };
 
+/** E-mail do lab no cabeçalho — não quebrar no último caractere. */
+export function ehLinhaEmailCabecalho(linha: string) {
+  const texto = linha.trim();
+  if (!texto) return false;
+  return texto.includes("@") && !/\s/.test(texto);
+}
+
 function enderecoLaboratorio(
   cfg: (DadosNomeLaboratorio & {
     rua?: string;
