@@ -5,6 +5,7 @@ import { MessageCircle } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
 import { formatarDataAssinatura, diasRestantesAssinatura } from "@/lib/assinatura-empresa";
 import { RenovarAssinaturaPixModal } from "@/components/assinatura/RenovarAssinaturaPixModal";
+import { LinkWhatsApp } from "@/components/LinkWhatsApp";
 import { abrirSuporteChat } from "@/components/SuporteChatWidget";
 import { cn } from "@/lib/utils";
 
@@ -48,15 +49,13 @@ export function AssinaturaFaixaRodape({
             <span className="text-slate-400">—</span>
             <span className="font-medium text-slate-700">{t("footer.suporte")}</span>
             {linkWhatsapp ? (
-              <a
+              <LinkWhatsApp
                 href={linkWhatsapp}
-                target="_blank"
-                rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 rounded-full bg-[#25D366] px-3 py-1 text-[11px] font-medium text-white hover:bg-[#1fb855]"
               >
                 {iconeWhatsApp()}
                 {t("footer.whatsapp")}
-              </a>
+              </LinkWhatsApp>
             ) : (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-[#25D366] px-3 py-1 text-[11px] font-medium text-white opacity-80">
                 {iconeWhatsApp()}

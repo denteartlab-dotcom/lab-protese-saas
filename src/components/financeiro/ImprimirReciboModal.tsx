@@ -16,6 +16,7 @@ import {
   type LinhaReciboRecebimento,
   type ModeloReciboRecebimento,
 } from "@/lib/recibo-recebimento";
+import { abrirWhatsAppUrl } from "@/lib/whatsapp";
 import { cn } from "@/lib/utils";
 
 type ImprimirReciboModalProps = {
@@ -80,7 +81,7 @@ export function ImprimirReciboModal({
     const base = digits
       ? `https://wa.me/55${digits.replace(/^55/, "")}`
       : "https://wa.me/";
-    window.open(`${base}?text=${texto}`, "_blank", "noopener,noreferrer");
+    abrirWhatsAppUrl(`${base}?text=${texto}`);
   }
 
   return (

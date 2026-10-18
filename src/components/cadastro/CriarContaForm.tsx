@@ -9,6 +9,7 @@ import { LogoMarcaDenteArt } from "@/components/LogoMarcaDenteArt";
 import { SeletorPaisComBusca } from "@/components/cadastro/SeletorPaisComBusca";
 import { salvarUltimoLaboratorioLogin } from "@/lib/auth-client";
 import type { MessageKey } from "@/lib/i18n/messages";
+import { LinkWhatsApp } from "@/components/LinkWhatsApp";
 import { WHATSAPP_LANDING_URL } from "@/lib/landing-content";
 import { paisPorIso } from "@/lib/paises-telefone";
 import { cn } from "@/lib/utils";
@@ -424,14 +425,12 @@ export function CriarContaForm(_props: { versaoSeloAsaas?: string } = {}) {
             {t("login.entrar")}
           </Link>
           {" · "}
-          <a
+          <LinkWhatsApp
             href={WHATSAPP_LANDING_URL}
-            target="_blank"
-            rel="noopener noreferrer"
             className="font-medium text-[#0066FF] hover:underline"
           >
             {t("cadastro.faleConosco")}
-          </a>
+          </LinkWhatsApp>
         </p>
       </div>
     </div>

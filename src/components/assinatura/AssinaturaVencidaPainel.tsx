@@ -26,6 +26,7 @@ import {
 } from "@/lib/master-planos";
 import { NOME_LAB_PADRAO } from "@/lib/document-title";
 import { cn } from "@/lib/utils";
+import { LinkWhatsApp } from "@/components/LinkWhatsApp";
 import { SeletorPeriodoCobranca } from "@/components/assinatura/SeletorPeriodoCobranca";
 
 type Props = {
@@ -268,15 +269,13 @@ export function AssinaturaVencidaPainel({ contexto, branding }: Props) {
 
         <div className="flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
           {linkWhatsapp ? (
-            <a
+            <LinkWhatsApp
               href={linkWhatsapp}
-              target="_blank"
-              rel="noopener noreferrer"
               className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-lg border border-[#25D366] bg-white px-5 text-sm font-semibold text-[#25D366] shadow-sm hover:bg-green-50 sm:max-w-xs"
             >
               <MessageCircle className="h-4 w-4" />
               Falar com suporte no WhatsApp
-            </a>
+            </LinkWhatsApp>
           ) : (
             <Link
               href="/suporte"

@@ -1,4 +1,5 @@
 import { AsaasSeloInstitucional } from "@/components/AsaasSeloInstitucional";
+import { LinkWhatsApp } from "@/components/LinkWhatsApp";
 import { LogoMarcaDenteArt } from "@/components/LogoMarcaDenteArt";
 import { WHATSAPP_LANDING_URL } from "@/lib/landing-content";
 
@@ -38,14 +39,12 @@ export function LandingFooter({ versaoSeloAsaas }: { versaoSeloAsaas?: string })
                 </a>
               </li>
               <li>
-                <a
+                <LinkWhatsApp
                   href={WHATSAPP_LANDING_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
                   className="transition hover:text-white"
                 >
                   Suporte
-                </a>
+                </LinkWhatsApp>
               </li>
             </ul>
           </div>

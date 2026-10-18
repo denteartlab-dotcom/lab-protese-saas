@@ -14,6 +14,7 @@ import {
   WHATSAPP_LANDING_URL,
 } from "@/lib/landing-content";
 import { recursosPlanosAssinatura } from "@/lib/master-planos";
+import { LinkWhatsApp } from "@/components/LinkWhatsApp";
 import { cn } from "@/lib/utils";
 
 function OndaBranca({ className }: { className?: string }) {
@@ -36,10 +37,8 @@ function OndaBranca({ className }: { className?: string }) {
 
 function BotaoWhatsapp({ className, children }: { className?: string; children: ReactNode }) {
   return (
-    <a
+    <LinkWhatsApp
       href={WHATSAPP_LANDING_URL}
-      target="_blank"
-      rel="noopener noreferrer"
       className={cn(
         "inline-flex items-center justify-center gap-2 rounded-xl border-2 border-white/40 bg-white/10 px-6 py-3.5 text-sm font-bold text-white backdrop-blur-sm transition hover:bg-white/20",
         className
@@ -47,7 +46,7 @@ function BotaoWhatsapp({ className, children }: { className?: string; children: 
     >
       <MessageCircle className="h-4 w-4" />
       {children}
-    </a>
+    </LinkWhatsApp>
   );
 }
 

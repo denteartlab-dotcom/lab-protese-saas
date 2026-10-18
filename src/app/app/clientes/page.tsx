@@ -8,6 +8,7 @@ import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal"
 import { ModuloCabecalho } from "@/components/ModuloCabecalho";
 import { useI18n } from "@/components/i18n-provider";
 import { Input, Modal } from "@/components/ui";
+import { LinkWhatsApp } from "@/components/LinkWhatsApp";
 import { mensagemAcompanhamentoCliente, formatWhatsAppPhone } from "@/lib/whatsapp";
 import { dispararOuAbrirWhatsapp } from "@/lib/whatsapp-disparo-cliente";
 import {
@@ -936,15 +937,13 @@ export default function ClientesPage() {
                       <td className="px-3 py-2 text-slate-500">{exibirTelefone(c.celular)}</td>
                       <td className="px-3 py-2 text-slate-500">
                         {c.celular || c.telefone ? (
-                          <a
+                          <LinkWhatsApp
                             href={`https://wa.me/${formatWhatsAppPhone(c.celular || c.telefone || "")}`}
-                            target="_blank"
-                            rel="noreferrer"
                             className="inline-flex items-center gap-1 text-emerald-600 hover:underline"
                           >
                             <MessageCircle className="h-3.5 w-3.5" />
                             {exibirTelefone(c.celular || c.telefone)}
-                          </a>
+                          </LinkWhatsApp>
                         ) : (
                           ""
                         )}

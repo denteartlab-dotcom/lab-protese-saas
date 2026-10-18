@@ -7,6 +7,7 @@ import { useI18n } from "@/components/i18n-provider";
 import type { AniversarianteMesItem } from "@/lib/dashboard-clientes-servico";
 import { nomesMesesLocale } from "@/lib/i18n/meses-locale";
 import { linkWhatsappWeb } from "@/lib/mensagem-aniversario";
+import { abrirWhatsAppUrl } from "@/lib/whatsapp";
 import { telefoneParaEnvioWhatsapp } from "@/lib/whatsapp-disparos/telefone-br";
 
 function telefoneAniversariante(c: AniversarianteMesItem) {
@@ -94,7 +95,7 @@ export function PainelAniversariantesDashboard({
         setErroLinha(t("dashboard.aniversarianteSemWhatsapp"));
         return;
       }
-      window.open(url, "_blank", "noopener,noreferrer");
+      abrirWhatsAppUrl(url);
     } catch {
       setErroLinha(t("dashboard.erroMensagemAniversario"));
     } finally {

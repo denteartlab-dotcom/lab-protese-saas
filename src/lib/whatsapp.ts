@@ -94,6 +94,53 @@ function buildWhatsAppWebSendUrl(phone: string, text: string) {
   return `https://web.whatsapp.com/send?phone=${digits}&text=${encodeURIComponent(text)}`;
 }
 
+export function ehAcessoCelular(userAgent?: string) {
+  const ua =
+    userAgent ??
+    (typeof navigator !== "undefined" ? navigator.userAgent : "");
+  if (
+    typeof navigator !== "undefined" &&
+    navigator.platform === "MacIntel" &&
+    navigator.maxTouchPoints > 1
+  ) {
+    return true;
+  }
+  if (!ua) return false;
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|Silk/i.test(
+    ua
+  );
+}
+
+/** Converte wa.me / api / web.whatsapp.com no esquema nativo do app. */
+export function urlWhatsAppAppNativo(url: string): string | null {
+  try {
+    const parsed = new URL(
+      url,
+      typeof window !== "undefined" ? window.location.origin : "https://wa.me"
+    );
+    if (parsed.protocol === "whatsapp:") return url;
+    const host = parsed.hostname.replace(/^www\./, "").toLowerCase();
+    const isWhatsapp =
+      host === "wa.me" ||
+      host === "api.whatsapp.com" ||
+      host === "web.whatsapp.com";
+    if (!isWhatsapp) return null;
+
+    let phone = parsed.searchParams.get("phone") || "";
+    if (!phone && host === "wa.me") {
+      phone = parsed.pathname.replace(/^\//, "");
+    }
+    phone = phone.replace(/\D/g, "");
+    const text = parsed.searchParams.get("text") || "";
+    const partes: string[] = [];
+    if (phone) partes.push(`phone=${phone}`);
+    if (text) partes.push(`text=${encodeURIComponent(text)}`);
+    return `whatsapp://send${partes.length ? `?${partes.join("&")}` : ""}`;
+  } catch {
+    return null;
+  }
+}
+
 export function buildOrcamentoWhatsAppUrl(phone: string, publicUrl: string) {
   return buildWhatsAppSendUrl(phone, mensagemSolicitarOrcamento(publicUrl));
 }
@@ -120,11 +167,24 @@ export function buildAprovacaoWhatsAppUrl(
 
 export function abrirWhatsAppUrl(url: string | null, janela?: Window | null) {
   if (!url) return false;
-  if (janela && !janela.closed) {
-    janela.location.href = url;
+  const noCelular = ehAcessoCelular();
+  const destino = noCelular ? urlWhatsAppAppNativo(url) || url : url;
+  if (noCelular) {
+    if (janela && !janela.closed) {
+      try {
+        janela.close();
+      } catch {
+        /* ignore */
+      }
+    }
+    window.location.href = destino;
     return true;
   }
-  window.open(url, "_blank", "noopener,noreferrer");
+  if (janela && !janela.closed) {
+    janela.location.href = destino;
+    return true;
+  }
+  window.open(destino, "_blank", "noopener,noreferrer");
   return true;
 }
 
@@ -172,12 +232,13 @@ export function buildFaturaConferenciaWhatsAppUrl(
   opts?: { preferirWhatsAppWeb?: boolean }
 ) {
   const digits = phone ? formatWhatsAppPhone(phone) : "";
+  const preferirWeb = Boolean(opts?.preferirWhatsAppWeb) && !ehAcessoCelular();
   if (!digits) {
-    return opts?.preferirWhatsAppWeb
+    return preferirWeb
       ? `https://web.whatsapp.com/send?text=${encodeURIComponent(texto)}`
       : `https://api.whatsapp.com/send/?text=${encodeURIComponent(texto)}&type=phone_number&app_absent=0`;
   }
-  if (opts?.preferirWhatsAppWeb) {
+  if (preferirWeb) {
     return buildWhatsAppWebSendUrl(digits, texto);
   }
   return buildWhatsAppSendUrl(digits, texto);
