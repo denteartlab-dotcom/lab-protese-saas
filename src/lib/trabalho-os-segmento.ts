@@ -30,9 +30,9 @@ export function classificarItemOs(item: ItemOsLinha): SegmentoFaturamento {
   return "servico";
 }
 
-/** Cabeçalho da OS (paciente, cliente e demais dados) fica bloqueado enquanto houver serviço. */
-export function osTemServicoAdicionado(itens: readonly ItemOsLinha[]) {
-  return itens.some((item) => classificarItemOs(item) === "servico");
+/** Cabeçalho da OS fica bloqueado enquanto existir item na lista (serviço, produto ou transporte). */
+export function osTemServicoAdicionado(itens: readonly unknown[]) {
+  return itens.length > 0;
 }
 
 /** Status da OS no banco: prioriza situação dos itens de serviço (após + Adicionar Serviço). */

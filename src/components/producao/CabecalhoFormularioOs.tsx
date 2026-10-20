@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { ImageUp, Tag, Trash2 } from "lucide-react";
 import { CampoDataBr, Input, Select, SelectPesquisavel } from "@/components/ui";
+import { cn } from "@/lib/utils";
 import { useI18n } from "@/components/i18n-provider";
 import { type PrioridadeOsForm } from "@/lib/prioridade-os";
 import {
@@ -20,6 +21,7 @@ import {
 } from "@/lib/os-anexos";
 import { useArmazenamentoGaleria } from "@/hooks/use-armazenamento-galeria";
 import {
+  classeCampoCabecalhoOsBloqueado,
   clienteTabelaPrecoDeObservacoes,
   formatMateriaisEnviadosTexto,
   parseMateriaisEnviadosTexto,
@@ -244,33 +246,50 @@ export function CabecalhoFormularioOs({
     };
   }, [arquivosNovos]);
 
+  const classeBloqueio = desabilitado ? classeCampoCabecalhoOsBloqueado : undefined;
+
   return (
-    <section className="grid gap-3 p-4 md:grid-cols-5">
+    <section
+      className={cn(
+        "grid gap-3 p-4 md:grid-cols-5",
+        desabilitado && "bg-slate-200/45"
+      )}
+    >
       <CampoDataBr
         label={t("producao.os.campo.dataLancamento")}
         value={value.dataLancamento}
         onChange={(dataLancamento) => onChange({ dataLancamento })}
         disabled={desabilitado}
+        inputClassName={classeBloqueio}
       />
-      <Input label={t("producao.os.campo.numeroOs")} value={value.numeroOs || "—"} readOnly />
+      <Input
+        label={t("producao.os.campo.numeroOs")}
+        value={value.numeroOs || "—"}
+        readOnly
+        disabled={desabilitado}
+        className={classeBloqueio}
+      />
       <Input
         label={t("producao.os.campo.caixa")}
         value={value.caixa}
         onChange={(e) => onChange({ caixa: e.target.value })}
-        readOnly={desabilitado}
+        disabled={desabilitado}
+        className={classeBloqueio}
       />
       <Input
         label={t("producao.os.campo.casoClinico")}
         value={value.casoUrgente}
         onChange={(e) => onChange({ casoUrgente: e.target.value })}
-        readOnly={desabilitado}
+        disabled={desabilitado}
+        className={classeBloqueio}
       />
       <Input
         label={t("producao.os.campo.paciente")}
         value={value.pacienteNome}
         onChange={(e) => onChange({ pacienteNome: e.target.value })}
         placeholder={t("producao.os.campo.pacientePlaceholder")}
-        readOnly={desabilitado}
+        disabled={desabilitado}
+        className={classeBloqueio}
       />
 
       <div className="space-y-1">
@@ -280,6 +299,7 @@ export function CabecalhoFormularioOs({
           onChange={(clienteId) => onChange({ clienteId })}
           placeholder={t("common.selecione")}
           disabled={desabilitado}
+          inputClassName={classeBloqueio}
           options={clientes.map((cliente) => ({
             value: cliente.id,
             label: cliente.nome,
@@ -298,14 +318,20 @@ export function CabecalhoFormularioOs({
         value={value.dentista}
         onChange={(e) => onChange({ dentista: e.target.value })}
         placeholder={t("producao.os.campo.dentistaPlaceholder")}
-        readOnly={desabilitado}
+        disabled={desabilitado}
+        className={classeBloqueio}
       />
 
       <div className="relative space-y-2 md:col-span-3">
         <label className="block text-sm font-medium text-slate-700">
           {t("producao.os.campo.material")}
         </label>
-        <div className="rounded border border-slate-300 bg-white p-2 shadow-sm">
+        <div
+          className={cn(
+            "rounded border border-slate-300 bg-white p-2 shadow-sm",
+            desabilitado && "border-slate-300 bg-slate-400/40 opacity-70"
+          )}
+        >
           {materiaisSelecionados.length > 0 && (
             <div className="mb-2 flex flex-wrap gap-2">
               {materiaisSelecionados.map((material) => (
@@ -418,6 +444,7 @@ export function CabecalhoFormularioOs({
           })
         }
         disabled={desabilitado}
+        className={classeBloqueio}
       >
         <option value="alta">{t("producao.os.prioridade.alta")}</option>
         <option value="media">{t("producao.os.prioridade.media")}</option>
@@ -428,6 +455,7 @@ export function CabecalhoFormularioOs({
         value={value.setorOs || ""}
         onChange={(e) => onChange({ setorOs: e.target.value })}
         disabled={desabilitado}
+        className={classeBloqueio}
       >
         <option value="">{t("producao.os.campo.setorPlaceholder")}</option>
         {setoresCadastrados.map((setor) => (
@@ -479,8 +507,12 @@ export function CabecalhoFormularioOs({
             value={value.observacoes}
             onChange={(e) => onChange({ observacoes: e.target.value })}
             readOnly={!observacaoEditavel}
+            disabled={!observacaoEditavel}
             placeholder={t("producao.os.campo.observacaoPlaceholder")}
-            className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 read-only:bg-slate-50"
+            className={cn(
+              "h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20",
+              !observacaoEditavel && classeCampoCabecalhoOsBloqueado
+            )}
           />
         </div>
       </div>

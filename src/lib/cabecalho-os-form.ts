@@ -2,6 +2,10 @@ import { instrucoesTextoLivre } from "@/lib/etapas-os";
 import { linhaPrioridadeOs, type PrioridadeOsForm } from "@/lib/prioridade-os";
 import { linhaSetorOs } from "@/lib/setor-os";
 
+/** Visual de bloqueio: cinza transparente, sem anel de foco. */
+export const classeCampoCabecalhoOsBloqueado =
+  "pointer-events-none cursor-not-allowed border-slate-300 bg-slate-400/40 text-slate-500 opacity-70 shadow-none focus:border-slate-300 focus:ring-0 dark:border-slate-600 dark:bg-slate-500/30 dark:text-slate-400";
+
 export type CabecalhoOsCampos = {
   dataLancamento: string;
   numeroOs: string;

@@ -68,6 +68,7 @@ import {
 } from "@/lib/setor-os";
 import {
   anexosParaLinhasInstrucoes,
+  classeCampoCabecalhoOsBloqueado,
   clienteDescontoGeralDeObservacoes,
   clienteDescontoGeralTipoDeObservacoes,
   descontoFormularioParaValorUn,
@@ -1778,8 +1779,12 @@ export default function OrdemServicoPage() {
       <CampoDataBr
         label={label}
         value={form[campo]}
-        onChange={(valorData) => atualizarCampoData(campo, valorData)}
+        onChange={(valorData) => {
+          if (disabled) return;
+          atualizarCampoData(campo, valorData);
+        }}
         disabled={disabled}
+        inputClassName={disabled ? classeCampoCabecalhoOsBloqueado : undefined}
       />
     );
   }
@@ -3817,9 +3822,7 @@ export default function OrdemServicoPage() {
   }
 
   const cabecalhoBloqueado = osTemServicoAdicionado(itensAdicionados);
-  const classeCampoCabecalho = cabecalhoBloqueado
-    ? "cursor-not-allowed bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
-    : undefined;
+  const classeCampoCabecalho = cabecalhoBloqueado ? classeCampoCabecalhoOsBloqueado : undefined;
 
   return (
     <div className="space-y-4 text-xs text-slate-700 dark:text-slate-200">
@@ -3841,7 +3844,12 @@ export default function OrdemServicoPage() {
           </h1>
         </div>
 
-        <section className="grid gap-3 p-4 md:grid-cols-5">
+        <section
+          className={cn(
+            "grid gap-3 p-4 md:grid-cols-5",
+            cabecalhoBloqueado && "bg-slate-200/45 dark:bg-slate-800/55"
+          )}
+        >
           {cabecalhoBloqueado ? (
             <p className="flex items-start gap-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] font-medium leading-snug text-amber-900 md:col-span-5 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100">
               <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
@@ -3853,6 +3861,7 @@ export default function OrdemServicoPage() {
               label={t("producao.os.campo.dataLancamento")}
               value={form.dataLancamento}
               readOnly
+              disabled={cabecalhoBloqueado}
               className={classeCampoCabecalho}
             />
           ) : (
@@ -3862,20 +3871,21 @@ export default function OrdemServicoPage() {
             label={t("producao.os.campo.numeroOs")}
             value={form.numeroOs || t("producao.os.campo.gerando")}
             readOnly
+            disabled={cabecalhoBloqueado}
             className={classeCampoCabecalho}
           />
           <Input
             label={t("producao.os.campo.caixa")}
             value={form.caixa}
             onChange={(e) => setForm({ ...form, caixa: e.target.value })}
-            readOnly={cabecalhoBloqueado}
+            disabled={cabecalhoBloqueado}
             className={classeCampoCabecalho}
           />
           <Input
             label={t("producao.os.campo.casoClinico")}
             value={form.casoUrgente}
             onChange={(e) => setForm({ ...form, casoUrgente: e.target.value })}
-            readOnly={cabecalhoBloqueado}
+            disabled={cabecalhoBloqueado}
             className={classeCampoCabecalho}
           />
           <div className="space-y-1">
@@ -3885,7 +3895,7 @@ export default function OrdemServicoPage() {
               onChange={(e) => setForm({ ...form, pacienteNome: e.target.value })}
               placeholder={t("producao.os.campo.pacientePlaceholder")}
               required
-              readOnly={cabecalhoBloqueado}
+              disabled={cabecalhoBloqueado}
               className={classeCampoCabecalho}
             />
             {!editId && avisoPacienteDuplicado?.numerosOs.length ? (
@@ -3905,6 +3915,7 @@ export default function OrdemServicoPage() {
               placeholder={t("common.selecione")}
               required
               disabled={cabecalhoBloqueado}
+              inputClassName={classeCampoCabecalho}
               options={clientes.map((cliente) => ({
                 value: cliente.id,
                 label: cliente.nome,
@@ -3928,14 +3939,19 @@ export default function OrdemServicoPage() {
             value={form.dentista}
             onChange={(e) => setForm({ ...form, dentista: e.target.value })}
             placeholder={t("producao.os.campo.dentistaPlaceholder")}
-            readOnly={cabecalhoBloqueado}
+            disabled={cabecalhoBloqueado}
             className={classeCampoCabecalho}
           />
           <div className="relative space-y-2 md:col-span-3">
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
               {t("producao.os.campo.material")}
             </label>
-            <div className="rounded border border-slate-300 bg-white p-2 shadow-sm dark:border-slate-600 dark:bg-slate-950">
+            <div
+              className={cn(
+                "rounded border border-slate-300 bg-white p-2 shadow-sm dark:border-slate-600 dark:bg-slate-950",
+                cabecalhoBloqueado && "border-slate-300 bg-slate-400/40 opacity-70 dark:bg-slate-500/30"
+              )}
+            >
               {materiaisSelecionados.length > 0 && (
                 <div className="mb-2 flex flex-wrap gap-2">
                   {materiaisSelecionados.map((material) => (
@@ -4116,7 +4132,7 @@ export default function OrdemServicoPage() {
               <input
                 type="text"
                 value={form.observacoes}
-                readOnly={cabecalhoBloqueado}
+                disabled={cabecalhoBloqueado}
                 onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
                 placeholder={t("producao.os.campo.observacaoPlaceholder")}
                 className={cn(
