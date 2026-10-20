@@ -3065,10 +3065,6 @@ export default function OrdemServicoPage() {
         atualizados[indexSelecionado] = { ...itemAtualizado, id: selectedId };
         return atualizados;
       });
-      if (osTemServicoAdicionado(novosItens) || osTemServicoAdicionado(itensAdicionados)) {
-        setMaterialAberto(false);
-        setModalMaterialAberto(false);
-      }
     }
 
     setItemSelecionadoId(null);
@@ -3821,8 +3817,7 @@ export default function OrdemServicoPage() {
     );
   }
 
-  const cabecalhoBloqueado = osTemServicoAdicionado(itensAdicionados);
-  const classeCampoCabecalho = cabecalhoBloqueado ? classeCampoCabecalhoOsBloqueado : undefined;
+  const pacienteBloqueado = osTemServicoAdicionado(itensAdicionados);
 
   return (
     <div className="space-y-4 text-xs text-slate-700 dark:text-slate-200">
@@ -3844,60 +3839,37 @@ export default function OrdemServicoPage() {
           </h1>
         </div>
 
-        <section
-          className={cn(
-            "grid gap-3 p-4 md:grid-cols-5",
-            cabecalhoBloqueado && "bg-slate-200/45 dark:bg-slate-800/55"
-          )}
-        >
-          {cabecalhoBloqueado ? (
-            <p className="flex items-start gap-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] font-medium leading-snug text-amber-900 md:col-span-5 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100">
-              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              {t("producao.os.cabecalho.bloqueado")}
-            </p>
-          ) : null}
+        <section className="grid gap-3 p-4 md:grid-cols-5">
           {editId ? (
             <Input
               label={t("producao.os.campo.dataLancamento")}
               value={form.dataLancamento}
               readOnly
-              disabled={cabecalhoBloqueado}
-              className={classeCampoCabecalho}
             />
           ) : (
-            dateField(t("producao.os.campo.dataLancamento"), "dataLancamento", cabecalhoBloqueado)
+            dateField(t("producao.os.campo.dataLancamento"), "dataLancamento")
           )}
-          <Input
-            label={t("producao.os.campo.numeroOs")}
-            value={form.numeroOs || t("producao.os.campo.gerando")}
-            readOnly
-            disabled={cabecalhoBloqueado}
-            className={classeCampoCabecalho}
-          />
-          <Input
-            label={t("producao.os.campo.caixa")}
-            value={form.caixa}
-            onChange={(e) => setForm({ ...form, caixa: e.target.value })}
-            disabled={cabecalhoBloqueado}
-            className={classeCampoCabecalho}
-          />
-          <Input
-            label={t("producao.os.campo.casoClinico")}
-            value={form.casoUrgente}
-            onChange={(e) => setForm({ ...form, casoUrgente: e.target.value })}
-            disabled={cabecalhoBloqueado}
-            className={classeCampoCabecalho}
-          />
+          <Input label={t("producao.os.campo.numeroOs")} value={form.numeroOs || t("producao.os.campo.gerando")} readOnly />
+          <Input label={t("producao.os.campo.caixa")} value={form.caixa} onChange={(e) => setForm({ ...form, caixa: e.target.value })} />
+          <Input label={t("producao.os.campo.casoClinico")} value={form.casoUrgente} onChange={(e) => setForm({ ...form, casoUrgente: e.target.value })} />
           <div className="space-y-1">
             <Input
               label={requiredLabel(t("producao.os.campo.paciente"), Boolean(avisoAdicionarServico))}
               value={form.pacienteNome}
-              onChange={(e) => setForm({ ...form, pacienteNome: e.target.value })}
+              onChange={(e) => {
+                if (pacienteBloqueado) return;
+                setForm({ ...form, pacienteNome: e.target.value });
+              }}
               placeholder={t("producao.os.campo.pacientePlaceholder")}
               required
-              disabled={cabecalhoBloqueado}
-              className={classeCampoCabecalho}
+              disabled={pacienteBloqueado}
+              className={pacienteBloqueado ? classeCampoCabecalhoOsBloqueado : undefined}
             />
+            {pacienteBloqueado ? (
+              <p className="text-[11px] font-medium leading-snug text-slate-500 dark:text-slate-400">
+                {t("producao.os.cabecalho.bloqueado")}
+              </p>
+            ) : null}
             {!editId && avisoPacienteDuplicado?.numerosOs.length ? (
               <p className="rounded bg-red-600 px-2 py-1 text-[15px] font-medium leading-snug text-white">
                 {t("producao.os.duplicataPaciente", {
@@ -3914,8 +3886,6 @@ export default function OrdemServicoPage() {
               onChange={aplicarConfiguracaoCliente}
               placeholder={t("common.selecione")}
               required
-              disabled={cabecalhoBloqueado}
-              inputClassName={classeCampoCabecalho}
               options={clientes.map((cliente) => ({
                 value: cliente.id,
                 label: cliente.nome,
@@ -3939,19 +3909,12 @@ export default function OrdemServicoPage() {
             value={form.dentista}
             onChange={(e) => setForm({ ...form, dentista: e.target.value })}
             placeholder={t("producao.os.campo.dentistaPlaceholder")}
-            disabled={cabecalhoBloqueado}
-            className={classeCampoCabecalho}
           />
           <div className="relative space-y-2 md:col-span-3">
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
               {t("producao.os.campo.material")}
             </label>
-            <div
-              className={cn(
-                "rounded border border-slate-300 bg-white p-2 shadow-sm dark:border-slate-600 dark:bg-slate-950",
-                cabecalhoBloqueado && "border-slate-300 bg-slate-400/40 opacity-70 dark:bg-slate-500/30"
-              )}
-            >
+            <div className="rounded border border-slate-300 bg-white p-2 shadow-sm dark:border-slate-600 dark:bg-slate-950">
               {materiaisSelecionados.length > 0 && (
                 <div className="mb-2 flex flex-wrap gap-2">
                   {materiaisSelecionados.map((material) => (
@@ -3966,16 +3929,15 @@ export default function OrdemServicoPage() {
               )}
               <button
                 type="button"
-                disabled={cabecalhoBloqueado}
                 onClick={() => setMaterialAberto((aberto) => !aberto)}
-                className="flex w-full items-center justify-center gap-2 rounded border border-slate-500 bg-slate-100 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                className="flex w-full items-center justify-center gap-2 rounded border border-slate-500 bg-slate-100 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
               >
                 <Tag className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
                 {t("producao.os.campo.selecioneMateriais")}
                 <span className="text-slate-400">⌄</span>
               </button>
             </div>
-            {materialAberto && !cabecalhoBloqueado && (
+            {materialAberto && (
               <div className="absolute left-0 z-30 mt-1 w-full rounded border border-slate-300 bg-white p-4 shadow-xl dark:border-slate-600 dark:bg-slate-900">
                 <div className="mb-4 grid gap-3 md:grid-cols-[1fr_auto_auto]">
                   <Input
@@ -4056,8 +4018,6 @@ export default function OrdemServicoPage() {
           <Select
             label={t("producao.os.campo.prioridade")}
             value={form.prioridadeOs}
-            disabled={cabecalhoBloqueado}
-            className={classeCampoCabecalho}
             onChange={(e) =>
               setForm({
                 ...form,
@@ -4072,8 +4032,6 @@ export default function OrdemServicoPage() {
           <Select
             label={t("producao.os.campo.setor")}
             value={form.setorOs}
-            disabled={cabecalhoBloqueado}
-            className={classeCampoCabecalho}
             onChange={(e) => aplicarSetorOs(e.target.value)}
           >
             <option value="">{t("producao.os.campo.setorPlaceholder")}</option>
@@ -4096,7 +4054,6 @@ export default function OrdemServicoPage() {
               multiple
               className="hidden"
               disabled={
-                cabecalhoBloqueado ||
                 galeriaEsgotada ||
                 bytesArquivosOs(arquivos) >= LIMITE_BYTES_TOTAL_ANEXOS_OS
               }
@@ -4106,7 +4063,6 @@ export default function OrdemServicoPage() {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={
-                cabecalhoBloqueado ||
                 galeriaEsgotada ||
                 bytesArquivosOs(arquivos) >= LIMITE_BYTES_TOTAL_ANEXOS_OS
               }
@@ -4132,13 +4088,9 @@ export default function OrdemServicoPage() {
               <input
                 type="text"
                 value={form.observacoes}
-                disabled={cabecalhoBloqueado}
                 onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
                 placeholder={t("producao.os.campo.observacaoPlaceholder")}
-                className={cn(
-                  "h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm shadow-sm placeholder:text-slate-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-400",
-                  classeCampoCabecalho
-                )}
+                className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm shadow-sm placeholder:text-slate-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-400"
               />
             </div>
           </div>
@@ -4159,9 +4111,8 @@ export default function OrdemServicoPage() {
                   >
                     <button
                       type="button"
-                      disabled={cabecalhoBloqueado}
                       onClick={() => anexosUpload.removerIndice(index)}
-                      className="absolute right-2 top-2 z-10 inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-red-600 shadow hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+                      className="absolute right-2 top-2 z-10 inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-red-600 shadow hover:bg-red-50"
                       title="Excluir imagem ou vídeo"
                     >
                       <Trash2 className="h-4 w-4" />

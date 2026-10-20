@@ -30,7 +30,7 @@ export function classificarItemOs(item: ItemOsLinha): SegmentoFaturamento {
   return "servico";
 }
 
-/** Cabeçalho da OS fica bloqueado enquanto existir item na lista (serviço, produto ou transporte). */
+/** Nome do paciente fica bloqueado enquanto existir item na lista da OS. */
 export function osTemServicoAdicionado(itens: readonly unknown[]) {
   return itens.length > 0;
 }

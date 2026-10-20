@@ -3933,11 +3933,6 @@ export default function ControlePage() {
             ) : null}
 
             <div className="min-h-0 flex-1 overflow-y-auto text-xs text-slate-700">
-              {cabecalhoBloqueadoPorServico && !osFaturada ? (
-                <p className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-[12px] font-medium leading-snug text-amber-900">
-                  {t("producao.os.cabecalho.bloqueado")}
-                </p>
-              ) : null}
               <CabecalhoFormularioOs
                 value={{
                   dataLancamento: form.dataLancamento,
@@ -4005,8 +4000,9 @@ export default function ControlePage() {
                 }}
                 arquivosNovos={arquivosEdicao}
                 onArquivosNovosChange={anexosUploadEdicao.definirPendentes}
-                desabilitado={osFaturada || cabecalhoBloqueadoPorServico}
-                observacaoEditavel={osFaturada || !cabecalhoBloqueadoPorServico}
+                desabilitado={osFaturada}
+                pacienteBloqueado={cabecalhoBloqueadoPorServico && !osFaturada}
+                observacaoEditavel
               />
 
               <section className="grid gap-2 border-t border-slate-100 px-4 py-3 md:grid-cols-2">

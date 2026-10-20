@@ -94,7 +94,7 @@ export const messagesProducaoPt = {
     "O total de anexos não pode passar de {limiteMb} MB.",
   "producao.os.secao.servico": "Serviço",
   "producao.os.cabecalho.bloqueado":
-    "Cabeçalho bloqueado enquanto houver serviço adicionado. Exclua o serviço para alterar o paciente e os demais dados.",
+    "Nome do paciente bloqueado enquanto houver serviço adicionado. Exclua o serviço para alterar.",
   "producao.os.itens.titulo": "Itens Adicionados",
   "producao.os.itens.totalServicos": "Total Serviços:",
   "producao.os.itens.vazio": "Nenhum serviço adicionado para conferência.",
@@ -273,7 +273,7 @@ export const messagesProducaoEn = {
     "Total attachments cannot exceed {limiteMb} MB.",
   "producao.os.secao.servico": "Service",
   "producao.os.cabecalho.bloqueado":
-    "Header locked while a service is added. Delete the service to edit the patient and the other details.",
+    "Patient name locked while a service is added. Delete the service to change it.",
   "producao.os.itens.titulo": "Added Items",
   "producao.os.itens.totalServicos": "Total Services:",
   "producao.os.itens.vazio": "No service added for review.",
@@ -452,7 +452,7 @@ export const messagesProducaoEs = {
     "El total de adjuntos no puede superar {limiteMb} MB.",
   "producao.os.secao.servico": "Servicio",
   "producao.os.cabecalho.bloqueado":
-    "Encabezado bloqueado mientras haya un servicio agregado. Elimine el servicio para modificar el paciente y los demás datos.",
+    "Nombre del paciente bloqueado mientras haya un servicio agregado. Elimine el servicio para modificarlo.",
   "producao.os.itens.titulo": "Ítems Agregados",
   "producao.os.itens.totalServicos": "Total Servicios:",
   "producao.os.itens.vazio": "Ningún servicio agregado para revisión.",
