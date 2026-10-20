@@ -63,6 +63,7 @@ import {
   deveRemoverControleEntregasPorStatus,
   removerTrabalhoControleEntregasAutomaticoServidor,
 } from "@/lib/controle-entregas-automatico";
+import { colaboradorEstaNaListaExcluidos } from "@/lib/colaboradores-listagem";
 import { normalizarColaborador } from "@/lib/utils";
 import { listarUsuariosOnlineEmpresa } from "@/lib/presenca-usuarios";
 import { setorResponsavelOs } from "@/lib/setor-os";
@@ -533,12 +534,16 @@ function escolherTrabalhoPrincipal(grupo: TrabalhoTvRow[]) {
 export async function carregarColaboradoresTv(
   empresaId: string
 ): Promise<ColaboradorTv[]> {
-  const [cadastro, usuariosOnline] = await Promise.all([
+  const [cadastro, excluidosRaw, usuariosOnline] = await Promise.all([
     lerJsonStoreTenant<ColaboradorCadastro[]>(empresaId, "labProteseColaboradores"),
+    lerJsonStoreTenant<ColaboradorCadastro[]>(empresaId, "labProteseColaboradoresExcluidos"),
     Promise.resolve(listarUsuariosOnlineEmpresa(empresaId)),
   ]);
 
-  const colaboradoresCadastro = (cadastro ?? []).filter((c) => c?.nome?.trim());
+  const excluidos = excluidosRaw ?? [];
+  const colaboradoresCadastro = (cadastro ?? [])
+    .filter((c) => c?.nome?.trim())
+    .filter((c) => !colaboradorEstaNaListaExcluidos(c, excluidos));
   const idsOnline = new Set<string>();
   const nomesOnline = new Set<string>();
 
@@ -555,11 +560,15 @@ export async function carregarColaboradoresTv(
 
   for (const usuario of usuariosOnline) {
     const colabId = usuario.colaboradorId?.trim();
+    const nomeVinculo = usuario.colaboradorNome?.trim() || "";
+    if (colaboradorEstaNaListaExcluidos({ id: colabId, nome: nomeVinculo }, excluidos)) {
+      continue;
+    }
     const nomeExibicao =
       (colabId
         ? colaboradoresCadastro.find((c) => c.id === colabId)?.nome
         : null) ||
-      usuario.colaboradorNome?.trim() ||
+      nomeVinculo ||
       usuario.name.trim();
 
     const id = colabId || `user-${usuario.userId}`;

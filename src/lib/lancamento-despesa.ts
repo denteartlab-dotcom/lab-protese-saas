@@ -1,3 +1,4 @@
+import { colaboradorEstaExcluido } from "@/lib/colaboradores-listagem";
 import { somarDiasIso } from "@/lib/datas-br";
 import { carregarEntregadoresCadastro } from "@/lib/entregadores-cadastro";
 import { readStorage } from "@/lib/persisted-storage";
@@ -278,7 +279,11 @@ export function carregarEntidadesDespesaLocal(
   tipo: Exclude<EntidadeDespesa, "todos">
 ): EntidadeDespesaOpcao[] {
   if (tipo === "fornecedores") return lerFornecedoresStorage();
-  if (tipo === "colaboradores") return lerEntidadesStorage("labProteseColaboradores");
+  if (tipo === "colaboradores") {
+    return lerEntidadesStorage("labProteseColaboradores").filter(
+      (item) => !colaboradorEstaExcluido(item)
+    );
+  }
   if (tipo === "prestadores") return lerEntidadesStorage("labProtesePrestadores");
   if (tipo === "entregadores") {
     return carregarEntregadoresCadastro().map((item) => ({

@@ -10,7 +10,10 @@ import {
   formatValorMonetarioInput,
   usaDiariaColaborador,
 } from "@/lib/colaborador-remuneracao";
-import { COLABORADORES_STORAGE_KEY } from "@/lib/colaboradores-listagem";
+import {
+  COLABORADORES_STORAGE_KEY,
+  colaboradorEstaExcluido,
+} from "@/lib/colaboradores-listagem";
 import { dateKeyLocal } from "@/lib/controle-producao-prazos";
 import {
   clonarHorarioFuncionamento,
@@ -904,6 +907,7 @@ export function carregarColaboradoresDiaria(): ColaboradorDiariaOrigem[] {
       } satisfies ColaboradorDiariaOrigem;
     })
     .filter((item): item is ColaboradorDiariaOrigem => item !== null)
+    .filter((item) => !colaboradorEstaExcluido(item))
     .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 }
 

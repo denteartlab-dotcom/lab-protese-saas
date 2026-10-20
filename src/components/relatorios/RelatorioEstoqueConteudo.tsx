@@ -7,6 +7,7 @@ import {
   Printer,
 } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
+import { colaboradorEstaExcluido } from "@/lib/colaboradores-listagem";
 import { CampoDataBr } from "@/components/campo-data-br";
 import { RelatorioCabecalho, RelatorioTituloLateral } from "@/components/relatorios/RelatorioCabecalho";
 import { PainelCarregando } from "@/components/ListaCarregando";
@@ -610,7 +611,10 @@ export function RelatorioEstoqueConteudo() {
   );
 
   const opcoesColaborador = useMemo(
-    () => coletarColaboradoresMovimentos(movimentos),
+    () =>
+      coletarColaboradoresMovimentos(movimentos).filter(
+        (nome) => !nome || !colaboradorEstaExcluido({ nome })
+      ),
     [movimentos]
   );
 

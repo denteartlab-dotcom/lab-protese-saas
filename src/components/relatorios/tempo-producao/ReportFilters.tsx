@@ -1,8 +1,13 @@
 "use client";
 
 import { Search } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useI18n } from "@/components/i18n-provider";
 import { CampoDataBr } from "@/components/campo-data-br";
+import {
+  COLABORADORES_ATUALIZADOS_EVENT,
+  colaboradorEstaExcluido,
+} from "@/lib/colaboradores-listagem";
 import type { FiltrosTempoProducao, StatusTempoProducao } from "@/lib/tempo-producao-relatorio";
 import { STATUS_TEMPO_PRODUCAO } from "@/lib/tempo-producao-relatorio";
 import { labelStatusTempo } from "@/components/relatorios/tempo-producao/tempo-i18n";
@@ -25,6 +30,17 @@ const selectClass =
 
 export function ReportFilters({ filtros, opcoes, onChange }: Props) {
   const { t } = useI18n();
+  const [, setListaColaboradoresTick] = useState(0);
+
+  useEffect(() => {
+    const atualizar = () => setListaColaboradoresTick((valor) => valor + 1);
+    window.addEventListener(COLABORADORES_ATUALIZADOS_EVENT, atualizar);
+    return () => window.removeEventListener(COLABORADORES_ATUALIZADOS_EVENT, atualizar);
+  }, []);
+
+  const colaboradoresSelecionaveis = opcoes.colaboradores.filter(
+    (nome) => !colaboradorEstaExcluido({ nome })
+  );
 
   function patch(partial: Partial<FiltrosTempoProducao>) {
     onChange({ ...filtros, ...partial });
@@ -67,7 +83,7 @@ export function ReportFilters({ filtros, opcoes, onChange }: Props) {
             onChange={(e) => patch({ colaborador: e.target.value || undefined })}
           >
             <option value="">{t("relatorio.opcao.todos")}</option>
-            {opcoes.colaboradores.map((c) => (
+            {colaboradoresSelecionaveis.map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>

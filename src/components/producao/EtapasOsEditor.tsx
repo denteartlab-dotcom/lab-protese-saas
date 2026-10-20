@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils";
 import { propsInputComSelecaoAoFocar } from "@/lib/input-selecao";
 import {
   carregarColaboradoresListagem,
+  colaboradorEstaExcluido,
+  COLABORADORES_ATUALIZADOS_EVENT,
   type ColaboradorListagem,
 } from "@/lib/colaboradores-listagem";
 import {
@@ -221,9 +223,14 @@ export function EtapasOsEditor({
   }, [avisoEtapa]);
 
   useEffect(() => {
-    setModelosEtapas(carregarEtapasCadastro());
-    setSetoresCadastrados(carregarSetoresCadastro());
-    setColaboradoresOpcoes(carregarColaboradoresListagem());
+    const carregar = () => {
+      setModelosEtapas(carregarEtapasCadastro());
+      setSetoresCadastrados(carregarSetoresCadastro());
+      setColaboradoresOpcoes(carregarColaboradoresListagem());
+    };
+    carregar();
+    window.addEventListener(COLABORADORES_ATUALIZADOS_EVENT, carregar);
+    return () => window.removeEventListener(COLABORADORES_ATUALIZADOS_EVENT, carregar);
   }, []);
 
   const modeloEtapa = useMemo(
@@ -491,10 +498,13 @@ export function EtapasOsEditor({
                   >
                     <option value="">Selecione um colaborador</option>
                     {etapa.responsavel &&
+                      !colaboradorEstaExcluido({ nome: etapa.responsavel }) &&
                       !colaboradoresOpcoes.some(
                         (colaborador) => colaborador.nome === etapa.responsavel
                       ) && <option value={etapa.responsavel}>{etapa.responsavel}</option>}
-                    {colaboradoresOpcoes.map((colaborador) => (
+                    {colaboradoresOpcoes
+                      .filter((colaborador) => !colaboradorEstaExcluido(colaborador))
+                      .map((colaborador) => (
                       <option key={colaborador.id} value={colaborador.nome}>
                         {colaborador.nome}
                       </option>

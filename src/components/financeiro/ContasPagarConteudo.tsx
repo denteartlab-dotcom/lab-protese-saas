@@ -66,6 +66,7 @@ import {
   type EntidadeDespesa,
   type DespesaMeta,
 } from "@/lib/lancamento-despesa";
+import { colaboradorEstaExcluido } from "@/lib/colaboradores-listagem";
 import {
   diaQuintoDiaUtilDoMes,
   ehCategoriaSalariosFixos,
@@ -452,7 +453,9 @@ export function ContasPagarConteudo() {
   useEffect(() => {
     setListasNomes({
       fornecedores: lerNomesStorage("labProteseFornecedores"),
-      colaboradores: lerNomesStorage("labProteseColaboradores"),
+      colaboradores: lerNomesStorage("labProteseColaboradores").filter(
+        (nome) => !colaboradorEstaExcluido({ nome })
+      ),
       prestadores: lerNomesStorage("labProtesePrestadores"),
       entregadores: lerNomesStorage("labProteseEntregadores"),
     });

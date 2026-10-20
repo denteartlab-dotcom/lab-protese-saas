@@ -6,7 +6,11 @@ import { useEffect, useRef, useState } from "react";
 import { Home, Plus, UserCog } from "lucide-react";
 import { PainelCarregando } from "@/components/ListaCarregando";
 import { useI18n } from "@/components/i18n-provider";
-import { carregarColaboradoresListagem } from "@/lib/colaboradores-listagem";
+import {
+  carregarColaboradoresListagem,
+  colaboradorEstaExcluido,
+  COLABORADORES_ATUALIZADOS_EVENT,
+} from "@/lib/colaboradores-listagem";
 import {
   ROLES_USUARIO,
   rotuloTipoUsuario,
@@ -56,9 +60,18 @@ export function NovoUsuarioConteudo() {
   });
 
   useEffect(() => {
-    setColaboradores(
-      carregarColaboradoresListagem().map((c) => ({ id: c.id, nome: c.nome }))
-    );
+    const carregarCols = () =>
+      setColaboradores(
+        carregarColaboradoresListagem()
+          .filter((c) => !colaboradorEstaExcluido(c))
+          .map((c) => ({ id: c.id, nome: c.nome }))
+      );
+    carregarCols();
+    window.addEventListener(COLABORADORES_ATUALIZADOS_EVENT, carregarCols);
+    return () => window.removeEventListener(COLABORADORES_ATUALIZADOS_EVENT, carregarCols);
+  }, []);
+
+  useEffect(() => {
     void (async () => {
       try {
         const me = await fetch("/api/auth/me", { cache: "no-store" });

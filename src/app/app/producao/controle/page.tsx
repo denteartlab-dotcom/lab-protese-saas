@@ -96,6 +96,8 @@ import {
 } from "@/lib/tabela-precos-os";
 import {
   carregarColaboradoresListagem,
+  colaboradorEstaExcluido,
+  COLABORADORES_ATUALIZADOS_EVENT,
   type ColaboradorListagem,
 } from "@/lib/colaboradores-listagem";
 import { comissaoCadastroColaborador, calcularComissaoSobreServicos, formatarComissaoCalculadaExibicao } from "@/lib/colaborador-remuneracao";
@@ -1438,6 +1440,11 @@ export default function ControlePage() {
       .catch(() => setProdutosCadastro([]));
     setColaboradoresOpcoes(carregarColaboradoresListagem());
     setOpcoesTerceirizados(carregarOpcoesTerceirizadosControle());
+    const aoAtualizarColaboradores = () =>
+      setColaboradoresOpcoes(carregarColaboradoresListagem());
+    window.addEventListener(COLABORADORES_ATUALIZADOS_EVENT, aoAtualizarColaboradores);
+    return () =>
+      window.removeEventListener(COLABORADORES_ATUALIZADOS_EVENT, aoAtualizarColaboradores);
   }, [editando]);
 
   const editIdPorGrupo = useMemo(() => {
@@ -4730,12 +4737,15 @@ export default function ControlePage() {
                                   >
                                     <option value="">Selecione um colaborador</option>
                                     {colaborador.nome &&
+                                      !colaboradorEstaExcluido({ nome: colaborador.nome }) &&
                                       !colaboradoresOpcoes.some(
                                         (c) => c.nome === colaborador.nome
                                       ) && (
                                         <option value={colaborador.nome}>{colaborador.nome}</option>
                                       )}
-                                    {colaboradoresOpcoes.map((opcao) => (
+                                    {colaboradoresOpcoes
+                                      .filter((opcao) => !colaboradorEstaExcluido(opcao))
+                                      .map((opcao) => (
                                       <option key={opcao.id} value={opcao.nome}>
                                         {opcao.nome}
                                       </option>

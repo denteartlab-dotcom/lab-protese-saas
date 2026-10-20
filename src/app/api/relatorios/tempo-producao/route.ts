@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
+import {
+  COLABORADORES_EXCLUIDOS_STORAGE_KEY,
+  colaboradorEstaNaListaExcluidos,
+} from "@/lib/colaboradores-listagem";
 import { requireEmpresaContext } from "@/lib/empresa-context";
+import { lerJsonStoreTenant } from "@/lib/json-store-tenant";
 import { acaoHttpParaPermissao, negarSeSemPermissao } from "@/lib/require-permissao";
 import { carregarLinhasTempoProducaoServidor } from "@/lib/tempo-producao-relatorio-servidor";
 import {
@@ -42,7 +47,15 @@ export async function GET(request: Request) {
       fonte = "mock";
     }
 
+    const excluidos =
+      (await lerJsonStoreTenant<Array<{ id?: string; nome?: string }>>(
+        ctx.empresaId,
+        COLABORADORES_EXCLUIDOS_STORAGE_KEY
+      )) ?? [];
     const opcoes = opcoesFiltroTempoProducao(linhasBase);
+    opcoes.colaboradores = opcoes.colaboradores.filter(
+      (nome) => !colaboradorEstaNaListaExcluidos({ nome }, excluidos)
+    );
     const resultado = montarResultadoTempoProducao(linhasBase, filtros, fonte);
 
     return NextResponse.json({ ...resultado, opcoes });

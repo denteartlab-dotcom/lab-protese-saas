@@ -25,7 +25,10 @@ import {
 import { aplicarEfetivacaoComissoes } from "@/lib/efetivar-comissao-colaborador";
 import { gerarRelatorioComissaoColaboradoresModelo1Pdf } from "@/lib/pdf-relatorio-comissao-colaboradores-modelo1";
 import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
-import { carregarColaboradoresListagem } from "@/lib/colaboradores-listagem";
+import {
+  carregarColaboradoresListagem,
+  colaboradorEstaExcluido,
+} from "@/lib/colaboradores-listagem";
 import { carregarEtapasCadastro } from "@/lib/etapas-os";
 import { intervaloMesVigente, parseBrDate } from "@/lib/datas-br";
 import { labelStatusTrabalho, metaStatusTrabalho } from "@/lib/i18n/status-trabalho-i18n";
@@ -251,8 +254,14 @@ export function ControleComissoesColaboradores() {
   const linhasBase = useMemo(() => montarLinhasComissaoColaboradores(trabalhos), [trabalhos]);
 
   const nomesFiltroColaboradores = useMemo(() => {
-    const nomes = new Set(colaboradoresCadastro.map((c) => c.nome));
-    for (const linha of linhasBase) nomes.add(linha.colaborador);
+    const nomes = new Set(
+      colaboradoresCadastro
+        .filter((c) => !colaboradorEstaExcluido(c))
+        .map((c) => c.nome)
+    );
+    for (const linha of linhasBase) {
+      if (!colaboradorEstaExcluido({ nome: linha.colaborador })) nomes.add(linha.colaborador);
+    }
     return [...nomes].sort((a, b) => a.localeCompare(b, "pt-BR"));
   }, [colaboradoresCadastro, linhasBase]);
 

@@ -5,7 +5,9 @@ import {
   type ConfiguracoesGerais,
 } from "@/lib/configuracoes-gerais";
 import {
+  COLABORADORES_EXCLUIDOS_STORAGE_KEY,
   COLABORADORES_STORAGE_KEY,
+  colaboradorEstaNaListaExcluidos,
   colaboradoresListagemFromStorage,
   type ColaboradorListagem,
 } from "@/lib/colaboradores-listagem";
@@ -133,6 +135,7 @@ export async function montarTrabalhoContexto(
     etapasRaw,
     setoresRaw,
     colaboradoresRaw,
+    colaboradoresExcluidosRaw,
     tabelaRaw,
     configRaw,
     trabalho,
@@ -161,6 +164,10 @@ export async function montarTrabalhoContexto(
     lerJsonStoreTenant<EtapaCadastro[]>(empresaId, ETAPAS_STORAGE_KEY),
     lerJsonStoreTenant<SetorCadastro[]>(empresaId, SETORES_STORAGE_KEY),
     lerJsonStoreTenant<unknown[]>(empresaId, COLABORADORES_STORAGE_KEY),
+    lerJsonStoreTenant<Array<{ id?: string; nome?: string }>>(
+      empresaId,
+      COLABORADORES_EXCLUIDOS_STORAGE_KEY
+    ),
     lerJsonStoreTenant<Parameters<typeof parseDadosTabelaPrecoOsRemoto>[0]>(
       empresaId,
       TABELA_PRECOS_STORAGE_KEY
@@ -202,6 +209,12 @@ export async function montarTrabalhoContexto(
       Array.isArray(colaboradoresRaw)
         ? (colaboradoresRaw as Parameters<typeof colaboradoresListagemFromStorage>[0])
         : []
+    ).filter(
+      (item) =>
+        !colaboradorEstaNaListaExcluidos(
+          item,
+          Array.isArray(colaboradoresExcluidosRaw) ? colaboradoresExcluidosRaw : []
+        )
     ),
     tabelaPrecos: parseDadosTabelaPrecoOsRemoto(tabelaRaw),
     configuracoesGerais: normalizarConfiguracoesGerais(configRaw),

@@ -34,6 +34,8 @@ import {
 import { usePageReady } from "@/hooks/use-page-ready";
 import {
   carregarColaboradoresListagem,
+  colaboradorEstaExcluido,
+  COLABORADORES_ATUALIZADOS_EVENT,
   type ColaboradorListagem,
 } from "@/lib/colaboradores-listagem";
 import { carregarEtapasCadastro } from "@/lib/etapas-os";
@@ -643,9 +645,11 @@ export default function TabelaPrecosPage() {
     const atualizar = () => recarregarColaboradores();
     window.addEventListener("focus", atualizar);
     window.addEventListener("storage", atualizar);
+    window.addEventListener(COLABORADORES_ATUALIZADOS_EVENT, atualizar);
     return () => {
       window.removeEventListener("focus", atualizar);
       window.removeEventListener("storage", atualizar);
+      window.removeEventListener(COLABORADORES_ATUALIZADOS_EVENT, atualizar);
     };
   }, [categoriaServico, recarregarColaboradores]);
 
@@ -2639,12 +2643,15 @@ export default function TabelaPrecosPage() {
                           className="h-9 w-full rounded border border-slate-300 bg-white px-3 text-xs outline-none focus:border-primary-500"
                         >
                           <option value="">{t("cadastros.comum.selecione")}</option>
-                          {colaboradoresCadastro.map((colaborador) => (
+                          {colaboradoresCadastro
+                            .filter((colaborador) => !colaboradorEstaExcluido(colaborador))
+                            .map((colaborador) => (
                             <option key={colaborador.id} value={colaborador.nome}>
                               {colaborador.nome}
                             </option>
                           ))}
                           {comissao.nome &&
+                            !colaboradorEstaExcluido({ nome: comissao.nome }) &&
                             !colaboradoresCadastro.some((item) => item.nome === comissao.nome) && (
                               <option value={comissao.nome}>{comissao.nome}</option>
                             )}

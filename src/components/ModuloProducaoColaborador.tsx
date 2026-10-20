@@ -26,7 +26,10 @@ import {
   metaStatusTrabalho,
   opcoesStatusTrabalho,
 } from "@/lib/i18n/status-trabalho-i18n";
-import { carregarColaboradoresListagem } from "@/lib/colaboradores-listagem";
+import {
+  carregarColaboradoresListagem,
+  colaboradorEstaExcluido,
+} from "@/lib/colaboradores-listagem";
 import {
   formatarMoedaComissao,
   montarLinhasComissaoColaboradores,
@@ -545,8 +548,14 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
   );
 
   const nomesFiltroColaboradores = useMemo(() => {
-    const nomes = new Set(colaboradoresCadastro.map((c) => c.nome));
-    for (const linha of linhasComissao) nomes.add(linha.colaborador);
+    const nomes = new Set(
+      colaboradoresCadastro
+        .filter((c) => !colaboradorEstaExcluido(c))
+        .map((c) => c.nome)
+    );
+    for (const linha of linhasComissao) {
+      if (!colaboradorEstaExcluido({ nome: linha.colaborador })) nomes.add(linha.colaborador);
+    }
     return [...nomes].sort((a, b) => a.localeCompare(b, "pt-BR"));
   }, [colaboradoresCadastro, linhasComissao]);
 

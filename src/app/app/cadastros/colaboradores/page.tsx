@@ -32,6 +32,7 @@ import {
   usaSalarioColaborador,
 } from "@/lib/colaborador-remuneracao";
 import { sincronizarCadastroComDiarias, sugerirValorDiaria } from "@/lib/diarias-colaboradores";
+import { notificarColaboradoresAtualizados } from "@/lib/colaboradores-listagem";
 
 type Colaborador = {
   id: string;
@@ -383,19 +384,27 @@ export default function ColaboradoresPage() {
       return atualizados;
     });
     if (colaboradorAberto === id) setColaboradorAberto(null);
+    notificarColaboradoresAtualizados();
   }
 
   function restaurarColaborador(id: string) {
     const colaborador = colaboradoresExcluidos.find((item) => item.id === id);
-    if (colaborador) {
-      setColaboradores((atuais) => [...atuais, colaborador]);
-    }
-    setColaboradoresExcluidos((atuais) => atuais.filter((item) => item.id !== id));
+    if (!colaborador) return;
+    const ativos = [...colaboradores, colaborador];
+    const excluidos = colaboradoresExcluidos.filter((item) => item.id !== id);
+    setColaboradores(ativos);
+    setColaboradoresExcluidos(excluidos);
+    writeStorage(COLABORADORES_STORAGE_KEY, ativos);
+    writeStorage(COLABORADORES_EXCLUIDOS_STORAGE_KEY, excluidos);
+    notificarColaboradoresAtualizados();
   }
 
   function removerColaboradorDefinitivo(id: string) {
-    setColaboradoresExcluidos((atuais) => atuais.filter((item) => item.id !== id));
+    const excluidos = colaboradoresExcluidos.filter((item) => item.id !== id);
+    setColaboradoresExcluidos(excluidos);
+    writeStorage(COLABORADORES_EXCLUIDOS_STORAGE_KEY, excluidos);
     if (colaboradorAberto === id) setColaboradorAberto(null);
+    notificarColaboradoresAtualizados();
   }
 
   async function abrirPdfColaboradores() {

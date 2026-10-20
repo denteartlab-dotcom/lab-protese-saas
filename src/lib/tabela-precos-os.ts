@@ -3,6 +3,7 @@ import {
   prazoVencimentoEtapaOs,
   type EtapaCadastro,
 } from "@/lib/etapas-os";
+import { colaboradorEstaExcluido } from "@/lib/colaboradores-listagem";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
 import { armazenamentoLaboratorioSomenteLeitura } from "@/lib/armazenamento-laboratorio";
 
@@ -657,11 +658,13 @@ export function colaboradoresIniciaisFormParaOsServico(
   servico: ServicoTabelaPrecoOs,
   repeticao = false
 ): ColaboradorComissaoOsForm[] {
-  return comissoesColaboradoresDoServico(servico).map((linha) => ({
-    nome: linha.nome.trim(),
-    comissao: formatarPercentualComissaoTabela(repeticao ? linha.valorRepeticao : linha.valor),
-    etapa: "",
-  }));
+  return comissoesColaboradoresDoServico(servico)
+    .filter((linha) => !colaboradorEstaExcluido({ nome: linha.nome }))
+    .map((linha) => ({
+      nome: linha.nome.trim(),
+      comissao: formatarPercentualComissaoTabela(repeticao ? linha.valorRepeticao : linha.valor),
+      etapa: "",
+    }));
 }
 
 export function terceirizadosIniciaisFormParaOsServico(

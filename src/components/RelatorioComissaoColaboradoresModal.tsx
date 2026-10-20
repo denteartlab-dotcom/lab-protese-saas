@@ -6,6 +6,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { CampoDataBr } from "@/components/campo-data-br";
+import { colaboradorEstaExcluido } from "@/lib/colaboradores-listagem";
 import type { LinhaComissaoColaborador } from "@/lib/comissoes-colaboradores";
 import { gerarRelatorioComissaoColaboradoresModelo1Pdf } from "@/lib/pdf-relatorio-comissao-colaboradores-modelo1";
 import { gerarRelatorioComissaoColaboradoresModelo2Pdf } from "@/lib/pdf-relatorio-comissao-colaboradores-modelo2";
@@ -304,7 +305,9 @@ export function RelatorioComissaoColaboradoresModal({
             >
               <option value="todos">Todos</option>
               <option value="selecionados">selecionados</option>
-              {colaboradores.map((item) => (
+              {colaboradores
+                .filter((item) => !colaboradorEstaExcluido(item))
+                .map((item) => (
                 <option key={item.id} value={item.nome}>
                   {item.nome}
                 </option>

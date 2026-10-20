@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
+import { colaboradorEstaExcluido } from "@/lib/colaboradores-listagem";
 import { trUi } from "@/lib/i18n/tr-ui";
 import { BadgeSituacaoOs } from "@/components/BadgeSituacaoOs";
 import { CampoDataBr } from "@/components/campo-data-br";
@@ -541,7 +542,8 @@ export function RelatorioProducaoConteudo() {
         etapas
       );
       cols.forEach((c) => {
-        if (c.nome.trim()) nomes.add(c.nome.trim());
+        const nome = c.nome.trim();
+        if (nome && !colaboradorEstaExcluido({ nome })) nomes.add(nome);
       });
     }
     return ["Todos", ...[...nomes].sort((a, b) => a.localeCompare(b, "pt-BR"))];

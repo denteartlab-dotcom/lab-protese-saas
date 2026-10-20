@@ -32,6 +32,7 @@ import {
   type EtiquetaCategoria,
 } from "@/lib/etiquetas-categoria";
 import { usePageReady } from "@/hooks/use-page-ready";
+import { colaboradorEstaExcluido } from "@/lib/colaboradores-listagem";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
 import { formatCurrency } from "@/lib/utils";
 import { ProdutoFotoCampo } from "@/components/estoque/ProdutoFotoCampo";
@@ -730,7 +731,11 @@ function ProdutosConteudo() {
         Array.isArray(prestadores) ? prestadores.map((item) => String(item?.nome || "")).filter(Boolean) : []
       );
       setColaboradoresMovimento(
-        Array.isArray(colaboradores) ? colaboradores.map((item) => String(item?.nome || "")).filter(Boolean) : []
+        Array.isArray(colaboradores)
+          ? colaboradores
+              .map((item) => String(item?.nome || ""))
+              .filter((nome) => nome && !colaboradorEstaExcluido({ nome }))
+          : []
       );
       setColaboradoresDetalhe(
         Array.isArray(colaboradores)

@@ -125,6 +125,8 @@ import {
   type ServicoTabelaPrecoOs,
 } from "@/lib/tabela-precos-os";
 import { carregarColaboradoresListagem,
+  colaboradorEstaExcluido,
+  COLABORADORES_ATUALIZADOS_EVENT,
   type ColaboradorListagem,
 } from "@/lib/colaboradores-listagem";
 import { carregarProdutosListagem } from "@/lib/produtos-listagem";
@@ -690,7 +692,9 @@ export default function OrdemServicoPage() {
       setProdutos(aplicarExtrasEstoque(dados.produtos));
       setModelosEtapas(dados.etapas);
       setSetoresCadastrados(dados.setores);
-      setColaboradoresOpcoes(dados.colaboradores);
+      setColaboradoresOpcoes(
+        dados.colaboradores.filter((item) => !colaboradorEstaExcluido(item))
+      );
       setExigeAnteriorFinalizada(dados.configuracoesGerais.producaoEtapaExigeAnteriorFinalizada);
       setTabelaPrecoAtual(dados.tabelaPrecos.tabela);
       setCategoriasPorTabelaPreco(
@@ -899,8 +903,10 @@ export default function OrdemServicoPage() {
 
     carregarModelosEtapasESetores();
     window.addEventListener("storage", carregarModelosEtapasESetores);
+    window.addEventListener(COLABORADORES_ATUALIZADOS_EVENT, carregarModelosEtapasESetores);
     return () => {
       window.removeEventListener("storage", carregarModelosEtapasESetores);
+      window.removeEventListener(COLABORADORES_ATUALIZADOS_EVENT, carregarModelosEtapasESetores);
     };
   }, [paginaPronta]);
 
@@ -4589,12 +4595,15 @@ export default function OrdemServicoPage() {
                               >
                                 <option value="">Selecione um colaborador</option>
                                 {etapa.responsavel &&
+                                  !colaboradorEstaExcluido({ nome: etapa.responsavel }) &&
                                   !colaboradoresOpcoes.some(
                                     (colaborador) => colaborador.nome === etapa.responsavel
                                   ) && (
                                     <option value={etapa.responsavel}>{etapa.responsavel}</option>
                                   )}
-                                {colaboradoresOpcoes.map((colaborador) => (
+                                {colaboradoresOpcoes
+                                  .filter((colaborador) => !colaboradorEstaExcluido(colaborador))
+                                  .map((colaborador) => (
                                   <option key={colaborador.id} value={colaborador.nome}>
                                     {colaborador.nome}
                                   </option>
@@ -4790,10 +4799,13 @@ export default function OrdemServicoPage() {
                         >
                           <option value="">Selecione um colaborador</option>
                           {colaborador.nome &&
+                            !colaboradorEstaExcluido({ nome: colaborador.nome }) &&
                             !colaboradoresOpcoes.some((c) => c.nome === colaborador.nome) && (
                               <option value={colaborador.nome}>{colaborador.nome}</option>
                             )}
-                          {colaboradoresOpcoes.map((opcao) => (
+                          {colaboradoresOpcoes
+                            .filter((opcao) => !colaboradorEstaExcluido(opcao))
+                            .map((opcao) => (
                             <option key={opcao.id} value={opcao.nome}>
                               {opcao.nome}
                             </option>

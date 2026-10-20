@@ -55,6 +55,8 @@ import {
 } from "@/lib/cliente-representante";
 import {
   carregarColaboradoresListagem,
+  colaboradorEstaExcluido,
+  COLABORADORES_ATUALIZADOS_EVENT,
   type ColaboradorListagem,
 } from "@/lib/colaboradores-listagem";
 import {
@@ -399,9 +401,12 @@ export default function ClientesPage() {
     void recarregarTabelasPreco();
     setColaboradores(carregarColaboradoresListagem());
     const aoAtualizar = () => void recarregarTabelasPreco();
+    const aoAtualizarColaboradores = () => setColaboradores(carregarColaboradoresListagem());
     window.addEventListener(TABELA_PRECOS_EVENT, aoAtualizar);
+    window.addEventListener(COLABORADORES_ATUALIZADOS_EVENT, aoAtualizarColaboradores);
     return () => {
       window.removeEventListener(TABELA_PRECOS_EVENT, aoAtualizar);
+      window.removeEventListener(COLABORADORES_ATUALIZADOS_EVENT, aoAtualizarColaboradores);
     };
   }, []);
 
@@ -1151,7 +1156,9 @@ export default function ClientesPage() {
               className="h-9 w-full rounded border border-slate-300 bg-white px-2.5 text-xs text-slate-800 shadow-sm outline-none focus:border-[#4a90d9] focus:ring-1 focus:ring-[#4a90d9]/30"
             >
               <option value="">{t("cadastros.clientes.selecioneColaborador")}</option>
-              {colaboradores.map((colaborador) => (
+              {colaboradores
+                .filter((colaborador) => !colaboradorEstaExcluido(colaborador))
+                .map((colaborador) => (
                 <option key={colaborador.id} value={colaborador.id}>
                   {colaborador.nome}
                 </option>
