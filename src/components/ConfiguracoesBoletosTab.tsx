@@ -41,6 +41,13 @@ type SubcontaResumo = {
   contaAtiva?: boolean;
   contaMaeConfigurada?: boolean;
   podeUsarIntegracaoManual?: boolean;
+  /** Há subconta real no Asaas (asaasAccountId + apiKey). */
+  subcontaCriada?: boolean;
+  subcontaIniciada?: boolean;
+  asaasAccountId?: string | null;
+  /** Exibe o botão Cancelar (independe do saldo). */
+  podeExibirCancelarContaDigital?: boolean;
+  /** Cancelamento liberado (saldo zerado). */
   podeCancelarContaDigital?: boolean;
   podeAbrirContaDigital?: boolean;
   saldo?: number | null;
@@ -342,14 +349,19 @@ export function ConfiguracoesBoletosTab() {
   const status = subconta?.status || "nao_iniciado";
   const badge = rotuloStatus(status);
   const BadgeIcon = badge.Icon;
-  const contaIniciada = status !== "nao_iniciado";
+  const contaIniciada =
+    Boolean(subconta?.subcontaIniciada) ||
+    (status !== "nao_iniciado" &&
+      Boolean(subconta?.subcontaCriada || subconta?.asaasAccountId));
   const integracaoManualVisivel = podeUsarIntegracaoManual;
   const saldoAtual =
     typeof subconta?.saldo === "number" && Number.isFinite(subconta.saldo)
       ? subconta.saldo
       : null;
   const saldoZerado = saldoAtual == null || Math.abs(saldoAtual) <= 0.001;
-  const podeMostrarCancelar = contaIniciada && !integracaoManualVisivel;
+  // Cancelar só com subconta criada no Asaas (não na abertura sem documentos).
+  const podeMostrarCancelar =
+    Boolean(subconta?.podeExibirCancelarContaDigital) && !integracaoManualVisivel;
   const podeAbrir =
     Boolean(subconta?.podeAbrirContaDigital) ||
     (!contaIniciada &&

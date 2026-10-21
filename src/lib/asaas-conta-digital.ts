@@ -3,6 +3,8 @@ import { asaasConfigurado, type AsaasConfig } from "@/lib/asaas-config";
 import {
   configOperacionalSubconta,
   laboratorioUsaCnpjContaMae,
+  listarDocumentosSubconta,
+  nenhumDocumentoEnviadoSubconta,
   obterSaldoSubcontaEmpresa,
   obterSubcontaEmpresa,
   serializarSubcontaPublica,
@@ -37,15 +39,32 @@ export async function montarSubcontaPainelContaDigital(empresaId: string) {
   const base = serializarSubcontaPublica(sub);
   const podeUsarIntegracaoManual = await laboratorioUsaCnpjContaMae(empresaId);
   const { config, modo } = await resolverContaDigitalOperacional(empresaId);
+  // Subconta "criada" = vínculo real no Asaas (id + apiKey), não só status local.
+  const subcontaCriada = Boolean(sub?.asaasAccountId && sub?.apiKey);
   const subcontaIniciada = Boolean(
-    sub &&
-      base.status !== "nao_iniciado" &&
-      (sub.asaasAccountId || sub.apiKey)
+    subcontaCriada && base.status !== "nao_iniciado"
   );
   const integracaoAtiva = Boolean(config) && (Boolean(base.contaAtiva) || modo === "legado");
   const saldo = subcontaIniciada ? await obterSaldoSubcontaEmpresa(empresaId) : null;
+
+  // Cancelar só com subconta criada de fato; abertura sem documentos enviados
+  // não exibe o botão (o reset ao sair da tela cuida desse caso).
+  let podeExibirCancelarContaDigital =
+    subcontaCriada && !podeUsarIntegracaoManual && base.status !== "nao_iniciado";
+  if (podeExibirCancelarContaDigital && base.status === "pendente_documentos") {
+    try {
+      const docs = await listarDocumentosSubconta(empresaId);
+      if (nenhumDocumentoEnviadoSubconta(docs)) {
+        podeExibirCancelarContaDigital = false;
+      }
+    } catch {
+      // Sem documentos consultáveis: não oferece cancelar.
+      podeExibirCancelarContaDigital = false;
+    }
+  }
+
   const podeCancelarContaDigital =
-    subcontaIniciada && !podeUsarIntegracaoManual && (saldo == null || Math.abs(saldo) <= 0.001);
+    podeExibirCancelarContaDigital && (saldo == null || Math.abs(saldo) <= 0.001);
   const podeAbrirContaDigital =
     !subcontaIniciada &&
     !podeUsarIntegracaoManual &&
@@ -59,8 +78,10 @@ export async function montarSubcontaPainelContaDigital(empresaId: string) {
     integracaoConfigurada: Boolean(config),
     podeUsarIntegracaoManual,
     subcontaIniciada,
+    subcontaCriada,
     podeVisualizarContaDigital: integracaoAtiva || subcontaIniciada,
     saldo,
+    podeExibirCancelarContaDigital,
     podeCancelarContaDigital,
     podeAbrirContaDigital,
   };
