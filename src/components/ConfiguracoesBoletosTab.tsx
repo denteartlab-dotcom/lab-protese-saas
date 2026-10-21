@@ -65,6 +65,31 @@ function rotuloStatus(status: StatusSubconta) {
   }
 }
 
+/** Status do documento Asaas → rótulo PT e cor (vermelho / verde). */
+function rotuloStatusDocumento(status?: string | null) {
+  const chave = String(status || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "_");
+  if (!chave) return null;
+  if (chave === "NOT_SENT" || chave === "NAO_ENVIADO" || chave === "NÃO_ENVIADO") {
+    return { texto: "Não enviado", cor: "text-red-600" };
+  }
+  if (
+    chave === "PENDING" ||
+    chave === "SENT" ||
+    chave === "APPROVED" ||
+    chave === "ENVIADO" ||
+    chave === "AWAITING_APPROVAL"
+  ) {
+    return { texto: "Enviado", cor: "text-emerald-600" };
+  }
+  if (chave === "REJECTED" || chave === "REPROVED") {
+    return { texto: "Reprovado", cor: "text-red-600" };
+  }
+  return { texto: status!.trim(), cor: "text-slate-600" };
+}
+
 export function ConfiguracoesBoletosTab() {
   const [subconta, setSubconta] = useState<SubcontaResumo | null>(null);
   const [documentos, setDocumentos] = useState<DocumentoOnboarding[]>([]);
@@ -400,9 +425,15 @@ export function ConfiguracoesBoletosTab() {
               {doc.description ? (
                 <p className="mt-1 text-[12px] text-slate-600">{doc.description}</p>
               ) : null}
-              {doc.status ? (
-                <p className="mt-1 text-[11px] text-slate-500">Status: {doc.status}</p>
-              ) : null}
+              {(() => {
+                const statusDoc = rotuloStatusDocumento(doc.status);
+                if (!statusDoc) return null;
+                return (
+                  <p className={cn("mt-1 text-[11px] font-medium", statusDoc.cor)}>
+                    Status: {statusDoc.texto}
+                  </p>
+                );
+              })()}
               {doc.onboardingUrl ? (
                 <a
                   href={doc.onboardingUrl}
