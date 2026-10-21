@@ -134,13 +134,13 @@ export async function asaasFetch<T>(
   const method = (init?.method || "GET").toUpperCase();
   // Asaas responde 403 em GET com body. Consultas (listar subconta, documentos) vão sem corpo.
   const semCorpo = method === "GET" || method === "HEAD";
-  const { body, headers: headersExtra, ...resto } = init || {};
+  const { body: corpo, headers: headersExtra, ...resto } = init || {};
   const res = await fetchComTimeout(
     `${base}${path}`,
     {
       ...resto,
       method,
-      ...(semCorpo ? {} : { body }),
+      ...(semCorpo ? {} : { body: corpo }),
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
