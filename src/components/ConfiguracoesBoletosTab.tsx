@@ -90,6 +90,32 @@ function rotuloStatusDocumento(status?: string | null) {
   return { texto: status!.trim(), cor: "text-slate-600" };
 }
 
+const ASAAS_ONBOARDING_SESSAO_KEY = "labProteseAsaasOnboardingAtivo";
+
+function marcarOnboardingAsaasAtivo() {
+  try {
+    sessionStorage.setItem(ASAAS_ONBOARDING_SESSAO_KEY, "1");
+  } catch {
+    /* ignore */
+  }
+}
+
+function limparOnboardingAsaasAtivo() {
+  try {
+    sessionStorage.removeItem(ASAAS_ONBOARDING_SESSAO_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+function onboardingAsaasAtivoNaSessao() {
+  try {
+    return sessionStorage.getItem(ASAAS_ONBOARDING_SESSAO_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 export function ConfiguracoesBoletosTab() {
   const [subconta, setSubconta] = useState<SubcontaResumo | null>(null);
   const [documentos, setDocumentos] = useState<DocumentoOnboarding[]>([]);
@@ -122,19 +148,26 @@ export function ConfiguracoesBoletosTab() {
   const carregar = useCallback(async () => {
     setCarregando(true);
     try {
+      const manterOnboarding = onboardingAsaasAtivoNaSessao();
+      const qs = manterOnboarding ? "?manterOnboarding=1" : "";
       const [resSub, resCfg] = await Promise.all([
-        fetch("/api/asaas/subconta", { cache: "no-store" }),
+        fetch(`/api/asaas/subconta${qs}`, { cache: "no-store" }),
         fetch("/api/asaas/config", { cache: "no-store" }),
       ]);
       const jsonSub = (await resSub.json()) as {
         subconta?: SubcontaResumo;
         documentos?: DocumentoOnboarding[];
+        aberturaResetada?: boolean;
       };
       const jsonCfg = (await resCfg.json()) as {
         config?: { ambiente?: "sandbox" | "producao"; apiKeyConfigurada?: boolean };
         webhookUrl?: string;
         podeUsarIntegracaoManual?: boolean;
       };
+
+      if (jsonSub.aberturaResetada) {
+        limparOnboardingAsaasAtivo();
+      }
 
       setSubconta(jsonSub.subconta || null);
       setDocumentos(jsonSub.documentos || []);
@@ -152,7 +185,34 @@ export function ConfiguracoesBoletosTab() {
   }, []);
 
   useEffect(() => {
+    const cancelarLimpezaPendente = () => {
+      const timer = (window as Window & { __asaasOnboardingClearTimer?: number })
+        .__asaasOnboardingClearTimer;
+      if (timer) {
+        window.clearTimeout(timer);
+        (window as Window & { __asaasOnboardingClearTimer?: number }).__asaasOnboardingClearTimer =
+          undefined;
+      }
+    };
+
+    const agendarLimpezaOnboarding = () => {
+      cancelarLimpezaPendente();
+      // Atraso evita limpar no remount do React Strict Mode; ao trocar de página limpa de fato.
+      (window as Window & { __asaasOnboardingClearTimer?: number }).__asaasOnboardingClearTimer =
+        window.setTimeout(() => {
+          limparOnboardingAsaasAtivo();
+          (window as Window & { __asaasOnboardingClearTimer?: number }).__asaasOnboardingClearTimer =
+            undefined;
+        }, 500);
+    };
+
+    cancelarLimpezaPendente();
     void carregar();
+    window.addEventListener("pagehide", agendarLimpezaOnboarding);
+    return () => {
+      window.removeEventListener("pagehide", agendarLimpezaOnboarding);
+      agendarLimpezaOnboarding();
+    };
   }, [carregar]);
 
   async function abrirContaDigital() {
@@ -168,6 +228,7 @@ export function ConfiguracoesBoletosTab() {
         throw new Error(texto.slice(0, 200) || "Resposta inválida do servidor.");
       }
       if (!res.ok) throw new Error(json.error || "Não foi possível abrir a conta.");
+      marcarOnboardingAsaasAtivo();
       exibirFeedback(
         "Conta digital criada. Conclua o envio dos documentos e a análise do Asaas para liberar boletos e pagamentos.",
         "sucesso"
@@ -186,6 +247,10 @@ export function ConfiguracoesBoletosTab() {
   async function atualizarStatus() {
     setAtualizando(true);
     try {
+      // Mantém a jornada se o cliente ainda está nesta tela enviando documentos.
+      if ((subconta?.status || "nao_iniciado") !== "nao_iniciado") {
+        marcarOnboardingAsaasAtivo();
+      }
       await carregar();
       exibirFeedback("Status atualizado.", "sucesso");
     } finally {
@@ -214,6 +279,7 @@ export function ConfiguracoesBoletosTab() {
       if (!res.ok) {
         throw new Error(json.error || "Não foi possível cancelar a conta digital.");
       }
+      limparOnboardingAsaasAtivo();
       setDocumentos([]);
       exibirFeedback(
         "Conta digital cancelada. Para usar de novo, clique em Abrir conta digital e refaça todo o processo (documentos e análise).",

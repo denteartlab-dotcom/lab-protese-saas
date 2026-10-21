@@ -395,6 +395,63 @@ export async function obterSaldoSubcontaEmpresa(empresaId: string): Promise<numb
   }
 }
 
+function statusDocumentoNaoEnviado(status?: string | null) {
+  const chave = String(status || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "_");
+  return !chave || chave === "NOT_SENT" || chave === "NAO_ENVIADO" || chave === "NÃO_ENVIADO";
+}
+
+/** True quando ainda não há documento enviado (todos NOT_SENT ou lista vazia). */
+export function nenhumDocumentoEnviadoSubconta(
+  documentos: Array<{ status?: string | null }>
+) {
+  if (documentos.length === 0) return true;
+  return documentos.every((doc) => statusDocumentoNaoEnviado(doc.status));
+}
+
+/**
+ * Se a abertura ficou pendente sem envio de documentos, encerra a subconta
+ * para a tela de boletos voltar ao estado inicial (Abrir conta digital).
+ */
+export async function resetarAberturaSemDocumentosEnviados(empresaId: string) {
+  const sub = await obterSubcontaEmpresa(empresaId);
+  if (!sub?.apiKey) return { resetado: false as const };
+  if (sub.status === "aprovada" || sub.status === "em_analise") {
+    return { resetado: false as const };
+  }
+
+  let documentos: DocumentoSubcontaAsaas[] = [];
+  try {
+    documentos = await listarDocumentosSubconta(empresaId);
+  } catch {
+    return { resetado: false as const };
+  }
+
+  if (!nenhumDocumentoEnviadoSubconta(documentos)) {
+    return { resetado: false as const };
+  }
+
+  try {
+    await encerrarSubcontaEmpresa(empresaId, {
+      motivo:
+        "Abertura abandonada sem envio de documentos. Conta liberada para nova tentativa.",
+    });
+    return { resetado: true as const };
+  } catch {
+    // Garante a tela inicial mesmo se o Asaas já tiver encerrado a conta.
+    await prisma.$transaction([
+      prisma.asaasSubconta.delete({ where: { empresaId } }),
+      prisma.cliente.updateMany({
+        where: { empresaId, asaasCustomerId: { not: null } },
+        data: { asaasCustomerId: null },
+      }),
+    ]);
+    return { resetado: true as const };
+  }
+}
+
 /**
  * Encerra a subconta BaaS no Asaas (DELETE /myAccount) e remove o vínculo local.
  * Só libera quando o saldo estiver zerado.
