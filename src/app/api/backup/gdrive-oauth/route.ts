@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { exigirProprietario } from "@/lib/exigir-proprietario";
+import { exigirAdminMasterNoLaboratorio } from "@/lib/exigir-master-admin";
 import {
   gerarUrlAutorizacaoGoogleDrive,
   limparCachePastasGoogleDrive,
@@ -15,7 +15,7 @@ const schemaCode = z.object({
 });
 
 export async function GET() {
-  const auth = await exigirProprietario();
+  const auth = await exigirAdminMasterNoLaboratorio();
   if (auth.erro) return auth.erro;
 
   try {
@@ -36,7 +36,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const auth = await exigirProprietario();
+  const auth = await exigirAdminMasterNoLaboratorio();
   if (auth.erro) return auth.erro;
 
   let body: unknown;

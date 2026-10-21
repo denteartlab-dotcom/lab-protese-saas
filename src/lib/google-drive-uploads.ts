@@ -73,7 +73,7 @@ function exigirDrive(drive: drive_v3.Drive | null): drive_v3.Drive {
   if (!drive) {
     if (googleDriveOAuthConfigurado()) {
       throw new Error(
-        "Google Drive: token expirado. Clique em Reconectar Google Drive na tela de Backup."
+        "Google Drive: token expirado. Peça ao administrador master para reconectar o Google Drive na tela de Backup."
       );
     }
     throw new Error(
