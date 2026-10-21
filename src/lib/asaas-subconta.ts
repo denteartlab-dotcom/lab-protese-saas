@@ -1,5 +1,10 @@
 import { APP_URL } from "@/lib/app-url";
-import { asaasFetch, somenteDigitos } from "@/lib/asaas-client";
+import {
+  asaasFetch,
+  celularNacionalParaAsaas,
+  somenteDigitos,
+  telefoneNacionalParaAsaas,
+} from "@/lib/asaas-client";
 import type { AsaasConfig } from "@/lib/asaas-config";
 import {
   contaMaeAsaasConfigurada,
@@ -128,8 +133,15 @@ async function carregarDadosCadastroSubconta(empresaId: string) {
     throw new Error("Cadastre o e-mail do laboratório antes de abrir a conta digital.");
   }
 
-  const telefone = somenteDigitos(lab?.telefoneComercial || empresa.telefone || "");
-  const celular = somenteDigitos(lab?.celular || lab?.whatsapp || empresa.whatsapp || telefone);
+  const telefoneBruto = lab?.telefoneComercial || empresa.telefone || "";
+  const celularBruto =
+    lab?.celular || lab?.whatsapp || empresa.whatsapp || telefoneBruto;
+  // Asaas exige DDD + número sem prefixo do país (+55 / 55).
+  const telefone = telefoneNacionalParaAsaas(telefoneBruto);
+  const celular =
+    celularNacionalParaAsaas(celularBruto) ||
+    celularNacionalParaAsaas(telefoneBruto) ||
+    telefoneNacionalParaAsaas(celularBruto);
   const cep = somenteDigitos(lab?.cep || "");
   const endereco = lab?.rua?.trim() || "";
   const numero = lab?.numero?.trim() || "S/N";
@@ -138,6 +150,12 @@ async function carregarDadosCadastroSubconta(empresaId: string) {
   if (!cep || cep.length !== 8 || !endereco) {
     throw new Error(
       "Complete CEP, endereço e número em Configurações → Dados do laboratório."
+    );
+  }
+
+  if (!celular) {
+    throw new Error(
+      "Cadastre um celular válido com DDD (pode incluir +55) em Configurações → Dados do laboratório."
     );
   }
 
@@ -152,7 +170,7 @@ async function carregarDadosCadastroSubconta(empresaId: string) {
     cpfCnpj: cnpj,
     companyType: mapearCompanyTypeAsaas(lab?.tipoPessoa, cnpj),
     phone: telefone || celular,
-    mobilePhone: celular || telefone,
+    mobilePhone: celular,
     address: endereco,
     addressNumber: numero,
     complement: lab?.complemento?.trim() || undefined,

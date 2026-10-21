@@ -163,6 +163,43 @@ export function somenteDigitos(value: string): string {
   return value.replace(/\D/g, "");
 }
 
+/**
+ * Telefone BR para a API Asaas: só DDD + número (sem +55 / 55).
+ * Aceita "+55 31 98270-9866", "5531982709866", "(31) 98270-9866".
+ */
+export function telefoneNacionalParaAsaas(
+  raw: string | null | undefined
+): string | undefined {
+  let digits = somenteDigitos(String(raw ?? ""));
+  if (!digits) return undefined;
+
+  while (digits.startsWith("55") && digits.length > 11) {
+    const candidato = digits.slice(2);
+    if (candidato.length === 10 || candidato.length === 11) {
+      digits = candidato;
+      break;
+    }
+    if (candidato.startsWith("55") && candidato.length > 11) {
+      digits = candidato;
+      continue;
+    }
+    break;
+  }
+
+  if (digits.length === 10 || digits.length === 11) return digits;
+  return undefined;
+}
+
+/** Celular nacional para Asaas (DDD + 9 dígitos iniciando em 9). */
+export function celularNacionalParaAsaas(
+  raw: string | null | undefined
+): string | undefined {
+  const nacional = telefoneNacionalParaAsaas(raw);
+  if (!nacional) return undefined;
+  if (nacional.length === 11 && nacional.charAt(2) === "9") return nacional;
+  return undefined;
+}
+
 export function cpfCnpjValido(doc: string): boolean {
   const n = somenteDigitos(doc);
   return n.length === 11 || n.length === 14;
@@ -194,12 +231,20 @@ export async function criarOuBuscarClienteAsaas(params: {
   }
 
   const doc = somenteDigitos(params.cpfCnpj);
+  const phone =
+    telefoneNacionalParaAsaas(params.telefone) ||
+    telefoneNacionalParaAsaas(params.celular);
+  const mobilePhone =
+    celularNacionalParaAsaas(params.celular) ||
+    celularNacionalParaAsaas(params.telefone) ||
+    telefoneNacionalParaAsaas(params.celular) ||
+    telefoneNacionalParaAsaas(params.telefone);
   const payload = {
     name: params.nome.trim(),
     cpfCnpj: doc,
     email: params.email?.trim() || undefined,
-    phone: somenteDigitos(params.telefone || "") || undefined,
-    mobilePhone: somenteDigitos(params.celular || params.telefone || "") || undefined,
+    phone,
+    mobilePhone,
     notificationDisabled: true,
   };
 

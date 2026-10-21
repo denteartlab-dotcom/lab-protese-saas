@@ -4,7 +4,12 @@ import {
   asaasPlataformaConfigurado,
   obterConfigAsaasPlataforma,
 } from "@/lib/asaas-plataforma-config";
-import { cpfCnpjValido, somenteDigitos } from "@/lib/asaas-client";
+import {
+  celularNacionalParaAsaas,
+  cpfCnpjValido,
+  somenteDigitos,
+  telefoneNacionalParaAsaas,
+} from "@/lib/asaas-client";
 import { prisma } from "@/lib/db";
 
 type AsaasCustomer = { id: string };
@@ -72,8 +77,14 @@ export async function criarOuBuscarClientePlataformaAsaas(empresa: {
       name: empresa.nome.trim(),
       cpfCnpj: doc,
       email: empresa.email?.trim() || undefined,
-      phone: somenteDigitos(empresa.telefone || "") || undefined,
-      mobilePhone: somenteDigitos(empresa.whatsapp || empresa.telefone || "") || undefined,
+      phone:
+        telefoneNacionalParaAsaas(empresa.telefone) ||
+        telefoneNacionalParaAsaas(empresa.whatsapp),
+      mobilePhone:
+        celularNacionalParaAsaas(empresa.whatsapp) ||
+        celularNacionalParaAsaas(empresa.telefone) ||
+        telefoneNacionalParaAsaas(empresa.whatsapp) ||
+        telefoneNacionalParaAsaas(empresa.telefone),
     }),
   });
 
