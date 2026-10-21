@@ -52,8 +52,6 @@ type Props = {
   arquivosNovos?: File[];
   onArquivosNovosChange?: (arquivos: File[]) => void;
   desabilitado?: boolean;
-  /** Trava só o nome do paciente, com os demais campos do cabeçalho editáveis. */
-  pacienteBloqueado?: boolean;
   observacaoEditavel?: boolean;
 };
 
@@ -69,7 +67,6 @@ export function CabecalhoFormularioOs({
   arquivosNovos = [],
   onArquivosNovosChange,
   desabilitado = false,
-  pacienteBloqueado = false,
   observacaoEditavel = true,
 }: Props) {
   const { t } = useI18n();
@@ -286,23 +283,14 @@ export function CabecalhoFormularioOs({
         disabled={desabilitado}
         className={classeBloqueio}
       />
-      <div className="space-y-1">
-        <Input
-          label={t("producao.os.campo.paciente")}
-          value={value.pacienteNome}
-          onChange={(e) => onChange({ pacienteNome: e.target.value })}
-          placeholder={t("producao.os.campo.pacientePlaceholder")}
-          disabled={desabilitado || pacienteBloqueado}
-          className={
-            desabilitado || pacienteBloqueado ? classeCampoCabecalhoOsBloqueado : undefined
-          }
-        />
-        {pacienteBloqueado && !desabilitado ? (
-          <p className="text-[11px] font-medium leading-snug text-slate-500">
-            {t("producao.os.cabecalho.bloqueado")}
-          </p>
-        ) : null}
-      </div>
+      <Input
+        label={t("producao.os.campo.paciente")}
+        value={value.pacienteNome}
+        onChange={(e) => onChange({ pacienteNome: e.target.value })}
+        placeholder={t("producao.os.campo.pacientePlaceholder")}
+        disabled={desabilitado}
+        className={classeBloqueio}
+      />
 
       <div className="space-y-1">
         <SelectPesquisavel

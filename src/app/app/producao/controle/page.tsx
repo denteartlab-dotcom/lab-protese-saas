@@ -39,7 +39,6 @@ import {
   deveDividirOs,
   formatarDescontoItemOs,
   osTemMultiplosItensImpressao,
-  osTemServicoAdicionado,
   itemExibeBadgeProduto,
   itemExibeBadgeTransporte,
   itemUsaCamposOdontologicos,
@@ -1136,11 +1135,6 @@ export default function ControlePage() {
     if (!editando) return false;
     return grupoOsEstaFaturado(editando, trabalhos, lancamentosFatura);
   }, [editando, trabalhos, lancamentosFatura]);
-
-  const cabecalhoBloqueadoPorServico = useMemo(
-    () => osTemServicoAdicionado(editItems),
-    [editItems]
-  );
 
   function trabalhoGrupoFaturado(trabalho: Trabalho) {
     return grupoOsEstaFaturado(trabalho, trabalhos, lancamentosFatura);
@@ -4008,7 +4002,6 @@ export default function ControlePage() {
                 arquivosNovos={arquivosEdicao}
                 onArquivosNovosChange={anexosUploadEdicao.definirPendentes}
                 desabilitado={osFaturada}
-                pacienteBloqueado={cabecalhoBloqueadoPorServico && !osFaturada}
                 observacaoEditavel
               />
 
