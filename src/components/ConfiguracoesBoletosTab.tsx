@@ -416,37 +416,36 @@ export function ConfiguracoesBoletosTab() {
       {documentos.length > 0 ? (
         <div className="space-y-3">
           <h3 className="text-[13px] font-medium text-slate-800">Documentos para aprovação</h3>
-          {documentos.map((doc) => (
-            <div
-              key={doc.id}
-              className="rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm"
-            >
-              <p className="text-[13px] font-medium text-slate-800">{doc.title}</p>
-              {doc.description ? (
-                <p className="mt-1 text-[12px] text-slate-600">{doc.description}</p>
-              ) : null}
-              {(() => {
-                const statusDoc = rotuloStatusDocumento(doc.status);
-                if (!statusDoc) return null;
-                return (
+          {documentos.map((doc) => {
+            const statusDoc = rotuloStatusDocumento(doc.status);
+            return (
+              <div
+                key={doc.id}
+                className="rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm"
+              >
+                <p className="text-[13px] font-medium text-slate-800">{doc.title}</p>
+                {doc.description ? (
+                  <p className="mt-1 text-[12px] text-slate-600">{doc.description}</p>
+                ) : null}
+                {statusDoc ? (
                   <p className={cn("mt-1 text-[11px] font-medium", statusDoc.cor)}>
                     Status: {statusDoc.texto}
                   </p>
-                );
-              })()}
-              {doc.onboardingUrl ? (
-                <a
-                  href={doc.onboardingUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-3 inline-flex items-center gap-1.5 rounded bg-[#4a90d9] px-3 py-1.5 text-[12px] text-white hover:bg-[#3d7fc4]"
-                >
-                  Enviar documentos
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </a>
-              ) : null}
-            </div>
-          ))}
+                ) : null}
+                {doc.onboardingUrl ? (
+                  <a
+                    href={doc.onboardingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 inline-flex items-center gap-1.5 rounded bg-[#4a90d9] px-3 py-1.5 text-[12px] text-white hover:bg-[#3d7fc4]"
+                  >
+                    Enviar documentos
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                ) : null}
+              </div>
+            );
+          })}
         </div>
       ) : contaIniciada && status !== "aprovada" ? (
         <p className="text-[12px] text-slate-500">
