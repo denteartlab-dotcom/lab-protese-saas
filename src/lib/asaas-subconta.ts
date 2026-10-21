@@ -40,6 +40,25 @@ type RespostaCriarSubconta = {
   accountNumber?: { agency?: string; account?: string; accountDigit?: string };
 };
 
+type SubcontaListagemAsaas = {
+  id: string;
+  walletId?: string | null;
+  cpfCnpj?: string | null;
+  accountNumber?: { agency?: string; account?: string; accountDigit?: string };
+};
+
+type RespostaListarSubcontas = {
+  data?: SubcontaListagemAsaas[];
+  totalCount?: number;
+};
+
+type RespostaAccessTokenSubconta = {
+  id?: string;
+  apiKey?: string;
+  access_token?: string;
+  accessToken?: string;
+};
+
 type RespostaStatusConta = {
   id?: string;
   commercialInfo?: string;
@@ -51,6 +70,175 @@ type RespostaStatusConta = {
 type RespostaDocumentos = {
   data?: DocumentoSubcontaAsaas[];
 };
+
+function mensagemIndicaContaJaExistente(msg: string) {
+  const m = msg.toLowerCase();
+  return (
+    m.includes("já existe") ||
+    m.includes("ja existe") ||
+    m.includes("already exists") ||
+    m.includes("em uso")
+  );
+}
+
+function extrairApiKeyAccessToken(res: RespostaAccessTokenSubconta): string | null {
+  const chave =
+    res.apiKey?.trim() ||
+    res.access_token?.trim() ||
+    res.accessToken?.trim() ||
+    "";
+  return chave || null;
+}
+
+/** Lista subconta na conta-mãe pelo CPF/CNPJ. */
+async function buscarSubcontaMaePorCnpj(
+  cpfCnpj: string
+): Promise<SubcontaListagemAsaas | null> {
+  const doc = somenteDigitos(cpfCnpj);
+  if (doc.length < 11) return null;
+  const mae = obterConfigContaMaeAsaas();
+  const res = await asaasFetch<RespostaListarSubcontas>(
+    mae,
+    `/accounts?cpfCnpj=${encodeURIComponent(doc)}&limit=10`
+  );
+  const lista = res.data || [];
+  return (
+    lista.find((item) => somenteDigitos(item.cpfCnpj || "") === doc) ||
+    lista[0] ||
+    null
+  );
+}
+
+/** Nova apiKey da subconta (conta-mãe; accessTokens — valor só na criação). */
+async function criarApiKeySubcontaMae(asaasAccountId: string): Promise<string> {
+  const mae = obterConfigContaMaeAsaas();
+  const expiration = new Date();
+  expiration.setFullYear(expiration.getFullYear() + 5);
+  const expirationDate = expiration.toISOString().slice(0, 19).replace("T", " ");
+
+  const res = await asaasFetch<RespostaAccessTokenSubconta>(
+    mae,
+    `/accounts/${encodeURIComponent(asaasAccountId)}/accessTokens`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        name: "Lab Protese recuperacao",
+        expirationDate,
+      }),
+    }
+  );
+
+  const apiKey = extrairApiKeyAccessToken(res);
+  if (!apiKey) {
+    throw new Error("Asaas não retornou a nova chave da subconta.");
+  }
+  return apiKey;
+}
+
+async function persistirSubcontaRecuperada(
+  empresaId: string,
+  conta: SubcontaListagemAsaas,
+  apiKey: string
+) {
+  return prisma.asaasSubconta.upsert({
+    where: { empresaId },
+    create: {
+      empresaId,
+      asaasAccountId: conta.id,
+      walletId: conta.walletId || null,
+      apiKey,
+      status: "pendente_documentos",
+      agencia: conta.accountNumber?.agency || null,
+      conta: conta.accountNumber?.account || null,
+      contaDigito: conta.accountNumber?.accountDigit || null,
+    },
+    update: {
+      asaasAccountId: conta.id,
+      walletId: conta.walletId || null,
+      apiKey,
+      status: "pendente_documentos",
+      agencia: conta.accountNumber?.agency || null,
+      conta: conta.accountNumber?.account || null,
+      contaDigito: conta.accountNumber?.accountDigit || null,
+    },
+  });
+}
+
+/**
+ * Conta órfã no Asaas (CNPJ já em uso): recupera apiKey e, se a abertura
+ * ainda não teve documentos, encerra de verdade para liberar nova tentativa.
+ * Se já houver progresso, reconecta o vínculo local e segue o onboarding.
+ */
+async function recuperarOuLiberarSubcontaPorCnpj(
+  empresaId: string,
+  cpfCnpj: string
+): Promise<"liberado" | "reconectado"> {
+  const conta = await buscarSubcontaMaePorCnpj(cpfCnpj);
+  if (!conta?.id) {
+    throw new Error(
+      "O Asaas ainda identifica uma conta com este CNPJ, mas ela não foi encontrada na conta-mãe. Aguarde o encerramento concluir ou fale com o suporte Asaas."
+    );
+  }
+
+  let apiKey: string | null = null;
+  try {
+    apiKey = await criarApiKeySubcontaMae(conta.id);
+  } catch (err) {
+    // Fallback: encerrar pela conta-mãe (não-BaaS / <48h / sem login) e liberar CNPJ.
+    const mae = obterConfigContaMaeAsaas();
+    try {
+      await asaasFetch<{ deleted?: boolean }>(
+        mae,
+        `/accounts/${encodeURIComponent(conta.id)}`,
+        { method: "DELETE" }
+      );
+      return "liberado";
+    } catch {
+      const detalhe = err instanceof Error ? err.message : "";
+      throw new Error(
+        `Não foi possível recuperar a conta digital existente deste CNPJ${
+          detalhe ? ` (${detalhe})` : ""
+        }. No painel Asaas da conta-mãe, habilite temporariamente o gerenciamento de chaves de subcontas (e whitelist de IP) e tente Abrir conta digital novamente.`
+      );
+    }
+  }
+
+  await persistirSubcontaRecuperada(empresaId, conta, apiKey);
+
+  try {
+    await sincronizarStatusSubconta(empresaId);
+  } catch {
+    /* status pode demorar */
+  }
+
+  const sub = await obterSubcontaEmpresa(empresaId);
+  if (sub?.status === "aprovada" || sub?.status === "em_analise") {
+    return "reconectado";
+  }
+
+  let documentos: DocumentoSubcontaAsaas[] = [];
+  try {
+    documentos = await listarDocumentosSubconta(empresaId);
+  } catch {
+    documentos = [];
+  }
+
+  if (!nenhumDocumentoEnviadoSubconta(documentos)) {
+    return "reconectado";
+  }
+
+  // Abertura incompleta: encerra no Asaas e limpa o vínculo para refazer do zero.
+  try {
+    await encerrarSubcontaEmpresa(empresaId, {
+      motivo:
+        "Abertura incompleta recuperada. Conta liberada para nova tentativa de abertura.",
+    });
+    return "liberado";
+  } catch {
+    // Mantém reconectada — cliente segue documentos ou cancela com saldo zerado.
+    return "reconectado";
+  }
+}
 
 export function mapearStatusSubconta(statusGeral?: string | null): StatusSubcontaInterno {
   switch (statusGeral) {
@@ -307,33 +495,78 @@ export async function criarSubcontaEmpresa(empresaId: string) {
     );
   }
 
-  let criada: RespostaCriarSubconta;
+  // Conta órfã (vínculo local apagado, CNPJ ainda no Asaas): recupera ou libera.
+  let contaOrfa: SubcontaListagemAsaas | null = null;
   try {
-    criada = await asaasFetch<RespostaCriarSubconta>(mae, "/accounts", {
+    contaOrfa = await buscarSubcontaMaePorCnpj(dados.cpfCnpj);
+  } catch {
+    // Listagem indisponível — tenta criar; o catch do POST cobre conflito.
+  }
+  if (contaOrfa?.id) {
+    const resultado = await recuperarOuLiberarSubcontaPorCnpj(
+      empresaId,
+      dados.cpfCnpj
+    );
+    if (resultado === "reconectado") {
+      try {
+        await sincronizarStatusSubconta(empresaId);
+      } catch {
+        /* ignore */
+      }
+      return obterSubcontaEmpresa(empresaId);
+    }
+    // liberado — segue criação do zero abaixo
+  }
+
+  async function criarNoAsaas(): Promise<RespostaCriarSubconta> {
+    return asaasFetch<RespostaCriarSubconta>(mae, "/accounts", {
       method: "POST",
       body: JSON.stringify({
         ...dados,
         webhooks: webhooksSubconta(mae.webhookToken),
       }),
     });
+  }
+
+  let criada: RespostaCriarSubconta;
+  try {
+    criada = await criarNoAsaas();
   } catch (err) {
-    const msg = err instanceof Error ? err.message.toLowerCase() : "";
-    if (
-      msg.includes("já existe") ||
-      msg.includes("ja existe") ||
-      msg.includes("already exists") ||
-      msg.includes("em uso")
-    ) {
-      throw new Error(
-        "O Asaas ainda identifica uma conta com este CNPJ. Se você cancelou recentemente, aguarde a conclusão do encerramento e tente Abrir conta digital novamente (será necessário refazer documentos e análise)."
+    const msg = err instanceof Error ? err.message : "";
+    if (mensagemIndicaContaJaExistente(msg)) {
+      const resultado = await recuperarOuLiberarSubcontaPorCnpj(
+        empresaId,
+        dados.cpfCnpj
       );
-    }
-    if (msg.includes("cpf") || msg.includes("cnpj") || msg.includes("cadastr")) {
+      if (resultado === "reconectado") {
+        try {
+          await sincronizarStatusSubconta(empresaId);
+        } catch {
+          /* ignore */
+        }
+        return obterSubcontaEmpresa(empresaId);
+      }
+      try {
+        criada = await criarNoAsaas();
+      } catch (err2) {
+        const msg2 = err2 instanceof Error ? err2.message : msg;
+        throw new Error(
+          mensagemIndicaContaJaExistente(msg2)
+            ? "O Asaas ainda identifica uma conta com este CNPJ. Se o encerramento estiver em andamento, aguarde a conclusão e tente Abrir conta digital novamente."
+            : msg2
+        );
+      }
+    } else if (
+      msg.toLowerCase().includes("cpf") ||
+      msg.toLowerCase().includes("cnpj") ||
+      msg.toLowerCase().includes("cadastr")
+    ) {
       throw new Error(
         "O Asaas não permitiu criar subconta com este CNPJ (pode ser o mesmo da conta-mãe). Use Configurações → Boletos → chave API manual (legado)."
       );
+    } else {
+      throw err;
     }
-    throw err;
   }
 
   if (!criada.apiKey) {
@@ -440,15 +673,9 @@ export async function resetarAberturaSemDocumentosEnviados(empresaId: string) {
     });
     return { resetado: true as const };
   } catch {
-    // Garante a tela inicial mesmo se o Asaas já tiver encerrado a conta.
-    await prisma.$transaction([
-      prisma.asaasSubconta.delete({ where: { empresaId } }),
-      prisma.cliente.updateMany({
-        where: { empresaId, asaasCustomerId: { not: null } },
-        data: { asaasCustomerId: null },
-      }),
-    ]);
-    return { resetado: true as const };
+    // Nunca apaga o vínculo local sem sucesso no Asaas — evita conta órfã
+    // (CNPJ bloqueado e botão Abrir sem histórico local).
+    return { resetado: false as const };
   }
 }
 
