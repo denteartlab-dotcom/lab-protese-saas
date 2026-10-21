@@ -50,6 +50,8 @@ export type ConfigLaboratorio = LabImpressaoConfig & {
   nomeFantasia: string;
   cpf: string;
   cnpj: string;
+  /** Renda (PF) ou faturamento mensal (PJ) em R$ — usado na conta digital Asaas (`incomeValue`). */
+  rendaFaturamento: string;
   croResponsavel: string;
   inscricaoEstadual: string;
   inscricaoMunicipal: string;
@@ -96,6 +98,7 @@ export const CONFIG_LAB_PADRAO: ConfigLaboratorio = {
   nomeFantasia: "",
   cpf: "",
   cnpj: "",
+  rendaFaturamento: "",
   croResponsavel: "",
   inscricaoEstadual: "",
   inscricaoMunicipal: "",
@@ -260,6 +263,7 @@ export function criarFormularioLaboratorioLimpo(
     nomeFantasia: "",
     cpf: "",
     cnpj: "",
+    rendaFaturamento: "",
     croResponsavel: "",
     inscricaoEstadual: "",
     inscricaoMunicipal: "",

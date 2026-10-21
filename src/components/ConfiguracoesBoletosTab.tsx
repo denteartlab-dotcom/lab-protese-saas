@@ -217,7 +217,8 @@ export function ConfiguracoesBoletosTab() {
         <p className="font-semibold text-slate-800">Conta Digital Asaas</p>
         <p className="mt-1">
           Abra sua conta dentro do Lab Prótese para emitir boletos, receber Pix, pagar contas e
-          transferir valores. Após enviar os documentos, a análise leva até 48 horas.
+          transferir valores. Após enviar os documentos, a análise leva até 48 horas. Antes de
+          abrir, preencha CNPJ, celular e Renda/Faturamento R$ em Dados do laboratório.
         </p>
         <p className="mt-2 text-[11px] text-slate-500">
           Serviços financeiros operados pelo Asaas, instituição de pagamento autorizada pelo Banco

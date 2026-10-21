@@ -10,6 +10,7 @@ import {
   contaMaeAsaasConfigurada,
   obterConfigContaMaeAsaas,
 } from "@/lib/asaas-conta-mae-config";
+import { parseValorNumericoBr } from "@/lib/colaborador-remuneracao";
 import { CONFIG_LAB_STORAGE_KEY, type ConfigLaboratorio } from "@/lib/configuracoes-lab";
 import { normalizarTipoPessoaLab } from "@/lib/lab-nome-exibicao";
 import { prisma } from "@/lib/db";
@@ -159,6 +160,15 @@ async function carregarDadosCadastroSubconta(empresaId: string) {
     );
   }
 
+  const incomeValue = Number(
+    parseValorNumericoBr(lab?.rendaFaturamento || "").toFixed(2)
+  );
+  if (!(incomeValue > 0)) {
+    throw new Error(
+      "Informe a Renda/Faturamento R$ em Configurações → Dados do laboratório antes de abrir a conta digital."
+    );
+  }
+
   const nome =
     lab?.razaoSocial?.trim() ||
     lab?.nomeFantasia?.trim() ||
@@ -169,6 +179,7 @@ async function carregarDadosCadastroSubconta(empresaId: string) {
     email,
     cpfCnpj: cnpj,
     companyType: mapearCompanyTypeAsaas(lab?.tipoPessoa, cnpj),
+    incomeValue,
     phone: telefone || celular,
     mobilePhone: celular,
     address: endereco,

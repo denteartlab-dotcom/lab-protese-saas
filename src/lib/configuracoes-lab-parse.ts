@@ -6,7 +6,15 @@ import {
 import { normalizarIdioma } from "@/lib/i18n";
 import { normalizarTipoPessoa } from "@/lib/configuracoes-lab";
 import { NOME_LAB_PADRAO } from "@/lib/document-title";
+import { formatValorMonetarioInput } from "@/lib/colaborador-remuneracao";
 import { formatarTelefone } from "@/lib/validar-documento";
+
+function normalizarRendaFaturamento(valor?: string | null): string {
+  const texto = String(valor ?? "").trim();
+  if (!texto) return "";
+  if (!/\d/.test(texto)) return "";
+  return formatValorMonetarioInput(texto);
+}
 
 function formatarTelefoneSalvo(valor?: string | null): string {
   const texto = String(valor ?? "").trim();
@@ -73,6 +81,7 @@ export function normalizarConfigLaboratorio(
       cabecalhoRequisicao,
       tipoPessoa: tipo,
       razaoSocial: "",
+      rendaFaturamento: normalizarRendaFaturamento(config.rendaFaturamento),
       idioma: normalizarIdioma(config.idioma),
       pais: config.pais || CONFIG_LAB_PADRAO.pais,
       moeda: config.moeda || CONFIG_LAB_PADRAO.moeda,
@@ -85,6 +94,7 @@ export function normalizarConfigLaboratorio(
     email,
     cabecalhoRequisicao,
     tipoPessoa: tipo,
+    rendaFaturamento: normalizarRendaFaturamento(config.rendaFaturamento),
     idioma: normalizarIdioma(config.idioma),
     pais: config.pais || CONFIG_LAB_PADRAO.pais,
     moeda: config.moeda || CONFIG_LAB_PADRAO.moeda,

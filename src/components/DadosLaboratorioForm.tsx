@@ -11,6 +11,7 @@ import {
   type ConfigLaboratorio,
 } from "@/lib/configuracoes-lab";
 import type { DadosCnpjConsulta } from "@/lib/cnpj-lookup";
+import { formatValorMonetarioInput } from "@/lib/colaborador-remuneracao";
 import {
   formatCepInput,
   formatCnpjInput,
@@ -325,7 +326,22 @@ export function DadosLaboratorioForm({
             </Campo>
           )}
 
-          <Campo label="CRO Responsável" className="lg:col-span-3">
+          <Campo label="Renda/Faturamento R$" className="lg:col-span-3">
+            <input
+              className={inputClassName()}
+              inputMode="decimal"
+              value={form.rendaFaturamento || ""}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  rendaFaturamento: formatValorMonetarioInput(e.target.value),
+                })
+              }
+              placeholder="0,00"
+            />
+          </Campo>
+
+          <Campo label="CRO Responsável" className="lg:col-span-2">
             <input
               className={inputClassName()}
               value={form.croResponsavel}
@@ -335,7 +351,7 @@ export function DadosLaboratorioForm({
             />
           </Campo>
 
-          <Campo label="Inscrição Municipal" className="lg:col-span-3">
+          <Campo label="Inscrição Municipal" className="lg:col-span-2">
             <input
               className={inputClassName()}
               value={form.inscricaoMunicipal}
@@ -345,7 +361,7 @@ export function DadosLaboratorioForm({
             />
           </Campo>
 
-          <Campo label="Inscrição Estadual" className="lg:col-span-3">
+          <Campo label="Inscrição Estadual" className="lg:col-span-2">
             <input
               className={inputClassName()}
               value={form.inscricaoEstadual}
