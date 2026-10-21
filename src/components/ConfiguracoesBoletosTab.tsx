@@ -41,6 +41,8 @@ type SubcontaResumo = {
   contaAtiva?: boolean;
   contaMaeConfigurada?: boolean;
   podeUsarIntegracaoManual?: boolean;
+  /** True somente depois que a subconta Asaas foi criada (id ou chave da API). */
+  subcontaIniciada?: boolean;
   podeCancelarContaDigital?: boolean;
   podeAbrirContaDigital?: boolean;
   saldo?: number | null;
@@ -342,19 +344,19 @@ export function ConfiguracoesBoletosTab() {
   const status = subconta?.status || "nao_iniciado";
   const badge = rotuloStatus(status);
   const BadgeIcon = badge.Icon;
-  const contaIniciada = status !== "nao_iniciado";
   const integracaoManualVisivel = podeUsarIntegracaoManual;
+  // Só existe subconta depois do POST /accounts (id ou chave). Status local sozinho não conta.
+  const subcontaCriada = subconta?.subcontaIniciada === true;
   const saldoAtual =
     typeof subconta?.saldo === "number" && Number.isFinite(subconta.saldo)
       ? subconta.saldo
       : null;
   const saldoZerado = saldoAtual == null || Math.abs(saldoAtual) <= 0.001;
-  const podeMostrarCancelar = contaIniciada && !integracaoManualVisivel;
+  const podeMostrarCancelar = subcontaCriada && !integracaoManualVisivel;
   const podeAbrir =
-    Boolean(subconta?.podeAbrirContaDigital) ||
-    (!contaIniciada &&
-      subconta?.contaMaeConfigurada !== false &&
-      !integracaoManualVisivel);
+    !subcontaCriada &&
+    (Boolean(subconta?.podeAbrirContaDigital) ||
+      (subconta?.contaMaeConfigurada !== false && !integracaoManualVisivel));
 
   return (
     <div className="max-w-2xl space-y-5 text-sm">
@@ -363,8 +365,10 @@ export function ConfiguracoesBoletosTab() {
         <p className="mt-1">
           Abra sua conta dentro do Lab Prótese para emitir boletos, receber Pix, pagar contas e
           transferir valores. Após enviar os documentos, a análise leva até 48 horas. Antes de
-          abrir, preencha CNPJ, celular e Renda/Faturamento R$ em Dados do laboratório. Se cancelar
-          a conta, poderá abrir outra depois — será necessário passar por todo o processo novamente.
+          abrir, preencha CNPJ, celular e Renda/Faturamento R$ em Dados do laboratório.
+          {podeMostrarCancelar
+            ? " Se cancelar a conta, poderá abrir outra depois — será necessário passar por todo o processo novamente."
+            : ""}
         </p>
         <p className="mt-2 text-[11px] text-slate-500">
           Serviços financeiros operados pelo Asaas, instituição de pagamento autorizada pelo Banco
@@ -414,7 +418,7 @@ export function ConfiguracoesBoletosTab() {
             <span className={cn("text-[13px] font-medium", badge.cor)}>{badge.texto}</span>
           </div>
           <div className="flex flex-wrap gap-2">
-            {contaIniciada ? (
+            {subcontaCriada ? (
               <Button
                 type="button"
                 variant="secondary"
@@ -513,7 +517,7 @@ export function ConfiguracoesBoletosTab() {
             );
           })}
         </div>
-      ) : contaIniciada && status !== "aprovada" ? (
+      ) : subcontaCriada && status !== "aprovada" ? (
         <p className="text-[12px] text-slate-500">
           Aguardando lista de documentos do Asaas. Clique em &quot;Atualizar status&quot; em alguns
           segundos.

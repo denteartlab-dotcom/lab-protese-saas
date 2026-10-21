@@ -37,11 +37,8 @@ export async function montarSubcontaPainelContaDigital(empresaId: string) {
   const base = serializarSubcontaPublica(sub);
   const podeUsarIntegracaoManual = await laboratorioUsaCnpjContaMae(empresaId);
   const { config, modo } = await resolverContaDigitalOperacional(empresaId);
-  const subcontaIniciada = Boolean(
-    sub &&
-      base.status !== "nao_iniciado" &&
-      (sub.asaasAccountId || sub.apiKey)
-  );
+  // Subconta criada no Asaas: exige id ou chave. Status local sozinho não libera cancelar/abrir.
+  const subcontaIniciada = Boolean(sub?.asaasAccountId || sub?.apiKey);
   const integracaoAtiva = Boolean(config) && (Boolean(base.contaAtiva) || modo === "legado");
   const saldo = subcontaIniciada ? await obterSaldoSubcontaEmpresa(empresaId) : null;
   const podeCancelarContaDigital =
