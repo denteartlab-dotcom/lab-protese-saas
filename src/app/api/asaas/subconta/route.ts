@@ -4,15 +4,15 @@ import {
   criarSubcontaEmpresa,
   encerrarSubcontaEmpresa,
   listarDocumentosSubconta,
+  nenhumDocumentoEnviadoSubconta,
   obterSubcontaEmpresa,
-  resetarAberturaSemDocumentosEnviados,
   sincronizarStatusSubconta,
 } from "@/lib/asaas-subconta";
 import { montarSubcontaPainelContaDigital } from "@/lib/asaas-conta-digital";
 import { exigirProprietario } from "@/lib/exigir-proprietario";
 import { negarSeSemPermissao } from "@/lib/require-permissao";
 
-export async function GET(request: Request) {
+export async function GET() {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
@@ -21,25 +21,9 @@ export async function GET(request: Request) {
   if (negado) return negado;
 
   try {
-    const url = new URL(request.url);
-    // manterOnboarding=1: cliente ainda na jornada de envio nesta visita.
-    const manterOnboarding = url.searchParams.get("manterOnboarding") === "1";
-
     let sub = await obterSubcontaEmpresa(ctx.empresaId);
     if (sub?.apiKey) {
       sub = await sincronizarStatusSubconta(ctx.empresaId);
-    }
-
-    if (!manterOnboarding && sub?.apiKey && sub.status !== "aprovada") {
-      const reset = await resetarAberturaSemDocumentosEnviados(ctx.empresaId);
-      if (reset.resetado) {
-        return NextResponse.json({
-          subconta: await montarSubcontaPainelContaDigital(ctx.empresaId),
-          documentos: [],
-          aberturaResetada: true,
-        });
-      }
-      sub = await obterSubcontaEmpresa(ctx.empresaId);
     }
 
     let documentos: Awaited<ReturnType<typeof listarDocumentosSubconta>> = [];
@@ -51,8 +35,17 @@ export async function GET(request: Request) {
       }
     }
 
+    // Conta aberta sem documento enviado: a tela volta a mostrar Abrir conta.
+    // O clique retoma o envio; a subconta não é encerrada ao sair da página.
+    const envioDocumentosPendente =
+      Boolean(sub?.apiKey) &&
+      sub?.status === "pendente_documentos" &&
+      nenhumDocumentoEnviadoSubconta(documentos);
+
+    const subconta = await montarSubcontaPainelContaDigital(ctx.empresaId);
+
     return NextResponse.json({
-      subconta: await montarSubcontaPainelContaDigital(ctx.empresaId),
+      subconta: { ...subconta, envioDocumentosPendente },
       documentos: documentos.map((doc) => ({
         id: doc.id,
         type: doc.type,

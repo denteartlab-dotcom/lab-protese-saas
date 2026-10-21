@@ -165,9 +165,8 @@ async function persistirSubcontaRecuperada(
 }
 
 /**
- * Conta órfã no Asaas (CNPJ já em uso): recupera apiKey e, se a abertura
- * ainda não teve documentos, encerra de verdade para liberar nova tentativa.
- * Se já houver progresso, reconecta o vínculo local e segue o onboarding.
+ * Conta órfã no Asaas (CNPJ já em uso): recupera a apiKey e reconecta o
+ * vínculo local para o cliente voltar à página de envio de documentos.
  */
 async function recuperarOuLiberarSubcontaPorCnpj(
   empresaId: string,
@@ -211,33 +210,7 @@ async function recuperarOuLiberarSubcontaPorCnpj(
     /* status pode demorar */
   }
 
-  const sub = await obterSubcontaEmpresa(empresaId);
-  if (sub?.status === "aprovada" || sub?.status === "em_analise") {
-    return "reconectado";
-  }
-
-  let documentos: DocumentoSubcontaAsaas[] = [];
-  try {
-    documentos = await listarDocumentosSubconta(empresaId);
-  } catch {
-    documentos = [];
-  }
-
-  if (!nenhumDocumentoEnviadoSubconta(documentos)) {
-    return "reconectado";
-  }
-
-  // Abertura incompleta: encerra no Asaas e limpa o vínculo para refazer do zero.
-  try {
-    await encerrarSubcontaEmpresa(empresaId, {
-      motivo:
-        "Abertura incompleta recuperada. Conta liberada para nova tentativa de abertura.",
-    });
-    return "liberado";
-  } catch {
-    // Mantém reconectada — cliente segue documentos ou cancela com saldo zerado.
-    return "reconectado";
-  }
+  return "reconectado";
 }
 
 export function mapearStatusSubconta(statusGeral?: string | null): StatusSubcontaInterno {
@@ -642,41 +615,6 @@ export function nenhumDocumentoEnviadoSubconta(
 ) {
   if (documentos.length === 0) return true;
   return documentos.every((doc) => statusDocumentoNaoEnviado(doc.status));
-}
-
-/**
- * Se a abertura ficou pendente sem envio de documentos, encerra a subconta
- * para a tela de boletos voltar ao estado inicial (Abrir conta digital).
- */
-export async function resetarAberturaSemDocumentosEnviados(empresaId: string) {
-  const sub = await obterSubcontaEmpresa(empresaId);
-  if (!sub?.apiKey) return { resetado: false as const };
-  if (sub.status === "aprovada" || sub.status === "em_analise") {
-    return { resetado: false as const };
-  }
-
-  let documentos: DocumentoSubcontaAsaas[] = [];
-  try {
-    documentos = await listarDocumentosSubconta(empresaId);
-  } catch {
-    return { resetado: false as const };
-  }
-
-  if (!nenhumDocumentoEnviadoSubconta(documentos)) {
-    return { resetado: false as const };
-  }
-
-  try {
-    await encerrarSubcontaEmpresa(empresaId, {
-      motivo:
-        "Abertura abandonada sem envio de documentos. Conta liberada para nova tentativa.",
-    });
-    return { resetado: true as const };
-  } catch {
-    // Nunca apaga o vínculo local sem sucesso no Asaas — evita conta órfã
-    // (CNPJ bloqueado e botão Abrir sem histórico local).
-    return { resetado: false as const };
-  }
 }
 
 /**

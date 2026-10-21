@@ -47,8 +47,8 @@ export async function montarSubcontaPainelContaDigital(empresaId: string) {
   const integracaoAtiva = Boolean(config) && (Boolean(base.contaAtiva) || modo === "legado");
   const saldo = subcontaIniciada ? await obterSaldoSubcontaEmpresa(empresaId) : null;
 
-  // Cancelar só com subconta criada de fato; abertura sem documentos enviados
-  // não exibe o botão (o reset ao sair da tela cuida desse caso).
+  // Cancelar só com subconta criada de fato e depois que algum documento foi enviado.
+  // Sem documento, a tela mostra de novo Abrir conta para retomar o envio.
   let podeExibirCancelarContaDigital =
     subcontaCriada && !podeUsarIntegracaoManual && base.status !== "nao_iniciado";
   if (podeExibirCancelarContaDigital && base.status === "pendente_documentos") {

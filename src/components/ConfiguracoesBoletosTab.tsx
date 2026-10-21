@@ -50,6 +50,8 @@ type SubcontaResumo = {
   /** Cancelamento liberado (saldo zerado). */
   podeCancelarContaDigital?: boolean;
   podeAbrirContaDigital?: boolean;
+  /** Subconta existe, mas nenhum documento foi enviado. A tela mostra Abrir conta de novo. */
+  envioDocumentosPendente?: boolean;
   saldo?: number | null;
   agencia?: string | null;
   conta?: string | null;
@@ -131,6 +133,7 @@ export function ConfiguracoesBoletosTab() {
   const [atualizando, setAtualizando] = useState(false);
   const [confirmandoCancelamento, setConfirmandoCancelamento] = useState(false);
   const [cancelando, setCancelando] = useState(false);
+  const [documentosReabertos, setDocumentosReabertos] = useState(false);
 
   const [modoLegado, setModoLegado] = useState(false);
   const [ambiente, setAmbiente] = useState<"sandbox" | "producao">("sandbox");
@@ -223,6 +226,15 @@ export function ConfiguracoesBoletosTab() {
   }, [carregar]);
 
   async function abrirContaDigital() {
+    if (subconta?.envioDocumentosPendente) {
+      marcarOnboardingAsaasAtivo();
+      setDocumentosReabertos(true);
+      if (documentos.length === 0) {
+        await carregar();
+      }
+      return;
+    }
+
     setAbrindo(true);
     setFeedbackLocal(null);
     try {
@@ -236,6 +248,7 @@ export function ConfiguracoesBoletosTab() {
       }
       if (!res.ok) throw new Error(json.error || "Não foi possível abrir a conta.");
       marcarOnboardingAsaasAtivo();
+      setDocumentosReabertos(true);
       exibirFeedback(
         "Conta digital criada. Conclua o envio dos documentos e a análise do Asaas para liberar boletos e pagamentos.",
         "sucesso"
@@ -347,7 +360,10 @@ export function ConfiguracoesBoletosTab() {
   }
 
   const status = subconta?.status || "nao_iniciado";
-  const badge = rotuloStatus(status);
+  const retomandoEnvio =
+    subconta?.envioDocumentosPendente === true && !documentosReabertos;
+  const statusVisivel: StatusSubconta = retomandoEnvio ? "nao_iniciado" : status;
+  const badge = rotuloStatus(statusVisivel);
   const BadgeIcon = badge.Icon;
   const contaIniciada =
     Boolean(subconta?.subcontaIniciada) ||
@@ -362,7 +378,9 @@ export function ConfiguracoesBoletosTab() {
   // Cancelar só com subconta criada no Asaas (não na abertura sem documentos).
   const podeMostrarCancelar =
     Boolean(subconta?.podeExibirCancelarContaDigital) && !integracaoManualVisivel;
+  const contaIniciadaVisivel = !retomandoEnvio && contaIniciada;
   const podeAbrir =
+    retomandoEnvio ||
     Boolean(subconta?.podeAbrirContaDigital) ||
     (!contaIniciada &&
       subconta?.contaMaeConfigurada !== false &&
@@ -426,7 +444,7 @@ export function ConfiguracoesBoletosTab() {
             <span className={cn("text-[13px] font-medium", badge.cor)}>{badge.texto}</span>
           </div>
           <div className="flex flex-wrap gap-2">
-            {contaIniciada ? (
+            {contaIniciadaVisivel ? (
               <Button
                 type="button"
                 variant="secondary"
@@ -491,7 +509,7 @@ export function ConfiguracoesBoletosTab() {
         ) : null}
       </div>
 
-      {documentos.length > 0 ? (
+      {!retomandoEnvio && documentos.length > 0 ? (
         <div className="space-y-3">
           <h3 className="text-[13px] font-medium text-slate-800">Documentos para aprovação</h3>
           {documentos.map((doc) => {
@@ -525,7 +543,7 @@ export function ConfiguracoesBoletosTab() {
             );
           })}
         </div>
-      ) : contaIniciada && status !== "aprovada" ? (
+      ) : !retomandoEnvio && contaIniciada && status !== "aprovada" ? (
         <p className="text-[12px] text-slate-500">
           Aguardando lista de documentos do Asaas. Clique em &quot;Atualizar status&quot; em alguns
           segundos.
