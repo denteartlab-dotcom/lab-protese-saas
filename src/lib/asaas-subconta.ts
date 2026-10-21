@@ -293,6 +293,10 @@ export async function criarSubcontaEmpresa(empresaId: string) {
     await sincronizarStatusSubconta(empresaId);
     return obterSubcontaEmpresa(empresaId);
   }
+  // Residual sem chave (ex.: cancelamento incompleto) — libera nova abertura do zero.
+  if (existente && !existente.apiKey) {
+    await prisma.asaasSubconta.delete({ where: { empresaId } });
+  }
 
   const mae = obterConfigContaMaeAsaas();
   const dados = await carregarDadosCadastroSubconta(empresaId);
@@ -315,12 +319,16 @@ export async function criarSubcontaEmpresa(empresaId: string) {
   } catch (err) {
     const msg = err instanceof Error ? err.message.toLowerCase() : "";
     if (
-      msg.includes("cpf") ||
-      msg.includes("cnpj") ||
-      msg.includes("cadastr") ||
       msg.includes("já existe") ||
-      msg.includes("ja existe")
+      msg.includes("ja existe") ||
+      msg.includes("already exists") ||
+      msg.includes("em uso")
     ) {
+      throw new Error(
+        "O Asaas ainda identifica uma conta com este CNPJ. Se você cancelou recentemente, aguarde a conclusão do encerramento e tente Abrir conta digital novamente (será necessário refazer documentos e análise)."
+      );
+    }
+    if (msg.includes("cpf") || msg.includes("cnpj") || msg.includes("cadastr")) {
       throw new Error(
         "O Asaas não permitiu criar subconta com este CNPJ (pode ser o mesmo da conta-mãe). Use Configurações → Boletos → chave API manual (legado)."
       );
@@ -441,8 +449,15 @@ export async function encerrarSubcontaEmpresa(
     throw err;
   }
 
-  await prisma.asaasSubconta.delete({ where: { empresaId } });
-  return { ok: true as const };
+  await prisma.$transaction([
+    prisma.asaasSubconta.delete({ where: { empresaId } }),
+    // Clientes do Asaas eram da subconta antiga — na reabertura serão criados de novo.
+    prisma.cliente.updateMany({
+      where: { empresaId, asaasCustomerId: { not: null } },
+      data: { asaasCustomerId: null },
+    }),
+  ]);
+  return { ok: true as const, podeReabrir: true as const };
 }
 
 export async function atualizarSubcontaPorWebhookConta(params: {

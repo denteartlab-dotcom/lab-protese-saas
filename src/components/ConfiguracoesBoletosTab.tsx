@@ -42,6 +42,7 @@ type SubcontaResumo = {
   contaMaeConfigurada?: boolean;
   podeUsarIntegracaoManual?: boolean;
   podeCancelarContaDigital?: boolean;
+  podeAbrirContaDigital?: boolean;
   saldo?: number | null;
   agencia?: string | null;
   conta?: string | null;
@@ -143,7 +144,7 @@ export function ConfiguracoesBoletosTab() {
       }
       if (!res.ok) throw new Error(json.error || "Não foi possível abrir a conta.");
       exibirFeedback(
-        "Conta digital criada. Envie os documentos para liberar boletos e pagamentos.",
+        "Conta digital criada. Conclua o envio dos documentos e a análise do Asaas para liberar boletos e pagamentos.",
         "sucesso"
       );
       await carregar();
@@ -188,8 +189,9 @@ export function ConfiguracoesBoletosTab() {
       if (!res.ok) {
         throw new Error(json.error || "Não foi possível cancelar a conta digital.");
       }
+      setDocumentos([]);
       exibirFeedback(
-        "Conta digital cancelada. Você pode abrir uma nova conta depois, se precisar.",
+        "Conta digital cancelada. Para usar de novo, clique em Abrir conta digital e refaça todo o processo (documentos e análise).",
         "sucesso"
       );
       await carregar();
@@ -257,6 +259,11 @@ export function ConfiguracoesBoletosTab() {
       : null;
   const saldoZerado = saldoAtual == null || Math.abs(saldoAtual) <= 0.001;
   const podeMostrarCancelar = contaIniciada && !integracaoManualVisivel;
+  const podeAbrir =
+    Boolean(subconta?.podeAbrirContaDigital) ||
+    (!contaIniciada &&
+      subconta?.contaMaeConfigurada !== false &&
+      !integracaoManualVisivel);
 
   return (
     <div className="max-w-2xl space-y-5 text-sm">
@@ -265,7 +272,8 @@ export function ConfiguracoesBoletosTab() {
         <p className="mt-1">
           Abra sua conta dentro do Lab Prótese para emitir boletos, receber Pix, pagar contas e
           transferir valores. Após enviar os documentos, a análise leva até 48 horas. Antes de
-          abrir, preencha CNPJ, celular e Renda/Faturamento R$ em Dados do laboratório.
+          abrir, preencha CNPJ, celular e Renda/Faturamento R$ em Dados do laboratório. Se cancelar
+          a conta, poderá abrir outra depois — será necessário passar por todo o processo novamente.
         </p>
         <p className="mt-2 text-[11px] text-slate-500">
           Serviços financeiros operados pelo Asaas, instituição de pagamento autorizada pelo Banco
@@ -341,9 +349,7 @@ export function ConfiguracoesBoletosTab() {
                 {cancelando ? "Cancelando…" : "Cancelar conta digital"}
               </Button>
             ) : null}
-            {!contaIniciada &&
-            subconta?.contaMaeConfigurada !== false &&
-            !integracaoManualVisivel ? (
+            {podeAbrir ? (
               <Button type="button" disabled={abrindo} onClick={() => void abrirContaDigital()}>
                 {abrindo ? "Abrindo conta…" : "Abrir conta digital"}
               </Button>
@@ -488,7 +494,7 @@ export function ConfiguracoesBoletosTab() {
         open={confirmandoCancelamento}
         titulo="Cancelar conta digital"
         mensagem="Deseja cancelar definitivamente a conta digital Asaas deste laboratório?"
-        aviso="Esta ação é irreversível. Só é permitida com saldo zerado e sem cobranças ou saques pendentes no Asaas."
+        aviso="Esta ação é irreversível na conta atual. Só é permitida com saldo zerado e sem cobranças ou saques pendentes. Depois você poderá abrir uma nova conta, refazendo documentos e análise."
         detalhe={
           saldoAtual != null
             ? `Saldo atual: R$ ${saldoAtual.toLocaleString("pt-BR", {

@@ -46,6 +46,11 @@ export async function montarSubcontaPainelContaDigital(empresaId: string) {
   const saldo = subcontaIniciada ? await obterSaldoSubcontaEmpresa(empresaId) : null;
   const podeCancelarContaDigital =
     subcontaIniciada && !podeUsarIntegracaoManual && (saldo == null || Math.abs(saldo) <= 0.001);
+  const podeAbrirContaDigital =
+    !subcontaIniciada &&
+    !podeUsarIntegracaoManual &&
+    Boolean(base.contaMaeConfigurada) &&
+    modo !== "legado";
 
   return {
     ...base,
@@ -57,6 +62,7 @@ export async function montarSubcontaPainelContaDigital(empresaId: string) {
     podeVisualizarContaDigital: integracaoAtiva || subcontaIniciada,
     saldo,
     podeCancelarContaDigital,
+    podeAbrirContaDigital,
   };
 }
 
