@@ -30,6 +30,11 @@ import {
   garantirConfigColaborador,
   horasLancamentoDiaria,
   horarioPadraoDoDia,
+  limitarHoraNoPeriodo,
+  PERIODO_MANHA_FIM,
+  PERIODO_MANHA_INICIO,
+  PERIODO_TARDE_FIM,
+  PERIODO_TARDE_INICIO,
   aplicarValorManualLancamento,
   recalcularLancamento,
   type ConfigDiariaColaborador,
@@ -66,6 +71,48 @@ assert.equal(
   10
 );
 ok("dois turnos pagam das 08:00 às 18:00 sem descontar o intervalo");
+
+assert.equal(
+  horasLancamentoDiaria({
+    entrada: "08:00",
+    saidaManha: "12:00",
+    entradaTarde: "13:00",
+    saida: "18:00",
+    turnoManha: true,
+    turnoTarde: false,
+  }),
+  4
+);
+assert.equal(
+  horasLancamentoDiaria({
+    entrada: "06:00",
+    saidaManha: "12:00",
+    entradaTarde: "13:00",
+    saida: "18:00",
+    turnoManha: false,
+    turnoTarde: true,
+  }),
+  5
+);
+assert.equal(
+  horasLancamentoDiaria({
+    entrada: "06:00",
+    saidaManha: "12:00",
+    entradaTarde: "13:00",
+    saida: "18:00",
+    turnoManha: false,
+    turnoTarde: false,
+  }),
+  0
+);
+ok("toggle de turno conta só o período ligado");
+
+assert.equal(limitarHoraNoPeriodo("05:30", PERIODO_MANHA_INICIO, PERIODO_MANHA_FIM), "06:00");
+assert.equal(limitarHoraNoPeriodo("08:15", PERIODO_MANHA_INICIO, PERIODO_MANHA_FIM), "08:15");
+assert.equal(limitarHoraNoPeriodo("14:00", PERIODO_MANHA_INICIO, PERIODO_MANHA_FIM), "12:00");
+assert.equal(limitarHoraNoPeriodo("12:30", PERIODO_TARDE_INICIO, PERIODO_TARDE_FIM), "13:00");
+assert.equal(limitarHoraNoPeriodo("19:10", PERIODO_TARDE_INICIO, PERIODO_TARDE_FIM), "18:00");
+ok("horário da manhã fica entre 06:00 e 12:00 e o da tarde entre 13:00 e 18:00");
 
 assert.equal(horasTrabalhadas("22:00", "06:00", 0), 8);
 ok("turno que atravessa a meia-noite");

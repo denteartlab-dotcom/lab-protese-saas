@@ -4,6 +4,7 @@ import {
   formatarHorasDecimais,
   formatarDataIsoBr,
   horarioTemTurno,
+  turnosAtivosLancamento,
   nomeMesAnoDiarias,
   type ResumoColaboradorDiariaMes,
 } from "@/lib/diarias-colaboradores";
@@ -143,16 +144,17 @@ function desenharNota(
 
   for (const lancamento of nota.lancamentos) {
     garantirEspaco(rowH);
+    const turnos = turnosAtivosLancamento(lancamento);
+    const manhaAtiva =
+      turnos.manha && horarioTemTurno(lancamento.entrada, lancamento.saidaManha);
+    const tardeAtiva =
+      turnos.tarde && horarioTemTurno(lancamento.entradaTarde, lancamento.saida);
     const valores = [
       formatarDataIsoBr(lancamento.data),
       weekdayCurto(lancamento.data),
-      horarioTemTurno(lancamento.entrada, lancamento.saidaManha)
-        ? `${lancamento.entrada}–${lancamento.saidaManha}`
-        : lancamento.entrada || "—",
-      horarioTemTurno(lancamento.entradaTarde, lancamento.saida)
-        ? `${lancamento.entradaTarde}–${lancamento.saida}`
-        : lancamento.saida || "—",
-      horarioTemTurno(lancamento.saidaManha, lancamento.entradaTarde)
+      manhaAtiva ? `${lancamento.entrada}–${lancamento.saidaManha}` : "—",
+      tardeAtiva ? `${lancamento.entradaTarde}–${lancamento.saida}` : "—",
+      manhaAtiva && tardeAtiva && horarioTemTurno(lancamento.saidaManha, lancamento.entradaTarde)
         ? `${lancamento.saidaManha}–${lancamento.entradaTarde}`
         : "—",
       formatarHorasDecimais(lancamento.horas),

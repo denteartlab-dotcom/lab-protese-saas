@@ -31,6 +31,12 @@ export const ENTRADA_PADRAO = "08:00";
 export const SAIDA_MANHA_PADRAO = "12:00";
 export const ENTRADA_TARDE_PADRAO = "13:00";
 export const SAIDA_PADRAO = "17:00";
+/** Faixa liberada pelo turno da manhã. */
+export const PERIODO_MANHA_INICIO = "06:00";
+export const PERIODO_MANHA_FIM = "12:00";
+/** Faixa liberada pelo turno da tarde. */
+export const PERIODO_TARDE_INICIO = "13:00";
+export const PERIODO_TARDE_FIM = "18:00";
 
 export type ConfigDiariaColaborador = {
   colaboradorId: string;
@@ -47,6 +53,9 @@ export type LancamentoDiaria = {
   saidaManha?: string;
   entradaTarde?: string;
   saida: string;
+  /** Ausente em lançamentos antigos: o turno segue preenchido se o horário existir. */
+  turnoManha?: boolean;
+  turnoTarde?: boolean;
   intervaloMinutos: number;
   horas: number;
   valor: number;
@@ -274,12 +283,59 @@ export function horarioTemTurno(inicio?: string, fim?: string): boolean {
   return minutosDeHora(inicio || "") != null && minutosDeHora(fim || "") != null;
 }
 
-/** Horas pagas: da primeira entrada à última saída, sem descontar o intervalo. */
-export function horasLancamentoDiaria(
-  lancamento: Pick<LancamentoDiaria, "entrada" | "saida" | "saidaManha" | "entradaTarde">
-): number {
+export function horaDentroDoPeriodo(valor: string, inicio: string, fim: string): boolean {
+  const atual = minutosDeHora(horaTextoValida(valor));
+  const min = minutosDeHora(inicio);
+  const max = minutosDeHora(fim);
+  return atual != null && min != null && max != null && atual >= min && atual <= max;
+}
+
+/** Mantém o horário digitado dentro da faixa do turno. */
+export function limitarHoraNoPeriodo(valor: string, inicio: string, fim: string): string {
+  const texto = horaTextoValida(valor);
+  if (!texto) return "";
+  const atual = minutosDeHora(texto);
+  const min = minutosDeHora(inicio);
+  const max = minutosDeHora(fim);
+  if (atual == null || min == null || max == null) return texto;
+  if (atual < min) return inicio;
+  if (atual > max) return fim;
+  return texto;
+}
+
+/**
+ * Turnos ligados no dia. Lançamento antigo sem a flag usa o horário preenchido.
+ */
+export function turnosAtivosLancamento(
+  lancamento: Pick<
+    LancamentoDiaria,
+    "entrada" | "saida" | "saidaManha" | "entradaTarde" | "turnoManha" | "turnoTarde"
+  >
+): { manha: boolean; tarde: boolean } {
+  const manhaExplicito = typeof lancamento.turnoManha === "boolean";
+  const tardeExplicito = typeof lancamento.turnoTarde === "boolean";
+  if (manhaExplicito || tardeExplicito) {
+    return {
+      manha: lancamento.turnoManha !== false,
+      tarde: lancamento.turnoTarde !== false,
+    };
+  }
   const temManha = horarioTemTurno(lancamento.entrada, lancamento.saidaManha);
   const temTarde = horarioTemTurno(lancamento.entradaTarde, lancamento.saida);
+  if (!temManha && !temTarde) return { manha: true, tarde: true };
+  return { manha: temManha, tarde: temTarde };
+}
+
+/** Horas pagas: da primeira entrada à última saída, sem descontar o intervalo. */
+export function horasLancamentoDiaria(
+  lancamento: Pick<
+    LancamentoDiaria,
+    "entrada" | "saida" | "saidaManha" | "entradaTarde" | "turnoManha" | "turnoTarde"
+  >
+): number {
+  const turnos = turnosAtivosLancamento(lancamento);
+  const temManha = turnos.manha && horarioTemTurno(lancamento.entrada, lancamento.saidaManha);
+  const temTarde = turnos.tarde && horarioTemTurno(lancamento.entradaTarde, lancamento.saida);
   if (temManha && temTarde) {
     return minutosLiquidosTurno(lancamento.entrada, lancamento.saida, 0) / 60;
   }
@@ -289,19 +345,25 @@ export function horasLancamentoDiaria(
   if (temTarde) {
     return minutosLiquidosTurno(lancamento.entradaTarde || "", lancamento.saida, 0) / 60;
   }
+  if (!turnos.manha && !turnos.tarde) return 0;
   return minutosLiquidosTurno(lancamento.entrada, lancamento.saida, 0) / 60;
 }
 
 export function textoHorarioLancamento(
-  lancamento: Pick<LancamentoDiaria, "entrada" | "saida" | "saidaManha" | "entradaTarde">
+  lancamento: Pick<
+    LancamentoDiaria,
+    "entrada" | "saida" | "saidaManha" | "entradaTarde" | "turnoManha" | "turnoTarde"
+  >
 ): string {
-  const temManha = horarioTemTurno(lancamento.entrada, lancamento.saidaManha);
-  const temTarde = horarioTemTurno(lancamento.entradaTarde, lancamento.saida);
+  const turnos = turnosAtivosLancamento(lancamento);
+  const temManha = turnos.manha && horarioTemTurno(lancamento.entrada, lancamento.saidaManha);
+  const temTarde = turnos.tarde && horarioTemTurno(lancamento.entradaTarde, lancamento.saida);
   if (temManha && temTarde) {
     return `${lancamento.entrada}–${lancamento.saidaManha}\n${lancamento.entradaTarde}–${lancamento.saida}`;
   }
   if (temManha) return `${lancamento.entrada}–${lancamento.saidaManha}`;
   if (temTarde) return `${lancamento.entradaTarde}–${lancamento.saida}`;
+  if (!turnos.manha && !turnos.tarde) return "";
   if (lancamento.entrada && lancamento.saida) return `${lancamento.entrada}–${lancamento.saida}`;
   return "";
 }
@@ -475,6 +537,8 @@ export function criarLancamentoDiaria(
       saidaManha: horario.saidaManha,
       entradaTarde: horario.entradaTarde,
       saida: horario.saida,
+      turnoManha: horarioTemTurno(horario.entrada, horario.saidaManha),
+      turnoTarde: horarioTemTurno(horario.entradaTarde, horario.saida),
       intervaloMinutos: 0,
       horas: 0,
       valor: 0,
@@ -853,6 +917,8 @@ function normalizarStore(raw: Partial<DiariasStore> | null | undefined): Diarias
           saidaManha: item.saidaManha || "",
           entradaTarde: item.entradaTarde || "",
           saida: item.saida || SAIDA_PADRAO,
+          ...(typeof item.turnoManha === "boolean" ? { turnoManha: item.turnoManha } : {}),
+          ...(typeof item.turnoTarde === "boolean" ? { turnoTarde: item.turnoTarde } : {}),
           intervaloMinutos: Math.max(0, Number(item.intervaloMinutos) || 0),
           horas: Number(item.horas) || 0,
           valor: Number(item.valor) || 0,

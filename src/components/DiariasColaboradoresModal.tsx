@@ -16,13 +16,17 @@ import {
   celulasCalendarioMes,
   criarLancamentoDiaria,
   dataHojeKey,
-  ENTRADA_PADRAO,
   ENTRADA_TARDE_PADRAO,
   formatarHoraDigitada,
   formatarHorasDecimais,
   garantirConfigColaborador,
   horarioPadraoDoDia,
   horaTextoValida,
+  limitarHoraNoPeriodo,
+  PERIODO_MANHA_FIM,
+  PERIODO_MANHA_INICIO,
+  PERIODO_TARDE_FIM,
+  PERIODO_TARDE_INICIO,
   chaveMesAtual,
   lancamentoDoDia,
   lancamentosDoMes,
@@ -35,6 +39,7 @@ import {
   SAIDA_MANHA_PADRAO,
   SAIDA_PADRAO,
   salvarDiariasColaboradores,
+  turnosAtivosLancamento,
   sincronizarDiariasStoreNoCadastro,
   sugerirValorDiaria,
   textoHorarioLancamento,
@@ -68,10 +73,16 @@ function CampoHoraTexto({
   label,
   value,
   onChange,
+  placeholder,
+  min,
+  max,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  placeholder: string;
+  min: string;
+  max: string;
 }) {
   return (
     <label className="block text-sm">
@@ -79,13 +90,52 @@ function CampoHoraTexto({
       <input
         type="text"
         inputMode="numeric"
-        placeholder="08:00"
+        placeholder={placeholder}
         value={value}
         onChange={(event) => onChange(formatarHoraDigitada(event.target.value))}
-        onBlur={() => onChange(horaTextoValida(value))}
+        onBlur={() => onChange(limitarHoraNoPeriodo(horaTextoValida(value), min, max))}
         className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-blue-500"
       />
     </label>
+  );
+}
+
+function ToggleTurno({
+  checked,
+  onChange,
+  label,
+  faixa,
+}: {
+  checked: boolean;
+  onChange: (ativo: boolean) => void;
+  label: string;
+  faixa: string;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label={label}
+        onClick={() => onChange(!checked)}
+        className={cn(
+          "relative h-6 w-11 shrink-0 rounded-full transition-colors",
+          checked ? "bg-[#4cae4c]" : "bg-slate-300"
+        )}
+      >
+        <span
+          className={cn(
+            "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform",
+            checked ? "left-[22px]" : "left-0.5"
+          )}
+        />
+      </button>
+      <span className="min-w-0">
+        <span className="block text-[13px] font-medium text-slate-800">{label}</span>
+        <span className="block text-[11px] text-slate-500">{faixa}</span>
+      </span>
+    </div>
   );
 }
 
@@ -266,13 +316,41 @@ export function DiariasColaboradoresModal({ open, onClose }: Props) {
     valor: string
   ) {
     if (!lancamento) return;
+    const turnos = turnosAtivosLancamento(lancamento);
     alterarLancamento({
-      entrada: campo === "entrada" ? valor : lancamento.entrada || ENTRADA_PADRAO,
+      turnoManha: turnos.manha,
+      turnoTarde: turnos.tarde,
+      entrada: campo === "entrada" ? valor : lancamento.entrada || PERIODO_MANHA_INICIO,
       saidaManha:
-        campo === "saidaManha" ? valor : lancamento.saidaManha || SAIDA_MANHA_PADRAO,
+        campo === "saidaManha" ? valor : lancamento.saidaManha || PERIODO_MANHA_FIM,
       entradaTarde:
-        campo === "entradaTarde" ? valor : lancamento.entradaTarde || ENTRADA_TARDE_PADRAO,
-      saida: campo === "saida" ? valor : lancamento.saida || SAIDA_PADRAO,
+        campo === "entradaTarde" ? valor : lancamento.entradaTarde || "",
+      saida: campo === "saida" ? valor : lancamento.saida || PERIODO_TARDE_FIM,
+    });
+  }
+
+  function alternarTurno(periodo: "manha" | "tarde", ativo: boolean) {
+    if (!lancamento) return;
+    const atual = turnosAtivosLancamento(lancamento);
+    if (periodo === "manha") {
+      const semManha = !horaTextoValida(lancamento.entrada) || !horaTextoValida(lancamento.saidaManha || "");
+      alterarLancamento({
+        turnoManha: ativo,
+        turnoTarde: atual.tarde,
+        entrada: ativo && semManha ? PERIODO_MANHA_INICIO : lancamento.entrada,
+        saidaManha:
+          ativo && semManha ? PERIODO_MANHA_FIM : lancamento.saidaManha || SAIDA_MANHA_PADRAO,
+      });
+      return;
+    }
+    const semTarde =
+      !horaTextoValida(lancamento.entradaTarde || "") || !horaTextoValida(lancamento.saida);
+    alterarLancamento({
+      turnoTarde: ativo,
+      turnoManha: atual.manha,
+      entradaTarde:
+        ativo && semTarde ? PERIODO_TARDE_INICIO : lancamento.entradaTarde || ENTRADA_TARDE_PADRAO,
+      saida: ativo && semTarde ? PERIODO_TARDE_FIM : lancamento.saida || SAIDA_PADRAO,
     });
   }
 
@@ -567,36 +645,82 @@ export function DiariasColaboradoresModal({ open, onClose }: Props) {
                 <p className="text-[13px] text-slate-500">{t("producao.diarias.diaLivre")}</p>
               ) : (
                 <div className="space-y-3">
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <CampoHoraTexto
-                      label={t("producao.diarias.entradaManha")}
-                      value={lancamento.entrada || ""}
-                      onChange={(value) => alterarHorario("entrada", value)}
-                    />
-                    <CampoHoraTexto
-                      label={t("producao.diarias.saidaManha")}
-                      value={lancamento.saidaManha || SAIDA_MANHA_PADRAO}
-                      onChange={(value) => alterarHorario("saidaManha", value)}
-                    />
-                    <CampoHoraTexto
-                      label={t("producao.diarias.entradaTarde")}
-                      value={lancamento.entradaTarde || ENTRADA_TARDE_PADRAO}
-                      onChange={(value) => alterarHorario("entradaTarde", value)}
-                    />
-                    <CampoHoraTexto
-                      label={t("producao.diarias.saidaTarde")}
-                      value={lancamento.saida || ""}
-                      onChange={(value) => alterarHorario("saida", value)}
-                    />
-                  </div>
-                  <p className="text-[12px] text-slate-500">
-                    {t("producao.diarias.intervalo")}:{" "}
-                    {textoIntervaloLancamento({
-                      saidaManha: lancamento.saidaManha || SAIDA_MANHA_PADRAO,
-                      entradaTarde: lancamento.entradaTarde || ENTRADA_TARDE_PADRAO,
-                    }) || "—"}
-                    . {t("producao.diarias.intervaloNaoDesconta")}
-                  </p>
+                  {(() => {
+                    const turnos = turnosAtivosLancamento(lancamento);
+                    return (
+                      <>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <ToggleTurno
+                            checked={turnos.manha}
+                            onChange={(ativo) => alternarTurno("manha", ativo)}
+                            label={t("producao.diarias.turnoManha")}
+                            faixa={t("producao.diarias.turnoManhaFaixa")}
+                          />
+                          <ToggleTurno
+                            checked={turnos.tarde}
+                            onChange={(ativo) => alternarTurno("tarde", ativo)}
+                            label={t("producao.diarias.turnoTarde")}
+                            faixa={t("producao.diarias.turnoTardeFaixa")}
+                          />
+                        </div>
+                        {turnos.manha ? (
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <CampoHoraTexto
+                              label={t("producao.diarias.entradaManha")}
+                              value={lancamento.entrada || ""}
+                              placeholder={PERIODO_MANHA_INICIO}
+                              min={PERIODO_MANHA_INICIO}
+                              max={PERIODO_MANHA_FIM}
+                              onChange={(value) => alterarHorario("entrada", value)}
+                            />
+                            <CampoHoraTexto
+                              label={t("producao.diarias.saidaManha")}
+                              value={lancamento.saidaManha || SAIDA_MANHA_PADRAO}
+                              placeholder={PERIODO_MANHA_FIM}
+                              min={PERIODO_MANHA_INICIO}
+                              max={PERIODO_MANHA_FIM}
+                              onChange={(value) => alterarHorario("saidaManha", value)}
+                            />
+                          </div>
+                        ) : null}
+                        {turnos.tarde ? (
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <CampoHoraTexto
+                              label={t("producao.diarias.entradaTarde")}
+                              value={lancamento.entradaTarde || ENTRADA_TARDE_PADRAO}
+                              placeholder={PERIODO_TARDE_INICIO}
+                              min={PERIODO_TARDE_INICIO}
+                              max={PERIODO_TARDE_FIM}
+                              onChange={(value) => alterarHorario("entradaTarde", value)}
+                            />
+                            <CampoHoraTexto
+                              label={t("producao.diarias.saidaTarde")}
+                              value={lancamento.saida || ""}
+                              placeholder={PERIODO_TARDE_FIM}
+                              min={PERIODO_TARDE_INICIO}
+                              max={PERIODO_TARDE_FIM}
+                              onChange={(value) => alterarHorario("saida", value)}
+                            />
+                          </div>
+                        ) : null}
+                        {!turnos.manha && !turnos.tarde ? (
+                          <p className="text-[12px] text-slate-500">
+                            {t("producao.diarias.selecioneTurno")}
+                          </p>
+                        ) : null}
+                        {turnos.manha && turnos.tarde ? (
+                          <p className="text-[12px] text-slate-500">
+                            {t("producao.diarias.intervalo")}:{" "}
+                            {textoIntervaloLancamento({
+                              saidaManha: lancamento.saidaManha || SAIDA_MANHA_PADRAO,
+                              entradaTarde: lancamento.entradaTarde || ENTRADA_TARDE_PADRAO,
+                            }) || "—"}
+                            . {t("producao.diarias.intervaloNaoDesconta")}
+                          </p>
+                        ) : null}
+                      </>
+                    );
+                  })()}
                   <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
                     <div>
                       <p className="text-[12px] text-slate-500">{t("producao.diarias.horas")}</p>
