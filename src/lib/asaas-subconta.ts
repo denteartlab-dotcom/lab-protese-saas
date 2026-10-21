@@ -42,6 +42,9 @@ type RespostaCriarSubconta = {
 
 type SubcontaListagemAsaas = {
   id: string;
+  name?: string | null;
+  email?: string | null;
+  loginEmail?: string | null;
   walletId?: string | null;
   cpfCnpj?: string | null;
   accountNumber?: { agency?: string; account?: string; accountDigit?: string };
@@ -50,6 +53,8 @@ type SubcontaListagemAsaas = {
 type RespostaListarSubcontas = {
   data?: SubcontaListagemAsaas[];
   totalCount?: number;
+  limit?: number;
+  hasMore?: boolean;
 };
 
 type RespostaAccessTokenSubconta = {
@@ -90,23 +95,147 @@ function extrairApiKeyAccessToken(res: RespostaAccessTokenSubconta): string | nu
   return chave || null;
 }
 
-/** Lista subconta na conta-mãe pelo CPF/CNPJ. */
-async function buscarSubcontaMaePorCnpj(
-  cpfCnpj: string
-): Promise<SubcontaListagemAsaas | null> {
-  const doc = somenteDigitos(cpfCnpj);
-  if (doc.length < 11) return null;
+async function listarSubcontasMae(filtro: {
+  cpfCnpj?: string;
+  email?: string;
+  name?: string;
+  offset?: number;
+  limit?: number;
+}): Promise<RespostaListarSubcontas> {
   const mae = obterConfigContaMaeAsaas();
-  const res = await asaasFetch<RespostaListarSubcontas>(
-    mae,
-    `/accounts?cpfCnpj=${encodeURIComponent(doc)}&limit=10`
+  const query = new URLSearchParams();
+  query.set("limit", String(filtro.limit ?? 100));
+  query.set("offset", String(filtro.offset ?? 0));
+  if (filtro.cpfCnpj) query.set("cpfCnpj", filtro.cpfCnpj);
+  if (filtro.email) query.set("email", filtro.email);
+  if (filtro.name) query.set("name", filtro.name);
+  return asaasFetch<RespostaListarSubcontas>(mae, `/accounts?${query.toString()}`);
+}
+
+function normalizarTexto(valor?: string | null) {
+  return (valor || "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function escolherSubcontaMae(
+  lista: SubcontaListagemAsaas[],
+  cpfCnpj: string,
+  email?: string
+): SubcontaListagemAsaas | null {
+  const doc = somenteDigitos(cpfCnpj);
+  const emailNorm = normalizarTexto(email);
+  const porDocumento = lista.find(
+    (item) => doc.length >= 11 && somenteDigitos(item.cpfCnpj || "") === doc
   );
-  const lista = res.data || [];
+  if (porDocumento) return porDocumento;
+  if (!emailNorm) return null;
   return (
-    lista.find((item) => somenteDigitos(item.cpfCnpj || "") === doc) ||
-    lista[0] ||
-    null
+    lista.find(
+      (item) =>
+        normalizarTexto(item.email) === emailNorm ||
+        normalizarTexto(item.loginEmail) === emailNorm
+    ) || null
   );
+}
+
+/**
+ * Acha a subconta na conta-mãe. O filtro por CNPJ às vezes volta vazio
+ * mesmo com a conta existente; por isso também busca e-mail e percorre a lista.
+ */
+async function buscarSubcontaMae(params: {
+  cpfCnpj: string;
+  email?: string;
+  name?: string;
+}): Promise<SubcontaListagemAsaas | null> {
+  const doc = somenteDigitos(params.cpfCnpj);
+  const email = params.email?.trim() || "";
+  if (doc.length < 11 && !email) return null;
+
+  const consultas: Array<{ cpfCnpj?: string; email?: string; name?: string }> = [];
+  if (doc.length >= 11) consultas.push({ cpfCnpj: doc });
+  if (email) consultas.push({ email });
+  if (params.name?.trim()) consultas.push({ name: params.name.trim() });
+
+  let ultimaFalha: Error | null = null;
+  let algumaListagemOk = false;
+  const nomeBusca = normalizarTexto(params.name);
+  const porNome = new Map<string, SubcontaListagemAsaas>();
+  let nomeAmbiguo = false;
+
+  const registrarNome = (lista: SubcontaListagemAsaas[]) => {
+    if (!nomeBusca || nomeAmbiguo) return;
+    for (const item of lista) {
+      if (normalizarTexto(item.name) !== nomeBusca) continue;
+      const docItem = somenteDigitos(item.cpfCnpj || "");
+      if (docItem && doc.length >= 11 && docItem !== doc) continue;
+      if (porNome.size > 0 && !porNome.has(item.id)) {
+        nomeAmbiguo = true;
+        porNome.clear();
+        return;
+      }
+      porNome.set(item.id, item);
+    }
+  };
+
+  for (const consulta of consultas) {
+    try {
+      const res = await listarSubcontasMae({ ...consulta, limit: 20 });
+      algumaListagemOk = true;
+      const lista = res.data || [];
+      const escolhida = escolherSubcontaMae(lista, doc, email);
+      if (escolhida) return escolhida;
+      // Um único item no filtro: aceita se o documento/e-mail bater ou se o campo veio vazio.
+      if (lista.length === 1 && lista[0]?.id) {
+        const unico = lista[0];
+        const docItem = somenteDigitos(unico.cpfCnpj || "");
+        const emailNorm = normalizarTexto(email);
+        const emailItem = normalizarTexto(unico.email);
+        const loginItem = normalizarTexto(unico.loginEmail);
+        const docOk = !docItem || docItem === doc;
+        const emailOk =
+          !emailNorm ||
+          (!emailItem && !loginItem) ||
+          emailItem === emailNorm ||
+          loginItem === emailNorm;
+        if (consulta.cpfCnpj && docOk) return unico;
+        if (consulta.email && docOk && emailOk) return unico;
+        if (
+          consulta.name &&
+          docOk &&
+          (!normalizarTexto(unico.name) || normalizarTexto(unico.name) === nomeBusca)
+        ) {
+          return unico;
+        }
+      }
+      registrarNome(lista);
+    } catch (err) {
+      ultimaFalha = err instanceof Error ? err : new Error("Falha ao listar subcontas.");
+    }
+  }
+
+  let offset = 0;
+  for (let pagina = 0; pagina < 8; pagina++) {
+    let res: RespostaListarSubcontas;
+    try {
+      res = await listarSubcontasMae({ offset, limit: 100 });
+      algumaListagemOk = true;
+    } catch (err) {
+      ultimaFalha = err instanceof Error ? err : new Error("Falha ao listar subcontas.");
+      break;
+    }
+    const lista = res.data || [];
+    const escolhida = escolherSubcontaMae(lista, doc, email);
+    if (escolhida) return escolhida;
+    registrarNome(lista);
+    const limite = res.limit || 100;
+    if (res.hasMore === false || lista.length < limite) break;
+    offset += limite;
+  }
+
+  const unicaPorNome = porNome.values().next().value;
+  if (porNome.size === 1 && unicaPorNome) return unicaPorNome;
+
+  if (!algumaListagemOk && ultimaFalha) throw ultimaFalha;
+  return null;
 }
 
 /** Nova apiKey da subconta (conta-mãe; accessTokens — valor só na criação). */
@@ -170,9 +299,10 @@ async function persistirSubcontaRecuperada(
  */
 async function recuperarOuLiberarSubcontaPorCnpj(
   empresaId: string,
-  cpfCnpj: string
+  dados: { cpfCnpj: string; email?: string; name?: string },
+  contaJaLocalizada?: SubcontaListagemAsaas | null
 ): Promise<"liberado" | "reconectado"> {
-  const conta = await buscarSubcontaMaePorCnpj(cpfCnpj);
+  const conta = contaJaLocalizada?.id ? contaJaLocalizada : await buscarSubcontaMae(dados);
   if (!conta?.id) {
     throw new Error(
       "O Asaas ainda identifica uma conta com este CNPJ, mas ela não foi encontrada na conta-mãe. Aguarde o encerramento concluir ou fale com o suporte Asaas."
@@ -183,23 +313,12 @@ async function recuperarOuLiberarSubcontaPorCnpj(
   try {
     apiKey = await criarApiKeySubcontaMae(conta.id);
   } catch (err) {
-    // Fallback: encerrar pela conta-mãe (não-BaaS / <48h / sem login) e liberar CNPJ.
-    const mae = obterConfigContaMaeAsaas();
-    try {
-      await asaasFetch<{ deleted?: boolean }>(
-        mae,
-        `/accounts/${encodeURIComponent(conta.id)}`,
-        { method: "DELETE" }
-      );
-      return "liberado";
-    } catch {
-      const detalhe = err instanceof Error ? err.message : "";
-      throw new Error(
-        `Não foi possível recuperar a conta digital existente deste CNPJ${
-          detalhe ? ` (${detalhe})` : ""
-        }. No painel Asaas da conta-mãe, habilite temporariamente o gerenciamento de chaves de subcontas (e whitelist de IP) e tente Abrir conta digital novamente.`
-      );
-    }
+    const detalhe = err instanceof Error ? err.message : "";
+    throw new Error(
+      `A conta digital deste CNPJ existe, mas não foi possível reabrir o envio de documentos${
+        detalhe ? ` (${detalhe})` : ""
+      }. No painel Asaas da conta-mãe, habilite o gerenciamento de chaves de subcontas (e a whitelist de IP) e clique em Abrir conta digital novamente.`
+    );
   }
 
   await persistirSubcontaRecuperada(empresaId, conta, apiKey);
@@ -442,6 +561,33 @@ export async function listarDocumentosSubconta(empresaId: string) {
   return res.data || [];
 }
 
+function esperar(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Lista os documentos e o link de envio. Conta recém-criada pode demorar
+ * alguns segundos até o Asaas publicar o onboardingUrl.
+ */
+export async function listarDocumentosSubcontaParaEnvio(empresaId: string) {
+  let ultimo: DocumentoSubcontaAsaas[] = [];
+  let ultimaFalha: unknown;
+  for (let tentativa = 0; tentativa < 4; tentativa++) {
+    try {
+      ultimo = await listarDocumentosSubconta(empresaId);
+      ultimaFalha = undefined;
+    } catch (err) {
+      ultimaFalha = err;
+      ultimo = [];
+    }
+    if (ultimo.some((doc) => doc.onboardingUrl)) return ultimo;
+    if (ultimo.length > 0 && tentativa >= 1) return ultimo;
+    if (tentativa < 3) await esperar(2000);
+  }
+  if (ultimo.length === 0 && ultimaFalha) throw ultimaFalha;
+  return ultimo;
+}
+
 export async function criarSubcontaEmpresa(empresaId: string) {
   if (!contaMaeAsaasConfigurada()) {
     throw new Error(
@@ -471,14 +617,23 @@ export async function criarSubcontaEmpresa(empresaId: string) {
   // Conta órfã (vínculo local apagado, CNPJ ainda no Asaas): recupera ou libera.
   let contaOrfa: SubcontaListagemAsaas | null = null;
   try {
-    contaOrfa = await buscarSubcontaMaePorCnpj(dados.cpfCnpj);
+    contaOrfa = await buscarSubcontaMae({
+      cpfCnpj: dados.cpfCnpj,
+      email: dados.email,
+      name: dados.name,
+    });
   } catch {
     // Listagem indisponível — tenta criar; o catch do POST cobre conflito.
   }
   if (contaOrfa?.id) {
     const resultado = await recuperarOuLiberarSubcontaPorCnpj(
       empresaId,
-      dados.cpfCnpj
+      {
+        cpfCnpj: dados.cpfCnpj,
+        email: dados.email,
+        name: dados.name,
+      },
+      contaOrfa
     );
     if (resultado === "reconectado") {
       try {
@@ -507,10 +662,11 @@ export async function criarSubcontaEmpresa(empresaId: string) {
   } catch (err) {
     const msg = err instanceof Error ? err.message : "";
     if (mensagemIndicaContaJaExistente(msg)) {
-      const resultado = await recuperarOuLiberarSubcontaPorCnpj(
-        empresaId,
-        dados.cpfCnpj
-      );
+      const resultado = await recuperarOuLiberarSubcontaPorCnpj(empresaId, {
+        cpfCnpj: dados.cpfCnpj,
+        email: dados.email,
+        name: dados.name,
+      });
       if (resultado === "reconectado") {
         try {
           await sincronizarStatusSubconta(empresaId);

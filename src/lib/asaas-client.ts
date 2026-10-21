@@ -131,14 +131,22 @@ export async function asaasFetch<T>(
   }
 
   const base = urlBaseAsaas(config.ambiente);
+  const method = (init?.method || "GET").toUpperCase();
+  // Asaas responde 403 em GET com body. Consultas (listar subconta, documentos) vão sem corpo.
+  const semCorpo = method === "GET" || method === "HEAD";
+  const { body, headers: headersExtra, ...resto } = init || {};
   const res = await fetchComTimeout(
     `${base}${path}`,
     {
-      ...init,
+      ...resto,
+      method,
+      ...(semCorpo ? {} : { body }),
       headers: {
+        Accept: "application/json",
         "Content-Type": "application/json",
+        "User-Agent": "LabProtese/1.0",
         access_token: config.apiKey.trim(),
-        ...(init?.headers || {}),
+        ...(headersExtra || {}),
       },
       cache: "no-store",
     },

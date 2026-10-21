@@ -125,6 +125,33 @@ function onboardingAsaasAtivoNaSessao() {
   }
 }
 
+function urlEnvioDocumentos(docs: DocumentoOnboarding[]) {
+  return docs.find((doc) => doc.onboardingUrl)?.onboardingUrl || null;
+}
+
+/** Abre a aba no clique (antes do await) para o bloqueador de pop-up não impedir o envio. */
+function prepararAbaEnvioDocumentos() {
+  try {
+    return window.open("about:blank", "_blank");
+  } catch {
+    return null;
+  }
+}
+
+function irParaEnvioDocumentos(aba: Window | null, docs: DocumentoOnboarding[]) {
+  const url = urlEnvioDocumentos(docs);
+  if (!url) {
+    if (aba && !aba.closed) aba.close();
+    return false;
+  }
+  if (aba && !aba.closed) {
+    aba.location.href = url;
+    return true;
+  }
+  window.open(url, "_blank", "noopener,noreferrer");
+  return true;
+}
+
 export function ConfiguracoesBoletosTab() {
   const [subconta, setSubconta] = useState<SubcontaResumo | null>(null);
   const [documentos, setDocumentos] = useState<DocumentoOnboarding[]>([]);
@@ -155,8 +182,8 @@ export function ConfiguracoesBoletosTab() {
     }
   }
 
-  const carregar = useCallback(async () => {
-    setCarregando(true);
+  const carregar = useCallback(async (opts?: { silencioso?: boolean }) => {
+    if (!opts?.silencioso) setCarregando(true);
     try {
       const manterOnboarding = onboardingAsaasAtivoNaSessao();
       const qs = manterOnboarding ? "?manterOnboarding=1" : "";
@@ -179,8 +206,9 @@ export function ConfiguracoesBoletosTab() {
         limparOnboardingAsaasAtivo();
       }
 
+      const docs = jsonSub.documentos || [];
       setSubconta(jsonSub.subconta || null);
-      setDocumentos(jsonSub.documentos || []);
+      setDocumentos(docs);
       if (jsonCfg.config?.ambiente) setAmbiente(jsonCfg.config.ambiente);
       setApiKeyConfigurada(Boolean(jsonCfg.config?.apiKeyConfigurada));
       setPodeUsarIntegracaoManual(
@@ -189,6 +217,7 @@ export function ConfiguracoesBoletosTab() {
         )
       );
       setWebhookUrl(jsonCfg.webhookUrl || "");
+      return docs;
     } finally {
       setCarregando(false);
     }
@@ -226,35 +255,71 @@ export function ConfiguracoesBoletosTab() {
   }, [carregar]);
 
   async function abrirContaDigital() {
+    const aba = prepararAbaEnvioDocumentos();
+
     if (subconta?.envioDocumentosPendente) {
       marcarOnboardingAsaasAtivo();
       setDocumentosReabertos(true);
-      if (documentos.length === 0) {
-        await carregar();
+      try {
+        let docs = documentos;
+        if (!urlEnvioDocumentos(docs)) {
+          docs = (await carregar({ silencioso: true })) || docs;
+        }
+        setDocumentosReabertos(true);
+        if (irParaEnvioDocumentos(aba, docs)) {
+          exibirFeedback(
+            "A página de envio dos documentos foi aberta. Conclua o envio no Asaas.",
+            "sucesso"
+          );
+        } else {
+          exibirFeedback(
+            "Conta reaberta. Se o link ainda não aparecer, clique em Atualizar status em alguns segundos e depois em Enviar documentos.",
+            "info"
+          );
+        }
+      } catch (e) {
+        if (aba && !aba.closed) aba.close();
+        exibirFeedback(
+          e instanceof Error ? e.message : "Falha ao reabrir o envio de documentos.",
+          "erro"
+        );
       }
       return;
     }
 
     setAbrindo(true);
     setFeedbackLocal(null);
+    let abriu = false;
     try {
       const res = await fetch("/api/asaas/subconta", { method: "POST" });
       const texto = await res.text();
-      let json: { error?: string } = {};
+      let json: { error?: string; documentos?: DocumentoOnboarding[] } = {};
       try {
-        json = texto ? (JSON.parse(texto) as { error?: string }) : {};
+        json = texto
+          ? (JSON.parse(texto) as { error?: string; documentos?: DocumentoOnboarding[] })
+          : {};
       } catch {
         throw new Error(texto.slice(0, 200) || "Resposta inválida do servidor.");
       }
       if (!res.ok) throw new Error(json.error || "Não foi possível abrir a conta.");
       marcarOnboardingAsaasAtivo();
       setDocumentosReabertos(true);
+      const docsResposta = json.documentos || [];
+      if (docsResposta.length > 0) setDocumentos(docsResposta);
+      abriu = irParaEnvioDocumentos(aba, docsResposta);
+      const recarregados = (await carregar({ silencioso: true })) || [];
+      if (recarregados.length === 0 && docsResposta.length > 0) {
+        setDocumentos(docsResposta);
+      }
+      if (!abriu) abriu = irParaEnvioDocumentos(null, recarregados.length ? recarregados : docsResposta);
       exibirFeedback(
-        "Conta digital criada. Conclua o envio dos documentos e a análise do Asaas para liberar boletos e pagamentos.",
+        abriu
+          ? "A página de envio dos documentos foi aberta. Conclua o envio no Asaas."
+          : "Conta digital reaberta. Conclua o envio dos documentos para liberar boletos e pagamentos.",
         "sucesso"
       );
-      await carregar();
     } catch (e) {
+      if (!abriu && aba && !aba.closed) aba.close();
       exibirFeedback(
         e instanceof Error ? e.message : "Falha ao abrir conta digital.",
         "erro"

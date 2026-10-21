@@ -4,6 +4,7 @@ import {
   criarSubcontaEmpresa,
   encerrarSubcontaEmpresa,
   listarDocumentosSubconta,
+  listarDocumentosSubcontaParaEnvio,
   nenhumDocumentoEnviadoSubconta,
   obterSubcontaEmpresa,
   sincronizarStatusSubconta,
@@ -76,7 +77,7 @@ export async function POST() {
     await criarSubcontaEmpresa(ctx.empresaId);
     let documentos: Awaited<ReturnType<typeof listarDocumentosSubconta>> = [];
     try {
-      documentos = await listarDocumentosSubconta(ctx.empresaId);
+      documentos = await listarDocumentosSubcontaParaEnvio(ctx.empresaId);
     } catch {
       documentos = [];
     }
