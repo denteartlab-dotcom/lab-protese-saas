@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireEmpresaContext } from "@/lib/empresa-context";
 import {
   criarSubcontaEmpresa,
+  encerrarSubcontaEmpresa,
   listarDocumentosSubconta,
   obterSubcontaEmpresa,
   sincronizarStatusSubconta,
@@ -88,6 +89,42 @@ export async function POST() {
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Não foi possível abrir a conta digital." },
+      { status: 422 }
+    );
+  }
+}
+
+export async function DELETE(request: Request) {
+  const prop = await exigirProprietario();
+  if (prop.erro) return prop.erro;
+  const ctx = await requireEmpresaContext().catch(() => null);
+  if (!ctx) {
+    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  }
+
+  try {
+    let motivo: string | undefined;
+    try {
+      const body = (await request.json()) as { motivo?: string };
+      motivo = typeof body?.motivo === "string" ? body.motivo : undefined;
+    } catch {
+      motivo = undefined;
+    }
+
+    await encerrarSubcontaEmpresa(ctx.empresaId, { motivo });
+    return NextResponse.json({
+      ok: true,
+      subconta: await montarSubcontaPainelContaDigital(ctx.empresaId),
+      documentos: [],
+    });
+  } catch (err) {
+    return NextResponse.json(
+      {
+        error:
+          err instanceof Error
+            ? err.message
+            : "Não foi possível cancelar a conta digital.",
+      },
       { status: 422 }
     );
   }

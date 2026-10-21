@@ -10,6 +10,7 @@ import {
   Wallet,
   XCircle,
 } from "lucide-react";
+import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { Button } from "@/components/ui";
 import { AsaasSeloInstitucional } from "@/components/AsaasSeloInstitucional";
 import type { TipoMensagemForm } from "@/components/DadosLaboratorioForm";
@@ -40,6 +41,8 @@ type SubcontaResumo = {
   contaAtiva?: boolean;
   contaMaeConfigurada?: boolean;
   podeUsarIntegracaoManual?: boolean;
+  podeCancelarContaDigital?: boolean;
+  saldo?: number | null;
   agencia?: string | null;
   conta?: string | null;
   contaDigito?: string | null;
@@ -67,6 +70,8 @@ export function ConfiguracoesBoletosTab() {
   const [carregando, setCarregando] = useState(true);
   const [abrindo, setAbrindo] = useState(false);
   const [atualizando, setAtualizando] = useState(false);
+  const [confirmandoCancelamento, setConfirmandoCancelamento] = useState(false);
+  const [cancelando, setCancelando] = useState(false);
 
   const [modoLegado, setModoLegado] = useState(false);
   const [ambiente, setAmbiente] = useState<"sandbox" | "producao">("sandbox");
@@ -162,6 +167,42 @@ export function ConfiguracoesBoletosTab() {
     }
   }
 
+  async function cancelarContaDigital() {
+    setCancelando(true);
+    setFeedbackLocal(null);
+    try {
+      const res = await fetch("/api/asaas/subconta", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          motivo: "Cliente solicitou o cancelamento da conta digital no Lab Prótese.",
+        }),
+      });
+      const texto = await res.text();
+      let json: { error?: string } = {};
+      try {
+        json = texto ? (JSON.parse(texto) as { error?: string }) : {};
+      } catch {
+        throw new Error(texto.slice(0, 200) || "Resposta inválida do servidor.");
+      }
+      if (!res.ok) {
+        throw new Error(json.error || "Não foi possível cancelar a conta digital.");
+      }
+      exibirFeedback(
+        "Conta digital cancelada. Você pode abrir uma nova conta depois, se precisar.",
+        "sucesso"
+      );
+      await carregar();
+    } catch (e) {
+      exibirFeedback(
+        e instanceof Error ? e.message : "Falha ao cancelar a conta digital.",
+        "erro"
+      );
+    } finally {
+      setCancelando(false);
+    }
+  }
+
   async function salvarLegado() {
     setSalvandoLegado(true);
     try {
@@ -210,6 +251,12 @@ export function ConfiguracoesBoletosTab() {
   const BadgeIcon = badge.Icon;
   const contaIniciada = status !== "nao_iniciado";
   const integracaoManualVisivel = podeUsarIntegracaoManual;
+  const saldoAtual =
+    typeof subconta?.saldo === "number" && Number.isFinite(subconta.saldo)
+      ? subconta.saldo
+      : null;
+  const saldoZerado = saldoAtual == null || Math.abs(saldoAtual) <= 0.001;
+  const podeMostrarCancelar = contaIniciada && !integracaoManualVisivel;
 
   return (
     <div className="max-w-2xl space-y-5 text-sm">
@@ -272,10 +319,26 @@ export function ConfiguracoesBoletosTab() {
               <Button
                 type="button"
                 variant="secondary"
-                disabled={atualizando}
+                disabled={atualizando || cancelando}
                 onClick={() => void atualizarStatus()}
               >
                 {atualizando ? "Atualizando…" : "Atualizar status"}
+              </Button>
+            ) : null}
+            {podeMostrarCancelar ? (
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={cancelando || !saldoZerado}
+                className="border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-60"
+                onClick={() => setConfirmandoCancelamento(true)}
+                title={
+                  saldoZerado
+                    ? "Cancelar conta digital no Asaas"
+                    : "Zere o saldo da conta digital antes de cancelar"
+                }
+              >
+                {cancelando ? "Cancelando…" : "Cancelar conta digital"}
               </Button>
             ) : null}
             {!contaIniciada &&
@@ -292,6 +355,22 @@ export function ConfiguracoesBoletosTab() {
           <p className="mt-3 text-[12px] text-slate-600">
             Conta: Ag. {subconta.agencia || "—"} · Cc {subconta.conta}
             {subconta.contaDigito ? `-${subconta.contaDigito}` : ""}
+          </p>
+        ) : null}
+
+        {podeMostrarCancelar && saldoAtual != null ? (
+          <p className="mt-2 text-[12px] text-slate-600">
+            Saldo atual:{" "}
+            <strong>
+              R${" "}
+              {saldoAtual.toLocaleString("pt-BR", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </strong>
+            {!saldoZerado
+              ? " — transfira ou utilize o saldo para liberar o cancelamento."
+              : " — cancelamento liberado."}
           </p>
         ) : null}
 
@@ -403,6 +482,26 @@ export function ConfiguracoesBoletosTab() {
       <AsaasSeloInstitucional
         detalhado
         className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-5"
+      />
+
+      <ConfirmacaoExclusaoModal
+        open={confirmandoCancelamento}
+        titulo="Cancelar conta digital"
+        mensagem="Deseja cancelar definitivamente a conta digital Asaas deste laboratório?"
+        aviso="Esta ação é irreversível. Só é permitida com saldo zerado e sem cobranças ou saques pendentes no Asaas."
+        detalhe={
+          saldoAtual != null
+            ? `Saldo atual: R$ ${saldoAtual.toLocaleString("pt-BR", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}`
+            : undefined
+        }
+        onClose={() => setConfirmandoCancelamento(false)}
+        onConfirm={() => void cancelarContaDigital()}
+        processando={cancelando}
+        labelConfirmar="Sim, cancelar"
+        labelCancelar="Não"
       />
     </div>
   );

@@ -363,6 +363,88 @@ export async function criarSubcontaEmpresa(empresaId: string) {
   return obterSubcontaEmpresa(empresaId) || sub;
 }
 
+function configApiDaSubconta(apiKey: string): AsaasConfig {
+  const mae = obterConfigContaMaeAsaas();
+  return {
+    apiKey,
+    ambiente: mae.ambiente,
+    webhookToken: mae.webhookToken,
+  };
+}
+
+/** Saldo da subconta (usa a apiKey mesmo antes da aprovação operacional). */
+export async function obterSaldoSubcontaEmpresa(empresaId: string): Promise<number | null> {
+  const sub = await obterSubcontaEmpresa(empresaId);
+  if (!sub?.apiKey) return null;
+  try {
+    const res = await asaasFetch<{ balance?: number }>(
+      configApiDaSubconta(sub.apiKey),
+      "/finance/balance"
+    );
+    return Number(res.balance) || 0;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Encerra a subconta BaaS no Asaas (DELETE /myAccount) e remove o vínculo local.
+ * Só libera quando o saldo estiver zerado.
+ */
+export async function encerrarSubcontaEmpresa(
+  empresaId: string,
+  opts?: { motivo?: string }
+) {
+  const sub = await obterSubcontaEmpresa(empresaId);
+  if (!sub?.apiKey) {
+    throw new Error("Conta digital ainda não foi iniciada.");
+  }
+
+  const config = configApiDaSubconta(sub.apiKey);
+  let saldo: number | null = null;
+  try {
+    const res = await asaasFetch<{ balance?: number }>(config, "/finance/balance");
+    saldo = Number(res.balance) || 0;
+  } catch {
+    if (sub.status === "aprovada") {
+      throw new Error(
+        "Não foi possível consultar o saldo da conta digital. Tente novamente antes de cancelar."
+      );
+    }
+    saldo = 0;
+  }
+
+  if (saldo != null && Math.abs(saldo) > 0.001) {
+    throw new Error(
+      `Só é possível cancelar a conta digital com saldo zerado. Saldo atual: R$ ${saldo.toLocaleString(
+        "pt-BR",
+        { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+      )}.`
+    );
+  }
+
+  const motivo =
+    opts?.motivo?.trim() ||
+    "Cliente solicitou o cancelamento da conta digital no Lab Prótese.";
+  const path = `/myAccount/?removeReason=${encodeURIComponent(motivo)}`;
+
+  try {
+    await asaasFetch<{ observations?: string }>(config, path, { method: "DELETE" });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "";
+    if (/saldo|balance|pendên|pendenc|cobrança|cobranca/i.test(msg)) {
+      throw new Error(
+        msg ||
+          "O Asaas não permitiu o cancelamento. Zere o saldo e encerre cobranças/saques pendentes."
+      );
+    }
+    throw err;
+  }
+
+  await prisma.asaasSubconta.delete({ where: { empresaId } });
+  return { ok: true as const };
+}
+
 export async function atualizarSubcontaPorWebhookConta(params: {
   accountId?: string;
   statusGeral?: string;

@@ -3,6 +3,7 @@ import { asaasConfigurado, type AsaasConfig } from "@/lib/asaas-config";
 import {
   configOperacionalSubconta,
   laboratorioUsaCnpjContaMae,
+  obterSaldoSubcontaEmpresa,
   obterSubcontaEmpresa,
   serializarSubcontaPublica,
 } from "@/lib/asaas-subconta";
@@ -42,6 +43,9 @@ export async function montarSubcontaPainelContaDigital(empresaId: string) {
       (sub.asaasAccountId || sub.apiKey)
   );
   const integracaoAtiva = Boolean(config) && (Boolean(base.contaAtiva) || modo === "legado");
+  const saldo = subcontaIniciada ? await obterSaldoSubcontaEmpresa(empresaId) : null;
+  const podeCancelarContaDigital =
+    subcontaIniciada && !podeUsarIntegracaoManual && (saldo == null || Math.abs(saldo) <= 0.001);
 
   return {
     ...base,
@@ -51,6 +55,8 @@ export async function montarSubcontaPainelContaDigital(empresaId: string) {
     podeUsarIntegracaoManual,
     subcontaIniciada,
     podeVisualizarContaDigital: integracaoAtiva || subcontaIniciada,
+    saldo,
+    podeCancelarContaDigital,
   };
 }
 
