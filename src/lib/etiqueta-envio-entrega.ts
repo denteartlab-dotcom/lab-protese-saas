@@ -1,4 +1,5 @@
 import { nomeExibicaoLaboratorio, carregarConfigLaboratorio } from "@/lib/configuracoes-lab";
+import type { LayoutEtiquetaEntrega } from "@/lib/configuracoes-etiqueta-entrega";
 import type { EntregaControle } from "@/lib/controle-entregas";
 
 export type EnderecoEtiquetaEnvio = {
@@ -34,9 +35,15 @@ export type OpcoesEtiquetaEnvio = {
   formato?: FormatoEtiquetaEnvio;
   modeloA4?: ModeloEtiquetaA4;
   duasVias?: boolean;
+  layout?: Partial<LayoutEtiquetaEntrega>;
+  preview?: boolean;
 };
 
-export function linhasEnderecoEtiqueta(endereco: EnderecoEtiquetaEnvio, rotuloCep = "CEP") {
+export function linhasEnderecoEtiqueta(
+  endereco: EnderecoEtiquetaEnvio,
+  rotuloCep = "CEP",
+  campos?: { cep?: boolean; telefone?: boolean }
+) {
   const linhas: string[] = [];
   const nome = endereco.nome.trim();
   if (nome) linhas.push(nome);
@@ -55,9 +62,9 @@ export function linhasEnderecoEtiqueta(endereco: EnderecoEtiquetaEnvio, rotuloCe
     .join(" - ");
   if (cidadeUf) linhas.push(cidadeUf);
   const cep = (endereco.cep || "").trim();
-  if (cep) linhas.push(`${rotuloCep} ${cep}`);
+  if (cep && campos?.cep !== false) linhas.push(`${rotuloCep} ${cep}`);
   const telefone = (endereco.telefone || "").trim();
-  if (telefone) linhas.push(telefone);
+  if (telefone && campos?.telefone !== false) linhas.push(telefone);
   return linhas;
 }
 
@@ -116,9 +123,10 @@ function blocoEndereco(
   endereco: EnderecoEtiquetaEnvio,
   vazio: string,
   rotuloCep: string,
-  classe: string
+  classe: string,
+  campos?: { cep?: boolean; telefone?: boolean }
 ) {
-  const linhas = linhasEnderecoEtiqueta(endereco, rotuloCep);
+  const linhas = linhasEnderecoEtiqueta(endereco, rotuloCep, campos);
   const corpo =
     linhas.length > 0
       ? linhas.map((linha) => `<p>${escapeHtml(linha)}</p>`).join("")
@@ -147,30 +155,31 @@ function estilosEtiqueta(formato: FormatoEtiquetaEnvio) {
     .vazio { font-weight: 400 !important; color: #64748b; }
     .folha { margin: 0 auto 16px; background: transparent; }
     .etiqueta { background: #fff; border: 2px solid #0f172a; }
+    body.sem-borda .etiqueta { border: 0; }
     .remetente { border-top: 1px dashed #94a3b8; }
     .via { break-before: page; page-break-before: always; }
     body.formato-etiqueta .etiqueta { width: 100mm; min-height: 140mm; padding: 8mm; }
-    body.formato-etiqueta p { font-size: 14px; }
-    body.formato-etiqueta section p:first-of-type { font-size: 18px; }
-    body.formato-etiqueta .os { font-size: 12px; }
+    body.formato-etiqueta p { font-size: calc(14px * var(--escala, 1)); }
+    body.formato-etiqueta section p:first-of-type { font-size: calc(18px * var(--escala, 1)); }
+    body.formato-etiqueta .os { font-size: calc(12px * var(--escala, 1)); }
     body.formato-etiqueta section { padding: 4mm 0; }
     body.formato-termica .etiqueta { width: 72mm; min-height: 120mm; padding: 3mm; }
-    body.formato-termica p { font-size: 12px; }
-    body.formato-termica section p:first-of-type { font-size: 16px; }
-    body.formato-termica .os { font-size: 11px; }
+    body.formato-termica p { font-size: calc(12px * var(--escala, 1)); }
+    body.formato-termica section p:first-of-type { font-size: calc(16px * var(--escala, 1)); }
+    body.formato-termica .os { font-size: calc(11px * var(--escala, 1)); }
     body.formato-termica section { padding: 3mm 0; }
     body.formato-a4 .etiqueta { width: 190mm; min-height: 270mm; padding: 12mm 14mm; display: flex; flex-direction: column; }
     body.formato-a4 .destinatario { flex: 1.35; }
     body.formato-a4 .remetente { flex: 0.85; margin-top: 6mm; padding-top: 8mm; border-top-width: 2px; }
-    body.formato-a4 h2 { font-size: 13px; }
-    body.formato-a4 p { font-size: 20px; margin-bottom: 2mm; }
-    body.formato-a4 section p:first-of-type { font-size: 32px; }
-    body.formato-a4 .os { font-size: 16px; margin-bottom: 8mm; }
+    body.formato-a4 h2 { font-size: calc(13px * var(--escala, 1)); }
+    body.formato-a4 p { font-size: calc(20px * var(--escala, 1)); margin-bottom: 2mm; }
+    body.formato-a4 section p:first-of-type { font-size: calc(32px * var(--escala, 1)); }
+    body.formato-a4 .os { font-size: calc(16px * var(--escala, 1)); margin-bottom: 8mm; }
     body.formato-a4.modelo-duas .folha { width: 190mm; min-height: 270mm; display: flex; flex-direction: column; justify-content: space-between; gap: 6mm; }
     body.formato-a4.modelo-duas .etiqueta { min-height: 128mm; padding: 7mm 8mm; }
-    body.formato-a4.modelo-duas p { font-size: 16px; }
-    body.formato-a4.modelo-duas section p:first-of-type { font-size: 22px; }
-    body.formato-a4.modelo-duas .os { font-size: 13px; margin-bottom: 3mm; }
+    body.formato-a4.modelo-duas p { font-size: calc(16px * var(--escala, 1)); }
+    body.formato-a4.modelo-duas section p:first-of-type { font-size: calc(22px * var(--escala, 1)); }
+    body.formato-a4.modelo-duas .os { font-size: calc(13px * var(--escala, 1)); margin-bottom: 3mm; }
     body.formato-a4.modelo-duas .remetente { margin-top: 3mm; padding-top: 3mm; }
     @media print {
       body { background: #fff; }
@@ -185,13 +194,30 @@ function etiquetaHtml(
   textos: TextosEtiquetaEnvio,
   destinatario: EnderecoEtiquetaEnvio,
   remetente: EnderecoEtiquetaEnvio,
-  osHtml: string
+  osHtml: string,
+  layout?: Partial<LayoutEtiquetaEntrega>
 ) {
+  const campos = { cep: layout?.exibirCep !== false, telefone: layout?.exibirTelefone !== false };
+  const destino =
+    layout?.exibirDestinatario === false
+      ? ""
+      : blocoEndereco(textos.destinatario, destinatario, "", textos.cep, "destinatario", campos);
+  const origem =
+    layout?.exibirRemetente === false
+      ? ""
+      : blocoEndereco(
+          textos.remetente,
+          remetente,
+          textos.remetenteSemCadastro,
+          textos.cep,
+          "remetente",
+          campos
+        );
   return `<article class="etiqueta">
     <h1>${escapeHtml(textos.titulo)}</h1>
     ${osHtml}
-    ${blocoEndereco(textos.destinatario, destinatario, "", textos.cep, "destinatario")}
-    ${blocoEndereco(textos.remetente, remetente, textos.remetenteSemCadastro, textos.cep, "remetente")}
+    ${destino}
+    ${origem}
   </article>`;
 }
 
@@ -205,15 +231,25 @@ export function htmlEtiquetaEnvio(dados: {
   const formato = dados.opcoes?.formato ?? "etiqueta";
   const modeloA4 = dados.opcoes?.modeloA4 ?? "modelo1";
   const duasVias = Boolean(dados.opcoes?.duasVias);
+  const layout = dados.opcoes?.layout;
+  const escala = Math.min(22, Math.max(10, Number(layout?.tamanhoFonte) || 14)) / 14;
   const os = (dados.numeroOs || "").trim();
-  const osHtml = os
-    ? `<p class="os">${escapeHtml(dados.textos.os)} ${escapeHtml(os)}</p>`
-    : "";
-  const miolo = etiquetaHtml(dados.textos, dados.destinatario, dados.remetente, osHtml);
+  const osHtml =
+    os && layout?.exibirOs !== false
+      ? `<p class="os">${escapeHtml(dados.textos.os)} ${escapeHtml(os)}</p>`
+      : "";
+  const miolo = etiquetaHtml(dados.textos, dados.destinatario, dados.remetente, osHtml, layout);
   const etiquetasNaFolha = formato === "a4" && modeloA4 === "modelo2" ? `${miolo}${miolo}` : miolo;
   const folha = `<section class="folha">${etiquetasNaFolha}</section>`;
   const folhas = duasVias ? `${folha}<section class="folha via">${etiquetasNaFolha}</section>` : folha;
   const classeModelo = formato === "a4" && modeloA4 === "modelo2" ? " modelo-duas" : "";
+  const semBorda = layout?.exibirBorda === false ? " sem-borda" : "";
+  const acoes = dados.opcoes?.preview
+    ? ""
+    : `<div class="acoes">
+    <button type="button" onclick="window.print()">${escapeHtml(dados.textos.imprimir)}</button>
+    <button type="button" class="secundario" onclick="window.close()">${escapeHtml(dados.textos.fechar)}</button>
+  </div>`;
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -221,11 +257,8 @@ export function htmlEtiquetaEnvio(dados: {
   <title>${escapeHtml(dados.textos.titulo)}</title>
   <style>${estilosEtiqueta(formato)}</style>
 </head>
-<body class="formato-${formato}${classeModelo}">
-  <div class="acoes">
-    <button type="button" onclick="window.print()">${escapeHtml(dados.textos.imprimir)}</button>
-    <button type="button" class="secundario" onclick="window.close()">${escapeHtml(dados.textos.fechar)}</button>
-  </div>
+<body class="formato-${formato}${classeModelo}${semBorda}" style="--escala:${escala}">
+  ${acoes}
   ${folhas}
 </body>
 </html>`;

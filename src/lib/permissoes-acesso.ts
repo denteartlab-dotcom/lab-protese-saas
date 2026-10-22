@@ -27,6 +27,7 @@ export const ITENS_MENU_CONFIGURACOES: ItemMenuConfiguracoes[] = [
   { href: "/app/configuracoes?aba=os", labelKey: "settings.os", permissaoId: "configuracoes-os" },
   { href: "/app/configuracoes?aba=faturas", labelKey: "settings.faturas", permissaoId: "configuracoes-faturas" },
   { href: "/app/configuracoes?aba=etiquetas", labelKey: "settings.etiquetas", permissaoId: "configuracoes-etiquetas" },
+  { href: "/app/configuracoes?aba=etiquetasEntrega", labelKey: "settings.etiquetasEntrega", permissaoId: "configuracoes-etiquetas-entrega" },
   { href: "/app/configuracoes?aba=usuarios", labelKey: "settings.usuarios", permissaoId: "configuracoes-usuarios" },
   { href: "/app/configuracoes?aba=backup", labelKey: "settings.backup", permissaoId: "configuracoes-backup" },
 ];
@@ -102,6 +103,9 @@ export function permissaoIdPorRota(pathname: string, search = ""): string | null
 
   if (path.startsWith("/app/configuracoes/cabecalho")) {
     return "configuracoes-cabecalho";
+  }
+  if (path.startsWith("/app/configuracoes/etiquetas-entrega")) {
+    return "configuracoes-etiquetas-entrega";
   }
   if (path.startsWith("/app/configuracoes")) {
     const aba = parseSearch(search).get("aba") || "dados";

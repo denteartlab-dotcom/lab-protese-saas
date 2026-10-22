@@ -22,6 +22,7 @@ import { ConfiguracoesGeraisTab } from "@/components/configuracoes/Configuracoes
 import { ConfiguracoesOsTab } from "@/components/configuracoes/ConfiguracoesOsTab";
 import { ConfiguracoesFaturasTab } from "@/components/configuracoes/ConfiguracoesFaturasTab";
 import { ConfiguracoesEtiquetasTab } from "@/components/configuracoes/ConfiguracoesEtiquetasTab";
+import { ConfiguracoesEtiquetaEntregaTab } from "@/components/configuracoes/ConfiguracoesEtiquetaEntregaTab";
 import { LogoLaboratorioTab } from "@/components/LogoLaboratorioTab";
 import { useI18n } from "@/components/i18n-provider";
 import {
@@ -47,6 +48,7 @@ const abasPagina: Array<{ id: string; labelKey: MessageKey; href?: string }> = [
   { id: "os", labelKey: "settings.os" },
   { id: "faturas", labelKey: "settings.faturas" },
   { id: "etiquetas", labelKey: "settings.etiquetas" },
+  { id: "etiquetasEntrega", labelKey: "settings.etiquetasEntrega" },
   { id: "usuarios", labelKey: "settings.usuarios" },
   { id: "backup", labelKey: "settings.backup" },
 ];
@@ -65,6 +67,7 @@ const titulosAbaKeys: Record<string, MessageKey> = {
   os: "settings.os",
   faturas: "settings.faturas",
   etiquetas: "settings.etiquetas",
+  etiquetasEntrega: "settings.etiquetasEntrega",
   usuarios: "settings.usuarios",
   migrar: "settings.migrar",
   integracoes: "settings.integracoes",
@@ -412,6 +415,8 @@ function ConfiguracoesConteudo() {
             <ConfiguracoesFaturasTab />
           ) : aba === "etiquetas" ? (
             <ConfiguracoesEtiquetasTab />
+          ) : aba === "etiquetasEntrega" ? (
+            <ConfiguracoesEtiquetaEntregaTab />
           ) : aba === "usuarios" ? (
             <MeusUsuariosTab />
           ) : aba === "backup" ? (

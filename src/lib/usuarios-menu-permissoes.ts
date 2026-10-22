@@ -23,6 +23,7 @@ export const ABA_PERMISSAO_ID: Record<string, string> = {
   os: "configuracoes-os",
   faturas: "configuracoes-faturas",
   etiquetas: "configuracoes-etiquetas",
+  etiquetasEntrega: "configuracoes-etiquetas-entrega",
   usuarios: "configuracoes-usuarios",
   backup: "configuracoes-backup",
 };
@@ -119,6 +120,7 @@ export const SECOES_MENU_PERMISSOES: MenuPermissaoSecao[] = [
       { id: "configuracoes-os", label: t("settings.os"), href: "/app/configuracoes?aba=os" },
       { id: "configuracoes-faturas", label: t("settings.faturas"), href: "/app/configuracoes?aba=faturas" },
       { id: "configuracoes-etiquetas", label: t("settings.etiquetas"), href: "/app/configuracoes?aba=etiquetas" },
+      { id: "configuracoes-etiquetas-entrega", label: t("settings.etiquetasEntrega"), href: "/app/configuracoes?aba=etiquetasEntrega" },
       { id: "configuracoes-backup", label: t("settings.backup"), href: "/app/configuracoes?aba=backup" },
       { id: "configuracoes-usuarios", label: t("settings.usuarios"), href: "/app/configuracoes?aba=usuarios" },
     ],

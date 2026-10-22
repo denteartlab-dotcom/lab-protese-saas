@@ -6,10 +6,14 @@ import { useI18n } from "@/components/i18n-provider";
 import { Button, Modal, Select } from "@/components/ui";
 import type { EntregaControle } from "@/lib/controle-entregas";
 import {
-  imprimirEtiquetaEntrega,
-  type FormatoEtiquetaEnvio,
-  type ModeloEtiquetaA4,
-} from "@/lib/etiqueta-envio-entrega";
+  MODELOS_ETIQUETA_ENTREGA,
+  carregarConfiguracoesEtiquetaEntrega,
+  modeloEtiquetaEntregaPorId,
+  sincronizarConfiguracoesEtiquetaEntregaDoServidor,
+  type ConfiguracoesEtiquetaEntrega,
+  type ModeloEtiquetaEntregaId,
+} from "@/lib/configuracoes-etiqueta-entrega";
+import { imprimirEtiquetaEntrega, type FormatoEtiquetaEnvio } from "@/lib/etiqueta-envio-entrega";
 
 type ImprimirEtiquetaEntregaModalProps = {
   open: boolean;
@@ -23,16 +27,42 @@ export function ImprimirEtiquetaEntregaModal({
   onClose,
 }: ImprimirEtiquetaEntregaModalProps) {
   const { t } = useI18n();
-  const [formato, setFormato] = useState<FormatoEtiquetaEnvio>("a4");
-  const [modeloA4, setModeloA4] = useState<ModeloEtiquetaA4>("modelo1");
+  const [config, setConfig] = useState<ConfiguracoesEtiquetaEntrega>(() =>
+    carregarConfiguracoesEtiquetaEntrega()
+  );
+  const [modeloId, setModeloId] = useState<ModeloEtiquetaEntregaId>("modelo1");
   const [duasVias, setDuasVias] = useState("nao");
 
   useEffect(() => {
     if (!open) return;
-    setFormato("a4");
-    setModeloA4("modelo1");
-    setDuasVias("nao");
+    let ativo = true;
+    void sincronizarConfiguracoesEtiquetaEntregaDoServidor().then((cfg) => {
+      if (!ativo) return;
+      setConfig(cfg);
+      setModeloId(cfg.modeloPadrao);
+      setDuasVias(cfg.duasVias[cfg.modeloPadrao] ? "sim" : "nao");
+    });
+    return () => {
+      ativo = false;
+    };
   }, [open, entrega?.id]);
+
+  const modelo = modeloEtiquetaEntregaPorId(modeloId);
+  const formato = modelo.formato;
+  const modelosDoFormato = MODELOS_ETIQUETA_ENTREGA.filter((item) => item.formato === formato);
+
+  function escolherFormato(novo: FormatoEtiquetaEnvio) {
+    const lista = MODELOS_ETIQUETA_ENTREGA.filter((item) => item.formato === novo);
+    const proximo =
+      lista.find((item) => item.id === config.modeloPadrao)?.id ?? lista[0]?.id ?? "modelo1";
+    setModeloId(proximo);
+    setDuasVias(config.duasVias[proximo] ? "sim" : "nao");
+  }
+
+  function escolherModelo(id: ModeloEtiquetaEntregaId) {
+    setModeloId(id);
+    setDuasVias(config.duasVias[id] ? "sim" : "nao");
+  }
 
   function imprimir() {
     if (!entrega) return;
@@ -49,9 +79,10 @@ export function ImprimirEtiquetaEntregaModal({
         fechar: t("common.fechar"),
       },
       {
-        formato,
-        modeloA4,
+        formato: modelo.formato,
+        modeloA4: modelo.modeloA4,
         duasVias: duasVias === "sim",
+        layout: config.layouts[modelo.id],
       }
     );
     if (!abriu) {
@@ -83,7 +114,7 @@ export function ImprimirEtiquetaEntregaModal({
                 type="radio"
                 name="formato-etiqueta-envio"
                 checked={formato === "a4"}
-                onChange={() => setFormato("a4")}
+                onChange={() => escolherFormato("a4")}
                 className="accent-primary-600"
               />
               {t("os.imprimir.formatoA4")}
@@ -93,7 +124,7 @@ export function ImprimirEtiquetaEntregaModal({
                 type="radio"
                 name="formato-etiqueta-envio"
                 checked={formato === "termica"}
-                onChange={() => setFormato("termica")}
+                onChange={() => escolherFormato("termica")}
                 className="accent-primary-600"
               />
               {t("os.imprimir.formatoTermica")}
@@ -103,7 +134,7 @@ export function ImprimirEtiquetaEntregaModal({
                 type="radio"
                 name="formato-etiqueta-envio"
                 checked={formato === "etiqueta"}
-                onChange={() => setFormato("etiqueta")}
+                onChange={() => escolherFormato("etiqueta")}
                 className="accent-primary-600"
               />
               {t("producao.entregas.etiqueta.formatoCompacta")}
@@ -111,32 +142,24 @@ export function ImprimirEtiquetaEntregaModal({
           </div>
 
           <div className="grid gap-3 md:grid-cols-2">
-            {formato === "a4" ? (
-              <Select
-                label={t("producao.entregas.etiqueta.modeloA4")}
-                value={modeloA4}
-                onChange={(e) => setModeloA4(e.target.value as ModeloEtiquetaA4)}
-              >
-                <option value="modelo1">{t("producao.entregas.etiqueta.modelo1")}</option>
-                <option value="modelo2">{t("producao.entregas.etiqueta.modelo2")}</option>
-              </Select>
-            ) : (
-              <Select
-                label={
-                  formato === "termica"
+            <Select
+              label={
+                formato === "a4"
+                  ? t("producao.entregas.etiqueta.modeloA4")
+                  : formato === "termica"
                     ? t("producao.entregas.etiqueta.modeloTermica")
                     : t("producao.entregas.etiqueta.modeloCompacta")
-                }
-                value={formato}
-                onChange={() => undefined}
-              >
-                <option value={formato}>
-                  {formato === "termica"
-                    ? t("producao.entregas.etiqueta.modeloTermicaUnico")
-                    : t("producao.entregas.etiqueta.modelo100x150")}
+              }
+              value={modelo.id}
+              onChange={(e) => escolherModelo(e.target.value as ModeloEtiquetaEntregaId)}
+            >
+              {modelosDoFormato.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.nome}
+                  {item.id === config.modeloPadrao ? ` ${t("os.imprimir.padraoSuffix")}` : ""}
                 </option>
-              </Select>
-            )}
+              ))}
+            </Select>
 
             <Select
               label={t("os.imprimir.duasVias")}

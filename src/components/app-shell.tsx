@@ -241,7 +241,8 @@ function AppShellInner({
     pathname.includes("/configuracoes/faturas/modelo2") ||
     pathname.includes("/configuracoes/faturas/modelo3") ||
     pathname.includes("/configuracoes/faturas/modelo4") ||
-    pathname.includes("/configuracoes/faturas/modelo5");
+    pathname.includes("/configuracoes/faturas/modelo5") ||
+    pathname.includes("/configuracoes/etiquetas-entrega/");
   const restanteMenuApp = restanteCaminhoMenuApp(pathname);
   const isModuloColaborador = restanteMenuApp === "/producao/modulo";
   const isModuloTv = restanteMenuApp.startsWith("/producao/modulo-tv");
