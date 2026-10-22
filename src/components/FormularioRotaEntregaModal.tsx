@@ -406,10 +406,6 @@ export function FormularioRotaEntregaModal({
   }
 
   function cadastrarOsSelecionadas() {
-    if (!form.entregador.trim()) {
-      alert(t("producao.entregas.rota.informeEntregador"));
-      return;
-    }
     const escolhidas = osSaiuEntrega.filter(
       (item) => osSelecionadas.includes(item.numeroOs) && !osJaNoControle(item.numeroOs)
     );
@@ -503,7 +499,6 @@ export function FormularioRotaEntregaModal({
     if (!form.nomeDestinatario.trim()) return;
     if (!form.dataEntrega.trim()) return;
     if (!form.descricao.trim()) return;
-    if (!form.entregador.trim()) return;
     const numeroOs = form.numeroOs.trim();
     const numeroOsNumero = Number(numeroOs);
     if (

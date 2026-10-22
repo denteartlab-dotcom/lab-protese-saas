@@ -293,7 +293,7 @@ const pt = {
   "producao.entregas.rota.nomeFornecedor": "Nome do Fornecedor",
   "producao.entregas.rota.nomePrestador": "Nome do Prestador de Serviço",
   "producao.entregas.rota.nomeDestinatario": "Nome do Destinatário",
-  "producao.entregas.rota.nomeEntregadorObrigatorio": "Nome do Entregador*",
+  "producao.entregas.rota.nomeEntregadorObrigatorio": "Nome do Entregador",
   "producao.entregas.rota.semEntregadorCadastro":
     "Nenhum entregador cadastrado. Cadastre em Cadastros › Entregadores.",
   "producao.entregas.rota.hora": "Hora",
@@ -634,7 +634,7 @@ const en: Record<keyof typeof pt, string> = {
   "producao.entregas.rota.nomeFornecedor": "Supplier name",
   "producao.entregas.rota.nomePrestador": "Service provider name",
   "producao.entregas.rota.nomeDestinatario": "Recipient name",
-  "producao.entregas.rota.nomeEntregadorObrigatorio": "Courier name*",
+  "producao.entregas.rota.nomeEntregadorObrigatorio": "Courier name",
   "producao.entregas.rota.semEntregadorCadastro":
     "No couriers registered. Register them under Records › Couriers.",
   "producao.entregas.rota.hora": "Time",
@@ -975,7 +975,7 @@ const es: Record<keyof typeof pt, string> = {
   "producao.entregas.rota.nomeFornecedor": "Nombre del proveedor",
   "producao.entregas.rota.nomePrestador": "Nombre del prestador de servicio",
   "producao.entregas.rota.nomeDestinatario": "Nombre del destinatario",
-  "producao.entregas.rota.nomeEntregadorObrigatorio": "Nombre del repartidor*",
+  "producao.entregas.rota.nomeEntregadorObrigatorio": "Nombre del repartidor",
   "producao.entregas.rota.semEntregadorCadastro":
     "Ningún repartidor registrado. Regístrelos en Registros › Repartidores.",
   "producao.entregas.rota.hora": "Hora",
