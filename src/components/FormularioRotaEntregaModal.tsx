@@ -422,7 +422,7 @@ export function FormularioRotaEntregaModal({
         numeroOs: String(trabalho.numeroOs),
         tipoDestinatario: "cliente",
         nomeDestinatario: nomeCliente,
-        descricao: trabalho.tipoProtese?.trim() || form.descricao.trim() || "Entrega de prótese",
+        descricao: trabalho.tipoProtese?.trim() || form.descricao.trim(),
       });
       criarEntrega(formRotaParaEntrega(base, parseCurrencyInput));
       cadastradas += 1;
@@ -498,7 +498,6 @@ export function FormularioRotaEntregaModal({
     if (!form.tipoDestinatario) return;
     if (!form.nomeDestinatario.trim()) return;
     if (!form.dataEntrega.trim()) return;
-    if (!form.descricao.trim()) return;
     const numeroOs = form.numeroOs.trim();
     const numeroOsNumero = Number(numeroOs);
     if (
@@ -758,14 +757,13 @@ export function FormularioRotaEntregaModal({
               </select>
             </div>
             <div>
-              {labelCampo(`${t("producao.comum.descricao")}*`)}
+              {labelCampo(t("producao.comum.descricao"))}
               <input
                 list="descricoes-rota"
                 value={form.descricao}
                 onChange={(e) => atualizar("descricao", e.target.value)}
                 placeholder={t("producao.entregas.rota.descricaoPlaceholder")}
                 className={inputClassName()}
-                required
               />
               <datalist id="descricoes-rota">
                 {descricoesSugeridas.map((item) => (
