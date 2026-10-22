@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import {
+  CATALOGO_FONTES_IMPRESSAO,
   cssFonteImpressao,
+  cssRegrasFonteImpressao,
   fontePdfImpressao,
+  fontesDoTema,
+  fontesOrdenadas,
+  nomeFonteImpressao,
   usarFonteNoPdf,
 } from "../src/lib/fonte-impressao";
 import { normalizarConfiguracoesEtiquetas } from "../src/lib/configuracoes-etiquetas";
@@ -32,6 +37,24 @@ assert.equal(fontePdfImpressao("courier"), "courier");
 assert.equal(fontePdfImpressao("verdana"), "helvetica");
 assert.equal(fontePdfImpressao("tahoma"), "helvetica");
 assert.equal(fontePdfImpressao("arial"), "helvetica");
+assert.equal(nomeFonteImpressao("times"), "Times New Roman");
+assert.equal(nomeFonteImpressao("calibri"), "Calibri");
+assert.equal(cssFonteImpressao("calibri").includes("Calibri"), true);
+assert.equal(cssFonteImpressao("garamond").includes("Garamond"), true);
+assert.equal(fontePdfImpressao("garamond"), "times");
+assert.equal(fontePdfImpressao("consolas"), "courier");
+assert.equal(fontePdfImpressao("calibri"), "helvetica");
+assert.equal(fontePdfImpressao("brush-script-mt"), "helvetica");
+assert.ok(CATALOGO_FONTES_IMPRESSAO.length >= 80);
+assert.equal(new Set(CATALOGO_FONTES_IMPRESSAO.map((fonte) => fonte.id)).size, CATALOGO_FONTES_IMPRESSAO.length);
+assert.ok(fontesDoTema().some((fonte) => fonte.id === "calibri"));
+assert.ok(fontesDoTema().every((fonte) => fonte.tema));
+const ordenadas = fontesOrdenadas();
+for (let i = 1; i < ordenadas.length; i += 1) {
+  assert.ok(ordenadas[i - 1].nome.localeCompare(ordenadas[i].nome, "pt") <= 0);
+}
+assert.match(cssRegrasFonteImpressao(), /\.fonte-times, \.fonte-times p \{ font-family: "Times New Roman"/);
+assert.match(cssRegrasFonteImpressao(), /\.fonte-arial-black/);
 
 const chamadas: string[] = [];
 const pdf = {

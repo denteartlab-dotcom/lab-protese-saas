@@ -795,6 +795,7 @@ function estilosBaseA4(fs: number, smartModelo1: boolean, fonte?: unknown) {
     @page{size:A4 portrait;margin:${smartModelo1 ? "0" : "8mm 10mm"}}
     *{box-sizing:border-box}
     html,body{margin:0;padding:0;background:#fff;color:#111;font-family:${cssFonteImpressao(fonte)};font-size:${fs}px}
+    body *{font-family:inherit}
     .page{${pageCss}}
     .actions{text-align:right;margin-bottom:8px}
     .rule{border-top:2px solid #111;margin:0}
@@ -840,6 +841,7 @@ function estilosBaseTermica(fs: number, fonte?: unknown) {
     @page{size:80mm auto;margin:0}
     *{box-sizing:border-box}
     html,body{margin:0;padding:0;background:#fff;color:#111;font-family:${cssFonteImpressao(fonte)}}
+    body *{font-family:inherit}
     .page{width:${FATURA_TERMICA_LARGURA_MM}mm;max-width:100%;margin:0 auto;padding:3mm 2mm;font-size:${fs}px}
     .actions{text-align:right;margin-bottom:6px}
     table{border-collapse:collapse;width:100%}

@@ -1,4 +1,5 @@
 import { nomeExibicaoLaboratorio, carregarConfigLaboratorio } from "@/lib/configuracoes-lab";
+import { cssRegrasFonteImpressao } from "@/lib/fonte-impressao";
 import {
   normalizarLayoutEtiquetaEntrega,
   type CampoTextoEtiquetaEntrega,
@@ -184,12 +185,7 @@ function estilosEtiqueta(formato: FormatoEtiquetaEnvio) {
     p { margin: 0 0 calc(0.4mm + var(--espaco, 16) * 0.07mm); line-height: 1.3; }
     .negrito { font-weight: 700; }
     .sublinhado, .sublinhado p { text-decoration: underline; }
-    .fonte-arial, .fonte-arial p { font-family: Arial, Helvetica, sans-serif; }
-    .fonte-times, .fonte-times p { font-family: "Times New Roman", Times, serif; }
-    .fonte-courier, .fonte-courier p { font-family: "Courier New", Courier, monospace; }
-    .fonte-georgia, .fonte-georgia p { font-family: Georgia, "Times New Roman", serif; }
-    .fonte-verdana, .fonte-verdana p { font-family: Verdana, Geneva, sans-serif; }
-    .fonte-tahoma, .fonte-tahoma p { font-family: Tahoma, Geneva, sans-serif; }
+    ${cssRegrasFonteImpressao()}
     [data-campo] { cursor: text; }
     .destacado { background: #e8f2fc; box-shadow: inset 0 0 0 1px #4a90d9; }
     .os { margin: 0 0 calc(1mm + var(--espaco, 16) * 0.2mm); }
