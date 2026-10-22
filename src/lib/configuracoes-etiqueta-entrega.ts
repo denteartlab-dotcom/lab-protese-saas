@@ -48,9 +48,36 @@ export const CAMPOS_TEXTO_ETIQUETA_ENTREGA = [
 
 export type CampoTextoEtiquetaEntrega = (typeof CAMPOS_TEXTO_ETIQUETA_ENTREGA)[number];
 
+export const FONTES_ETIQUETA_ENTREGA = [
+  "arial",
+  "times",
+  "courier",
+  "georgia",
+  "verdana",
+  "tahoma",
+] as const;
+
+export type FonteEtiquetaEntrega = (typeof FONTES_ETIQUETA_ENTREGA)[number];
+
+export function fonteEtiquetaEntregaValida(valor: unknown): valor is FonteEtiquetaEntrega {
+  return FONTES_ETIQUETA_ENTREGA.includes(valor as FonteEtiquetaEntrega);
+}
+
+export function camposTextoEtiquetaDaLista(lista: unknown): CampoTextoEtiquetaEntrega[] {
+  if (!Array.isArray(lista)) return [];
+  const vistos = new Set<CampoTextoEtiquetaEntrega>();
+  for (const item of lista) {
+    if (CAMPOS_TEXTO_ETIQUETA_ENTREGA.includes(item as CampoTextoEtiquetaEntrega)) {
+      vistos.add(item as CampoTextoEtiquetaEntrega);
+    }
+  }
+  return CAMPOS_TEXTO_ETIQUETA_ENTREGA.filter((campo) => vistos.has(campo));
+}
+
 export type EstiloTextoEtiquetaEntrega = {
   negrito: boolean;
   sublinhado: boolean;
+  fonte: FonteEtiquetaEntrega;
 };
 
 export const ETIQUETA_ENTREGA_ESPACAMENTO_MIN = 0;
@@ -62,13 +89,13 @@ export const ESTILO_TEXTO_ETIQUETA_PADRAO: Record<
   CampoTextoEtiquetaEntrega,
   EstiloTextoEtiquetaEntrega
 > = {
-  os: { negrito: true, sublinhado: false },
-  tituloDestinatario: { negrito: false, sublinhado: false },
-  nomeDestinatario: { negrito: true, sublinhado: false },
-  enderecoDestinatario: { negrito: false, sublinhado: false },
-  tituloRemetente: { negrito: false, sublinhado: false },
-  nomeRemetente: { negrito: true, sublinhado: false },
-  enderecoRemetente: { negrito: false, sublinhado: false },
+  os: { negrito: true, sublinhado: false, fonte: "arial" },
+  tituloDestinatario: { negrito: false, sublinhado: false, fonte: "arial" },
+  nomeDestinatario: { negrito: true, sublinhado: false, fonte: "arial" },
+  enderecoDestinatario: { negrito: false, sublinhado: false, fonte: "arial" },
+  tituloRemetente: { negrito: false, sublinhado: false, fonte: "arial" },
+  nomeRemetente: { negrito: true, sublinhado: false, fonte: "arial" },
+  enderecoRemetente: { negrito: false, sublinhado: false, fonte: "arial" },
 };
 
 const COR_BORDA_PAGINA_PADRAO = "#0f172a";
@@ -112,6 +139,7 @@ function normalizarEstilosTexto(
     base[campo] = {
       negrito: typeof item.negrito === "boolean" ? item.negrito : base[campo].negrito,
       sublinhado: item.sublinhado === true,
+      fonte: fonteEtiquetaEntregaValida(item.fonte) ? item.fonte : base[campo].fonte,
     };
   }
   return base;

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { htmlEtiquetaEnvio } from "../src/lib/etiqueta-envio-entrega";
 import {
+  camposTextoEtiquetaDaLista,
   normalizarConfiguracoesEtiquetaEntrega,
   normalizarLayoutEtiquetaEntrega,
 } from "../src/lib/configuracoes-etiqueta-entrega";
@@ -65,20 +66,29 @@ const formatado = htmlEtiquetaEnvio({
     layout: normalizarLayoutEtiquetaEntrega({
       espacamento: 0,
       estilosTexto: {
-        nomeDestinatario: { negrito: false, sublinhado: true },
-        enderecoDestinatario: { negrito: true, sublinhado: false },
+        nomeDestinatario: { negrito: false, sublinhado: true, fonte: "times" },
+        enderecoDestinatario: { negrito: true, sublinhado: false, fonte: "courier" },
       },
       corBorda: "#ff0000",
     }),
-    campoDestacado: "nomeDestinatario",
+    camposDestacados: ["nomeDestinatario", "os"],
+    preview: true,
   },
 });
 assert.match(formatado, /--espaco:0/);
 assert.match(formatado, /--cor-borda:#ff0000/);
-assert.match(formatado, /txt-nomeDestinatario sublinhado destacado/);
+assert.match(formatado, /txt-nomeDestinatario fonte-times sublinhado destacado/);
+assert.match(formatado, /data-campo="nomeDestinatario"/);
+assert.match(formatado, /txt-enderecoDestinatario fonte-courier negrito/);
+assert.match(formatado, /etiqueta-selecao/);
 assert.doesNotMatch(formatado, /com-borda/);
 assert.doesNotMatch(formatado, /txt-nomeDestinatario negrito/);
-assert.match(formatado, /txt-enderecoDestinatario negrito/);
+assert.doesNotMatch(oculto, /etiqueta-selecao/);
+assert.deepEqual(camposTextoEtiquetaDaLista(["os", "os", "invalido", "nomeRemetente"]), [
+  "os",
+  "nomeRemetente",
+]);
+assert.equal(normalizarLayoutEtiquetaEntrega({}).estilosTexto.nomeDestinatario.fonte, "arial");
 assert.match(formatado, /52mm \+ var\(--espaco, 16\) \* 13\.625mm/);
 assert.equal(cfg.layouts.modelo1.estilosTexto.nomeDestinatario.negrito, true);
 assert.notEqual(cfg.layouts.modelo1.estilosTexto, cfg.layouts.modelo2.estilosTexto);

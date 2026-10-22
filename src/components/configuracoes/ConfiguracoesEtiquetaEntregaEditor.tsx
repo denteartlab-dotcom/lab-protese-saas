@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Bold, Minus, Plus, Underline } from "lucide-react";
@@ -8,8 +8,9 @@ import { Button } from "@/components/ui";
 import { useI18n } from "@/components/i18n-provider";
 import type { MessageKey } from "@/lib/i18n/messages";
 import {
-  CAMPOS_TEXTO_ETIQUETA_ENTREGA,
   ETIQUETA_ENTREGA_ESPACAMENTO_MAX,
+  FONTES_ETIQUETA_ENTREGA,
+  camposTextoEtiquetaDaLista,
   corBordaPaginaEtiqueta,
   ETIQUETA_ENTREGA_ESPACAMENTO_MIN,
   MODELOS_ETIQUETA_ENTREGA,
@@ -22,6 +23,7 @@ import {
   sincronizarConfiguracoesEtiquetaEntregaDoServidor,
   type CampoTextoEtiquetaEntrega,
   type ConfiguracoesEtiquetaEntrega,
+  type FonteEtiquetaEntrega,
   type EstiloTextoEtiquetaEntrega,
   type LayoutEtiquetaEntrega,
   type ModeloEtiquetaEntregaId,
@@ -82,6 +84,15 @@ const ROTULO_CAMPO_TEXTO: Record<CampoTextoEtiquetaEntrega, MessageKey> = {
   enderecoRemetente: "settings.etiquetaEntrega.campo.enderecoRemetente",
 };
 
+const ROTULO_FONTE: Record<FonteEtiquetaEntrega, MessageKey> = {
+  arial: "settings.etiquetaEntrega.fonte.arial",
+  times: "settings.etiquetaEntrega.fonte.times",
+  courier: "settings.etiquetaEntrega.fonte.courier",
+  georgia: "settings.etiquetaEntrega.fonte.georgia",
+  verdana: "settings.etiquetaEntrega.fonte.verdana",
+  tahoma: "settings.etiquetaEntrega.fonte.tahoma",
+};
+
 function CheckboxCampo({
   label,
   checked,
@@ -118,7 +129,8 @@ export function ConfiguracoesEtiquetaEntregaEditor({
   const [layout, setLayout] = useState<LayoutEtiquetaEntrega>(() =>
     normalizarLayoutEtiquetaEntrega(carregarConfiguracoesEtiquetaEntrega().layouts[modelo])
   );
-  const [campoTexto, setCampoTexto] = useState<CampoTextoEtiquetaEntrega>("nomeDestinatario");
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [camposSelecionados, setCamposSelecionados] = useState<CampoTextoEtiquetaEntrega[]>([]);
   const [salvando, setSalvando] = useState(false);
   const [mensagem, setMensagem] = useState("");
   const [carregando, setCarregando] = useState(true);
@@ -129,12 +141,25 @@ export function ConfiguracoesEtiquetaEntregaEditor({
       if (!ativo) return;
       setConfig(cfg);
       setLayout(normalizarLayoutEtiquetaEntrega(cfg.layouts[modelo]));
+      setCamposSelecionados([]);
       setCarregando(false);
     });
     return () => {
       ativo = false;
     };
   }, [modelo]);
+
+  useEffect(() => {
+    function aoMensagem(event: MessageEvent) {
+      if (event.source !== iframeRef.current?.contentWindow) return;
+      const dados = event.data as { tipo?: string; campos?: unknown } | null;
+      if (!dados || dados.tipo !== "etiqueta-selecao") return;
+      const campos = camposTextoEtiquetaDaLista(dados.campos);
+      if (campos.length) setCamposSelecionados(campos);
+    }
+    window.addEventListener("message", aoMensagem);
+    return () => window.removeEventListener("message", aoMensagem);
+  }, []);
 
   const preview = useMemo(() => {
     return htmlEtiquetaEnvio({
@@ -165,26 +190,38 @@ export function ConfiguracoesEtiquetaEntregaEditor({
         modeloA4: definicao.modeloA4,
         layout,
         preview: true,
-        campoDestacado: campoTexto,
+        camposDestacados: camposSelecionados,
       },
     });
-  }, [campoTexto, definicao.formato, definicao.modeloA4, layout, t]);
+  }, [camposSelecionados, definicao.formato, definicao.modeloA4, layout, t]);
 
   function patch(parcial: Partial<LayoutEtiquetaEntrega>) {
     setLayout((atual) => normalizarLayoutEtiquetaEntrega({ ...atual, ...parcial }));
   }
 
   function patchEstilo(parcial: Partial<EstiloTextoEtiquetaEntrega>) {
-    setLayout((atual) =>
-      normalizarLayoutEtiquetaEntrega({
-        ...atual,
-        estilosTexto: {
-          ...atual.estilosTexto,
-          [campoTexto]: { ...atual.estilosTexto[campoTexto], ...parcial },
-        },
-      })
-    );
+    if (camposSelecionados.length === 0) return;
+    setLayout((atual) => {
+      const estilosTexto = { ...atual.estilosTexto };
+      for (const campo of camposSelecionados) {
+        estilosTexto[campo] = { ...estilosTexto[campo], ...parcial };
+      }
+      return normalizarLayoutEtiquetaEntrega({ ...atual, estilosTexto });
+    });
   }
+
+  const semTextoSelecionado = camposSelecionados.length === 0;
+  const todosNegrito =
+    !semTextoSelecionado &&
+    camposSelecionados.every((campo) => layout.estilosTexto[campo].negrito);
+  const todosSublinhados =
+    !semTextoSelecionado &&
+    camposSelecionados.every((campo) => layout.estilosTexto[campo].sublinhado);
+  const fontesSelecionadas = camposSelecionados.map((campo) => layout.estilosTexto[campo].fonte);
+  const fonteSelecionada =
+    fontesSelecionadas.length > 0 && fontesSelecionadas.every((fonte) => fonte === fontesSelecionadas[0])
+      ? fontesSelecionadas[0]
+      : "";
 
   async function salvar() {
     setSalvando(true);
@@ -239,27 +276,42 @@ export function ConfiguracoesEtiquetaEntregaEditor({
           </p>
           <div>
             <span className="mb-1 block text-[11px] text-slate-600">
-              {t("settings.etiquetaEntrega.texto")}
+              {t("settings.etiquetaEntrega.tipoFonte")}
             </span>
             <select
-              value={campoTexto}
-              onChange={(e) => setCampoTexto(e.target.value as CampoTextoEtiquetaEntrega)}
-              className="h-8 w-full rounded border border-slate-300 bg-white px-2 text-[12px] text-slate-800 outline-none"
+              aria-label={t("settings.etiquetaEntrega.tipoFonte")}
+              value={fonteSelecionada}
+              disabled={semTextoSelecionado}
+              onChange={(e) => patchEstilo({ fonte: e.target.value as FonteEtiquetaEntrega })}
+              className="h-8 w-full rounded border border-slate-300 bg-white px-2 text-[12px] text-slate-800 outline-none disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
             >
-              {CAMPOS_TEXTO_ETIQUETA_ENTREGA.map((campo) => (
-                <option key={campo} value={campo}>
-                  {t(ROTULO_CAMPO_TEXTO[campo])}
+              {fonteSelecionada === "" ? (
+                <option value="">
+                  {semTextoSelecionado
+                    ? t("settings.etiquetaEntrega.selecioneTexto")
+                    : t("settings.etiquetaEntrega.fontesMistas")}
+                </option>
+              ) : null}
+              {FONTES_ETIQUETA_ENTREGA.map((fonte) => (
+                <option key={fonte} value={fonte}>
+                  {t(ROTULO_FONTE[fonte])}
                 </option>
               ))}
             </select>
+            <p className="mt-1 text-[10px] leading-snug text-slate-500">
+              {semTextoSelecionado
+                ? t("settings.etiquetaEntrega.selecioneNaPagina")
+                : camposSelecionados.map((campo) => t(ROTULO_CAMPO_TEXTO[campo])).join(", ")}
+            </p>
             <div className="mt-2 grid grid-cols-2 gap-1">
               <button
                 type="button"
-                aria-pressed={layout.estilosTexto[campoTexto].negrito}
+                aria-pressed={todosNegrito}
+                disabled={semTextoSelecionado}
                 title={t("settings.etiquetaEntrega.negrito")}
-                onClick={() => patchEstilo({ negrito: !layout.estilosTexto[campoTexto].negrito })}
-                className={`inline-flex h-8 items-center justify-center gap-1 rounded border px-2 text-[11px] ${
-                  layout.estilosTexto[campoTexto].negrito
+                onClick={() => patchEstilo({ negrito: !todosNegrito })}
+                className={`inline-flex h-8 items-center justify-center gap-1 rounded border px-2 text-[11px] disabled:cursor-not-allowed disabled:opacity-50 ${
+                  todosNegrito
                     ? "border-[#4a90d9] bg-[#4a90d9] text-white"
                     : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
                 }`}
@@ -269,13 +321,12 @@ export function ConfiguracoesEtiquetaEntregaEditor({
               </button>
               <button
                 type="button"
-                aria-pressed={layout.estilosTexto[campoTexto].sublinhado}
+                aria-pressed={todosSublinhados}
+                disabled={semTextoSelecionado}
                 title={t("settings.etiquetaEntrega.sublinhado")}
-                onClick={() =>
-                  patchEstilo({ sublinhado: !layout.estilosTexto[campoTexto].sublinhado })
-                }
-                className={`inline-flex h-8 items-center justify-center gap-1 rounded border px-2 text-[11px] ${
-                  layout.estilosTexto[campoTexto].sublinhado
+                onClick={() => patchEstilo({ sublinhado: !todosSublinhados })}
+                className={`inline-flex h-8 items-center justify-center gap-1 rounded border px-2 text-[11px] disabled:cursor-not-allowed disabled:opacity-50 ${
+                  todosSublinhados
                     ? "border-[#4a90d9] bg-[#4a90d9] text-white"
                     : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
                 }`}
@@ -406,6 +457,7 @@ export function ConfiguracoesEtiquetaEntregaEditor({
         </div>
         <div className="min-h-0 flex-1 overflow-auto p-4">
           <iframe
+            ref={iframeRef}
             title={definicao.nome}
             srcDoc={preview}
             className="mx-auto block h-[1100px] w-full max-w-[900px] border-0 bg-white"

@@ -41,8 +41,8 @@ export type OpcoesEtiquetaEnvio = {
   duasVias?: boolean;
   layout?: Partial<LayoutEtiquetaEntrega>;
   preview?: boolean;
-  /** Só no editor: destaca o texto que recebe negrito ou sublinhado. */
-  campoDestacado?: CampoTextoEtiquetaEntrega;
+  /** Só no editor: destaca os trechos escolhidos arrastando na página. */
+  camposDestacados?: CampoTextoEtiquetaEntrega[];
 };
 
 export function linhasEnderecoEtiqueta(
@@ -124,17 +124,18 @@ function escapeHtml(texto: string) {
     .replace(/"/g, "&quot;");
 }
 
-function classeTexto(
+function attrsTexto(
   campo: CampoTextoEtiquetaEntrega,
   layout: LayoutEtiquetaEntrega,
-  destacado?: CampoTextoEtiquetaEntrega
+  destacados?: ReadonlySet<CampoTextoEtiquetaEntrega>,
+  extra?: string
 ) {
   const estilo = layout.estilosTexto[campo];
-  const classes = [`txt-${campo}`];
+  const classes = [extra, `txt-${campo}`, `fonte-${estilo.fonte}`].filter(Boolean) as string[];
   if (estilo.negrito) classes.push("negrito");
   if (estilo.sublinhado) classes.push("sublinhado");
-  if (destacado === campo) classes.push("destacado");
-  return classes.join(" ");
+  if (destacados?.has(campo)) classes.push("destacado");
+  return `class="${classes.join(" ")}" data-campo="${campo}"`;
 }
 
 function blocoEndereco(
@@ -144,7 +145,7 @@ function blocoEndereco(
   rotuloCep: string,
   classe: "destinatario" | "remetente",
   layout: LayoutEtiquetaEntrega,
-  destacado?: CampoTextoEtiquetaEntrega,
+  destacados?: ReadonlySet<CampoTextoEtiquetaEntrega>,
   campos?: { cep?: boolean; telefone?: boolean }
 ) {
   const linhas = linhasEnderecoEtiqueta(endereco, rotuloCep, campos);
@@ -153,16 +154,16 @@ function blocoEndereco(
   const campoEndereco = classe === "destinatario" ? "enderecoDestinatario" : "enderecoRemetente";
   const corpo =
     linhas.length > 0
-      ? `<p class="${classeTexto(campoNome, layout, destacado)}">${escapeHtml(linhas[0])}</p>${
+      ? `<p ${attrsTexto(campoNome, layout, destacados)}>${escapeHtml(linhas[0])}</p>${
           linhas.length > 1
-            ? `<div class="${classeTexto(campoEndereco, layout, destacado)}">${linhas
+            ? `<div ${attrsTexto(campoEndereco, layout, destacados)}>${linhas
                 .slice(1)
                 .map((linha) => `<p>${escapeHtml(linha)}</p>`)
                 .join("")}</div>`
             : ""
         }`
       : `<p class="vazio">${escapeHtml(vazio)}</p>`;
-  return `<section class="${classe}"><h2 class="${classeTexto(campoTitulo, layout, destacado)}">${escapeHtml(titulo)}</h2>${corpo}</section>`;
+  return `<section class="${classe}"><h2 ${attrsTexto(campoTitulo, layout, destacados)}>${escapeHtml(titulo)}</h2>${corpo}</section>`;
 }
 
 function estilosEtiqueta(formato: FormatoEtiquetaEnvio) {
@@ -183,6 +184,13 @@ function estilosEtiqueta(formato: FormatoEtiquetaEnvio) {
     p { margin: 0 0 calc(0.4mm + var(--espaco, 16) * 0.07mm); line-height: 1.3; }
     .negrito { font-weight: 700; }
     .sublinhado, .sublinhado p { text-decoration: underline; }
+    .fonte-arial, .fonte-arial p { font-family: Arial, Helvetica, sans-serif; }
+    .fonte-times, .fonte-times p { font-family: "Times New Roman", Times, serif; }
+    .fonte-courier, .fonte-courier p { font-family: "Courier New", Courier, monospace; }
+    .fonte-georgia, .fonte-georgia p { font-family: Georgia, "Times New Roman", serif; }
+    .fonte-verdana, .fonte-verdana p { font-family: Verdana, Geneva, sans-serif; }
+    .fonte-tahoma, .fonte-tahoma p { font-family: Tahoma, Geneva, sans-serif; }
+    [data-campo] { cursor: text; }
     .destacado { background: #e8f2fc; box-shadow: inset 0 0 0 1px #4a90d9; }
     .os { margin: 0 0 calc(1mm + var(--espaco, 16) * 0.2mm); }
     .vazio { font-weight: 400 !important; color: #64748b; text-decoration: none !important; }
@@ -229,7 +237,7 @@ function etiquetaHtml(
   remetente: EnderecoEtiquetaEnvio,
   osHtml: string,
   layout: LayoutEtiquetaEntrega,
-  destacado?: CampoTextoEtiquetaEntrega
+  destacados?: ReadonlySet<CampoTextoEtiquetaEntrega>
 ) {
   const campos = { cep: layout.exibirCep !== false, telefone: layout.exibirTelefone !== false };
   const destino =
@@ -242,7 +250,7 @@ function etiquetaHtml(
           textos.cep,
           "destinatario",
           layout,
-          destacado,
+          destacados,
           campos
         );
   const origem =
@@ -255,7 +263,7 @@ function etiquetaHtml(
           textos.cep,
           "remetente",
           layout,
-          destacado,
+          destacados,
           campos
         );
   return `<article class="etiqueta">
@@ -279,9 +287,10 @@ export function htmlEtiquetaEnvio(dados: {
   const layout = normalizarLayoutEtiquetaEntrega(dados.opcoes?.layout);
   const escala = layout.tamanhoFonte / 14;
   const os = (dados.numeroOs || "").trim();
+  const destacados = new Set(dados.opcoes?.camposDestacados ?? []);
   const osHtml =
     os && layout.exibirOs !== false
-      ? `<p class="os ${classeTexto("os", layout, dados.opcoes?.campoDestacado)}">${escapeHtml(dados.textos.os)} ${escapeHtml(os)}</p>`
+      ? `<p ${attrsTexto("os", layout, destacados, "os")}>${escapeHtml(dados.textos.os)} ${escapeHtml(os)}</p>`
       : "";
   const miolo = etiquetaHtml(
     dados.textos,
@@ -289,7 +298,7 @@ export function htmlEtiquetaEnvio(dados: {
     dados.remetente,
     osHtml,
     layout,
-    dados.opcoes?.campoDestacado
+    destacados
   );
   const etiquetasNaFolha = formato === "a4" && modeloA4 === "modelo2" ? `${miolo}${miolo}` : miolo;
   const folha = `<section class="folha">${etiquetasNaFolha}</section>`;
@@ -302,6 +311,38 @@ export function htmlEtiquetaEnvio(dados: {
     <button type="button" onclick="window.print()">${escapeHtml(dados.textos.imprimir)}</button>
     <button type="button" class="secundario" onclick="window.close()">${escapeHtml(dados.textos.fechar)}</button>
   </div>`;
+  const scriptSelecao = dados.opcoes?.preview
+    ? `<script>
+    (function () {
+      function publicar(campos) {
+        if (!campos.length || !window.parent) return;
+        window.parent.postMessage({ tipo: "etiqueta-selecao", campos: campos }, "*");
+      }
+      document.addEventListener("mouseup", function (evento) {
+        var sel = window.getSelection();
+        var campos = [];
+        var vistos = {};
+        function adiciona(valor) {
+          if (!valor || vistos[valor]) return;
+          vistos[valor] = true;
+          campos.push(valor);
+        }
+        if (sel && sel.rangeCount && !sel.isCollapsed) {
+          var range = sel.getRangeAt(0);
+          var nodes = document.querySelectorAll("[data-campo]");
+          for (var i = 0; i < nodes.length; i++) {
+            if (range.intersectsNode && range.intersectsNode(nodes[i])) adiciona(nodes[i].getAttribute("data-campo"));
+          }
+        }
+        if (!campos.length && evento.target && evento.target.closest) {
+          var alvo = evento.target.closest("[data-campo]");
+          if (alvo) adiciona(alvo.getAttribute("data-campo"));
+        }
+        publicar(campos);
+      });
+    })();
+  </script>`
+    : "";
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -312,6 +353,7 @@ export function htmlEtiquetaEnvio(dados: {
 <body class="formato-${formato}${classeModelo}${semBorda}" style="--escala:${escala};--espaco:${layout.espacamento};--cor-borda:${layout.corBorda}">
   ${acoes}
   ${folhas}
+  ${scriptSelecao}
 </body>
 </html>`;
 }
