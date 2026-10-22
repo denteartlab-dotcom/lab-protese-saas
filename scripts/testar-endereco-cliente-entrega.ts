@@ -126,6 +126,59 @@ assert.match(html, /João Piski/);
 assert.match(html, /Remetente/);
 assert.match(html, /Lab Prótese/);
 assert.match(html, /OS 15/);
+assert.match(html, /size: 100mm 150mm/);
+
+const htmlA4 = htmlEtiquetaEnvio({
+  textos: {
+    titulo: "Etiqueta de envio",
+    destinatario: "Destinatário",
+    remetente: "Remetente",
+    os: "OS",
+    cep: "CEP",
+    remetenteSemCadastro: "Sem remetente",
+    imprimir: "Imprimir",
+    fechar: "Fechar",
+  },
+  destinatario: destinatarioDaEntrega(entrega),
+  remetente: {
+    nome: "Lab Prótese",
+    rua: "Rua do Lab",
+    numero: "100",
+    cidade: "Colatina",
+    uf: "ES",
+    cep: "29700-000",
+  },
+  numeroOs: "123, 119, 68",
+  opcoes: { formato: "a4", modeloA4: "modelo1" },
+});
+assert.match(htmlA4, /size: A4/);
+assert.match(htmlA4, /formato-a4/);
+assert.match(htmlA4, /width: 190mm/);
+assert.match(htmlA4, /Destinatário/);
+assert.match(htmlA4, /João Piski/);
+assert.match(htmlA4, /Remetente/);
+assert.match(htmlA4, /Lab Prótese/);
+assert.equal((htmlA4.match(/class="etiqueta"/g) || []).length, 1);
+
+const htmlA4Duas = htmlEtiquetaEnvio({
+  textos: {
+    titulo: "Etiqueta de envio",
+    destinatario: "Destinatário",
+    remetente: "Remetente",
+    os: "OS",
+    cep: "CEP",
+    remetenteSemCadastro: "Sem remetente",
+    imprimir: "Imprimir",
+    fechar: "Fechar",
+  },
+  destinatario: destinatarioDaEntrega(entrega),
+  remetente: { nome: "Lab Prótese" },
+  numeroOs: "15",
+  opcoes: { formato: "a4", modeloA4: "modelo2", duasVias: true },
+});
+assert.match(htmlA4Duas, /modelo-duas/);
+assert.equal((htmlA4Duas.match(/class="etiqueta"/g) || []).length, 4);
+assert.match(htmlA4Duas, /class="folha via"/);
 
 const textosEtiqueta = {
   titulo: "Etiqueta de envio",

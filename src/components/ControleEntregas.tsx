@@ -20,6 +20,7 @@ import { BotoesImprimirExportarToolbar } from "@/components/BotoesImprimirExport
 import { ControleProducaoToolbar } from "@/components/ControleProducaoToolbar";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { FormularioRotaEntregaModal } from "@/components/FormularioRotaEntregaModal";
+import { ImprimirEtiquetaEntregaModal } from "@/components/ImprimirEtiquetaEntregaModal";
 import { SituacaoEntregaModal } from "@/components/SituacaoEntregaModal";
 import { RelatorioEntregasModal } from "@/components/relatorios/RelatorioEntregasModal";
 import { Button, Modal } from "@/components/ui";
@@ -63,7 +64,6 @@ import {
   imprimirRelatorioEntregas,
 } from "@/lib/relatorio-entregas";
 import { labelSituacaoEntrega } from "@/lib/i18n/entrega-i18n";
-import { imprimirEtiquetaEntrega } from "@/lib/etiqueta-envio-entrega";
 
 function labelFiltro(texto: string) {
   return <span className="mb-0.5 block text-[11px] text-slate-600">{texto}</span>;
@@ -134,6 +134,7 @@ export function ControleEntregas() {
   const [imprimindoHistorico, setImprimindoHistorico] = useState(false);
   const [editando, setEditando] = useState<EntregaControle | null>(null);
   const [visualizando, setVisualizando] = useState<EntregaControle | null>(null);
+  const [etiquetaImprimindo, setEtiquetaImprimindo] = useState<EntregaControle | null>(null);
   const [confirmandoEnvio, setConfirmandoEnvio] = useState(false);
   const [excluindo, setExcluindo] = useState<EntregaControle | null>(null);
   const [situacaoEditando, setSituacaoEditando] = useState<EntregaControle | null>(null);
@@ -582,19 +583,7 @@ export function ControleEntregas() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => {
-                            const abriu = imprimirEtiquetaEntrega(entrega, {
-                              titulo: t("producao.entregas.etiqueta.titulo"),
-                              destinatario: t("producao.entregas.etiqueta.destinatario"),
-                              remetente: t("producao.entregas.etiqueta.remetente"),
-                              os: t("producao.controle.tabela.os"),
-                              cep: t("producao.entregas.etiqueta.cep"),
-                              remetenteSemCadastro: t("producao.entregas.etiqueta.remetenteSemCadastro"),
-                              imprimir: t("producao.comum.imprimir"),
-                              fechar: t("common.fechar"),
-                            });
-                            if (!abriu) alert(t("print.comum.erroAbrirPopups"));
-                          }}
+                          onClick={() => setEtiquetaImprimindo(entrega)}
                           className="rounded p-1 hover:bg-slate-100 hover:text-blue-600"
                           title={t("producao.entregas.etiqueta.imprimir")}
                         >
@@ -631,6 +620,12 @@ export function ControleEntregas() {
         editando={editando}
         onClose={fecharModalRota}
         onSalvo={recarregar}
+      />
+
+      <ImprimirEtiquetaEntregaModal
+        open={Boolean(etiquetaImprimindo)}
+        entrega={etiquetaImprimindo}
+        onClose={() => setEtiquetaImprimindo(null)}
       />
 
       <SituacaoEntregaModal

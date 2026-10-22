@@ -24,6 +24,18 @@ export type TextosEtiquetaEnvio = {
   fechar: string;
 };
 
+/** Folha A4, bobina 80mm ou etiqueta compacta de envio. */
+export type FormatoEtiquetaEnvio = "a4" | "termica" | "etiqueta";
+
+/** Modelo 1 ocupa a folha inteira. Modelo 2 coloca duas etiquetas para recortar. */
+export type ModeloEtiquetaA4 = "modelo1" | "modelo2";
+
+export type OpcoesEtiquetaEnvio = {
+  formato?: FormatoEtiquetaEnvio;
+  modeloA4?: ModeloEtiquetaA4;
+  duasVias?: boolean;
+};
+
 export function linhasEnderecoEtiqueta(endereco: EnderecoEtiquetaEnvio, rotuloCep = "CEP") {
   const linhas: string[] = [];
   const nome = endereco.nome.trim();
@@ -103,14 +115,84 @@ function blocoEndereco(
   titulo: string,
   endereco: EnderecoEtiquetaEnvio,
   vazio: string,
-  rotuloCep: string
+  rotuloCep: string,
+  classe: string
 ) {
   const linhas = linhasEnderecoEtiqueta(endereco, rotuloCep);
   const corpo =
     linhas.length > 0
       ? linhas.map((linha) => `<p>${escapeHtml(linha)}</p>`).join("")
       : `<p class="vazio">${escapeHtml(vazio)}</p>`;
-  return `<section><h2>${escapeHtml(titulo)}</h2>${corpo}</section>`;
+  return `<section class="${classe}"><h2>${escapeHtml(titulo)}</h2>${corpo}</section>`;
+}
+
+function estilosEtiqueta(formato: FormatoEtiquetaEnvio) {
+  const pagina =
+    formato === "a4"
+      ? "@page { size: A4; margin: 8mm; }"
+      : formato === "termica"
+        ? "@page { size: 80mm 140mm; margin: 3mm; }"
+        : "@page { size: 100mm 150mm; margin: 4mm; }";
+  return `
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f1f5f9; color: #0f172a; font-family: Arial, Helvetica, sans-serif; }
+    .acoes { display: flex; gap: 8px; justify-content: center; padding: 16px; }
+    button { border: 0; border-radius: 6px; background: #2563eb; color: #fff; font: 600 13px Arial, sans-serif; padding: 8px 14px; cursor: pointer; }
+    button.secundario { background: #e2e8f0; color: #334155; }
+    h1 { display: none; }
+    h2 { margin: 0 0 4mm; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #475569; }
+    p { margin: 0 0 1.5mm; line-height: 1.3; }
+    section p:first-of-type { font-weight: 700; }
+    .os { margin: 0 0 4mm; font-weight: 700; }
+    .vazio { font-weight: 400 !important; color: #64748b; }
+    .folha { margin: 0 auto 16px; background: transparent; }
+    .etiqueta { background: #fff; border: 2px solid #0f172a; }
+    .remetente { border-top: 1px dashed #94a3b8; }
+    .via { break-before: page; page-break-before: always; }
+    body.formato-etiqueta .etiqueta { width: 100mm; min-height: 140mm; padding: 8mm; }
+    body.formato-etiqueta p { font-size: 14px; }
+    body.formato-etiqueta section p:first-of-type { font-size: 18px; }
+    body.formato-etiqueta .os { font-size: 12px; }
+    body.formato-etiqueta section { padding: 4mm 0; }
+    body.formato-termica .etiqueta { width: 72mm; min-height: 120mm; padding: 3mm; }
+    body.formato-termica p { font-size: 12px; }
+    body.formato-termica section p:first-of-type { font-size: 16px; }
+    body.formato-termica .os { font-size: 11px; }
+    body.formato-termica section { padding: 3mm 0; }
+    body.formato-a4 .etiqueta { width: 190mm; min-height: 270mm; padding: 12mm 14mm; display: flex; flex-direction: column; }
+    body.formato-a4 .destinatario { flex: 1.35; }
+    body.formato-a4 .remetente { flex: 0.85; margin-top: 6mm; padding-top: 8mm; border-top-width: 2px; }
+    body.formato-a4 h2 { font-size: 13px; }
+    body.formato-a4 p { font-size: 20px; margin-bottom: 2mm; }
+    body.formato-a4 section p:first-of-type { font-size: 32px; }
+    body.formato-a4 .os { font-size: 16px; margin-bottom: 8mm; }
+    body.formato-a4.modelo-duas .folha { width: 190mm; min-height: 270mm; display: flex; flex-direction: column; justify-content: space-between; gap: 6mm; }
+    body.formato-a4.modelo-duas .etiqueta { min-height: 128mm; padding: 7mm 8mm; }
+    body.formato-a4.modelo-duas p { font-size: 16px; }
+    body.formato-a4.modelo-duas section p:first-of-type { font-size: 22px; }
+    body.formato-a4.modelo-duas .os { font-size: 13px; margin-bottom: 3mm; }
+    body.formato-a4.modelo-duas .remetente { margin-top: 3mm; padding-top: 3mm; }
+    @media print {
+      body { background: #fff; }
+      .acoes { display: none; }
+      .folha { margin: 0; }
+      ${pagina}
+    }
+  `;
+}
+
+function etiquetaHtml(
+  textos: TextosEtiquetaEnvio,
+  destinatario: EnderecoEtiquetaEnvio,
+  remetente: EnderecoEtiquetaEnvio,
+  osHtml: string
+) {
+  return `<article class="etiqueta">
+    <h1>${escapeHtml(textos.titulo)}</h1>
+    ${osHtml}
+    ${blocoEndereco(textos.destinatario, destinatario, "", textos.cep, "destinatario")}
+    ${blocoEndereco(textos.remetente, remetente, textos.remetenteSemCadastro, textos.cep, "remetente")}
+  </article>`;
 }
 
 export function htmlEtiquetaEnvio(dados: {
@@ -118,60 +200,48 @@ export function htmlEtiquetaEnvio(dados: {
   destinatario: EnderecoEtiquetaEnvio;
   remetente: EnderecoEtiquetaEnvio;
   numeroOs?: string;
+  opcoes?: OpcoesEtiquetaEnvio;
 }) {
+  const formato = dados.opcoes?.formato ?? "etiqueta";
+  const modeloA4 = dados.opcoes?.modeloA4 ?? "modelo1";
+  const duasVias = Boolean(dados.opcoes?.duasVias);
   const os = (dados.numeroOs || "").trim();
   const osHtml = os
     ? `<p class="os">${escapeHtml(dados.textos.os)} ${escapeHtml(os)}</p>`
     : "";
+  const miolo = etiquetaHtml(dados.textos, dados.destinatario, dados.remetente, osHtml);
+  const etiquetasNaFolha = formato === "a4" && modeloA4 === "modelo2" ? `${miolo}${miolo}` : miolo;
+  const folha = `<section class="folha">${etiquetasNaFolha}</section>`;
+  const folhas = duasVias ? `${folha}<section class="folha via">${etiquetasNaFolha}</section>` : folha;
+  const classeModelo = formato === "a4" && modeloA4 === "modelo2" ? " modelo-duas" : "";
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
   <title>${escapeHtml(dados.textos.titulo)}</title>
-  <style>
-    * { box-sizing: border-box; }
-    body { margin: 0; background: #f1f5f9; color: #0f172a; font-family: Arial, Helvetica, sans-serif; }
-    .acoes { display: flex; gap: 8px; justify-content: center; padding: 16px; }
-    button { border: 0; border-radius: 6px; background: #2563eb; color: #fff; font: 600 13px Arial, sans-serif; padding: 8px 14px; cursor: pointer; }
-    button.secundario { background: #e2e8f0; color: #334155; }
-    .folha { width: 100mm; min-height: 140mm; margin: 0 auto 24px; background: #fff; border: 2px solid #0f172a; padding: 8mm; }
-    h1 { display: none; }
-    h2 { margin: 0 0 6px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #475569; }
-    section { padding: 4mm 0; }
-    section + section { border-top: 1px dashed #94a3b8; }
-    p { margin: 0 0 3px; font-size: 14px; line-height: 1.35; }
-    section p:first-of-type { font-size: 18px; font-weight: 700; }
-    .os { margin: 0 0 8px; font-size: 12px; font-weight: 700; }
-    .vazio { font-size: 12px !important; font-weight: 400 !important; color: #64748b; }
-    @media print {
-      body { background: #fff; }
-      .acoes { display: none; }
-      .folha { margin: 0; border-width: 1.5px; }
-      @page { size: 100mm 150mm; margin: 4mm; }
-    }
-  </style>
+  <style>${estilosEtiqueta(formato)}</style>
 </head>
-<body>
+<body class="formato-${formato}${classeModelo}">
   <div class="acoes">
     <button type="button" onclick="window.print()">${escapeHtml(dados.textos.imprimir)}</button>
     <button type="button" class="secundario" onclick="window.close()">${escapeHtml(dados.textos.fechar)}</button>
   </div>
-  <article class="folha">
-    <h1>${escapeHtml(dados.textos.titulo)}</h1>
-    ${osHtml}
-    ${blocoEndereco(dados.textos.destinatario, dados.destinatario, "", dados.textos.cep)}
-    ${blocoEndereco(dados.textos.remetente, dados.remetente, dados.textos.remetenteSemCadastro, dados.textos.cep)}
-  </article>
+  ${folhas}
 </body>
 </html>`;
 }
 
-function htmlDaEtiqueta(entrega: EntregaControle, textos: TextosEtiquetaEnvio) {
+function htmlDaEtiqueta(
+  entrega: EntregaControle,
+  textos: TextosEtiquetaEnvio,
+  opcoes?: OpcoesEtiquetaEnvio
+) {
   return htmlEtiquetaEnvio({
     textos,
     destinatario: destinatarioDaEntrega(entrega),
     remetente: remetenteDoLaboratorio(),
     numeroOs: entrega.numeroOs,
+    opcoes,
   });
 }
 
@@ -192,14 +262,19 @@ function imprimirJanela(janela: Window) {
   }, 250);
 }
 
+function caixaIframe(formato: FormatoEtiquetaEnvio) {
+  if (formato === "a4") return "left:-220mm;width:210mm;height:297mm;";
+  if (formato === "termica") return "left:-90mm;width:80mm;height:140mm;";
+  return "left:-120mm;width:100mm;height:150mm;";
+}
+
 /** Imprime na própria página quando o navegador bloqueia a nova aba. */
-function imprimirEtiquetaNoIframe(html: string) {
+function imprimirEtiquetaNoIframe(html: string, formato: FormatoEtiquetaEnvio) {
   if (!document.body) return false;
   const iframe = document.createElement("iframe");
   iframe.setAttribute("aria-hidden", "true");
   // Fora da tela, com tamanho real: iframe invisível (opacity 0) imprime em branco no Chrome.
-  iframe.style.cssText =
-    "position:fixed;left:-120mm;top:0;width:100mm;height:150mm;border:0;";
+  iframe.style.cssText = `position:fixed;top:0;border:0;${caixaIframe(formato)}`;
   iframe.srcdoc = html;
   const aoCarregar = () => {
     const janela = iframe.contentWindow;
@@ -215,10 +290,12 @@ function imprimirEtiquetaNoIframe(html: string) {
 
 export function imprimirEtiquetaEntrega(
   entrega: EntregaControle,
-  textos: TextosEtiquetaEnvio
+  textos: TextosEtiquetaEnvio,
+  opcoes?: OpcoesEtiquetaEnvio
 ) {
   if (typeof window === "undefined" || typeof document === "undefined") return false;
-  const html = htmlDaEtiqueta(entrega, textos);
+  const formato = opcoes?.formato ?? "etiqueta";
+  const html = htmlDaEtiqueta(entrega, textos, opcoes);
 
   // Sem "noopener": com essa opção o Chrome devolve null e a etiqueta não é escrita.
   let janela: Window | null = null;
@@ -227,7 +304,7 @@ export function imprimirEtiquetaEntrega(
   } catch {
     janela = null;
   }
-  if (!janela) return imprimirEtiquetaNoIframe(html);
+  if (!janela) return imprimirEtiquetaNoIframe(html, formato);
 
   try {
     escreverEtiqueta(janela.document, html);
@@ -237,7 +314,7 @@ export function imprimirEtiquetaEntrega(
     } catch {
       /* a aba pode já ter sido fechada */
     }
-    return imprimirEtiquetaNoIframe(html);
+    return imprimirEtiquetaNoIframe(html, formato);
   }
   try {
     janela.opener = null;
