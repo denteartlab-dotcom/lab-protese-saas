@@ -36,6 +36,42 @@ export const ROTAS_ETIQUETA_ENTREGA: Record<ModeloEtiquetaEntregaId, string> = {
   modelo4: "/app/configuracoes/etiquetas-entrega/modelo4",
 };
 
+export const CAMPOS_TEXTO_ETIQUETA_ENTREGA = [
+  "os",
+  "tituloDestinatario",
+  "nomeDestinatario",
+  "enderecoDestinatario",
+  "tituloRemetente",
+  "nomeRemetente",
+  "enderecoRemetente",
+] as const;
+
+export type CampoTextoEtiquetaEntrega = (typeof CAMPOS_TEXTO_ETIQUETA_ENTREGA)[number];
+
+export type EstiloTextoEtiquetaEntrega = {
+  negrito: boolean;
+  sublinhado: boolean;
+  borda: boolean;
+};
+
+export const ETIQUETA_ENTREGA_ESPACAMENTO_MIN = 0;
+export const ETIQUETA_ENTREGA_ESPACAMENTO_MAX = 16;
+/** 16 mantém a etiqueta alta na folha. Valores menores encolhem e sobra papel. */
+export const ETIQUETA_ENTREGA_ESPACAMENTO_PADRAO = 16;
+
+export const ESTILO_TEXTO_ETIQUETA_PADRAO: Record<
+  CampoTextoEtiquetaEntrega,
+  EstiloTextoEtiquetaEntrega
+> = {
+  os: { negrito: true, sublinhado: false, borda: false },
+  tituloDestinatario: { negrito: false, sublinhado: false, borda: false },
+  nomeDestinatario: { negrito: true, sublinhado: false, borda: false },
+  enderecoDestinatario: { negrito: false, sublinhado: false, borda: false },
+  tituloRemetente: { negrito: false, sublinhado: false, borda: false },
+  nomeRemetente: { negrito: true, sublinhado: false, borda: false },
+  enderecoRemetente: { negrito: false, sublinhado: false, borda: false },
+};
+
 export type LayoutEtiquetaEntrega = {
   exibirOs: boolean;
   exibirDestinatario: boolean;
@@ -44,7 +80,35 @@ export type LayoutEtiquetaEntrega = {
   exibirTelefone: boolean;
   exibirBorda: boolean;
   tamanhoFonte: number;
+  espacamento: number;
+  estilosTexto: Record<CampoTextoEtiquetaEntrega, EstiloTextoEtiquetaEntrega>;
 };
+
+function clonarEstilosTexto(
+  origem: Record<CampoTextoEtiquetaEntrega, EstiloTextoEtiquetaEntrega> = ESTILO_TEXTO_ETIQUETA_PADRAO
+): Record<CampoTextoEtiquetaEntrega, EstiloTextoEtiquetaEntrega> {
+  return Object.fromEntries(
+    CAMPOS_TEXTO_ETIQUETA_ENTREGA.map((campo) => [campo, { ...origem[campo] }])
+  ) as Record<CampoTextoEtiquetaEntrega, EstiloTextoEtiquetaEntrega>;
+}
+
+function normalizarEstilosTexto(
+  valor: unknown
+): Record<CampoTextoEtiquetaEntrega, EstiloTextoEtiquetaEntrega> {
+  const base = clonarEstilosTexto();
+  if (!valor || typeof valor !== "object") return base;
+  const mapa = valor as Partial<Record<CampoTextoEtiquetaEntrega, Partial<EstiloTextoEtiquetaEntrega>>>;
+  for (const campo of CAMPOS_TEXTO_ETIQUETA_ENTREGA) {
+    const item = mapa[campo];
+    if (!item || typeof item !== "object") continue;
+    base[campo] = {
+      negrito: typeof item.negrito === "boolean" ? item.negrito : base[campo].negrito,
+      sublinhado: item.sublinhado === true,
+      borda: item.borda === true,
+    };
+  }
+  return base;
+}
 
 export type ConfiguracoesEtiquetaEntrega = {
   modeloPadrao: ModeloEtiquetaEntregaId;
@@ -60,14 +124,16 @@ export const LAYOUT_ETIQUETA_ENTREGA_PADRAO: LayoutEtiquetaEntrega = {
   exibirTelefone: true,
   exibirBorda: true,
   tamanhoFonte: 14,
+  espacamento: ETIQUETA_ENTREGA_ESPACAMENTO_PADRAO,
+  estilosTexto: ESTILO_TEXTO_ETIQUETA_PADRAO,
 };
 
 function layoutsPadrao(): Record<ModeloEtiquetaEntregaId, LayoutEtiquetaEntrega> {
   return {
-    modelo1: { ...LAYOUT_ETIQUETA_ENTREGA_PADRAO },
-    modelo2: { ...LAYOUT_ETIQUETA_ENTREGA_PADRAO },
-    modelo3: { ...LAYOUT_ETIQUETA_ENTREGA_PADRAO },
-    modelo4: { ...LAYOUT_ETIQUETA_ENTREGA_PADRAO },
+    modelo1: normalizarLayoutEtiquetaEntrega(null),
+    modelo2: normalizarLayoutEtiquetaEntrega(null),
+    modelo3: normalizarLayoutEtiquetaEntrega(null),
+    modelo4: normalizarLayoutEtiquetaEntrega(null),
   };
 }
 
@@ -88,9 +154,13 @@ export function modeloEtiquetaEntregaPorId(id: ModeloEtiquetaEntregaId) {
 export function normalizarLayoutEtiquetaEntrega(
   valor?: Partial<LayoutEtiquetaEntrega> | null
 ): LayoutEtiquetaEntrega {
-  const base = { ...LAYOUT_ETIQUETA_ENTREGA_PADRAO };
+  const base = {
+    ...LAYOUT_ETIQUETA_ENTREGA_PADRAO,
+    estilosTexto: clonarEstilosTexto(),
+  };
   if (!valor || typeof valor !== "object") return base;
   const fonte = Math.round(Number(valor.tamanhoFonte));
+  const espaco = Math.round(Number(valor.espacamento));
   return {
     exibirOs: valor.exibirOs !== false,
     exibirDestinatario: valor.exibirDestinatario !== false,
@@ -99,6 +169,10 @@ export function normalizarLayoutEtiquetaEntrega(
     exibirTelefone: valor.exibirTelefone !== false,
     exibirBorda: valor.exibirBorda !== false,
     tamanhoFonte: Number.isFinite(fonte) ? Math.min(22, Math.max(10, fonte)) : base.tamanhoFonte,
+    espacamento: Number.isFinite(espaco)
+      ? Math.min(ETIQUETA_ENTREGA_ESPACAMENTO_MAX, Math.max(ETIQUETA_ENTREGA_ESPACAMENTO_MIN, espaco))
+      : base.espacamento,
+    estilosTexto: normalizarEstilosTexto(valor.estilosTexto),
   };
 }
 

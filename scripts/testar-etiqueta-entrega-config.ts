@@ -53,5 +53,31 @@ assert.equal(cfg.modeloPadrao, "modelo2");
 assert.equal(cfg.duasVias.modelo2, true);
 assert.equal(cfg.layouts.modelo1.exibirRemetente, true);
 assert.equal(normalizarLayoutEtiquetaEntrega({ tamanhoFonte: 99 }).tamanhoFonte, 22);
+assert.equal(normalizarLayoutEtiquetaEntrega({}).espacamento, 16);
+assert.equal(normalizarLayoutEtiquetaEntrega({ espacamento: 0 }).espacamento, 0);
+assert.equal(normalizarLayoutEtiquetaEntrega({ espacamento: 40 }).espacamento, 16);
+
+const formatado = htmlEtiquetaEnvio({
+  ...base,
+  opcoes: {
+    formato: "a4",
+    modeloA4: "modelo1",
+    layout: normalizarLayoutEtiquetaEntrega({
+      espacamento: 0,
+      estilosTexto: {
+        nomeDestinatario: { negrito: false, sublinhado: true, borda: true },
+        enderecoDestinatario: { negrito: true, sublinhado: false, borda: false },
+      },
+    }),
+    campoDestacado: "nomeDestinatario",
+  },
+});
+assert.match(formatado, /--espaco:0/);
+assert.match(formatado, /txt-nomeDestinatario sublinhado com-borda destacado/);
+assert.doesNotMatch(formatado, /txt-nomeDestinatario negrito/);
+assert.match(formatado, /txt-enderecoDestinatario negrito/);
+assert.match(formatado, /52mm \+ var\(--espaco, 16\) \* 13\.625mm/);
+assert.equal(cfg.layouts.modelo1.estilosTexto.nomeDestinatario.negrito, true);
+assert.notEqual(cfg.layouts.modelo1.estilosTexto, cfg.layouts.modelo2.estilosTexto);
 
 console.log("modelo de etiqueta de entrega ok");

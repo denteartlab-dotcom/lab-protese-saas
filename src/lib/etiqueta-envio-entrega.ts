@@ -1,5 +1,9 @@
 import { nomeExibicaoLaboratorio, carregarConfigLaboratorio } from "@/lib/configuracoes-lab";
-import type { LayoutEtiquetaEntrega } from "@/lib/configuracoes-etiqueta-entrega";
+import {
+  normalizarLayoutEtiquetaEntrega,
+  type CampoTextoEtiquetaEntrega,
+  type LayoutEtiquetaEntrega,
+} from "@/lib/configuracoes-etiqueta-entrega";
 import type { EntregaControle } from "@/lib/controle-entregas";
 
 export type EnderecoEtiquetaEnvio = {
@@ -37,6 +41,8 @@ export type OpcoesEtiquetaEnvio = {
   duasVias?: boolean;
   layout?: Partial<LayoutEtiquetaEntrega>;
   preview?: boolean;
+  /** Só no editor: destaca o texto que recebe negrito, sublinhado ou borda. */
+  campoDestacado?: CampoTextoEtiquetaEntrega;
 };
 
 export function linhasEnderecoEtiqueta(
@@ -118,20 +124,46 @@ function escapeHtml(texto: string) {
     .replace(/"/g, "&quot;");
 }
 
+function classeTexto(
+  campo: CampoTextoEtiquetaEntrega,
+  layout: LayoutEtiquetaEntrega,
+  destacado?: CampoTextoEtiquetaEntrega
+) {
+  const estilo = layout.estilosTexto[campo];
+  const classes = [`txt-${campo}`];
+  if (estilo.negrito) classes.push("negrito");
+  if (estilo.sublinhado) classes.push("sublinhado");
+  if (estilo.borda) classes.push("com-borda");
+  if (destacado === campo) classes.push("destacado");
+  return classes.join(" ");
+}
+
 function blocoEndereco(
   titulo: string,
   endereco: EnderecoEtiquetaEnvio,
   vazio: string,
   rotuloCep: string,
-  classe: string,
+  classe: "destinatario" | "remetente",
+  layout: LayoutEtiquetaEntrega,
+  destacado?: CampoTextoEtiquetaEntrega,
   campos?: { cep?: boolean; telefone?: boolean }
 ) {
   const linhas = linhasEnderecoEtiqueta(endereco, rotuloCep, campos);
+  const campoTitulo = classe === "destinatario" ? "tituloDestinatario" : "tituloRemetente";
+  const campoNome = classe === "destinatario" ? "nomeDestinatario" : "nomeRemetente";
+  const campoEndereco = classe === "destinatario" ? "enderecoDestinatario" : "enderecoRemetente";
   const corpo =
     linhas.length > 0
-      ? linhas.map((linha) => `<p>${escapeHtml(linha)}</p>`).join("")
+      ? `<p class="${classeTexto(campoNome, layout, destacado)}">${escapeHtml(linhas[0])}</p>${
+          linhas.length > 1
+            ? `<div class="${classeTexto(campoEndereco, layout, destacado)}">${linhas
+                .slice(1)
+                .map((linha) => `<p>${escapeHtml(linha)}</p>`)
+                .join("")}</div>`
+            : ""
+        }`
       : `<p class="vazio">${escapeHtml(vazio)}</p>`;
-  return `<section class="${classe}"><h2>${escapeHtml(titulo)}</h2>${corpo}</section>`;
+  return `<section class="${classe}"><h2 class="${classeTexto(campoTitulo, layout, destacado)}">${escapeHtml(titulo)}</h2>${corpo}</section>`;
 }
 
 function estilosEtiqueta(formato: FormatoEtiquetaEnvio) {
@@ -148,39 +180,43 @@ function estilosEtiqueta(formato: FormatoEtiquetaEnvio) {
     button { border: 0; border-radius: 6px; background: #2563eb; color: #fff; font: 600 13px Arial, sans-serif; padding: 8px 14px; cursor: pointer; }
     button.secundario { background: #e2e8f0; color: #334155; }
     h1 { display: none; }
-    h2 { margin: 0 0 4mm; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #475569; }
-    p { margin: 0 0 1.5mm; line-height: 1.3; }
-    section p:first-of-type { font-weight: 700; }
-    .os { margin: 0 0 4mm; font-weight: 700; }
-    .vazio { font-weight: 400 !important; color: #64748b; }
+    h2 { margin: 0 0 calc(1mm + var(--espaco, 16) * 0.2mm); font-size: 11px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: #475569; }
+    p { margin: 0 0 calc(0.4mm + var(--espaco, 16) * 0.07mm); line-height: 1.3; }
+    .negrito { font-weight: 700; }
+    .sublinhado, .sublinhado p { text-decoration: underline; }
+    p.com-borda, h2.com-borda { display: inline-block; border: 1px solid #0f172a; padding: 0.3mm 1.2mm; }
+    div.com-borda { border: 1px solid #0f172a; padding: 1mm 1.5mm; }
+    .destacado { background: #e8f2fc; box-shadow: inset 0 0 0 1px #4a90d9; }
+    .os { margin: 0 0 calc(1mm + var(--espaco, 16) * 0.2mm); }
+    .vazio { font-weight: 400 !important; color: #64748b; text-decoration: none !important; }
     .folha { margin: 0 auto 16px; background: transparent; }
     .etiqueta { background: #fff; border: 2px solid #0f172a; }
     body.sem-borda .etiqueta { border: 0; }
     .remetente { border-top: 1px dashed #94a3b8; }
     .via { break-before: page; page-break-before: always; }
-    body.formato-etiqueta .etiqueta { width: 100mm; min-height: 140mm; padding: 8mm; }
+    body.formato-etiqueta .etiqueta { width: 100mm; min-height: calc(90mm + var(--espaco, 16) * 3.1mm); padding: calc(3mm + var(--espaco, 16) * 0.3mm); }
     body.formato-etiqueta p { font-size: calc(14px * var(--escala, 1)); }
-    body.formato-etiqueta section p:first-of-type { font-size: calc(18px * var(--escala, 1)); }
+    body.formato-etiqueta .txt-nomeDestinatario, body.formato-etiqueta .txt-nomeRemetente { font-size: calc(18px * var(--escala, 1)); }
     body.formato-etiqueta .os { font-size: calc(12px * var(--escala, 1)); }
-    body.formato-etiqueta section { padding: 4mm 0; }
-    body.formato-termica .etiqueta { width: 72mm; min-height: 120mm; padding: 3mm; }
+    body.formato-etiqueta section { padding: calc(1mm + var(--espaco, 16) * 0.2mm) 0; }
+    body.formato-termica .etiqueta { width: 72mm; min-height: calc(70mm + var(--espaco, 16) * 3.1mm); padding: calc(2mm + var(--espaco, 16) * 0.15mm); }
     body.formato-termica p { font-size: calc(12px * var(--escala, 1)); }
-    body.formato-termica section p:first-of-type { font-size: calc(16px * var(--escala, 1)); }
+    body.formato-termica .txt-nomeDestinatario, body.formato-termica .txt-nomeRemetente { font-size: calc(16px * var(--escala, 1)); }
     body.formato-termica .os { font-size: calc(11px * var(--escala, 1)); }
-    body.formato-termica section { padding: 3mm 0; }
-    body.formato-a4 .etiqueta { width: 190mm; min-height: 270mm; padding: 12mm 14mm; display: flex; flex-direction: column; }
-    body.formato-a4 .destinatario { flex: 1.35; }
-    body.formato-a4 .remetente { flex: 0.85; margin-top: 6mm; padding-top: 8mm; border-top-width: 2px; }
+    body.formato-termica section { padding: calc(1mm + var(--espaco, 16) * 0.15mm) 0; }
+    body.formato-a4 .etiqueta { width: 190mm; min-height: calc(52mm + var(--espaco, 16) * 13.625mm); padding: calc(4mm + var(--espaco, 16) * 0.5mm) calc(6mm + var(--espaco, 16) * 0.5mm); display: flex; flex-direction: column; }
+    body.formato-a4 .destinatario { flex: calc(var(--espaco, 16) * 0.084) 1 auto; }
+    body.formato-a4 .remetente { flex: calc(var(--espaco, 16) * 0.053) 1 auto; margin-top: calc(1mm + var(--espaco, 16) * 0.32mm); padding-top: calc(1.5mm + var(--espaco, 16) * 0.4mm); border-top-width: 2px; }
     body.formato-a4 h2 { font-size: calc(13px * var(--escala, 1)); }
-    body.formato-a4 p { font-size: calc(20px * var(--escala, 1)); margin-bottom: 2mm; }
-    body.formato-a4 section p:first-of-type { font-size: calc(32px * var(--escala, 1)); }
-    body.formato-a4 .os { font-size: calc(16px * var(--escala, 1)); margin-bottom: 8mm; }
-    body.formato-a4.modelo-duas .folha { width: 190mm; min-height: 270mm; display: flex; flex-direction: column; justify-content: space-between; gap: 6mm; }
-    body.formato-a4.modelo-duas .etiqueta { min-height: 128mm; padding: 7mm 8mm; }
+    body.formato-a4 p { font-size: calc(20px * var(--escala, 1)); margin-bottom: calc(0.6mm + var(--espaco, 16) * 0.09mm); }
+    body.formato-a4 .txt-nomeDestinatario, body.formato-a4 .txt-nomeRemetente { font-size: calc(32px * var(--escala, 1)); }
+    body.formato-a4 .os { font-size: calc(16px * var(--escala, 1)); margin-bottom: calc(2mm + var(--espaco, 16) * 0.38mm); }
+    body.formato-a4.modelo-duas .folha { width: 190mm; min-height: calc(90mm + var(--espaco, 16) * 11.25mm); display: flex; flex-direction: column; justify-content: space-between; gap: calc(2mm + var(--espaco, 16) * 0.25mm); }
+    body.formato-a4.modelo-duas .etiqueta { min-height: calc(40mm + var(--espaco, 16) * 5.5mm); padding: calc(3mm + var(--espaco, 16) * 0.25mm) calc(4mm + var(--espaco, 16) * 0.25mm); }
     body.formato-a4.modelo-duas p { font-size: calc(16px * var(--escala, 1)); }
-    body.formato-a4.modelo-duas section p:first-of-type { font-size: calc(22px * var(--escala, 1)); }
-    body.formato-a4.modelo-duas .os { font-size: calc(13px * var(--escala, 1)); margin-bottom: 3mm; }
-    body.formato-a4.modelo-duas .remetente { margin-top: 3mm; padding-top: 3mm; }
+    body.formato-a4.modelo-duas .txt-nomeDestinatario, body.formato-a4.modelo-duas .txt-nomeRemetente { font-size: calc(22px * var(--escala, 1)); }
+    body.formato-a4.modelo-duas .os { font-size: calc(13px * var(--escala, 1)); margin-bottom: calc(1mm + var(--espaco, 16) * 0.13mm); }
+    body.formato-a4.modelo-duas .remetente { margin-top: calc(1mm + var(--espaco, 16) * 0.13mm); padding-top: calc(1mm + var(--espaco, 16) * 0.13mm); }
     @media print {
       body { background: #fff; }
       .acoes { display: none; }
@@ -195,15 +231,25 @@ function etiquetaHtml(
   destinatario: EnderecoEtiquetaEnvio,
   remetente: EnderecoEtiquetaEnvio,
   osHtml: string,
-  layout?: Partial<LayoutEtiquetaEntrega>
+  layout: LayoutEtiquetaEntrega,
+  destacado?: CampoTextoEtiquetaEntrega
 ) {
-  const campos = { cep: layout?.exibirCep !== false, telefone: layout?.exibirTelefone !== false };
+  const campos = { cep: layout.exibirCep !== false, telefone: layout.exibirTelefone !== false };
   const destino =
-    layout?.exibirDestinatario === false
+    layout.exibirDestinatario === false
       ? ""
-      : blocoEndereco(textos.destinatario, destinatario, "", textos.cep, "destinatario", campos);
+      : blocoEndereco(
+          textos.destinatario,
+          destinatario,
+          "",
+          textos.cep,
+          "destinatario",
+          layout,
+          destacado,
+          campos
+        );
   const origem =
-    layout?.exibirRemetente === false
+    layout.exibirRemetente === false
       ? ""
       : blocoEndereco(
           textos.remetente,
@@ -211,6 +257,8 @@ function etiquetaHtml(
           textos.remetenteSemCadastro,
           textos.cep,
           "remetente",
+          layout,
+          destacado,
           campos
         );
   return `<article class="etiqueta">
@@ -231,14 +279,21 @@ export function htmlEtiquetaEnvio(dados: {
   const formato = dados.opcoes?.formato ?? "etiqueta";
   const modeloA4 = dados.opcoes?.modeloA4 ?? "modelo1";
   const duasVias = Boolean(dados.opcoes?.duasVias);
-  const layout = dados.opcoes?.layout;
-  const escala = Math.min(22, Math.max(10, Number(layout?.tamanhoFonte) || 14)) / 14;
+  const layout = normalizarLayoutEtiquetaEntrega(dados.opcoes?.layout);
+  const escala = layout.tamanhoFonte / 14;
   const os = (dados.numeroOs || "").trim();
   const osHtml =
-    os && layout?.exibirOs !== false
-      ? `<p class="os">${escapeHtml(dados.textos.os)} ${escapeHtml(os)}</p>`
+    os && layout.exibirOs !== false
+      ? `<p class="os ${classeTexto("os", layout, dados.opcoes?.campoDestacado)}">${escapeHtml(dados.textos.os)} ${escapeHtml(os)}</p>`
       : "";
-  const miolo = etiquetaHtml(dados.textos, dados.destinatario, dados.remetente, osHtml, layout);
+  const miolo = etiquetaHtml(
+    dados.textos,
+    dados.destinatario,
+    dados.remetente,
+    osHtml,
+    layout,
+    dados.opcoes?.campoDestacado
+  );
   const etiquetasNaFolha = formato === "a4" && modeloA4 === "modelo2" ? `${miolo}${miolo}` : miolo;
   const folha = `<section class="folha">${etiquetasNaFolha}</section>`;
   const folhas = duasVias ? `${folha}<section class="folha via">${etiquetasNaFolha}</section>` : folha;
@@ -257,7 +312,7 @@ export function htmlEtiquetaEnvio(dados: {
   <title>${escapeHtml(dados.textos.titulo)}</title>
   <style>${estilosEtiqueta(formato)}</style>
 </head>
-<body class="formato-${formato}${classeModelo}${semBorda}" style="--escala:${escala}">
+<body class="formato-${formato}${classeModelo}${semBorda}" style="--escala:${escala};--espaco:${layout.espacamento}">
   ${acoes}
   ${folhas}
 </body>

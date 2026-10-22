@@ -3,10 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Minus, Plus } from "lucide-react";
+import { Bold, Minus, Plus, Square, Underline } from "lucide-react";
 import { Button } from "@/components/ui";
 import { useI18n } from "@/components/i18n-provider";
+import type { MessageKey } from "@/lib/i18n/messages";
 import {
+  CAMPOS_TEXTO_ETIQUETA_ENTREGA,
+  ETIQUETA_ENTREGA_ESPACAMENTO_MAX,
+  ETIQUETA_ENTREGA_ESPACAMENTO_MIN,
   MODELOS_ETIQUETA_ENTREGA,
   ROTAS_ETIQUETA_ENTREGA,
   carregarConfiguracoesEtiquetaEntrega,
@@ -15,7 +19,9 @@ import {
   persistirConfiguracoesEtiquetaEntregaServidor,
   salvarConfiguracoesEtiquetaEntrega,
   sincronizarConfiguracoesEtiquetaEntregaDoServidor,
+  type CampoTextoEtiquetaEntrega,
   type ConfiguracoesEtiquetaEntrega,
+  type EstiloTextoEtiquetaEntrega,
   type LayoutEtiquetaEntrega,
   type ModeloEtiquetaEntregaId,
 } from "@/lib/configuracoes-etiqueta-entrega";
@@ -25,10 +31,14 @@ function CampoNumero({
   label,
   value,
   onChange,
+  min,
+  max,
 }: {
   label: string;
   value: number;
   onChange: (valor: number) => void;
+  min: number;
+  max: number;
 }) {
   return (
     <div>
@@ -37,22 +47,22 @@ function CampoNumero({
         <button
           type="button"
           className="flex h-8 w-8 items-center justify-center border-r border-slate-200 text-slate-600 hover:bg-slate-50"
-          onClick={() => onChange(Math.max(10, value - 1))}
+          onClick={() => onChange(Math.max(min, value - 1))}
         >
           <Minus className="h-3.5 w-3.5" />
         </button>
         <input
           type="number"
-          min={10}
-          max={22}
+          min={min}
+          max={max}
           value={value}
-          onChange={(e) => onChange(Math.min(22, Math.max(10, Number(e.target.value) || 10)))}
+          onChange={(e) => onChange(Math.min(max, Math.max(min, Number(e.target.value) || min)))}
           className="h-8 w-full min-w-0 border-0 px-2 text-center text-[12px] outline-none"
         />
         <button
           type="button"
           className="flex h-8 w-8 items-center justify-center border-l border-slate-200 text-slate-600 hover:bg-slate-50"
-          onClick={() => onChange(Math.min(22, value + 1))}
+          onClick={() => onChange(Math.min(max, value + 1))}
         >
           <Plus className="h-3.5 w-3.5" />
         </button>
@@ -60,6 +70,16 @@ function CampoNumero({
     </div>
   );
 }
+
+const ROTULO_CAMPO_TEXTO: Record<CampoTextoEtiquetaEntrega, MessageKey> = {
+  os: "settings.etiquetaEntrega.campo.os",
+  tituloDestinatario: "settings.etiquetaEntrega.campo.tituloDestinatario",
+  nomeDestinatario: "settings.etiquetaEntrega.campo.nomeDestinatario",
+  enderecoDestinatario: "settings.etiquetaEntrega.campo.enderecoDestinatario",
+  tituloRemetente: "settings.etiquetaEntrega.campo.tituloRemetente",
+  nomeRemetente: "settings.etiquetaEntrega.campo.nomeRemetente",
+  enderecoRemetente: "settings.etiquetaEntrega.campo.enderecoRemetente",
+};
 
 function CheckboxCampo({
   label,
@@ -97,6 +117,7 @@ export function ConfiguracoesEtiquetaEntregaEditor({
   const [layout, setLayout] = useState<LayoutEtiquetaEntrega>(() =>
     normalizarLayoutEtiquetaEntrega(carregarConfiguracoesEtiquetaEntrega().layouts[modelo])
   );
+  const [campoTexto, setCampoTexto] = useState<CampoTextoEtiquetaEntrega>("nomeDestinatario");
   const [salvando, setSalvando] = useState(false);
   const [mensagem, setMensagem] = useState("");
   const [carregando, setCarregando] = useState(true);
@@ -143,12 +164,25 @@ export function ConfiguracoesEtiquetaEntregaEditor({
         modeloA4: definicao.modeloA4,
         layout,
         preview: true,
+        campoDestacado: campoTexto,
       },
     });
-  }, [definicao.formato, definicao.modeloA4, layout, t]);
+  }, [campoTexto, definicao.formato, definicao.modeloA4, layout, t]);
 
   function patch(parcial: Partial<LayoutEtiquetaEntrega>) {
     setLayout((atual) => normalizarLayoutEtiquetaEntrega({ ...atual, ...parcial }));
+  }
+
+  function patchEstilo(parcial: Partial<EstiloTextoEtiquetaEntrega>) {
+    setLayout((atual) =>
+      normalizarLayoutEtiquetaEntrega({
+        ...atual,
+        estilosTexto: {
+          ...atual.estilosTexto,
+          [campoTexto]: { ...atual.estilosTexto[campoTexto], ...parcial },
+        },
+      })
+    );
   }
 
   async function salvar() {
@@ -188,8 +222,82 @@ export function ConfiguracoesEtiquetaEntregaEditor({
           <CampoNumero
             label={t("settings.tamanhoFonte")}
             value={layout.tamanhoFonte}
+            min={10}
+            max={22}
             onChange={(valor) => patch({ tamanhoFonte: valor })}
           />
+          <CampoNumero
+            label={t("settings.espacamento")}
+            value={layout.espacamento}
+            min={ETIQUETA_ENTREGA_ESPACAMENTO_MIN}
+            max={ETIQUETA_ENTREGA_ESPACAMENTO_MAX}
+            onChange={(valor) => patch({ espacamento: valor })}
+          />
+          <p className="-mt-1 text-[10px] leading-snug text-slate-500">
+            {t("settings.etiquetaEntrega.espacamentoAjuda")}
+          </p>
+          <div>
+            <span className="mb-1 block text-[11px] text-slate-600">
+              {t("settings.etiquetaEntrega.texto")}
+            </span>
+            <select
+              value={campoTexto}
+              onChange={(e) => setCampoTexto(e.target.value as CampoTextoEtiquetaEntrega)}
+              className="h-8 w-full rounded border border-slate-300 bg-white px-2 text-[12px] text-slate-800 outline-none"
+            >
+              {CAMPOS_TEXTO_ETIQUETA_ENTREGA.map((campo) => (
+                <option key={campo} value={campo}>
+                  {t(ROTULO_CAMPO_TEXTO[campo])}
+                </option>
+              ))}
+            </select>
+            <div className="mt-2 grid grid-cols-3 gap-1">
+              <button
+                type="button"
+                aria-pressed={layout.estilosTexto[campoTexto].negrito}
+                title={t("settings.etiquetaEntrega.negrito")}
+                onClick={() => patchEstilo({ negrito: !layout.estilosTexto[campoTexto].negrito })}
+                className={`inline-flex min-h-8 flex-col items-center justify-center gap-0.5 rounded border px-1 py-1 text-[10px] leading-tight ${
+                  layout.estilosTexto[campoTexto].negrito
+                    ? "border-[#4a90d9] bg-[#4a90d9] text-white"
+                    : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                <Bold className="h-3.5 w-3.5" />
+                {t("settings.etiquetaEntrega.negrito")}
+              </button>
+              <button
+                type="button"
+                aria-pressed={layout.estilosTexto[campoTexto].sublinhado}
+                title={t("settings.etiquetaEntrega.sublinhado")}
+                onClick={() =>
+                  patchEstilo({ sublinhado: !layout.estilosTexto[campoTexto].sublinhado })
+                }
+                className={`inline-flex min-h-8 flex-col items-center justify-center gap-0.5 rounded border px-1 py-1 text-[10px] leading-tight ${
+                  layout.estilosTexto[campoTexto].sublinhado
+                    ? "border-[#4a90d9] bg-[#4a90d9] text-white"
+                    : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                <Underline className="h-3.5 w-3.5" />
+                {t("settings.etiquetaEntrega.sublinhado")}
+              </button>
+              <button
+                type="button"
+                aria-pressed={layout.estilosTexto[campoTexto].borda}
+                title={t("settings.etiquetaEntrega.bordaTexto")}
+                onClick={() => patchEstilo({ borda: !layout.estilosTexto[campoTexto].borda })}
+                className={`inline-flex min-h-8 flex-col items-center justify-center gap-0.5 rounded border px-1 py-1 text-[10px] leading-tight ${
+                  layout.estilosTexto[campoTexto].borda
+                    ? "border-[#4a90d9] bg-[#4a90d9] text-white"
+                    : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                <Square className="h-3.5 w-3.5" />
+                {t("settings.etiquetaEntrega.bordaTexto")}
+              </button>
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-x-2 gap-y-1 border-t border-slate-300/80 pt-2">
             <CheckboxCampo
               label={t("settings.etiquetaEntrega.exibirOs")}
