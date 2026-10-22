@@ -65,15 +65,18 @@ const formatado = htmlEtiquetaEnvio({
     layout: normalizarLayoutEtiquetaEntrega({
       espacamento: 0,
       estilosTexto: {
-        nomeDestinatario: { negrito: false, sublinhado: true, borda: true },
-        enderecoDestinatario: { negrito: true, sublinhado: false, borda: false },
+        nomeDestinatario: { negrito: false, sublinhado: true },
+        enderecoDestinatario: { negrito: true, sublinhado: false },
       },
+      corBorda: "#ff0000",
     }),
     campoDestacado: "nomeDestinatario",
   },
 });
 assert.match(formatado, /--espaco:0/);
-assert.match(formatado, /txt-nomeDestinatario sublinhado com-borda destacado/);
+assert.match(formatado, /--cor-borda:#ff0000/);
+assert.match(formatado, /txt-nomeDestinatario sublinhado destacado/);
+assert.doesNotMatch(formatado, /com-borda/);
 assert.doesNotMatch(formatado, /txt-nomeDestinatario negrito/);
 assert.match(formatado, /txt-enderecoDestinatario negrito/);
 assert.match(formatado, /52mm \+ var\(--espaco, 16\) \* 13\.625mm/);

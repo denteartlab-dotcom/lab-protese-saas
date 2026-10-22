@@ -41,7 +41,7 @@ export type OpcoesEtiquetaEnvio = {
   duasVias?: boolean;
   layout?: Partial<LayoutEtiquetaEntrega>;
   preview?: boolean;
-  /** Só no editor: destaca o texto que recebe negrito, sublinhado ou borda. */
+  /** Só no editor: destaca o texto que recebe negrito ou sublinhado. */
   campoDestacado?: CampoTextoEtiquetaEntrega;
 };
 
@@ -133,7 +133,6 @@ function classeTexto(
   const classes = [`txt-${campo}`];
   if (estilo.negrito) classes.push("negrito");
   if (estilo.sublinhado) classes.push("sublinhado");
-  if (estilo.borda) classes.push("com-borda");
   if (destacado === campo) classes.push("destacado");
   return classes.join(" ");
 }
@@ -184,13 +183,11 @@ function estilosEtiqueta(formato: FormatoEtiquetaEnvio) {
     p { margin: 0 0 calc(0.4mm + var(--espaco, 16) * 0.07mm); line-height: 1.3; }
     .negrito { font-weight: 700; }
     .sublinhado, .sublinhado p { text-decoration: underline; }
-    p.com-borda, h2.com-borda { display: inline-block; border: 1px solid #0f172a; padding: 0.3mm 1.2mm; }
-    div.com-borda { border: 1px solid #0f172a; padding: 1mm 1.5mm; }
     .destacado { background: #e8f2fc; box-shadow: inset 0 0 0 1px #4a90d9; }
     .os { margin: 0 0 calc(1mm + var(--espaco, 16) * 0.2mm); }
     .vazio { font-weight: 400 !important; color: #64748b; text-decoration: none !important; }
     .folha { margin: 0 auto 16px; background: transparent; }
-    .etiqueta { background: #fff; border: 2px solid #0f172a; }
+    .etiqueta { background: #fff; border: 2px solid var(--cor-borda, #0f172a); }
     body.sem-borda .etiqueta { border: 0; }
     .remetente { border-top: 1px dashed #94a3b8; }
     .via { break-before: page; page-break-before: always; }
@@ -312,7 +309,7 @@ export function htmlEtiquetaEnvio(dados: {
   <title>${escapeHtml(dados.textos.titulo)}</title>
   <style>${estilosEtiqueta(formato)}</style>
 </head>
-<body class="formato-${formato}${classeModelo}${semBorda}" style="--escala:${escala};--espaco:${layout.espacamento}">
+<body class="formato-${formato}${classeModelo}${semBorda}" style="--escala:${escala};--espaco:${layout.espacamento};--cor-borda:${layout.corBorda}">
   ${acoes}
   ${folhas}
 </body>

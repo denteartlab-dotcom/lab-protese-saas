@@ -51,7 +51,6 @@ export type CampoTextoEtiquetaEntrega = (typeof CAMPOS_TEXTO_ETIQUETA_ENTREGA)[n
 export type EstiloTextoEtiquetaEntrega = {
   negrito: boolean;
   sublinhado: boolean;
-  borda: boolean;
 };
 
 export const ETIQUETA_ENTREGA_ESPACAMENTO_MIN = 0;
@@ -63,14 +62,22 @@ export const ESTILO_TEXTO_ETIQUETA_PADRAO: Record<
   CampoTextoEtiquetaEntrega,
   EstiloTextoEtiquetaEntrega
 > = {
-  os: { negrito: true, sublinhado: false, borda: false },
-  tituloDestinatario: { negrito: false, sublinhado: false, borda: false },
-  nomeDestinatario: { negrito: true, sublinhado: false, borda: false },
-  enderecoDestinatario: { negrito: false, sublinhado: false, borda: false },
-  tituloRemetente: { negrito: false, sublinhado: false, borda: false },
-  nomeRemetente: { negrito: true, sublinhado: false, borda: false },
-  enderecoRemetente: { negrito: false, sublinhado: false, borda: false },
+  os: { negrito: true, sublinhado: false },
+  tituloDestinatario: { negrito: false, sublinhado: false },
+  nomeDestinatario: { negrito: true, sublinhado: false },
+  enderecoDestinatario: { negrito: false, sublinhado: false },
+  tituloRemetente: { negrito: false, sublinhado: false },
+  nomeRemetente: { negrito: true, sublinhado: false },
+  enderecoRemetente: { negrito: false, sublinhado: false },
 };
+
+const COR_BORDA_PAGINA_PADRAO = "#0f172a";
+
+export function corBordaPaginaEtiqueta(valor?: string) {
+  const cor = String(valor ?? "").trim();
+  if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(cor)) return cor;
+  return COR_BORDA_PAGINA_PADRAO;
+}
 
 export type LayoutEtiquetaEntrega = {
   exibirOs: boolean;
@@ -79,6 +86,7 @@ export type LayoutEtiquetaEntrega = {
   exibirCep: boolean;
   exibirTelefone: boolean;
   exibirBorda: boolean;
+  corBorda: string;
   tamanhoFonte: number;
   espacamento: number;
   estilosTexto: Record<CampoTextoEtiquetaEntrega, EstiloTextoEtiquetaEntrega>;
@@ -104,7 +112,6 @@ function normalizarEstilosTexto(
     base[campo] = {
       negrito: typeof item.negrito === "boolean" ? item.negrito : base[campo].negrito,
       sublinhado: item.sublinhado === true,
-      borda: item.borda === true,
     };
   }
   return base;
@@ -123,6 +130,7 @@ export const LAYOUT_ETIQUETA_ENTREGA_PADRAO: LayoutEtiquetaEntrega = {
   exibirCep: true,
   exibirTelefone: true,
   exibirBorda: true,
+  corBorda: COR_BORDA_PAGINA_PADRAO,
   tamanhoFonte: 14,
   espacamento: ETIQUETA_ENTREGA_ESPACAMENTO_PADRAO,
   estilosTexto: ESTILO_TEXTO_ETIQUETA_PADRAO,
@@ -168,6 +176,7 @@ export function normalizarLayoutEtiquetaEntrega(
     exibirCep: valor.exibirCep !== false,
     exibirTelefone: valor.exibirTelefone !== false,
     exibirBorda: valor.exibirBorda !== false,
+    corBorda: corBordaPaginaEtiqueta(valor.corBorda),
     tamanhoFonte: Number.isFinite(fonte) ? Math.min(22, Math.max(10, fonte)) : base.tamanhoFonte,
     espacamento: Number.isFinite(espaco)
       ? Math.min(ETIQUETA_ENTREGA_ESPACAMENTO_MAX, Math.max(ETIQUETA_ENTREGA_ESPACAMENTO_MIN, espaco))

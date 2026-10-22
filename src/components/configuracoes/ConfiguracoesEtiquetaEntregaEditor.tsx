@@ -3,13 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bold, Minus, Plus, Square, Underline } from "lucide-react";
+import { Bold, Minus, Plus, Underline } from "lucide-react";
 import { Button } from "@/components/ui";
 import { useI18n } from "@/components/i18n-provider";
 import type { MessageKey } from "@/lib/i18n/messages";
 import {
   CAMPOS_TEXTO_ETIQUETA_ENTREGA,
   ETIQUETA_ENTREGA_ESPACAMENTO_MAX,
+  corBordaPaginaEtiqueta,
   ETIQUETA_ENTREGA_ESPACAMENTO_MIN,
   MODELOS_ETIQUETA_ENTREGA,
   ROTAS_ETIQUETA_ENTREGA,
@@ -251,13 +252,13 @@ export function ConfiguracoesEtiquetaEntregaEditor({
                 </option>
               ))}
             </select>
-            <div className="mt-2 grid grid-cols-3 gap-1">
+            <div className="mt-2 grid grid-cols-2 gap-1">
               <button
                 type="button"
                 aria-pressed={layout.estilosTexto[campoTexto].negrito}
                 title={t("settings.etiquetaEntrega.negrito")}
                 onClick={() => patchEstilo({ negrito: !layout.estilosTexto[campoTexto].negrito })}
-                className={`inline-flex min-h-8 flex-col items-center justify-center gap-0.5 rounded border px-1 py-1 text-[10px] leading-tight ${
+                className={`inline-flex h-8 items-center justify-center gap-1 rounded border px-2 text-[11px] ${
                   layout.estilosTexto[campoTexto].negrito
                     ? "border-[#4a90d9] bg-[#4a90d9] text-white"
                     : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
@@ -273,7 +274,7 @@ export function ConfiguracoesEtiquetaEntregaEditor({
                 onClick={() =>
                   patchEstilo({ sublinhado: !layout.estilosTexto[campoTexto].sublinhado })
                 }
-                className={`inline-flex min-h-8 flex-col items-center justify-center gap-0.5 rounded border px-1 py-1 text-[10px] leading-tight ${
+                className={`inline-flex h-8 items-center justify-center gap-1 rounded border px-2 text-[11px] ${
                   layout.estilosTexto[campoTexto].sublinhado
                     ? "border-[#4a90d9] bg-[#4a90d9] text-white"
                     : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
@@ -281,20 +282,6 @@ export function ConfiguracoesEtiquetaEntregaEditor({
               >
                 <Underline className="h-3.5 w-3.5" />
                 {t("settings.etiquetaEntrega.sublinhado")}
-              </button>
-              <button
-                type="button"
-                aria-pressed={layout.estilosTexto[campoTexto].borda}
-                title={t("settings.etiquetaEntrega.bordaTexto")}
-                onClick={() => patchEstilo({ borda: !layout.estilosTexto[campoTexto].borda })}
-                className={`inline-flex min-h-8 flex-col items-center justify-center gap-0.5 rounded border px-1 py-1 text-[10px] leading-tight ${
-                  layout.estilosTexto[campoTexto].borda
-                    ? "border-[#4a90d9] bg-[#4a90d9] text-white"
-                    : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-                }`}
-              >
-                <Square className="h-3.5 w-3.5" />
-                {t("settings.etiquetaEntrega.bordaTexto")}
               </button>
             </div>
           </div>
@@ -324,11 +311,35 @@ export function ConfiguracoesEtiquetaEntregaEditor({
               checked={layout.exibirTelefone}
               onChange={(valor) => patch({ exibirTelefone: valor })}
             />
-            <CheckboxCampo
-              label={t("settings.etiquetaEntrega.exibirBorda")}
-              checked={layout.exibirBorda}
-              onChange={(valor) => patch({ exibirBorda: valor })}
-            />
+          </div>
+          <div>
+            <span className="mb-1 block text-[11px] font-semibold text-slate-700">
+              {t("settings.bordas")}
+              <span className="ml-1 font-normal text-slate-500">{t("settings.bordasCorMoldura")}</span>
+            </span>
+            <div className="flex items-center gap-2">
+              <CheckboxCampo
+                label={t("settings.etiquetaEntrega.exibirBorda")}
+                checked={layout.exibirBorda}
+                onChange={(valor) => patch({ exibirBorda: valor })}
+              />
+              <input
+                type="color"
+                value={corBordaPaginaEtiqueta(layout.corBorda).slice(0, 7)}
+                onChange={(e) => patch({ corBorda: e.target.value })}
+                disabled={!layout.exibirBorda}
+                className="h-8 w-10 shrink-0 cursor-pointer rounded border border-slate-300 bg-white p-0.5 disabled:cursor-not-allowed disabled:opacity-40"
+                title={t("settings.corBordaPagina")}
+              />
+              <input
+                type="text"
+                value={layout.corBorda}
+                onChange={(e) => patch({ corBorda: e.target.value })}
+                disabled={!layout.exibirBorda}
+                placeholder="#0f172a"
+                className="h-8 min-w-0 flex-1 rounded border border-slate-300 bg-white px-2 text-[12px] outline-none focus:border-[#4a90d9] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:opacity-60"
+              />
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-x-2 border-t border-slate-300/80 pt-2">
             <CheckboxCampo
