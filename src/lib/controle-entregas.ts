@@ -351,7 +351,7 @@ export function criarEntrega(
   }
 ): EntregaControle {
   const entrega = normalizarEntrega({
-    id: `ent-${Date.now()}`,
+    id: `ent-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     dataPedido: dados.dataPedido || new Date().toISOString(),
     ...dados,
   });

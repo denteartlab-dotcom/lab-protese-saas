@@ -5,14 +5,17 @@ import { useEffect, useMemo, useState } from "react";
 import { MapPin, Truck, User } from "lucide-react";
 import { Modal, SelectPesquisavel } from "@/components/ui";
 import { CampoDataBr } from "@/components/campo-data-br";
+import { partesEnderecoCliente } from "@/lib/cliente-endereco";
 import {
   custoEntregaCliente,
   entregadorCliente,
   tipoEntregadorCliente,
 } from "@/lib/cliente-entrega";
 import { readStorage } from "@/lib/persisted-storage";
+import { entregaJaExisteParaOs } from "@/lib/controle-entregas-automatico-cliente";
 import {
   atualizarEntrega,
+  carregarEntregas,
   criarEntrega,
   DESCRICOES_ENTREGA_PADRAO,
   entregaParaFormRota,
@@ -46,10 +49,12 @@ type ClienteApi = {
 };
 
 type TrabalhoApi = {
+  id?: string;
   numeroOs: number;
   tipoProtese?: string | null;
-  cliente?: { nome?: string | null; endereco?: string | null; cidade?: string | null; uf?: string | null; cep?: string | null };
-  paciente?: { nome?: string | null };
+  dataEntrada?: string | null;
+  cliente?: { id?: string; nome?: string | null } | null;
+  paciente?: { nome?: string | null } | null;
 };
 
 type FornecedorApi = {
@@ -138,6 +143,9 @@ export function FormularioRotaEntregaModal({
   const [entregadoresCadastro, setEntregadoresCadastro] = useState<EntregadorCadastro[]>([]);
   const [buscandoOs, setBuscandoOs] = useState(false);
   const [buscandoCep, setBuscandoCep] = useState(false);
+  const [osModalAberto, setOsModalAberto] = useState(false);
+  const [osSaiuEntrega, setOsSaiuEntrega] = useState<TrabalhoApi[]>([]);
+  const [osSelecionadas, setOsSelecionadas] = useState<number[]>([]);
 
   function recarregarEntregadoresCadastro() {
     setEntregadoresCadastro(carregarEntregadoresCadastro());
@@ -164,6 +172,9 @@ export function FormularioRotaEntregaModal({
   useEffect(() => {
     if (!open) return;
     setForm(editando ? entregaParaFormRota(editando) : formRotaEntregaPadrao());
+    setOsModalAberto(false);
+    setOsSaiuEntrega([]);
+    setOsSelecionadas([]);
     recarregarEntregadoresCadastro();
     void fetch("/api/clientes")
       .then((res) => (res.ok ? res.json() : []))
@@ -255,18 +266,65 @@ export function FormularioRotaEntregaModal({
     }));
   }
 
+  function clienteSelecionado() {
+    if (form.tipoDestinatario !== "cliente") return undefined;
+    const nome = form.nomeDestinatario.trim();
+    if (!nome) return undefined;
+    return clientes.find((item) => item.nome === nome);
+  }
+
+  function enderecoDoCliente(cliente?: ClienteApi | null) {
+    const partes = partesEnderecoCliente(cliente?.observacoes, cliente?.endereco);
+    return {
+      cep: cliente?.cep ? formatarCepEntrega(cliente.cep) : "",
+      rua: partes.rua,
+      numeroEndereco: partes.numero,
+      cidade: cliente?.cidade || "",
+      uf: (cliente?.uf || "").toUpperCase().slice(0, 2),
+      bairro: partes.bairro,
+      complemento: partes.complemento,
+    };
+  }
+
+  function aplicarClienteNoForm(
+    atual: FormRotaEntrega,
+    cliente: ClienteApi | undefined,
+    extras: Partial<FormRotaEntrega>
+  ): FormRotaEntrega {
+    return {
+      ...atual,
+      ...extras,
+      ...(cliente
+        ? {
+            ...enderecoDoCliente(cliente),
+            ...aplicarEntregaCliente(cliente.observacoes),
+          }
+        : {}),
+    };
+  }
+
   function aoSelecionarDestinatario(nome: string) {
     if (form.tipoDestinatario === "cliente") {
       const cliente = clientes.find((item) => item.nome === nome);
-      setForm((atual) => ({
-        ...atual,
-        nomeDestinatario: nome,
-        ...(cliente?.cep ? { cep: formatarCepEntrega(cliente.cep) } : {}),
-        ...(cliente?.endereco ? { rua: cliente.endereco } : {}),
-        ...(cliente?.cidade ? { cidade: cliente.cidade } : {}),
-        ...(cliente?.uf ? { uf: cliente.uf } : {}),
-        ...aplicarEntregaCliente(cliente?.observacoes),
-      }));
+      setForm((atual) => {
+        if (!cliente) {
+          return {
+            ...atual,
+            nomeDestinatario: nome,
+            cep: "",
+            rua: "",
+            numeroEndereco: "",
+            cidade: "",
+            uf: "",
+            bairro: "",
+            complemento: "",
+          };
+        }
+        return aplicarClienteNoForm(atual, cliente, {
+          nomeDestinatario: nome,
+          tipoDestinatario: "cliente",
+        });
+      });
       return;
     }
     if (form.tipoDestinatario === "fornecedor") {
@@ -277,9 +335,118 @@ export function FormularioRotaEntregaModal({
     atualizar("nomeDestinatario", nome);
   }
 
+  function osJaNoControle(numeroOs: number) {
+    return entregaJaExisteParaOs(carregarEntregas(), numeroOs);
+  }
+
+  async function abrirOsSaiuEntrega() {
+    const cliente = clienteSelecionado();
+    if (!cliente) {
+      alert(t("producao.entregas.rota.selecioneClienteOs"));
+      return;
+    }
+    setBuscandoOs(true);
+    setOsModalAberto(true);
+    setOsSelecionadas([]);
+    try {
+      const params = new URLSearchParams({
+        status: "saiu_entrega",
+        clienteId: cliente.id,
+      });
+      const res = await fetch(`/api/trabalhos?${params}`);
+      const data = await res.json();
+      const lista = (Array.isArray(data) ? data : []) as TrabalhoApi[];
+      const nome = cliente.nome.trim().toLowerCase();
+      const doCliente = lista.filter((item) => {
+        const mesmoId = item.cliente?.id === cliente.id;
+        const mesmoNome = (item.cliente?.nome || "").trim().toLowerCase() === nome;
+        return mesmoId || mesmoNome;
+      });
+      const porOs = new Map<number, TrabalhoApi>();
+      for (const item of doCliente) {
+        const atual = porOs.get(item.numeroOs);
+        if (!atual) {
+          porOs.set(item.numeroOs, item);
+          continue;
+        }
+        const servicos = [atual.tipoProtese, item.tipoProtese]
+          .map((servico) => (servico || "").trim())
+          .filter(Boolean);
+        porOs.set(item.numeroOs, {
+          ...atual,
+          tipoProtese: Array.from(new Set(servicos)).join(", ") || atual.tipoProtese,
+          paciente: atual.paciente?.nome ? atual.paciente : item.paciente,
+        });
+      }
+      setOsSaiuEntrega(
+        Array.from(porOs.values()).sort((a, b) => b.numeroOs - a.numeroOs)
+      );
+    } catch {
+      setOsSaiuEntrega([]);
+    } finally {
+      setBuscandoOs(false);
+    }
+  }
+
+  function usarOsNaEntrega(trabalho: TrabalhoApi) {
+    const nomeCliente = trabalho.cliente?.nome || form.nomeDestinatario;
+    const cliente =
+      clientes.find((item) => item.id === trabalho.cliente?.id) ||
+      clientes.find((item) => item.nome === nomeCliente) ||
+      clienteSelecionado();
+    setForm((atual) =>
+      aplicarClienteNoForm(atual, cliente, {
+        numeroOs: String(trabalho.numeroOs),
+        tipoDestinatario: "cliente",
+        nomeDestinatario: nomeCliente,
+        descricao: trabalho.tipoProtese?.trim() || atual.descricao,
+      })
+    );
+    setOsModalAberto(false);
+  }
+
+  function cadastrarOsSelecionadas() {
+    if (!form.entregador.trim()) {
+      alert(t("producao.entregas.rota.informeEntregador"));
+      return;
+    }
+    const escolhidas = osSaiuEntrega.filter(
+      (item) => osSelecionadas.includes(item.numeroOs) && !osJaNoControle(item.numeroOs)
+    );
+    if (escolhidas.length === 0) {
+      alert(t("producao.entregas.rota.selecioneOs"));
+      return;
+    }
+    const cliente = clienteSelecionado();
+    let cadastradas = 0;
+    for (const trabalho of escolhidas) {
+      if (entregaJaExisteParaOs(carregarEntregas(), trabalho.numeroOs)) continue;
+      const nomeCliente = trabalho.cliente?.nome || form.nomeDestinatario;
+      const base = aplicarClienteNoForm(form, cliente, {
+        numeroOs: String(trabalho.numeroOs),
+        tipoDestinatario: "cliente",
+        nomeDestinatario: nomeCliente,
+        descricao: trabalho.tipoProtese?.trim() || form.descricao.trim() || "Entrega de prótese",
+      });
+      criarEntrega(formRotaParaEntrega(base, parseCurrencyInput));
+      cadastradas += 1;
+    }
+    if (cadastradas === 0) {
+      alert(t("producao.entregas.rota.osJaCadastrada"));
+      return;
+    }
+    alert(t("producao.entregas.rota.osCadastradas", { n: cadastradas }));
+    onSalvo();
+    setOsModalAberto(false);
+    onClose();
+  }
+
   async function buscarOs() {
     const termo = form.numeroOs.trim();
-    if (!termo) return;
+    if (!termo) {
+      await abrirOsSaiuEntrega();
+      return;
+    }
     setBuscandoOs(true);
     try {
       const res = await fetch(`/api/trabalhos?q=${encodeURIComponent(termo)}`);
@@ -289,22 +456,18 @@ export function FormularioRotaEntregaModal({
         alert(t("producao.entregas.rota.osNaoEncontrada"));
         return;
       }
-      setForm((atual) => {
-        const nomeCliente = trabalho.cliente?.nome || atual.nomeDestinatario;
-        const cliente = clientes.find((item) => item.nome === nomeCliente);
-        return {
-          ...atual,
+      const nomeCliente = trabalho.cliente?.nome || form.nomeDestinatario;
+      const cliente =
+        clientes.find((item) => item.id === trabalho.cliente?.id) ||
+        clientes.find((item) => item.nome === nomeCliente);
+      setForm((atual) =>
+        aplicarClienteNoForm(atual, cliente, {
           numeroOs: String(trabalho.numeroOs),
           tipoDestinatario: "cliente",
           nomeDestinatario: nomeCliente,
           descricao: trabalho.tipoProtese || atual.descricao,
-          cep: cliente?.cep ? formatarCepEntrega(cliente.cep) : atual.cep,
-          rua: cliente?.endereco || atual.rua,
-          cidade: cliente?.cidade || atual.cidade,
-          uf: cliente?.uf || atual.uf,
-          ...aplicarEntregaCliente(cliente?.observacoes),
-        };
-      });
+        })
+      );
     } finally {
       setBuscandoOs(false);
     }
@@ -341,6 +504,17 @@ export function FormularioRotaEntregaModal({
     if (!form.dataEntrega.trim()) return;
     if (!form.descricao.trim()) return;
     if (!form.entregador.trim()) return;
+    const numeroOs = form.numeroOs.trim();
+    const numeroOsNumero = Number(numeroOs);
+    if (
+      !editando &&
+      numeroOs &&
+      Number.isFinite(numeroOsNumero) &&
+      entregaJaExisteParaOs(carregarEntregas(), numeroOsNumero)
+    ) {
+      alert(t("producao.entregas.rota.osJaCadastrada"));
+      return;
+    }
 
     const payload = formRotaParaEntrega(form, parseCurrencyInput);
     if (editando) {
@@ -360,7 +534,10 @@ export function FormularioRotaEntregaModal({
 
   const destinatarioRodape = form.nomeDestinatario.trim() || "—";
 
+  const osPendentes = osSaiuEntrega.filter((item) => !osJaNoControle(item.numeroOs));
+
   return (
+    <>
     <Modal
       open={open}
       onClose={onClose}
@@ -407,6 +584,13 @@ export function FormularioRotaEntregaModal({
                     ...atual,
                     tipoDestinatario: tipo,
                     nomeDestinatario: "",
+                    cep: "",
+                    rua: "",
+                    numeroEndereco: "",
+                    cidade: "",
+                    uf: "",
+                    bairro: "",
+                    complemento: "",
                   }));
                 }}
                 className={selectClassName()}
@@ -628,5 +812,103 @@ export function FormularioRotaEntregaModal({
         </div>
       </form>
     </Modal>
+
+    <Modal
+      open={osModalAberto}
+      onClose={() => setOsModalAberto(false)}
+      title={t("producao.entregas.rota.osSaiuEntregaTitulo")}
+      size="lg"
+      layerClassName="z-[60]"
+    >
+      <div className="space-y-3 text-[11px] text-slate-600">
+        <p>
+          {t("producao.entregas.rota.osSaiuEntregaCliente", {
+            nome: form.nomeDestinatario.trim() || "—",
+          })}
+        </p>
+        {buscandoOs ? (
+          <p className="py-6 text-center text-slate-500">...</p>
+        ) : osSaiuEntrega.length === 0 ? (
+          <p className="py-6 text-center text-slate-500">
+            {t("producao.entregas.rota.osSaiuEntregaVazio")}
+          </p>
+        ) : (
+          <div className="max-h-[360px] overflow-y-auto rounded border border-slate-200">
+            <table className="w-full text-[11px]">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                  <th className="w-8 px-2 py-2" />
+                  <th className="px-2 py-2 text-left">{t("producao.controle.tabela.os")}</th>
+                  <th className="px-2 py-2 text-left">{t("producao.entregas.rota.paciente")}</th>
+                  <th className="px-2 py-2 text-left">{t("producao.entregas.rota.servico")}</th>
+                  <th className="px-2 py-2 text-right">{t("common.opcoes")}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {osSaiuEntrega.map((item) => {
+                  const jaCadastrada = osJaNoControle(item.numeroOs);
+                  return (
+                    <tr key={item.id || item.numeroOs} className="hover:bg-slate-50">
+                      <td className="px-2 py-2">
+                        <input
+                          type="checkbox"
+                          checked={osSelecionadas.includes(item.numeroOs)}
+                          disabled={jaCadastrada}
+                          onChange={() =>
+                            setOsSelecionadas((atual) =>
+                              atual.includes(item.numeroOs)
+                                ? atual.filter((numero) => numero !== item.numeroOs)
+                                : [...atual, item.numeroOs]
+                            )
+                          }
+                          className="h-3.5 w-3.5 rounded border-slate-300"
+                        />
+                      </td>
+                      <td className="px-2 py-2 font-semibold text-slate-700">{item.numeroOs}</td>
+                      <td className="px-2 py-2">{item.paciente?.nome || "—"}</td>
+                      <td className="px-2 py-2">
+                        {item.tipoProtese || "—"}
+                        {jaCadastrada ? (
+                          <p className="mt-0.5 text-[10px] text-emerald-700">
+                            {t("producao.entregas.rota.osJaCadastrada")}
+                          </p>
+                        ) : null}
+                      </td>
+                      <td className="px-2 py-2 text-right">
+                        <button
+                          type="button"
+                          onClick={() => usarOsNaEntrega(item)}
+                          className="rounded border border-slate-300 bg-white px-2 py-1 text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
+                        >
+                          {t("producao.entregas.rota.usarOs")}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={cadastrarOsSelecionadas}
+            disabled={osPendentes.length === 0}
+            className="rounded bg-[#4a90d9] px-4 py-2 text-[11px] font-semibold text-white hover:bg-[#3d7fc4] disabled:opacity-50"
+          >
+            {t("producao.entregas.rota.cadastrarSelecionadas")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setOsModalAberto(false)}
+            className="rounded border border-slate-300 bg-white px-4 py-2 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
+          >
+            {t("cadastros.comum.fechar")}
+          </button>
+        </div>
+      </div>
+    </Modal>
+    </>
   );
 }

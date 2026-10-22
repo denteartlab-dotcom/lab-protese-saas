@@ -367,6 +367,10 @@ type ClienteCatalogo = {
   nome: string;
   observacoes?: string | null;
   representanteColaboradorId?: string | null;
+  endereco?: string | null;
+  cidade?: string | null;
+  uf?: string | null;
+  cep?: string | null;
 };
 
 function descontoGeralClienteControle(
@@ -1216,6 +1220,10 @@ export default function ControlePage() {
       cliente: {
         nome: catalogo?.nome || trabalho.cliente?.nome,
         observacoes: catalogo?.observacoes ?? trabalho.cliente?.observacoes,
+        endereco: catalogo?.endereco,
+        cidade: catalogo?.cidade,
+        uf: catalogo?.uf,
+        cep: catalogo?.cep,
       },
     };
   }

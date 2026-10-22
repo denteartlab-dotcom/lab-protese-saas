@@ -1,3 +1,4 @@
+import { PREFIXOS_ENDERECO_CLIENTE } from "@/lib/cliente-endereco";
 import { configValueFromObservacoes } from "@/lib/cliente-financeiro";
 import { normalizarTelefoneBr } from "@/lib/whatsapp-disparos/telefone-br";
 
@@ -20,6 +21,7 @@ export const PREFIXOS_CONFIG_CLIENTE = [
   "Entregador:",
   "Tipo Entregador:",
   "Custo de Entrega:",
+  ...PREFIXOS_ENDERECO_CLIENTE,
 ] as const;
 
 const PREFIXO_TABELA_PRECO = "Tabela de Preço:";

@@ -1,3 +1,4 @@
+import { partesEnderecoCliente } from "@/lib/cliente-endereco";
 import { entregadorCliente, tipoEntregadorCliente, custoEntregaCliente } from "@/lib/cliente-entrega";
 import {
   carregarConfiguracoesGerais,
@@ -56,6 +57,7 @@ export function montarEntregaDeTrabalho(
   const valor = custoObs > 0 ? custoObs : Number(trabalho.valor) || 0;
   const nome = cliente?.nome?.trim() || "Cliente";
   const agora = new Date().toISOString();
+  const partes = partesEnderecoCliente(obs, cliente?.endereco);
 
   return {
     dataPedido: agora,
@@ -68,11 +70,12 @@ export function montarEntregaDeTrabalho(
     tipoDestinatario: "cliente" as const,
     nomeDestinatario: nome,
     cep: cliente?.cep?.trim() || "",
-    rua: cliente?.endereco?.trim() || "",
+    rua: partes.rua,
+    numeroEndereco: partes.numero,
     cidade: cliente?.cidade?.trim() || "",
     uf: cliente?.uf?.trim() || "",
-    bairro: cliente?.bairro?.trim() || "",
-    complemento: cliente?.complemento?.trim() || "",
+    bairro: partes.bairro || cliente?.bairro?.trim() || "",
+    complemento: partes.complemento || cliente?.complemento?.trim() || "",
     dataEntrega: agora,
     hora: new Date().toLocaleTimeString("pt-BR", {
       hour: "2-digit",

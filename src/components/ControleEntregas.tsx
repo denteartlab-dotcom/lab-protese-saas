@@ -60,6 +60,7 @@ import {
   imprimirRelatorioEntregas,
 } from "@/lib/relatorio-entregas";
 import { labelSituacaoEntrega } from "@/lib/i18n/entrega-i18n";
+import { imprimirEtiquetaEntrega } from "@/lib/etiqueta-envio-entrega";
 
 function labelFiltro(texto: string) {
   return <span className="mb-0.5 block text-[11px] text-slate-600">{texto}</span>;
@@ -533,6 +534,26 @@ export function ControleEntregas() {
                         </button>
                         <button
                           type="button"
+                          onClick={() => {
+                            const abriu = imprimirEtiquetaEntrega(entrega, {
+                              titulo: t("producao.entregas.etiqueta.titulo"),
+                              destinatario: t("producao.entregas.etiqueta.destinatario"),
+                              remetente: t("producao.entregas.etiqueta.remetente"),
+                              os: t("producao.controle.tabela.os"),
+                              cep: t("producao.entregas.etiqueta.cep"),
+                              remetenteSemCadastro: t("producao.entregas.etiqueta.remetenteSemCadastro"),
+                              imprimir: t("producao.comum.imprimir"),
+                              fechar: t("common.fechar"),
+                            });
+                            if (!abriu) alert(t("print.comum.erroAbrirPopups"));
+                          }}
+                          className="rounded p-1 hover:bg-slate-100 hover:text-blue-600"
+                          title={t("producao.entregas.etiqueta.imprimir")}
+                        >
+                          <Printer className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => abrirEdicao(entrega)}
                           className="rounded p-1 hover:bg-slate-100 hover:text-blue-600"
                           title={t("common.editar")}
@@ -688,6 +709,7 @@ export function ControleEntregas() {
                 {[
                   visualizando.rua,
                   visualizando.numeroEndereco,
+                  visualizando.complemento,
                   visualizando.bairro,
                   visualizando.cidade,
                   visualizando.uf,

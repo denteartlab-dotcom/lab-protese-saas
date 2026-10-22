@@ -73,6 +73,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const q = (searchParams.get("q") || "").trim();
   const status = searchParams.get("status");
+  const clienteId = (searchParams.get("clienteId") || "").trim();
   const dataEntrada = searchParams.get("dataEntrada");
   const atrasados = searchParams.get("atrasados") === "1";
   const numeroOsStr = extrairNumeroOsCodigo(q);
@@ -87,6 +88,7 @@ export async function GET(request: Request) {
     prisma.trabalho.findMany({
       where: {
         empresaId: ctx.empresaId,
+        ...(clienteId ? { clienteId } : {}),
         ...(status ? { status } : {}),
         ...(atrasados
           ? {

@@ -36,6 +36,11 @@ import { validarNomeCliente } from "@/lib/cliente-validacao";
 import { formatCepInput } from "@/lib/documento-br";
 import { exibirTelefone, formatarTelefone, PLACEHOLDER_TELEFONE_BR } from "@/lib/validar-documento";
 import {
+  enderecoCompostoCliente,
+  mesclarObservacoesComEnderecoCliente,
+  partesEnderecoCliente,
+} from "@/lib/cliente-endereco";
+import {
   custoEntregaCliente,
   entregadorCliente,
   formatarCustoEntregaCliente,
@@ -500,6 +505,7 @@ export default function ClientesPage() {
     setGravacaoOk(false);
     setMsgGravacao("");
     ultimoCepBuscado.current = (c.cep || "").replace(/\D/g, "");
+    const partesEndereco = partesEnderecoCliente(c.observacoes, c.endereco);
     setForm({
       tipoCliente: tipoClienteCadastro(c.observacoes) || "Dentista",
       abreviacao: abreviacaoCliente(c.observacoes),
@@ -521,10 +527,10 @@ export default function ClientesPage() {
       contatoEmail: configValue(c.observacoes, "Email Contato:"),
       representanteColaboradorId: resolverRepresentanteColaboradorId(c, cols),
       descricaoEndereco: "Endereço Principal",
-      rua: c.endereco || "",
-      numero: "",
-      bairro: "",
-      complemento: "",
+      rua: partesEndereco.rua,
+      numero: partesEndereco.numero,
+      bairro: partesEndereco.bairro,
+      complemento: partesEndereco.complemento,
       entregador: entregadorCliente(c.observacoes),
       tipoEntregador: tipoEntregadorCliente(c.observacoes),
       custoEntrega: formatarCustoEntregaCliente(custoEntregaCliente(c.observacoes)),
@@ -533,7 +539,7 @@ export default function ClientesPage() {
       descontoGeralTipo: descontoGeralTipoClienteObservacoes(c.observacoes),
       limiteSaldoDevedor: configValue(c.observacoes, "Limite Saldo Devedor:") || "0,00",
       diaCobranca: configValue(c.observacoes, "Dia da Cobrança:"),
-      endereco: c.endereco || "",
+      endereco: enderecoCompostoCliente(partesEndereco) || c.endereco || "",
       cidade: c.cidade || "",
       uf: c.uf || "",
       cep: c.cep || "",
@@ -557,6 +563,12 @@ export default function ClientesPage() {
       return;
     }
     const url = editing ? `/api/clientes/${editing.id}` : "/api/clientes";
+    const partesEndereco = {
+      rua: form.rua.trim(),
+      numero: form.numero.trim(),
+      bairro: form.bairro.trim(),
+      complemento: form.complemento.trim(),
+    };
     const payload = {
       nome: nomeValidado.nome,
       razaoSocial: form.razaoSocial,
@@ -565,36 +577,39 @@ export default function ClientesPage() {
       telefone: form.telefoneComercial || form.telefone,
       celular: form.whatsapp || form.celular,
       email: form.email || form.contatoEmail,
-      endereco: form.endereco || [form.rua, form.numero, form.bairro, form.complemento].filter(Boolean).join(", "),
+      endereco: enderecoCompostoCliente(partesEndereco),
       cidade: form.cidade,
       uf: form.uf,
       cep: form.cep,
       representanteColaboradorId: form.representanteColaboradorId.trim() || null,
-      observacoes: mesclarObservacoesComDataNascimento(
-        mesclarObservacoesComEntregaCliente(
-          [
-            observacoesTextoLivreCliente(form.observacoes),
-            form.tipoCliente ? `Tipo de Cliente: ${form.tipoCliente}` : "",
-            form.abreviacao ? `Abreviação: ${form.abreviacao}` : "",
-            form.contato ? `Contato: ${form.contato}` : "",
-            form.contatoTelefoneComercial ? `Telefone Contato: ${form.contatoTelefoneComercial}` : "",
-            form.contatoWhatsapp ? `WhatsApp Contato: ${form.contatoWhatsapp}` : "",
-            form.rg ? `RG: ${form.rg}` : "",
-            form.tabelaPreco ? `Tabela de Preço: ${form.tabelaPreco}` : "",
-            `Desconto Geral: ${form.descontoGeral || "0,00"}`,
-            `Desconto Geral Tipo: ${form.descontoGeralTipo || "percentual"}`,
-            form.limiteSaldoDevedor ? `Limite Saldo Devedor: ${form.limiteSaldoDevedor}` : "",
-            form.diaCobranca ? `Dia da Cobrança: ${form.diaCobranca}` : "",
-          ]
-            .filter(Boolean)
-            .join("\n"),
-          {
-            entregador: form.entregador,
-            tipoEntregador: form.tipoEntregador,
-            custoEntrega: form.custoEntrega,
-          }
+      observacoes: mesclarObservacoesComEnderecoCliente(
+        mesclarObservacoesComDataNascimento(
+          mesclarObservacoesComEntregaCliente(
+            [
+              observacoesTextoLivreCliente(form.observacoes),
+              form.tipoCliente ? `Tipo de Cliente: ${form.tipoCliente}` : "",
+              form.abreviacao ? `Abreviação: ${form.abreviacao}` : "",
+              form.contato ? `Contato: ${form.contato}` : "",
+              form.contatoTelefoneComercial ? `Telefone Contato: ${form.contatoTelefoneComercial}` : "",
+              form.contatoWhatsapp ? `WhatsApp Contato: ${form.contatoWhatsapp}` : "",
+              form.rg ? `RG: ${form.rg}` : "",
+              form.tabelaPreco ? `Tabela de Preço: ${form.tabelaPreco}` : "",
+              `Desconto Geral: ${form.descontoGeral || "0,00"}`,
+              `Desconto Geral Tipo: ${form.descontoGeralTipo || "percentual"}`,
+              form.limiteSaldoDevedor ? `Limite Saldo Devedor: ${form.limiteSaldoDevedor}` : "",
+              form.diaCobranca ? `Dia da Cobrança: ${form.diaCobranca}` : "",
+            ]
+              .filter(Boolean)
+              .join("\n"),
+            {
+              entregador: form.entregador,
+              tipoEntregador: form.tipoEntregador,
+              custoEntrega: form.custoEntrega,
+            }
+          ),
+          form.dataNascimento
         ),
-        form.dataNascimento
+        partesEndereco
       ),
       ...(form.senhaPortal.trim()
         ? { senhaPortal: form.senhaPortal.trim() }
