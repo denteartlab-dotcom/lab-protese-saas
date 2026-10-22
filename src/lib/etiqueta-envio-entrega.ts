@@ -166,30 +166,84 @@ export function htmlEtiquetaEnvio(dados: {
 </html>`;
 }
 
+function htmlDaEtiqueta(entrega: EntregaControle, textos: TextosEtiquetaEnvio) {
+  return htmlEtiquetaEnvio({
+    textos,
+    destinatario: destinatarioDaEntrega(entrega),
+    remetente: remetenteDoLaboratorio(),
+    numeroOs: entrega.numeroOs,
+  });
+}
+
+function escreverEtiqueta(documento: Document, html: string) {
+  documento.open();
+  documento.write(html);
+  documento.close();
+}
+
+function imprimirJanela(janela: Window) {
+  window.setTimeout(() => {
+    try {
+      janela.focus();
+      janela.print();
+    } catch {
+      /* a página da etiqueta continua com o botão Imprimir */
+    }
+  }, 250);
+}
+
+/** Imprime na própria página quando o navegador bloqueia a nova aba. */
+function imprimirEtiquetaNoIframe(html: string) {
+  if (!document.body) return false;
+  const iframe = document.createElement("iframe");
+  iframe.setAttribute("aria-hidden", "true");
+  // Fora da tela, com tamanho real: iframe invisível (opacity 0) imprime em branco no Chrome.
+  iframe.style.cssText =
+    "position:fixed;left:-120mm;top:0;width:100mm;height:150mm;border:0;";
+  iframe.srcdoc = html;
+  const aoCarregar = () => {
+    const janela = iframe.contentWindow;
+    if (janela) imprimirJanela(janela);
+    const remover = () => window.setTimeout(() => iframe.remove(), 400);
+    janela?.addEventListener("afterprint", remover, { once: true });
+    window.setTimeout(remover, 60_000);
+  };
+  iframe.addEventListener("load", aoCarregar, { once: true });
+  document.body.appendChild(iframe);
+  return true;
+}
+
 export function imprimirEtiquetaEntrega(
   entrega: EntregaControle,
   textos: TextosEtiquetaEnvio
 ) {
-  if (typeof window === "undefined") return false;
-  const janela = window.open("", "_blank", "noopener,noreferrer");
-  if (!janela) return false;
-  janela.document.open();
-  janela.document.write(
-    htmlEtiquetaEnvio({
-      textos,
-      destinatario: destinatarioDaEntrega(entrega),
-      remetente: remetenteDoLaboratorio(),
-      numeroOs: entrega.numeroOs,
-    })
-  );
-  janela.document.close();
-  janela.focus();
-  window.setTimeout(() => {
+  if (typeof window === "undefined" || typeof document === "undefined") return false;
+  const html = htmlDaEtiqueta(entrega, textos);
+
+  // Sem "noopener": com essa opção o Chrome devolve null e a etiqueta não é escrita.
+  let janela: Window | null = null;
+  try {
+    janela = window.open("about:blank", "_blank");
+  } catch {
+    janela = null;
+  }
+  if (!janela) return imprimirEtiquetaNoIframe(html);
+
+  try {
+    escreverEtiqueta(janela.document, html);
+  } catch {
     try {
-      janela.print();
+      janela.close();
     } catch {
-      /* a janela continua com o botão Imprimir */
+      /* a aba pode já ter sido fechada */
     }
-  }, 250);
+    return imprimirEtiquetaNoIframe(html);
+  }
+  try {
+    janela.opener = null;
+  } catch {
+    /* a aba já está isolada */
+  }
+  imprimirJanela(janela);
   return true;
 }

@@ -10,6 +10,7 @@ import { montarEntregaDeTrabalho } from "../src/lib/controle-entregas-automatico
 import {
   destinatarioDaEntrega,
   htmlEtiquetaEnvio,
+  imprimirEtiquetaEntrega,
   linhasEnderecoEtiqueta,
 } from "../src/lib/etiqueta-envio-entrega";
 import type { EntregaControle } from "../src/lib/controle-entregas";
@@ -125,5 +126,97 @@ assert.match(html, /João Piski/);
 assert.match(html, /Remetente/);
 assert.match(html, /Lab Prótese/);
 assert.match(html, /OS 15/);
+
+const textosEtiqueta = {
+  titulo: "Etiqueta de envio",
+  destinatario: "Destinatário",
+  remetente: "Remetente",
+  os: "OS",
+  cep: "CEP",
+  remetenteSemCadastro: "Sem remetente",
+  imprimir: "Imprimir",
+  fechar: "Fechar",
+};
+
+function documentoFalso() {
+  const escrito = { html: "" };
+  return {
+    escrito,
+    documento: {
+      open() {},
+      write(conteudo: string) {
+        escrito.html = conteudo;
+      },
+      close() {},
+    },
+  };
+}
+
+const aberto = documentoFalso();
+const chamadasOpen: unknown[][] = [];
+const g = globalThis as typeof globalThis & { window?: unknown; document?: unknown };
+g.window = {
+  open(...args: unknown[]) {
+    chamadasOpen.push(args);
+    return {
+      document: aberto.documento,
+      focus() {},
+      print() {},
+      close() {},
+      opener: {},
+    };
+  },
+  setTimeout(fn: TimerHandler, ms?: number) {
+    if (typeof fn === "function" && (ms ?? 0) < 1000) fn();
+    return 0;
+  },
+};
+g.document = { body: {}, createElement() { return {}; } };
+
+assert.equal(imprimirEtiquetaEntrega(entrega, textosEtiqueta), true);
+assert.equal(chamadasOpen.length, 1);
+assert.deepEqual(chamadasOpen[0], ["about:blank", "_blank"]);
+assert.match(aberto.escrito.html, /Destinatário/);
+assert.match(aberto.escrito.html, /João Piski/);
+assert.match(aberto.escrito.html, /Remetente/);
+assert.match(aberto.escrito.html, /Rua das Flores, 48/);
+
+const bloqueado = documentoFalso();
+let iframeHtml = "";
+g.window = {
+  open() {
+    return null;
+  },
+  setTimeout(fn: TimerHandler, ms?: number) {
+    if (typeof fn === "function" && (ms ?? 0) < 1000) fn();
+    return 0;
+  },
+};
+g.document = {
+  body: { appendChild() {} },
+  createElement() {
+    const iframe = {
+      style: { cssText: "" },
+      srcdoc: "",
+      contentWindow: { document: bloqueado.documento, addEventListener() {}, focus() {}, print() {} },
+      setAttribute() {},
+      addEventListener(evento: string, fn: () => void) {
+        if (evento === "load") fn();
+      },
+      remove() {},
+    };
+    Object.defineProperty(iframe, "srcdoc", {
+      set(valor: string) {
+        iframeHtml = valor;
+      },
+    });
+    return iframe;
+  },
+};
+
+assert.equal(imprimirEtiquetaEntrega(entrega, textosEtiqueta), true);
+assert.match(iframeHtml, /Destinatário/);
+assert.match(iframeHtml, /João Piski/);
+assert.match(iframeHtml, /Remetente/);
 
 console.log("endereco cliente e etiqueta de envio ok");
