@@ -87,15 +87,17 @@ export function FornecedorCadastroModal({ open, onClose, onSalvo }: Props) {
     ultimoCepBuscado.current = cep;
     setBuscandoCep(true);
     try {
-      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
-      const data = await response.json();
-      if (!data.erro) {
+      const { buscarEnderecoPorCep: buscarCep } = await import("@/lib/cep-lookup");
+      const endereco = await buscarCep(cep);
+      if (endereco) {
         setForm((current) => ({
           ...current,
-          rua: data.logradouro || current.rua,
-          bairro: data.bairro || current.bairro,
-          cidade: data.localidade || current.cidade,
-          uf: data.uf || current.uf,
+          cep: endereco.cep || current.cep,
+          rua: endereco.rua || current.rua,
+          bairro: endereco.bairro || current.bairro,
+          complemento: endereco.complemento || current.complemento,
+          cidade: endereco.cidade || current.cidade,
+          uf: endereco.uf || current.uf,
         }));
       }
     } finally {

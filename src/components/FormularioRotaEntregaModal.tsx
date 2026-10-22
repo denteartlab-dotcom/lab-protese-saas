@@ -484,19 +484,20 @@ export function FormularioRotaEntregaModal({
     if (cep.length !== 8) return;
     setBuscandoCep(true);
     try {
-      const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
-      const data = await res.json();
-      if (data.erro) {
+      const { buscarEnderecoPorCep } = await import("@/lib/cep-lookup");
+      const endereco = await buscarEnderecoPorCep(cep);
+      if (!endereco) {
         alert(t("cadastros.comum.alerta.cepNaoEncontrado"));
         return;
       }
       setForm((atual) => ({
         ...atual,
-        rua: data.logradouro || atual.rua,
-        bairro: data.bairro || atual.bairro,
-        cidade: data.localidade || atual.cidade,
-        uf: data.uf || atual.uf,
-        complemento: data.complemento || atual.complemento,
+        cep: endereco.cep || atual.cep,
+        rua: endereco.rua || atual.rua,
+        bairro: endereco.bairro || atual.bairro,
+        cidade: endereco.cidade || atual.cidade,
+        uf: endereco.uf || atual.uf,
+        complemento: endereco.complemento || atual.complemento,
       }));
     } finally {
       setBuscandoCep(false);

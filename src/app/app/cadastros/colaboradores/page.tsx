@@ -619,17 +619,18 @@ export default function ColaboradoresPage() {
 
     setBuscandoCep(true);
     try {
-      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
-      const data = await response.json();
-      if (data?.erro) return;
+      const { buscarEnderecoPorCep: buscarCep } = await import("@/lib/cep-lookup");
+      const endereco = await buscarCep(cep);
+      if (!endereco) return;
 
       setForm((atual) => ({
         ...atual,
-        cep: formatCepInput(cep),
-        rua: data.logradouro || atual.rua,
-        bairro: data.bairro || atual.bairro,
-        cidade: data.localidade || atual.cidade,
-        ufEndereco: data.uf || atual.ufEndereco,
+        cep: endereco.cep || formatCepInput(cep),
+        rua: endereco.rua || atual.rua,
+        bairro: endereco.bairro || atual.bairro,
+        complemento: endereco.complemento || atual.complemento,
+        cidade: endereco.cidade || atual.cidade,
+        ufEndereco: endereco.uf || atual.ufEndereco,
       }));
     } finally {
       setBuscandoCep(false);

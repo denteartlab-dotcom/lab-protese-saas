@@ -315,18 +315,18 @@ export default function ClientesPage() {
     setForm((current) => {
       const rua = endereco.rua || current.rua;
       const bairro = endereco.bairro || current.bairro;
+      const complemento = endereco.complemento || current.complemento;
       const cidade = endereco.cidade || current.cidade;
       const uf = endereco.uf || current.uf;
       return {
         ...current,
         rua,
         bairro,
+        complemento,
         cidade,
         uf,
         cep: endereco.cep,
-        endereco: [rua, current.numero, bairro, current.complemento]
-          .filter(Boolean)
-          .join(", "),
+        endereco: [rua, current.numero, bairro, complemento].filter(Boolean).join(", "),
       };
     });
   }

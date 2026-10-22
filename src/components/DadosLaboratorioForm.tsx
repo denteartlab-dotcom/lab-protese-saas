@@ -152,6 +152,7 @@ export function DadosLaboratorioForm({
         cep: endereco.cep,
         rua: endereco.rua || atual.rua,
         bairro: endereco.bairro || atual.bairro,
+        complemento: endereco.complemento || atual.complemento,
         cidade: endereco.cidade || atual.cidade,
         uf: endereco.uf || atual.uf,
         codMunicipio: endereco.codMunicipio || atual.codMunicipio,
