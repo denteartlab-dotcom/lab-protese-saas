@@ -347,6 +347,9 @@ const pt = {
   "producao.entregas.historico.periodo": "Período",
   "producao.entregas.historico.vazioFiltro":
     "Nenhuma entrega encontrada para este cliente ou período.",
+  "producao.entregas.historico.verOs": "Ver OS e serviços",
+  "producao.entregas.historico.osServicos": "OS e serviços entregues",
+  "producao.entregas.historico.semOs": "Nenhuma OS neste pedido de entrega.",
   "entrega.situacao.pendente": "Pendente",
   "entrega.situacao.em_rota": "Em Rota",
   "entrega.situacao.entregue": "Entregue",
@@ -707,6 +710,9 @@ const en: Record<keyof typeof pt, string> = {
   "producao.entregas.historico.periodo": "Period",
   "producao.entregas.historico.vazioFiltro":
     "No deliveries found for this client or period.",
+  "producao.entregas.historico.verOs": "View work orders and services",
+  "producao.entregas.historico.osServicos": "Delivered work orders and services",
+  "producao.entregas.historico.semOs": "No work order in this delivery.",
   "entrega.situacao.pendente": "Pending",
   "entrega.situacao.em_rota": "In Route",
   "entrega.situacao.entregue": "Delivered",
@@ -1067,6 +1073,9 @@ const es: Record<keyof typeof pt, string> = {
   "producao.entregas.historico.periodo": "Período",
   "producao.entregas.historico.vazioFiltro":
     "Ninguna entrega encontrada para este cliente o período.",
+  "producao.entregas.historico.verOs": "Ver OS y servicios",
+  "producao.entregas.historico.osServicos": "OS y servicios entregados",
+  "producao.entregas.historico.semOs": "Ninguna OS en este pedido de entrega.",
   "entrega.situacao.pendente": "Pendiente",
   "entrega.situacao.em_rota": "En Ruta",
   "entrega.situacao.entregue": "Entregado",

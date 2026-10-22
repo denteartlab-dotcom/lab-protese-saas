@@ -131,6 +131,7 @@ export function ControleEntregas() {
   const [historicoDataInicio, setHistoricoDataInicio] = useState("");
   const [historicoDataFim, setHistoricoDataFim] = useState("");
   const [historicoExcluindo, setHistoricoExcluindo] = useState<EntregaHistorico | null>(null);
+  const [historicoVisualizando, setHistoricoVisualizando] = useState<EntregaHistorico | null>(null);
   const [imprimindoHistorico, setImprimindoHistorico] = useState(false);
   const [editando, setEditando] = useState<EntregaControle | null>(null);
   const [visualizando, setVisualizando] = useState<EntregaControle | null>(null);
@@ -703,9 +704,7 @@ export function ControleEntregas() {
               <table className="w-full text-[11px]">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                    <th className="px-3 py-2 text-left">{t("producao.controle.tabela.os")}</th>
                     <th className="px-3 py-2 text-left">{t("producao.comum.destinatario")}</th>
-                    <th className="px-3 py-2 text-left">{t("producao.comum.descricao")}</th>
                     <th className="px-3 py-2 text-left">{t("producao.comum.entregueEm")}</th>
                     <th className="px-3 py-2 text-left">{t("producao.comum.situacao")}</th>
                     <th className="px-3 py-2 text-center">{t("common.opcoes")}</th>
@@ -713,12 +712,12 @@ export function ControleEntregas() {
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
                   {historicoFiltrado.map((item) => (
-                    <tr key={item.id} className="hover:bg-slate-50">
-                      <td className="px-3 py-2 font-semibold text-slate-700">
-                        {item.numeroOs || "—"}
-                      </td>
-                      <td className="px-3 py-2">{item.destinatario}</td>
-                      <td className="px-3 py-2">{item.descricao || "—"}</td>
+                    <tr
+                      key={item.id}
+                      className="cursor-pointer hover:bg-slate-50"
+                      onClick={() => setHistoricoVisualizando(item)}
+                    >
+                      <td className="px-3 py-2 font-semibold text-slate-700">{item.destinatario}</td>
                       <td className="px-3 py-2 whitespace-nowrap">
                         {formatarDataHoraEntrega(item.dataFinalizado)}
                       </td>
@@ -738,8 +737,16 @@ export function ControleEntregas() {
                           </p>
                         ) : null}
                       </td>
-                      <td className="px-3 py-2">
-                        <div className="flex justify-center">
+                      <td className="px-3 py-2" onClick={(event) => event.stopPropagation()}>
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setHistoricoVisualizando(item)}
+                            className="rounded p-1 hover:bg-blue-50 hover:text-blue-600"
+                            title={t("producao.entregas.historico.verOs")}
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                          </button>
                           <button
                             type="button"
                             onClick={() => setHistoricoExcluindo(item)}
@@ -760,6 +767,54 @@ export function ControleEntregas() {
             {t("common.fechar")}
           </Button>
         </div>
+      </Modal>
+
+      <Modal
+        open={Boolean(historicoVisualizando)}
+        onClose={() => setHistoricoVisualizando(null)}
+        title={
+          historicoVisualizando
+            ? `${t("producao.entregas.historico.osServicos")}: ${historicoVisualizando.destinatario}`
+            : t("producao.entregas.historico.osServicos")
+        }
+        size="lg"
+        layerClassName="z-[60]"
+      >
+        {historicoVisualizando ? (
+          <div className="space-y-3 text-[11px] text-slate-600">
+            <p>
+              <span className="font-semibold text-slate-700">{t("producao.comum.entregueEm")}:</span>{" "}
+              {formatarDataHoraEntrega(historicoVisualizando.dataFinalizado)}
+            </p>
+            {historicoVisualizando.ordensServico.length === 0 ? (
+              <p className="text-slate-500">{t("producao.entregas.historico.semOs")}</p>
+            ) : (
+              <div className="overflow-x-auto rounded border border-slate-200">
+                <table className="w-full text-[11px]">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                      <th className="px-2 py-2 text-left">{t("producao.controle.tabela.os")}</th>
+                      <th className="px-2 py-2 text-left">{t("producao.entregas.rota.paciente")}</th>
+                      <th className="px-2 py-2 text-left">{t("producao.entregas.rota.servico")}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 bg-white">
+                    {historicoVisualizando.ordensServico.map((ordem) => (
+                      <tr key={ordem.numeroOs}>
+                        <td className="px-2 py-2 font-semibold text-slate-700">{ordem.numeroOs}</td>
+                        <td className="px-2 py-2">{ordem.paciente || "—"}</td>
+                        <td className="px-2 py-2">{ordem.descricao || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <Button type="button" size="sm" variant="outline" onClick={() => setHistoricoVisualizando(null)}>
+              {t("common.fechar")}
+            </Button>
+          </div>
+        ) : null}
       </Modal>
 
       <Modal

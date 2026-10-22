@@ -12,6 +12,12 @@ export const ENTREGAS_HISTORICO_EVENT = "labProteseControleEntregasHistoricoAtua
 
 export type SituacaoHistoricoEntrega = "entregue" | "recebido";
 
+export type OsHistoricoEntrega = {
+  numeroOs: string;
+  descricao: string;
+  paciente: string;
+};
+
 export type EntregaHistorico = {
   id: string;
   numeroOs: string;
@@ -22,7 +28,41 @@ export type EntregaHistorico = {
   nomeRecebedor?: string;
   situacao: SituacaoHistoricoEntrega;
   valor: number;
+  ordensServico: OsHistoricoEntrega[];
 };
+
+function ordensDoPedido(origem: {
+  numeroOs?: string;
+  descricao?: string;
+  ordensServico?: Array<{ numeroOs?: string; descricao?: string; paciente?: string } | null>;
+}): OsHistoricoEntrega[] {
+  const brutas = Array.isArray(origem.ordensServico) ? origem.ordensServico : [];
+  const dasOrdens = brutas
+    .map((ordem) => ({
+      numeroOs: String(ordem?.numeroOs || "").trim(),
+      descricao: String(ordem?.descricao || "").trim(),
+      paciente: String(ordem?.paciente || "").trim(),
+    }))
+    .filter((ordem) => ordem.numeroOs);
+  const unicas = new Map<string, OsHistoricoEntrega>();
+  for (const ordem of dasOrdens) unicas.set(ordem.numeroOs, ordem);
+  const lista = Array.from(unicas.values());
+  const descricaoPedido = String(origem.descricao || "").trim();
+  if (lista.length === 1 && !lista[0].descricao && descricaoPedido) {
+    lista[0] = { ...lista[0], descricao: descricaoPedido };
+  }
+  if (lista.length > 0) return lista;
+
+  return String(origem.numeroOs || "")
+    .split(/[,;]+/)
+    .map((parte) => parte.trim())
+    .filter(Boolean)
+    .map((numeroOs, indice, todas) => ({
+      numeroOs,
+      descricao: todas.length === 1 ? descricaoPedido : "",
+      paciente: "",
+    }));
+}
 
 export function normalizarHistorico(item: Partial<EntregaHistorico>): EntregaHistorico | null {
   const id = String(item.id || "").trim();
@@ -32,10 +72,12 @@ export function normalizarHistorico(item: Partial<EntregaHistorico>): EntregaHis
 
   const situacao: SituacaoHistoricoEntrega =
     item.situacao === "recebido" ? "recebido" : "entregue";
+  const ordensServico = ordensDoPedido(item);
+  const numeroOs = ordensServico.map((ordem) => ordem.numeroOs).join(", ") || String(item.numeroOs || "").trim();
 
   return {
     id,
-    numeroOs: String(item.numeroOs || "").trim(),
+    numeroOs,
     destinatario,
     descricao: String(item.descricao || "").trim(),
     entregador: String(item.entregador || "").trim(),
@@ -43,6 +85,7 @@ export function normalizarHistorico(item: Partial<EntregaHistorico>): EntregaHis
     nomeRecebedor: String(item.nomeRecebedor || "").trim(),
     situacao,
     valor: Number(item.valor) || 0,
+    ordensServico,
   };
 }
 
@@ -78,9 +121,10 @@ export function entregaParaHistorico(
   opcoes: { situacao: SituacaoHistoricoEntrega; nomeRecebedor?: string; dataFinalizado?: string }
 ): EntregaHistorico {
   const agora = opcoes.dataFinalizado || new Date().toISOString();
+  const ordensServico = ordensDoPedido(entrega);
   return {
     id: `hist-${entrega.id}`,
-    numeroOs: String(entrega.numeroOs || "").trim(),
+    numeroOs: ordensServico.map((ordem) => ordem.numeroOs).join(", "),
     destinatario: entrega.destinatario,
     descricao: entrega.descricao || "",
     entregador: entrega.entregador || "",
@@ -88,6 +132,7 @@ export function entregaParaHistorico(
     nomeRecebedor: opcoes.nomeRecebedor?.trim() || entrega.nomeRecebedor || "",
     situacao: opcoes.situacao,
     valor: Number(entrega.valor) || 0,
+    ordensServico,
   };
 }
 
