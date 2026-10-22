@@ -323,6 +323,11 @@ const pt = {
   "producao.entregas.etiqueta.cep": "CEP",
   "producao.entregas.etiqueta.remetenteSemCadastro":
     "Cadastre o endereço em Configurações › Dados do laboratório.",
+  "producao.entregas.historico.cliente": "Cliente",
+  "producao.entregas.historico.mostrarTodos": "Mostrar todos",
+  "producao.entregas.historico.periodo": "Período",
+  "producao.entregas.historico.vazioFiltro":
+    "Nenhuma entrega encontrada para este cliente ou período.",
   "entrega.situacao.pendente": "Pendente",
   "entrega.situacao.em_rota": "Em Rota",
   "entrega.situacao.entregue": "Entregue",
@@ -659,6 +664,11 @@ const en: Record<keyof typeof pt, string> = {
   "producao.entregas.etiqueta.cep": "ZIP",
   "producao.entregas.etiqueta.remetenteSemCadastro":
     "Enter the address under Settings › Laboratory details.",
+  "producao.entregas.historico.cliente": "Client",
+  "producao.entregas.historico.mostrarTodos": "Show all",
+  "producao.entregas.historico.periodo": "Period",
+  "producao.entregas.historico.vazioFiltro":
+    "No deliveries found for this client or period.",
   "entrega.situacao.pendente": "Pending",
   "entrega.situacao.em_rota": "In Route",
   "entrega.situacao.entregue": "Delivered",
@@ -995,6 +1005,11 @@ const es: Record<keyof typeof pt, string> = {
   "producao.entregas.etiqueta.cep": "CP",
   "producao.entregas.etiqueta.remetenteSemCadastro":
     "Registre la dirección en Configuración › Datos del laboratorio.",
+  "producao.entregas.historico.cliente": "Cliente",
+  "producao.entregas.historico.mostrarTodos": "Mostrar todos",
+  "producao.entregas.historico.periodo": "Período",
+  "producao.entregas.historico.vazioFiltro":
+    "Ninguna entrega encontrada para este cliente o período.",
   "entrega.situacao.pendente": "Pendiente",
   "entrega.situacao.em_rota": "En Ruta",
   "entrega.situacao.entregue": "Entregado",

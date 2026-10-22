@@ -1,4 +1,5 @@
 import { type EntregaControle } from "@/lib/controle-entregas";
+import { parseBrDate } from "@/lib/datas-br";
 import {
   aplicarEspelhoServidor,
   chaveComSalvamentoPendente,
@@ -113,6 +114,36 @@ export function mesclarHistorico(
   return [...mapa.values()].sort(
     (a, b) => new Date(b.dataFinalizado).getTime() - new Date(a.dataFinalizado).getTime()
   );
+}
+
+export function filtrarHistoricoEntregas(
+  lista: EntregaHistorico[],
+  filtros: { cliente?: string; dataInicio?: string; dataFim?: string }
+) {
+  const cliente = (filtros.cliente || "").trim();
+  return lista.filter((item) => {
+    if (cliente && item.destinatario.trim() !== cliente) return false;
+    if (!filtros.dataInicio && !filtros.dataFim) return true;
+
+    const dataLinha = new Date(item.dataFinalizado);
+    if (Number.isNaN(dataLinha.getTime())) return false;
+
+    if (filtros.dataInicio) {
+      const inicio = parseBrDate(filtros.dataInicio);
+      if (inicio) {
+        inicio.setHours(0, 0, 0, 0);
+        if (dataLinha < inicio) return false;
+      }
+    }
+    if (filtros.dataFim) {
+      const fim = parseBrDate(filtros.dataFim);
+      if (fim) {
+        fim.setHours(23, 59, 59, 999);
+        if (dataLinha > fim) return false;
+      }
+    }
+    return true;
+  });
 }
 
 export function registrarHistoricoEntregas(novos: EntregaHistorico[]) {

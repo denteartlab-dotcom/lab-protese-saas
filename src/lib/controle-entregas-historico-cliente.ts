@@ -16,6 +16,7 @@ export {
   ENTREGAS_HISTORICO_EVENT,
   ENTREGAS_HISTORICO_STORAGE_KEY,
   carregarHistoricoEntregas,
+  filtrarHistoricoEntregas,
   entregaParaHistorico,
   excluirHistoricoEntrega,
   mesclarHistorico,

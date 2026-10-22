@@ -43,6 +43,7 @@ import {
 } from "@/lib/controle-entregas";
 import {
   carregarHistoricoEntregas,
+  filtrarHistoricoEntregas,
   ENTREGAS_HISTORICO_EVENT,
   excluirHistoricoEntregaPersistido,
   imprimirHistoricoEntregas,
@@ -124,6 +125,9 @@ export function ControleEntregas() {
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
   const [modalAberto, setModalAberto] = useState(false);
   const [historicoAberto, setHistoricoAberto] = useState(false);
+  const [historicoCliente, setHistoricoCliente] = useState("");
+  const [historicoDataInicio, setHistoricoDataInicio] = useState("");
+  const [historicoDataFim, setHistoricoDataFim] = useState("");
   const [historicoExcluindo, setHistoricoExcluindo] = useState<EntregaHistorico | null>(null);
   const [imprimindoHistorico, setImprimindoHistorico] = useState(false);
   const [editando, setEditando] = useState<EntregaControle | null>(null);
@@ -176,6 +180,24 @@ export function ControleEntregas() {
   );
 
   const totais = useMemo(() => contarPorSituacao(entregas, historico.length), [entregas, historico]);
+
+  const clientesHistorico = useMemo(
+    () =>
+      Array.from(new Set(historico.map((item) => item.destinatario.trim()).filter(Boolean))).sort(
+        (a, b) => a.localeCompare(b, "pt-BR")
+      ),
+    [historico]
+  );
+
+  const historicoFiltrado = useMemo(
+    () =>
+      filtrarHistoricoEntregas(historico, {
+        cliente: historicoCliente,
+        dataInicio: historicoDataInicio,
+        dataFim: historicoDataFim,
+      }),
+    [historico, historicoCliente, historicoDataInicio, historicoDataFim]
+  );
 
   const filtroRelatorioTela = useMemo(
     () =>
@@ -289,7 +311,7 @@ export function ControleEntregas() {
 
   function imprimirHistoricoModal() {
     setImprimindoHistorico(true);
-    void imprimirHistoricoEntregas(historico)
+    void imprimirHistoricoEntregas(historicoFiltrado)
       .catch((err) => {
         console.error("[controle-entregas] imprimir histórico", err);
         alert(
@@ -355,7 +377,12 @@ export function ControleEntregas() {
             titulo={t("producao.comum.entregues")}
             labelVer={t("producao.comum.ver")}
             ativo={historicoAberto}
-            onVer={() => setHistoricoAberto(true)}
+            onVer={() => {
+              setHistoricoCliente("");
+              setHistoricoDataInicio("");
+              setHistoricoDataFim("");
+              setHistoricoAberto(true);
+            }}
             icone={<CheckCircle2 className="h-6 w-6 text-emerald-500" />}
           />
         </div>
@@ -599,12 +626,49 @@ export function ControleEntregas() {
         size="lg"
       >
         <div className="space-y-3 text-[11px] text-slate-600">
-          <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="grid gap-2 md:grid-cols-[minmax(160px,1fr)_minmax(240px,1.4fr)_auto] md:items-end">
+            <div>
+              {labelFiltro(t("producao.entregas.historico.cliente"))}
+              <select
+                value={historicoCliente}
+                onChange={(e) => setHistoricoCliente(e.target.value)}
+                className={selectClassName()}
+              >
+                <option value="">{t("producao.entregas.historico.mostrarTodos")}</option>
+                {clientesHistorico.map((nome) => (
+                  <option key={nome} value={nome}>
+                    {nome}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              {labelFiltro(t("producao.entregas.historico.periodo"))}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <CampoDataBr
+                  value={historicoDataInicio}
+                  onChange={setHistoricoDataInicio}
+                  placeholder="dd/mm/aaaa"
+                  inputClassName="h-8 text-[11px]"
+                  className="min-w-[110px] flex-1 [&_label]:hidden"
+                  calendarZIndex={10050}
+                />
+                <span className="text-slate-400">{t("producao.comum.ate")}</span>
+                <CampoDataBr
+                  value={historicoDataFim}
+                  onChange={setHistoricoDataFim}
+                  placeholder="dd/mm/aaaa"
+                  inputClassName="h-8 text-[11px]"
+                  className="min-w-[110px] flex-1 [&_label]:hidden"
+                  calendarZIndex={10050}
+                />
+              </div>
+            </div>
             <button
               type="button"
               onClick={imprimirHistoricoModal}
-              disabled={imprimindoHistorico || historico.length === 0}
-              className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-3 py-1.5 text-[11px] font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={imprimindoHistorico || historicoFiltrado.length === 0}
+              className="inline-flex h-8 items-center gap-1 rounded border border-slate-300 bg-white px-3 text-[11px] font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Printer className="h-3.5 w-3.5" />
               {t("producao.comum.imprimir")}
@@ -613,6 +677,10 @@ export function ControleEntregas() {
           {historico.length === 0 ? (
             <p className="py-6 text-center text-slate-500">
               {t("producao.comum.semHistoricoEntregas")}
+            </p>
+          ) : historicoFiltrado.length === 0 ? (
+            <p className="py-6 text-center text-slate-500">
+              {t("producao.entregas.historico.vazioFiltro")}
             </p>
           ) : (
             <div className="max-h-[420px] overflow-y-auto rounded border border-slate-200">
@@ -628,7 +696,7 @@ export function ControleEntregas() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
-                  {historico.map((item) => (
+                  {historicoFiltrado.map((item) => (
                     <tr key={item.id} className="hover:bg-slate-50">
                       <td className="px-3 py-2 font-semibold text-slate-700">
                         {item.numeroOs || "—"}
