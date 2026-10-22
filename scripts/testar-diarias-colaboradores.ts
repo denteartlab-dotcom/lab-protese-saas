@@ -165,7 +165,24 @@ const parcial = criarLancamentoDiaria("c1", "2026-10-07", config, {
 });
 assert.equal(parcial.horas, 4);
 assert.equal(parcial.valor, 80);
-ok("meio período vale metade da diária");
+ok("manhã sozinha vale metade da diária, sem cálculo por hora");
+
+const tarde = criarLancamentoDiaria("c1", "2026-10-07", { ...config, valorDiaria: "200,00" }, {
+  entrada: "",
+  saidaManha: "",
+  entradaTarde: "13:00",
+  saida: "18:00",
+});
+assert.equal(tarde.valor, 100);
+const manhaCurta = criarLancamentoDiaria("c1", "2026-10-07", { ...config, valorDiaria: "200,00" }, {
+  entrada: "08:00",
+  saidaManha: "10:00",
+  entradaTarde: "",
+  saida: "",
+});
+assert.equal(manhaCurta.horas, 2);
+assert.equal(manhaCurta.valor, 100);
+ok("tarde sozinha e manhã mais curta também valem metade");
 
 const diaCompleto = criarLancamentoDiaria("c1", "2026-10-08", config, {
   entrada: "08:00",
@@ -174,8 +191,10 @@ const diaCompleto = criarLancamentoDiaria("c1", "2026-10-08", config, {
   saida: "18:00",
 });
 assert.equal(diaCompleto.horas, 10);
-assert.equal(diaCompleto.valor, 200);
-ok("diária completa não desconta o almoço");
+assert.equal(diaCompleto.valor, 160);
+const diaCompleto200 = recalcularLancamento(diaCompleto, { ...config, valorDiaria: "200,00" });
+assert.equal(diaCompleto200.valor, 200);
+ok("os dois turnos valem a diária inteira, mesmo com mais de 8 horas");
 
 const valorEditado = aplicarValorManualLancamento(diaCompleto, 175.5);
 assert.equal(valorEditado.valor, 175.5);

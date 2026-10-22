@@ -227,7 +227,7 @@ const pt = {
   "producao.modulo.mostrarValor": "Mostrar valor",
   "producao.diarias.titulo": "Diárias dos colaboradores",
   "producao.diarias.subtitulo":
-    "Marque os dias trabalhados, ajuste o horário e o valor é calculado automaticamente pela jornada da diária.",
+    "Manhã ou tarde sozinhas valem metade da diária. Os dois turnos juntos valem a diária inteira. O horário não muda esse valor.",
   "producao.diarias.colaboradores": "Colaboradores",
   "producao.diarias.buscar": "Buscar colaborador",
   "producao.diarias.semColaboradores": "Nenhum colaborador cadastrado.",
@@ -250,7 +250,8 @@ const pt = {
   "producao.diarias.entradaTarde": "Entrada tarde",
   "producao.diarias.saidaTarde": "Saída tarde",
   "producao.diarias.intervalo": "Intervalo",
-  "producao.diarias.intervaloNaoDesconta": "O intervalo não desconta o valor da diária.",
+  "producao.diarias.intervaloNaoDesconta":
+    "Cada turno vale metade da diária, sem cálculo por hora.",
   "producao.diarias.horas": "Horas",
   "producao.diarias.editarValor": "Clique no R$ para editar o valor",
   "producao.diarias.observacao": "Observação",
@@ -540,7 +541,7 @@ const en: Record<keyof typeof pt, string> = {
   "producao.modulo.mostrarValor": "Show amount",
   "producao.diarias.titulo": "Staff daily rates",
   "producao.diarias.subtitulo":
-    "Mark the days worked, adjust the hours, and the amount is calculated automatically from the daily rate.",
+    "Morning or afternoon alone is half the daily rate. Both shifts together are the full rate. Clock times do not change that amount.",
   "producao.diarias.colaboradores": "Staff",
   "producao.diarias.buscar": "Search staff",
   "producao.diarias.semColaboradores": "No staff registered.",
@@ -563,7 +564,8 @@ const en: Record<keyof typeof pt, string> = {
   "producao.diarias.entradaTarde": "Afternoon in",
   "producao.diarias.saidaTarde": "Afternoon out",
   "producao.diarias.intervalo": "Break",
-  "producao.diarias.intervaloNaoDesconta": "The break does not reduce the daily rate.",
+  "producao.diarias.intervaloNaoDesconta":
+    "Each shift is half the daily rate, not calculated by the hour.",
   "producao.diarias.horas": "Hours",
   "producao.diarias.editarValor": "Click the amount to edit the value",
   "producao.diarias.observacao": "Note",
@@ -853,7 +855,7 @@ const es: Record<keyof typeof pt, string> = {
   "producao.modulo.mostrarValor": "Mostrar valor",
   "producao.diarias.titulo": "Diarias de los colaboradores",
   "producao.diarias.subtitulo":
-    "Marque los días trabajados, ajuste el horario y el valor se calcula automáticamente según la jornada de la diaria.",
+    "La mañana o la tarde solas valen la mitad de la diaria. Los dos turnos juntos valen la diaria completa. El horario no cambia ese valor.",
   "producao.diarias.colaboradores": "Colaboradores",
   "producao.diarias.buscar": "Buscar colaborador",
   "producao.diarias.semColaboradores": "Ningún colaborador registrado.",
@@ -876,7 +878,8 @@ const es: Record<keyof typeof pt, string> = {
   "producao.diarias.entradaTarde": "Entrada tarde",
   "producao.diarias.saidaTarde": "Salida tarde",
   "producao.diarias.intervalo": "Intervalo",
-  "producao.diarias.intervaloNaoDesconta": "El intervalo no descuenta el valor de la diaria.",
+  "producao.diarias.intervaloNaoDesconta":
+    "Cada turno vale la mitad de la diaria, sin cálculo por hora.",
   "producao.diarias.horas": "Horas",
   "producao.diarias.editarValor": "Haga clic en R$ para editar el valor",
   "producao.diarias.observacao": "Observación",

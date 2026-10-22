@@ -1,5 +1,6 @@
 /**
- * Diárias de colaboradores: jornada, horas trabalhadas e valor proporcional.
+ * Diárias de colaboradores: cada turno vale metade da diária.
+ * Manhã ou tarde sozinhas pagam 50%; os dois juntos pagam a diária inteira.
  */
 import {
   nomeMesCompetenciaPt,
@@ -387,6 +388,25 @@ export function valorDiariaProporcional(
   return Math.round((horas / jornada) * valorDiaria * 100) / 100;
 }
 
+/**
+ * Valor do dia pelo turno ligado, sem proporcionalidade por hora.
+ * Um período (manhã ou tarde) = metade. Os dois = diária inteira.
+ */
+export function valorDiariaPorTurnos(
+  lancamento: Pick<
+    LancamentoDiaria,
+    "entrada" | "saida" | "saidaManha" | "entradaTarde" | "turnoManha" | "turnoTarde"
+  >,
+  valorDiaria: number
+): number {
+  const valor = Math.max(0, Number(valorDiaria) || 0);
+  if (valor <= 0) return 0;
+  const turnos = turnosAtivosLancamento(lancamento);
+  const periodos = (turnos.manha ? 1 : 0) + (turnos.tarde ? 1 : 0);
+  if (periodos <= 0) return 0;
+  return Math.round(((valor * periodos) / 2) * 100) / 100;
+}
+
 export function formatarHorasDecimais(horas: number): string {
   const sinal = horas < 0 ? "-" : "";
   const totalMin = Math.round(Math.abs(horas) * 60);
@@ -502,11 +522,7 @@ export function recalcularLancamento(
       valor: Math.round(Math.max(0, Number(lancamento.valor) || 0) * 100) / 100,
     };
   }
-  const valor = valorDiariaProporcional(
-    horas,
-    config.horasJornada,
-    parseValorNumericoBr(config.valorDiaria)
-  );
+  const valor = valorDiariaPorTurnos(lancamento, parseValorNumericoBr(config.valorDiaria));
   return { ...lancamento, horas, valor };
 }
 

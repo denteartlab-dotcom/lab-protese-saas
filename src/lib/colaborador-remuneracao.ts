@@ -158,11 +158,11 @@ export function montarTextoExemploRemuneracao(
   }
 
   if (tipo === "Diária") {
-    return `Remuneração por diária de ${diariaFmt}. O valor de cada dia é proporcional às horas trabalhadas em relação à jornada e fica sincronizado com o cadastro de diárias. Comissão não se aplica neste tipo de contratação.`;
+    return `Remuneração por diária de ${diariaFmt}. Manhã ou tarde sozinhas valem metade; os dois turnos juntos valem a diária inteira, sem cálculo por hora. Comissão não se aplica neste tipo de contratação.`;
   }
 
   if (tipo === "Diária + Comissão") {
-    return `Diária de ${diariaFmt}, proporcional às horas trabalhadas. A comissão será aplicada sobre os trabalhos. Exemplo: em um trabalho de ${trabalhoFmt}, recebe ${comumFmt} no comum e ${repFmt} na repetição.`;
+    return `Diária de ${diariaFmt}. Manhã ou tarde sozinhas valem metade; os dois turnos juntos valem a diária inteira. A comissão será aplicada sobre os trabalhos. Exemplo: em um trabalho de ${trabalhoFmt}, recebe ${comumFmt} no comum e ${repFmt} na repetição.`;
   }
 
   const salarioFmt = formatarValorMonetarioBr(salario);
