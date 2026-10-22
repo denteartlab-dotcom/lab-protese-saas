@@ -8,7 +8,10 @@ import {
   criarEntrega,
   ENTREGAS_EVENT,
   ENTREGAS_STORAGE_KEY,
+  numerosOsDaEntrega,
+  ordensServicoDaEntrega,
   salvarEntregas,
+  textoNumerosOs,
   type EntregaControle,
   type SituacaoEntrega,
 } from "@/lib/controle-entregas";
@@ -36,9 +39,15 @@ export type TrabalhoParaControleEntrega = {
   } | null;
 };
 
-export function entregaJaExisteParaOs(lista: EntregaControle[], numeroOs: number) {
+export function entregaJaExisteParaOs(
+  lista: EntregaControle[],
+  numeroOs: number,
+  ignorarId?: string
+) {
   const alvo = String(numeroOs);
-  return lista.some((item) => String(item.numeroOs || "").trim() === alvo);
+  return lista.some(
+    (item) => item.id !== ignorarId && numerosOsDaEntrega(item).includes(alvo)
+  );
 }
 
 export function situacaoInicialEntregaAutomatica(origem?: "status" | "manual"): SituacaoEntrega {
@@ -67,6 +76,14 @@ export function montarEntregaDeTrabalho(
     situacao,
     valor,
     numeroOs: String(trabalho.numeroOs),
+    ordensServico: [
+      {
+        numeroOs: String(trabalho.numeroOs),
+        descricao: trabalho.tipoProtese?.trim() || "",
+        paciente: "",
+        trabalhoId: trabalho.id,
+      },
+    ],
     tipoDestinatario: "cliente" as const,
     nomeDestinatario: nome,
     cep: cliente?.cep?.trim() || "",
@@ -103,7 +120,22 @@ export function deveRemoverControleEntregasPorStatus(
 
 export function filtrarEntregasPorNumeroOs(lista: EntregaControle[], numeroOs: number) {
   const alvo = String(numeroOs);
-  return lista.filter((item) => String(item.numeroOs || "").trim() !== alvo);
+  const resultado: EntregaControle[] = [];
+  for (const item of lista) {
+    const atuais = ordensServicoDaEntrega(item);
+    if (!atuais.some((ordem) => ordem.numeroOs === alvo)) {
+      resultado.push(item);
+      continue;
+    }
+    const restantes = atuais.filter((ordem) => ordem.numeroOs !== alvo);
+    if (restantes.length === 0) continue;
+    resultado.push({
+      ...item,
+      ordensServico: restantes,
+      numeroOs: textoNumerosOs(restantes),
+    });
+  }
+  return resultado;
 }
 
 /** Remove do controle de entregas as rotas vinculadas à OS (ex.: voltou para Produção). */

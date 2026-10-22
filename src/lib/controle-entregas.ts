@@ -24,6 +24,13 @@ export const ENTREGAS_EVENT = "labProteseControleEntregasAtualizado";
 
 export type SituacaoEntrega = "pendente" | "em_rota" | "entregue" | "recebido";
 
+export type OsEntregaVinculada = {
+  numeroOs: string;
+  descricao: string;
+  paciente: string;
+  trabalhoId: string;
+};
+
 export type TipoDestinatarioEntrega = "cliente" | "fornecedor" | "prestador";
 export type TipoDestinatarioEntregaForm = TipoDestinatarioEntrega | "";
 
@@ -38,6 +45,7 @@ export type EntregaControle = {
   situacao: SituacaoEntrega;
   valor: number;
   numeroOs?: string;
+  ordensServico?: OsEntregaVinculada[];
   tipoDestinatario?: TipoDestinatarioEntrega;
   nomeDestinatario?: string;
   cep?: string;
@@ -167,6 +175,46 @@ export function registrarEntregador(nome: string) {
   garantirEntregadorCadastro(nome);
 }
 
+export function ordensServicoDaEntrega(
+  item?: Partial<EntregaControle> | null
+): OsEntregaVinculada[] {
+  const brutas = Array.isArray(item?.ordensServico) ? item.ordensServico : [];
+  const dasOrdens = brutas
+    .map((ordem) => ({
+      numeroOs: String(ordem?.numeroOs || "").trim(),
+      descricao: String(ordem?.descricao || "").trim(),
+      paciente: String(ordem?.paciente || "").trim(),
+      trabalhoId: String(ordem?.trabalhoId || "").trim(),
+    }))
+    .filter((ordem) => ordem.numeroOs);
+  const base = dasOrdens.length
+    ? dasOrdens
+    : String(item?.numeroOs || "")
+        .split(/[,;]+/)
+        .map((parte) => parte.trim())
+        .filter((parte) => /^\d+$/.test(parte))
+        .map((numeroOs) => ({
+          numeroOs,
+          descricao: "",
+          paciente: "",
+          trabalhoId: "",
+        }));
+  const unicas = new Map<string, OsEntregaVinculada>();
+  for (const ordem of base) unicas.set(ordem.numeroOs, ordem);
+  return Array.from(unicas.values());
+}
+
+export function numerosOsDaEntrega(item?: Partial<EntregaControle> | null) {
+  return ordensServicoDaEntrega(item).map((ordem) => ordem.numeroOs);
+}
+
+export function textoNumerosOs(ordens: { numeroOs?: string | null }[]) {
+  return ordens
+    .map((ordem) => String(ordem.numeroOs || "").trim())
+    .filter(Boolean)
+    .join(", ");
+}
+
 function normalizarEntrega(item: Partial<EntregaControle>): EntregaControle | null {
   const id = String(item.id || "").trim();
   const destinatario = String(item.destinatario || "").trim();
@@ -180,6 +228,7 @@ function normalizarEntrega(item: Partial<EntregaControle>): EntregaControle | nu
       : "pendente";
 
   const tipoDestinatario = normalizarTipoDestinatario(item.tipoDestinatario);
+  const ordensServico = ordensServicoDaEntrega(item);
 
   return {
     id,
@@ -191,7 +240,8 @@ function normalizarEntrega(item: Partial<EntregaControle>): EntregaControle | nu
     nomeRecebedor: String(item.nomeRecebedor || "").trim(),
     situacao,
     valor: Number(item.valor) || 0,
-    numeroOs: String(item.numeroOs || "").trim(),
+    numeroOs: textoNumerosOs(ordensServico),
+    ordensServico,
     tipoDestinatario,
     nomeDestinatario: String(item.nomeDestinatario || destinatario).trim(),
     cep: String(item.cep || "").trim(),
@@ -245,6 +295,7 @@ export function montarDataPedidoEntrega(dataBr: string, hora: string) {
 
 export type FormRotaEntrega = {
   numeroOs: string;
+  ordensServico: OsEntregaVinculada[];
   tipoDestinatario: TipoDestinatarioEntregaForm;
   nomeDestinatario: string;
   cep: string;
@@ -268,6 +319,7 @@ export function formRotaEntregaPadrao(): FormRotaEntrega {
   const agora = new Date();
   return {
     numeroOs: "",
+    ordensServico: [],
     tipoDestinatario: "",
     nomeDestinatario: "",
     cep: "",
@@ -291,8 +343,10 @@ export function formRotaEntregaPadrao(): FormRotaEntrega {
 export function entregaParaFormRota(entrega: EntregaControle): FormRotaEntrega {
   const data = entrega.dataEntrega || entrega.dataPedido;
   const dataObj = new Date(data);
+  const ordensServico = ordensServicoDaEntrega(entrega);
   return {
-    numeroOs: entrega.numeroOs || "",
+    numeroOs: textoNumerosOs(ordensServico),
+    ordensServico,
     tipoDestinatario: entrega.tipoDestinatario || "prestador",
     nomeDestinatario: entrega.nomeDestinatario || entrega.destinatario,
     cep: entrega.cep || "",
@@ -319,6 +373,10 @@ export function formRotaParaEntrega(
 ): Omit<EntregaControle, "id"> & { dataPedido?: string } {
   const nome = form.nomeDestinatario.trim();
   const dataPedido = montarDataPedidoEntrega(form.dataEntrega, form.hora);
+  const ordensServico = ordensServicoDaEntrega({
+    ordensServico: form.ordensServico,
+    numeroOs: form.numeroOs,
+  });
   return {
     dataPedido,
     destinatario: nome,
@@ -328,7 +386,8 @@ export function formRotaParaEntrega(
     situacao: form.situacao,
     valor: parseValor(form.valor),
     dataFinalizado: form.situacao === "entregue" ? new Date().toISOString() : null,
-    numeroOs: form.numeroOs.trim(),
+    numeroOs: textoNumerosOs(ordensServico),
+    ordensServico,
     tipoDestinatario: normalizarTipoDestinatario(form.tipoDestinatario),
     nomeDestinatario: nome,
     cep: form.cep.trim(),

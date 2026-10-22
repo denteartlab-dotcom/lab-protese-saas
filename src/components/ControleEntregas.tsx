@@ -30,12 +30,14 @@ import {
   contarPorSituacao,
   dataBrHoje,
   dataBrInicioMesAtual,
+  atualizarEntregaPersistido,
   ENTREGAS_EVENT,
   excluirEntrega,
   filtrarEntregas,
   formatarDataEntrega,
   formatarDataHoraEntrega,
   formatarMoedaEntrega,
+  ordensServicoDaEntrega,
   SITUACOES_ENTREGA,
   SITUACOES_ENTREGA_ATIVAS,
   type EntregaControle,
@@ -132,6 +134,7 @@ export function ControleEntregas() {
   const [imprimindoHistorico, setImprimindoHistorico] = useState(false);
   const [editando, setEditando] = useState<EntregaControle | null>(null);
   const [visualizando, setVisualizando] = useState<EntregaControle | null>(null);
+  const [confirmandoEnvio, setConfirmandoEnvio] = useState(false);
   const [excluindo, setExcluindo] = useState<EntregaControle | null>(null);
   const [situacaoEditando, setSituacaoEditando] = useState<EntregaControle | null>(null);
   const [relatorioAberto, setRelatorioAberto] = useState(false);
@@ -306,6 +309,24 @@ export function ControleEntregas() {
     } catch (err) {
       alert(err instanceof Error ? err.message : t("producao.comum.erroExcluirHistorico"));
       recarregar();
+    }
+  }
+
+  async function confirmarEnvioEntrega() {
+    if (!visualizando || visualizando.situacao !== "pendente") return;
+    setConfirmandoEnvio(true);
+    try {
+      await atualizarEntregaPersistido(visualizando.id, { situacao: "em_rota" });
+      setVisualizando({ ...visualizando, situacao: "em_rota" });
+      recarregar();
+    } catch (err) {
+      alert(
+        err instanceof Error && err.message
+          ? err.message
+          : t("producao.entregas.visualizar.erroConfirmar")
+      );
+    } finally {
+      setConfirmandoEnvio(false);
     }
   }
 
@@ -754,15 +775,55 @@ export function ControleEntregas() {
             ? `${t("producao.comum.entrega")}: ${visualizando.destinatario}`
             : t("producao.comum.entrega")
         }
-        size="md"
+        size="lg"
       >
         {visualizando ? (
           <div className="space-y-3 text-[11px] text-slate-600">
-            {visualizando.numeroOs ? (
-              <p>
-                <span className="font-semibold text-slate-700">{t("producao.controle.tabela.os")}:</span> {visualizando.numeroOs}
-              </p>
-            ) : null}
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="font-semibold text-slate-700">
+                  {t("producao.entregas.visualizar.osTitulo")}
+                </p>
+                {visualizando.situacao === "pendente" ? (
+                  <button
+                    type="button"
+                    onClick={() => void confirmarEnvioEntrega()}
+                    disabled={confirmandoEnvio}
+                    className="rounded bg-[#4a90d9] px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-[#3d7fc4] disabled:opacity-60"
+                  >
+                    {t("producao.entregas.visualizar.confirmarEnvio")}
+                  </button>
+                ) : visualizando.situacao === "em_rota" ? (
+                  <p className="text-[11px] font-medium text-blue-700">
+                    {t("producao.entregas.visualizar.jaEmRota")}
+                  </p>
+                ) : null}
+              </div>
+              {ordensServicoDaEntrega(visualizando).length === 0 ? (
+                <p className="text-slate-500">{t("producao.entregas.visualizar.semOs")}</p>
+              ) : (
+                <div className="overflow-x-auto rounded border border-slate-200">
+                  <table className="w-full text-[11px]">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                        <th className="px-2 py-2 text-left">{t("producao.controle.tabela.os")}</th>
+                        <th className="px-2 py-2 text-left">{t("producao.entregas.rota.paciente")}</th>
+                        <th className="px-2 py-2 text-left">{t("producao.entregas.rota.servico")}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 bg-white">
+                      {ordensServicoDaEntrega(visualizando).map((ordem) => (
+                        <tr key={ordem.numeroOs}>
+                          <td className="px-2 py-2 font-semibold text-slate-700">{ordem.numeroOs}</td>
+                          <td className="px-2 py-2">{ordem.paciente || "—"}</td>
+                          <td className="px-2 py-2">{ordem.descricao || "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
             <p>
               <span className="font-semibold text-slate-700">{t("producao.comum.dataHoraPedido")}:</span>{" "}
               {formatarDataHoraEntrega(visualizando.dataPedido)}

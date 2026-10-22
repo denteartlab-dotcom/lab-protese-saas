@@ -23,10 +23,12 @@ import {
   formRotaParaEntrega,
   formatarCepEntrega,
   formatarMoedaEntrega,
+  textoNumerosOs,
   TIPOS_DESTINATARIO_ENTREGA,
   TIPOS_ENTREGADOR,
   type EntregaControle,
   type FormRotaEntrega,
+  type OsEntregaVinculada,
   type TipoDestinatarioEntregaForm,
 } from "@/lib/controle-entregas";
 import { carregarPrestadoresListagem } from "@/lib/prestadores-listagem";
@@ -146,6 +148,7 @@ export function FormularioRotaEntregaModal({
   const [osModalAberto, setOsModalAberto] = useState(false);
   const [osSaiuEntrega, setOsSaiuEntrega] = useState<TrabalhoApi[]>([]);
   const [osSelecionadas, setOsSelecionadas] = useState<number[]>([]);
+  const [termoBuscaOs, setTermoBuscaOs] = useState("");
 
   function recarregarEntregadoresCadastro() {
     setEntregadoresCadastro(carregarEntregadoresCadastro());
@@ -175,6 +178,7 @@ export function FormularioRotaEntregaModal({
     setOsModalAberto(false);
     setOsSaiuEntrega([]);
     setOsSelecionadas([]);
+    setTermoBuscaOs("");
     recarregarEntregadoresCadastro();
     void fetch("/api/clientes")
       .then((res) => (res.ok ? res.json() : []))
@@ -307,6 +311,10 @@ export function FormularioRotaEntregaModal({
     if (form.tipoDestinatario === "cliente") {
       const cliente = clientes.find((item) => item.nome === nome);
       setForm((atual) => {
+        const mesmoCliente = atual.nomeDestinatario.trim() === nome.trim();
+        const limparOs = mesmoCliente
+          ? {}
+          : { ordensServico: [] as OsEntregaVinculada[], numeroOs: "" };
         if (!cliente) {
           return {
             ...atual,
@@ -318,11 +326,13 @@ export function FormularioRotaEntregaModal({
             uf: "",
             bairro: "",
             complemento: "",
+            ...limparOs,
           };
         }
         return aplicarClienteNoForm(atual, cliente, {
           nomeDestinatario: nome,
           tipoDestinatario: "cliente",
+          ...limparOs,
         });
       });
       return;
@@ -336,7 +346,52 @@ export function FormularioRotaEntregaModal({
   }
 
   function osJaNoControle(numeroOs: number) {
-    return entregaJaExisteParaOs(carregarEntregas(), numeroOs);
+    return entregaJaExisteParaOs(carregarEntregas(), numeroOs, editando?.id);
+  }
+
+  function ordemDoTrabalho(trabalho: TrabalhoApi): OsEntregaVinculada {
+    return {
+      numeroOs: String(trabalho.numeroOs),
+      descricao: trabalho.tipoProtese?.trim() || "",
+      paciente: trabalho.paciente?.nome?.trim() || "",
+      trabalhoId: trabalho.id || "",
+    };
+  }
+
+  function incluirOrdens(trabalhos: TrabalhoApi[]) {
+    if (trabalhos.length === 0) {
+      alert(t("producao.entregas.rota.selecioneOs"));
+      return;
+    }
+    const primeiro = trabalhos[0];
+    const nomeCliente = primeiro.cliente?.nome || form.nomeDestinatario;
+    const cliente =
+      clientes.find((item) => item.id === primeiro.cliente?.id) ||
+      clientes.find((item) => item.nome === nomeCliente) ||
+      clienteSelecionado();
+    setForm((atual) => {
+      const mapa = new Map(atual.ordensServico.map((ordem) => [ordem.numeroOs, ordem]));
+      for (const trabalho of trabalhos) {
+        const ordem = ordemDoTrabalho(trabalho);
+        mapa.set(ordem.numeroOs, ordem);
+      }
+      const ordensServico = Array.from(mapa.values());
+      return aplicarClienteNoForm(atual, cliente, {
+        ordensServico,
+        numeroOs: textoNumerosOs(ordensServico),
+        tipoDestinatario: "cliente",
+        nomeDestinatario: nomeCliente,
+      });
+    });
+    setTermoBuscaOs("");
+    setOsModalAberto(false);
+  }
+
+  function removerOrdem(numeroOs: string) {
+    setForm((atual) => {
+      const ordensServico = atual.ordensServico.filter((ordem) => ordem.numeroOs !== numeroOs);
+      return { ...atual, ordensServico, numeroOs: textoNumerosOs(ordensServico) };
+    });
   }
 
   async function abrirOsSaiuEntrega() {
@@ -347,7 +402,11 @@ export function FormularioRotaEntregaModal({
     }
     setBuscandoOs(true);
     setOsModalAberto(true);
-    setOsSelecionadas([]);
+    setOsSelecionadas(
+      form.ordensServico
+        .map((ordem) => Number(ordem.numeroOs))
+        .filter((numero) => Number.isFinite(numero))
+    );
     try {
       const params = new URLSearchParams({
         status: "saiu_entrega",
@@ -389,56 +448,18 @@ export function FormularioRotaEntregaModal({
   }
 
   function usarOsNaEntrega(trabalho: TrabalhoApi) {
-    const nomeCliente = trabalho.cliente?.nome || form.nomeDestinatario;
-    const cliente =
-      clientes.find((item) => item.id === trabalho.cliente?.id) ||
-      clientes.find((item) => item.nome === nomeCliente) ||
-      clienteSelecionado();
-    setForm((atual) =>
-      aplicarClienteNoForm(atual, cliente, {
-        numeroOs: String(trabalho.numeroOs),
-        tipoDestinatario: "cliente",
-        nomeDestinatario: nomeCliente,
-        descricao: trabalho.tipoProtese?.trim() || atual.descricao,
-      })
-    );
-    setOsModalAberto(false);
+    incluirOrdens([trabalho]);
   }
 
-  function cadastrarOsSelecionadas() {
+  function incluirOsSelecionadas() {
     const escolhidas = osSaiuEntrega.filter(
       (item) => osSelecionadas.includes(item.numeroOs) && !osJaNoControle(item.numeroOs)
     );
-    if (escolhidas.length === 0) {
-      alert(t("producao.entregas.rota.selecioneOs"));
-      return;
-    }
-    const cliente = clienteSelecionado();
-    let cadastradas = 0;
-    for (const trabalho of escolhidas) {
-      if (entregaJaExisteParaOs(carregarEntregas(), trabalho.numeroOs)) continue;
-      const nomeCliente = trabalho.cliente?.nome || form.nomeDestinatario;
-      const base = aplicarClienteNoForm(form, cliente, {
-        numeroOs: String(trabalho.numeroOs),
-        tipoDestinatario: "cliente",
-        nomeDestinatario: nomeCliente,
-        descricao: trabalho.tipoProtese?.trim() || form.descricao.trim(),
-      });
-      criarEntrega(formRotaParaEntrega(base, parseCurrencyInput));
-      cadastradas += 1;
-    }
-    if (cadastradas === 0) {
-      alert(t("producao.entregas.rota.osJaCadastrada"));
-      return;
-    }
-    alert(t("producao.entregas.rota.osCadastradas", { n: cadastradas }));
-    onSalvo();
-    setOsModalAberto(false);
-    onClose();
+    incluirOrdens(escolhidas);
   }
 
   async function buscarOs() {
-    const termo = form.numeroOs.trim();
+    const termo = termoBuscaOs.trim();
     if (!termo) {
       await abrirOsSaiuEntrega();
       return;
@@ -452,18 +473,7 @@ export function FormularioRotaEntregaModal({
         alert(t("producao.entregas.rota.osNaoEncontrada"));
         return;
       }
-      const nomeCliente = trabalho.cliente?.nome || form.nomeDestinatario;
-      const cliente =
-        clientes.find((item) => item.id === trabalho.cliente?.id) ||
-        clientes.find((item) => item.nome === nomeCliente);
-      setForm((atual) =>
-        aplicarClienteNoForm(atual, cliente, {
-          numeroOs: String(trabalho.numeroOs),
-          tipoDestinatario: "cliente",
-          nomeDestinatario: nomeCliente,
-          descricao: trabalho.tipoProtese || atual.descricao,
-        })
-      );
+      incluirOrdens([trabalho]);
     } finally {
       setBuscandoOs(false);
     }
@@ -498,19 +508,30 @@ export function FormularioRotaEntregaModal({
     if (!form.tipoDestinatario) return;
     if (!form.nomeDestinatario.trim()) return;
     if (!form.dataEntrega.trim()) return;
-    const numeroOs = form.numeroOs.trim();
-    const numeroOsNumero = Number(numeroOs);
-    if (
-      !editando &&
-      numeroOs &&
-      Number.isFinite(numeroOsNumero) &&
-      entregaJaExisteParaOs(carregarEntregas(), numeroOsNumero)
-    ) {
+    const termo = termoBuscaOs.trim();
+    const ordensServico =
+      /^\d+$/.test(termo) && !form.ordensServico.some((ordem) => ordem.numeroOs === termo)
+        ? [
+            ...form.ordensServico,
+            { numeroOs: termo, descricao: "", paciente: "", trabalhoId: "" },
+          ]
+        : form.ordensServico;
+    const duplicada = ordensServico.find((ordem) => {
+      const numero = Number(ordem.numeroOs);
+      return (
+        Number.isFinite(numero) &&
+        entregaJaExisteParaOs(carregarEntregas(), numero, editando?.id)
+      );
+    });
+    if (duplicada) {
       alert(t("producao.entregas.rota.osJaCadastrada"));
       return;
     }
 
-    const payload = formRotaParaEntrega(form, parseCurrencyInput);
+    const payload = formRotaParaEntrega(
+      { ...form, ordensServico, numeroOs: textoNumerosOs(ordensServico) },
+      parseCurrencyInput
+    );
     if (editando) {
       atualizarEntrega(editando.id, {
         ...payload,
@@ -553,8 +574,8 @@ export function FormularioRotaEntregaModal({
               {labelCampo(t("producao.entregas.rota.numeroOsOpcional"))}
               <div className="flex gap-1">
                 <input
-                  value={form.numeroOs}
-                  onChange={(e) => atualizar("numeroOs", e.target.value)}
+                  value={termoBuscaOs}
+                  onChange={(e) => setTermoBuscaOs(e.target.value)}
                   placeholder={t("producao.entregas.rota.buscarInfoOs")}
                   className={inputClassName()}
                 />
@@ -578,6 +599,8 @@ export function FormularioRotaEntregaModal({
                     ...atual,
                     tipoDestinatario: tipo,
                     nomeDestinatario: "",
+                    numeroOs: "",
+                    ordensServico: [],
                     cep: "",
                     rua: "",
                     numeroEndereco: "",
@@ -609,6 +632,32 @@ export function FormularioRotaEntregaModal({
               />
             </div>
           </div>
+          {form.ordensServico.length > 0 ? (
+            <div className="space-y-1">
+              <p className="text-[11px] text-slate-600">{t("producao.entregas.rota.osDestaEntrega")}</p>
+              <div className="flex flex-wrap gap-1">
+                {form.ordensServico.map((ordem) => (
+                  <span
+                    key={ordem.numeroOs}
+                    className="inline-flex items-center gap-1 rounded border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] text-slate-700"
+                  >
+                    <span className="font-semibold">OS {ordem.numeroOs}</span>
+                    {ordem.paciente ? <span>{ordem.paciente}</span> : null}
+                    {ordem.descricao ? <span className="text-slate-500">{ordem.descricao}</span> : null}
+                    <button
+                      type="button"
+                      onClick={() => removerOrdem(ordem.numeroOs)}
+                      className="text-slate-400 hover:text-red-600"
+                      title={t("common.excluir")}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          <p className="text-[10px] text-slate-500">{t("producao.entregas.rota.gravarParaCriar")}</p>
         </section>
 
         <section className="space-y-3">
@@ -886,12 +935,15 @@ export function FormularioRotaEntregaModal({
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={cadastrarOsSelecionadas}
+            onClick={incluirOsSelecionadas}
             disabled={osPendentes.length === 0}
             className="rounded bg-[#4a90d9] px-4 py-2 text-[11px] font-semibold text-white hover:bg-[#3d7fc4] disabled:opacity-50"
           >
             {t("producao.entregas.rota.cadastrarSelecionadas")}
           </button>
+          <p className="w-full text-[10px] text-slate-500">
+            {t("producao.entregas.rota.gravarParaCriar")}
+          </p>
           <button
             type="button"
             onClick={() => setOsModalAberto(false)}
