@@ -22,6 +22,8 @@ import {
   type OsModelo5Layout,
 } from "@/lib/os-modelo5-layout";
 import { useI18n } from "@/components/i18n-provider";
+import { BarraFonteFlutuante, SeletorFonteTexto } from "@/components/configuracoes/SeletorFonteTexto";
+import type { FonteImpressao } from "@/lib/fonte-impressao";
 import { PreviewOsModelo5Termica } from "@/components/configuracoes/ConfiguracoesOsModelo5Preview";
 import { ConfiguracoesOsBarraEditor } from "@/components/configuracoes/ConfiguracoesOsBarraEditor";
 
@@ -135,6 +137,7 @@ export function ConfiguracoesOsModelo5Conteudo() {
   const [salvando, setSalvando] = useState(false);
   const [mensagem, setMensagem] = useState("");
   const [carregando, setCarregando] = useState(true);
+  const [textoMarcado, setTextoMarcado] = useState(false);
 
   useEffect(() => {
     let ativo = true;
@@ -203,6 +206,11 @@ export function ConfiguracoesOsModelo5Conteudo() {
             onChange={(v) => patchLayout({ tamanhoFonte: v })}
             min={8}
             max={18}
+          />
+          <SeletorFonteTexto
+            fonte={layout.fonte}
+            onChange={(fonte: FonteImpressao) => patchLayout({ fonte })}
+            ajuda={textoMarcado ? undefined : t("settings.fontePaginaAjuda")}
           />
 
           <CampoNumero
@@ -291,8 +299,19 @@ export function ConfiguracoesOsModelo5Conteudo() {
           </div>
         ) : null}
         <ConfiguracoesOsBarraEditor modeloAtivo="modelo5" />
-        <div className="flex min-h-0 flex-1 w-full justify-center overflow-auto p-2 sm:p-4">
+        <div
+          className="flex min-h-0 flex-1 w-full justify-center overflow-auto p-2 sm:p-4"
+          onMouseUp={() => {
+            const selecao = window.getSelection();
+            if (selecao && !selecao.isCollapsed && String(selecao).trim()) setTextoMarcado(true);
+          }}
+        >
           <div className="shrink-0">
+            <BarraFonteFlutuante
+              visivel={textoMarcado}
+              fonte={layout.fonte}
+              onChange={(fonte) => patchLayout({ fonte })}
+            />
             <PreviewOsModelo5Termica cfg={cfg} layout={layout} />
           </div>
         </div>

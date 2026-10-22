@@ -1,3 +1,4 @@
+import { cssFonteImpressao, normalizarFonteImpressao, type FonteImpressao } from "@/lib/fonte-impressao";
 import {
   normalizarCorBorda,
   OS_MODELO1_BORDA_MARGEM_MM,
@@ -21,6 +22,7 @@ export type FaturaModeloLayout = {
   dadosOs: boolean;
   usuario: boolean;
   tamanhoFonte: number;
+  fonte: FonteImpressao;
   numOs: boolean;
   osExterna: boolean;
   cliente: boolean;
@@ -75,6 +77,7 @@ export const FATURA_MODELO_LAYOUT_PADRAO: FaturaModeloLayout = {
   dadosOs: true,
   usuario: true,
   tamanhoFonte: 9,
+  fonte: "arial",
   numOs: true,
   osExterna: true,
   cliente: true,
@@ -308,6 +311,8 @@ export function normalizarFaturaModeloLayout(
       (base as Record<string, unknown>)[key] = Number.isFinite(n) ? n : base[key];
     } else if (key === "bordas") {
       base.bordas = normalizarCorBorda(String(raw));
+    } else if (key === "fonte") {
+      base.fonte = normalizarFonteImpressao(raw);
     } else if (key === "mensagem") {
       base.mensagem = String(raw ?? "");
     } else if (key === "pixQrImagem") {
@@ -373,7 +378,7 @@ export const FATURA_SMART_PADDING_TOPO_MM = 16;
 export const FATURA_SMART_INSET_LINHA_MM = FATURA_SMART_CONTEUDO_INSET_MM;
 
 /** Estilos de borda/página — mesma lógica do OS Modelo 1. */
-export function estiloPaginaFaturaPreview() {
+export function estiloPaginaFaturaPreview(fonte?: unknown) {
   return {
     width: `${FATURA_A4_LARGURA_MM}mm`,
     minHeight: `${FATURA_A4_ALTURA_MM}mm`,
@@ -384,7 +389,7 @@ export function estiloPaginaFaturaPreview() {
     paddingBottom: `${OS_REQUISICAO_MARGEM_CONTEUDO_MM}mm`,
     boxSizing: "border-box" as const,
     overflow: "visible" as const,
-    fontFamily: "Arial, Helvetica, sans-serif",
+    fontFamily: cssFonteImpressao(fonte),
     background: "#fff",
     color: "#111",
   };

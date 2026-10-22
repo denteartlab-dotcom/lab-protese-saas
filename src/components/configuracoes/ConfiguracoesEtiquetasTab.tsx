@@ -13,6 +13,8 @@ import {
   type ModeloEtiquetaId,
 } from "@/lib/configuracoes-etiquetas";
 import { cn } from "@/lib/utils";
+import { SeletorFonteTexto } from "@/components/configuracoes/SeletorFonteTexto";
+import type { FonteImpressao } from "@/lib/fonte-impressao";
 
 function ToggleSimNao({
   valor,
@@ -85,6 +87,13 @@ export function ConfiguracoesEtiquetasTab() {
 
   return (
     <div className="space-y-3">
+      <div className="max-w-xs rounded border border-slate-200 bg-white p-3 shadow-sm">
+        <SeletorFonteTexto
+          fonte={config.fonte}
+          onChange={(fonte: FonteImpressao) => aplicar({ ...config, fonte })}
+          ajuda={t("settings.etiquetasFonteAjuda")}
+        />
+      </div>
       {!config.modeloPadrao ? (
         <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
           {t("settings.etiquetasSemPadrao")}

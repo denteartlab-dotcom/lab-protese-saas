@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { useI18n } from "@/components/i18n-provider";
 import { Code39Barcode } from "@/lib/code39-barcode";
+import { cssFonteImpressao } from "@/lib/fonte-impressao";
 import {
   ehLinhaEmailCabecalho,
   montarTextosCabecalhoRequisicao,
@@ -116,7 +117,7 @@ export function PreviewOsModeloComprovante({
         maxWidth: "100%",
         ...estiloPaginaRequisicaoPreview(),
         fontSize: `${fs}px`,
-        fontFamily: "Arial, Helvetica, sans-serif",
+        fontFamily: cssFonteImpressao(layout.fonte),
       }}
     >
       <div style={estiloWrapperConteudoRequisicaoPreview()}>

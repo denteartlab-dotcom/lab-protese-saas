@@ -18,6 +18,7 @@ export const OS_MODELO3_LAYOUT_PADRAO: OsModelo3Layout = {
   dataOs: false,
   usuario: false,
   tamanhoFonte: 16,
+  fonte: "arial",
   numOs: true,
   osExterna: false,
   cliente: true,
@@ -98,7 +99,8 @@ export function normalizarOsModelo3Layout(
       key !== "tamanhoFonte" &&
       key !== "bordas" &&
       key !== "mensagem" &&
-      key !== "espacamentoRequisicao"
+      key !== "espacamentoRequisicao" &&
+      key !== "fonte"
     ) {
       base[key] = Boolean(valor[key]);
     }

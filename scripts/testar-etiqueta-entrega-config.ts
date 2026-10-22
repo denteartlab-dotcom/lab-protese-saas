@@ -80,10 +80,10 @@ assert.match(formatado, /--cor-borda:#ff0000/);
 assert.match(formatado, /txt-nomeDestinatario fonte-times sublinhado destacado/);
 assert.match(formatado, /data-campo="nomeDestinatario"/);
 assert.match(formatado, /txt-enderecoDestinatario fonte-courier negrito/);
-assert.match(formatado, /etiqueta-selecao/);
+assert.doesNotMatch(formatado, /<script>/);
 assert.doesNotMatch(formatado, /com-borda/);
 assert.doesNotMatch(formatado, /txt-nomeDestinatario negrito/);
-assert.doesNotMatch(oculto, /etiqueta-selecao/);
+assert.doesNotMatch(oculto, /<script>/);
 assert.deepEqual(camposTextoEtiquetaDaLista(["os", "os", "invalido", "nomeRemetente"]), [
   "os",
   "nomeRemetente",

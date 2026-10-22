@@ -20,6 +20,7 @@ import {
   FATURA_SMART_ESPACO_OBS_RODAPE_MM,
   FATURA_SMART_ESPACO_RODAPE_MM,
 } from "@/lib/fatura-modelo-layout";
+import { usarFonteNoPdf } from "@/lib/fonte-impressao";
 import { configParaLabImpressao } from "@/lib/lab-logo";
 import { desenharCabecalhoRequisicaoPdf, type PdfCabecalhoApi } from "@/lib/pdf-cabecalho-os";
 import { pl } from "@/lib/i18n/print-relatorio-helpers";
@@ -613,6 +614,7 @@ function renderFaturaA4SmartPdf(
   layout: FaturaModeloLayout,
   modelo: ModeloFaturaId
 ) {
+  usarFonteNoPdf(pdf, layout.fonte);
   const lab = configParaLabImpressao(cfgLab);
   const fs = layout.tamanhoFonte;
   const fsSmall = Math.max(11, fs - 1);

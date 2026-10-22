@@ -1,3 +1,5 @@
+import { normalizarFonteImpressao, type FonteImpressao } from "@/lib/fonte-impressao";
+
 export type OsModelo1Layout = {
   /** Exibir borda ao redor da página A4. */
   exibirBordas: boolean;
@@ -10,6 +12,7 @@ export type OsModelo1Layout = {
   dataOs: boolean;
   usuario: boolean;
   tamanhoFonte: number;
+  fonte: FonteImpressao;
   numOs: boolean;
   osExterna: boolean;
   cliente: boolean;
@@ -52,6 +55,7 @@ export const OS_MODELO1_LAYOUT_PADRAO: OsModelo1Layout = {
   dataOs: true,
   usuario: true,
   tamanhoFonte: 13,
+  fonte: "arial",
   numOs: true,
   osExterna: true,
   cliente: true,
@@ -476,6 +480,8 @@ export function normalizarOsModelo1Layout(
   for (const key of Object.keys(base) as Array<keyof OsModelo1Layout>) {
     if (key === "tamanhoFonte") {
       base.tamanhoFonte = clamp(Number(valor.tamanhoFonte) || 17, 8, 24);
+    } else if (key === "fonte") {
+      base.fonte = normalizarFonteImpressao(valor.fonte);
     } else if (key === "espacamentoRequisicao") {
       base.espacamentoRequisicao = clamp(
         Number(valor.espacamentoRequisicao) || OS_REQUISICAO_ESPACAMENTO_PADRAO,

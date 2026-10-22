@@ -4,6 +4,15 @@ import {
   writeStorage,
 } from "@/lib/persisted-storage";
 import type { FormatoEtiquetaEnvio, ModeloEtiquetaA4 } from "@/lib/etiqueta-envio-entrega";
+import {
+  FONTES_IMPRESSAO,
+  fonteImpressaoValida,
+  type FonteImpressao,
+} from "@/lib/fonte-impressao";
+
+export { FONTES_IMPRESSAO as FONTES_ETIQUETA_ENTREGA };
+export type FonteEtiquetaEntrega = FonteImpressao;
+export const fonteEtiquetaEntregaValida = fonteImpressaoValida;
 
 export const CONFIG_ETIQUETA_ENTREGA_STORAGE_KEY = "labProteseConfigEtiquetaEntrega";
 export const CONFIG_ETIQUETA_ENTREGA_ATUALIZADA_EVENT = "lab-config-etiqueta-entrega-atualizada";
@@ -47,21 +56,6 @@ export const CAMPOS_TEXTO_ETIQUETA_ENTREGA = [
 ] as const;
 
 export type CampoTextoEtiquetaEntrega = (typeof CAMPOS_TEXTO_ETIQUETA_ENTREGA)[number];
-
-export const FONTES_ETIQUETA_ENTREGA = [
-  "arial",
-  "times",
-  "courier",
-  "georgia",
-  "verdana",
-  "tahoma",
-] as const;
-
-export type FonteEtiquetaEntrega = (typeof FONTES_ETIQUETA_ENTREGA)[number];
-
-export function fonteEtiquetaEntregaValida(valor: unknown): valor is FonteEtiquetaEntrega {
-  return FONTES_ETIQUETA_ENTREGA.includes(valor as FonteEtiquetaEntrega);
-}
 
 export function camposTextoEtiquetaDaLista(lista: unknown): CampoTextoEtiquetaEntrega[] {
   if (!Array.isArray(lista)) return [];

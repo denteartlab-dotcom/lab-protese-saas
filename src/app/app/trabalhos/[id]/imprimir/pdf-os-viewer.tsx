@@ -53,6 +53,7 @@ import { normalizarOsModelo4Layout, type OsModelo4Layout } from "@/lib/os-modelo
 import { normalizarOsModelo5Layout, type OsModelo5Layout } from "@/lib/os-modelo5-layout";
 import { desenharCabecalhoRequisicaoPdf } from "@/lib/pdf-cabecalho-os";
 import {
+  carregarConfiguracoesEtiquetas,
   dimensoesModeloEtiqueta,
   modeloEtiquetaValido,
   nomeModeloEtiqueta,
@@ -60,6 +61,7 @@ import {
   type ModeloEtiquetaId,
   type TipografiaEtiquetaOs,
 } from "@/lib/configuracoes-etiquetas";
+import { usarFonteNoPdf } from "@/lib/fonte-impressao";
 import { parseCurrencyBr } from "@/lib/cliente-financeiro";
 import { gerarBarrasCode39, gerarPngCode39DataUrl } from "@/lib/code39-barcode-core";
 import { valorCodigoBarrasOs } from "@/lib/codigo-barras-os";
@@ -818,6 +820,7 @@ function renderModeloProducao(
   layoutOverride?: OsModelo1Layout
 ) {
   const lay = normalizarOsModelo1Layout(layoutOverride ?? data.layoutModelo1);
+  usarFonteNoPdf(pdf, lay.fonte);
   const fontBase = Math.max(7, lay.tamanhoFonte * 0.53);
   const pageWidth = pdf.internal.pageSize.getWidth();
   const m = margensLinhaRequisicao(pageWidth);
@@ -1051,6 +1054,7 @@ function renderModeloComprovante(
   layoutOverride?: OsModelo1Layout
 ) {
   const lay = normalizarOsModelo3Layout(layoutOverride ?? data.layoutModelo3);
+  usarFonteNoPdf(pdf, lay.fonte);
   const fontBase = Math.max(7, lay.tamanhoFonte * 0.53);
   const pageWidth = pdf.internal.pageSize.getWidth();
   const m = margensLinhaRequisicao(pageWidth);
@@ -1310,6 +1314,7 @@ function prazoFinalizadoTermica(data: PdfOsData, item: PdfItem) {
 
 /** Modelo 3 — comprovante térmico 80mm (Epson T20). */
 function renderTermicaModelo3(pdf: PdfRenderApi, data: PdfOsData): number {
+  usarFonteNoPdf(pdf, data.layoutModelo3?.fonte);
   const lab = data.lab || LAB_IMPRESSAO_PADRAO;
   const pageWidth = pdf.internal.pageSize.getWidth();
   const cx = pageWidth / 2;
@@ -1411,6 +1416,7 @@ function renderTermicaModelo4(
   layoutOverride?: OsModelo4Layout
 ): number {
   const lay = normalizarOsModelo4Layout(layoutOverride ?? data.layoutModelo4);
+  usarFonteNoPdf(pdf, lay.fonte);
   const lab = data.lab || LAB_IMPRESSAO_PADRAO;
   const pageWidth = pdf.internal.pageSize.getWidth();
   const cx = pageWidth / 2;
@@ -1676,6 +1682,7 @@ function renderTermicaModelo5(
   layoutOverride?: OsModelo5Layout
 ): number {
   const lay = normalizarOsModelo5Layout(layoutOverride ?? data.layoutModelo5);
+  usarFonteNoPdf(pdf, lay.fonte);
   const lab = data.lab || LAB_IMPRESSAO_PADRAO;
   const pageWidth = pdf.internal.pageSize.getWidth();
   const cx = pageWidth / 2;
@@ -2016,6 +2023,7 @@ async function renderEtiquetaOs(
   data: PdfOsData,
   modeloEtiqueta: ModeloEtiquetaId
 ) {
+  usarFonteNoPdf(pdf, carregarConfiguracoesEtiquetas().fonte);
   const { larguraMm, alturaMm } = dimensoesModeloEtiqueta(modeloEtiqueta);
   const tip = tipografiaEtiquetaOs(modeloEtiqueta);
   const margem = tip.margemMm;

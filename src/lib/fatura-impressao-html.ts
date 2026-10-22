@@ -4,6 +4,7 @@ import {
   normalizarCabecalhoRequisicao,
 } from "@/lib/cabecalho-requisicao";
 import { cabecalhoRelatorioLaboratorio, nomeUsuarioDocumentosLaboratorio, type ConfigLaboratorio } from "@/lib/configuracoes-lab";
+import { cssFonteImpressao } from "@/lib/fonte-impressao";
 import {
   formatoPorModeloFatura,
   resolverLayoutFaturaImpressao,
@@ -763,7 +764,7 @@ function contarColunasItensFatura(layout: FaturaModeloLayout) {
   return n;
 }
 
-function estilosBaseA4(fs: number, smartModelo1: boolean) {
+function estilosBaseA4(fs: number, smartModelo1: boolean, fonte?: unknown) {
   const fsTabela = smartModelo1 ? fs : Math.max(7, fs - 1);
   const fsCab = smartModelo1 ? fs : Math.max(7, fs - 2);
   const thBg = smartModelo1 ? "#fff" : "#d9d9d9";
@@ -793,7 +794,7 @@ function estilosBaseA4(fs: number, smartModelo1: boolean) {
   return `<style>
     @page{size:A4 portrait;margin:${smartModelo1 ? "0" : "8mm 10mm"}}
     *{box-sizing:border-box}
-    html,body{margin:0;padding:0;background:#fff;color:#111;font-family:Arial,Helvetica,sans-serif;font-size:${fs}px}
+    html,body{margin:0;padding:0;background:#fff;color:#111;font-family:${cssFonteImpressao(fonte)};font-size:${fs}px}
     .page{${pageCss}}
     .actions{text-align:right;margin-bottom:8px}
     .rule{border-top:2px solid #111;margin:0}
@@ -834,11 +835,11 @@ function estilosBaseA4(fs: number, smartModelo1: boolean) {
   </style>`;
 }
 
-function estilosBaseTermica(fs: number) {
+function estilosBaseTermica(fs: number, fonte?: unknown) {
   return `<style>
     @page{size:80mm auto;margin:0}
     *{box-sizing:border-box}
-    html,body{margin:0;padding:0;background:#fff;color:#111;font-family:Arial,Helvetica,sans-serif}
+    html,body{margin:0;padding:0;background:#fff;color:#111;font-family:${cssFonteImpressao(fonte)}}
     .page{width:${FATURA_TERMICA_LARGURA_MM}mm;max-width:100%;margin:0 auto;padding:3mm 2mm;font-size:${fs}px}
     .actions{text-align:right;margin-bottom:6px}
     table{border-collapse:collapse;width:100%}
@@ -1275,7 +1276,7 @@ function gerarHtmlFaturaA4(
     </div>
   </div>`;
 
-  return `<!doctype html><html><head><meta charset="utf-8"><title>${pl("print.fatura.titulo")} ${dados.numeroFatura}</title>${estilosBaseA4(fs, faturaA4Smart)}</head><body>${corpo}</body></html>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${pl("print.fatura.titulo")} ${dados.numeroFatura}</title>${estilosBaseA4(fs, faturaA4Smart, layout.fonte)}</head><body>${corpo}</body></html>`;
 }
 
 function gerarHtmlFaturaTermica(
@@ -1419,7 +1420,7 @@ function gerarHtmlFaturaTermica(
     ${pix}
   </div>`;
 
-  return `<!doctype html><html><head><meta charset="utf-8"><title>${pl("print.fatura.titulo")} ${dados.numeroFatura}</title>${estilosBaseTermica(fs)}</head><body>${corpo}</body></html>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${pl("print.fatura.titulo")} ${dados.numeroFatura}</title>${estilosBaseTermica(fs, layout.fonte)}</head><body>${corpo}</body></html>`;
 }
 
 /** Resolve o campo Usuário do cabeçalho da fatura (quem gerou, com fallback do lab). */

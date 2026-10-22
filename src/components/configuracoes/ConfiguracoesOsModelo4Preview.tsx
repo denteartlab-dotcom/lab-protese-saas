@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { useI18n } from "@/components/i18n-provider";
 import { Code39Barcode } from "@/lib/code39-barcode";
+import { cssFonteImpressao } from "@/lib/fonte-impressao";
 import { configParaLabImpressao } from "@/lib/lab-logo";
 import type { ConfigLaboratorio } from "@/lib/configuracoes-lab";
 import { nomeUsuarioDocumentosLaboratorio } from "@/lib/configuracoes-lab";
@@ -62,7 +63,7 @@ export function PreviewOsModelo4Termica({
         maxWidth: "100%",
         padding: "3mm 2mm",
         fontSize: `${fs}px`,
-        fontFamily: "Arial, Helvetica, sans-serif",
+        fontFamily: cssFonteImpressao(layout.fonte),
         boxSizing: "border-box",
       }}
     >

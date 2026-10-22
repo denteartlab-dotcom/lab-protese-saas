@@ -5,6 +5,8 @@ import { Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui";
 import { useI18n } from "@/components/i18n-provider";
 import { Code39Barcode } from "@/lib/code39-barcode";
+import { cssFonteImpressao, type FonteImpressao } from "@/lib/fonte-impressao";
+import { BarraFonteFlutuante, SeletorFonteTexto } from "@/components/configuracoes/SeletorFonteTexto";
 import {
   ehLinhaEmailCabecalho,
   montarTextosCabecalhoRequisicao,
@@ -221,7 +223,7 @@ function PreviewOsModeloProducao({
         maxWidth: "100%",
         ...estiloPaginaRequisicaoPreview(),
         fontSize: `${fs}px`,
-        fontFamily: "Arial, Helvetica, sans-serif",
+        fontFamily: cssFonteImpressao(layout.fonte),
       }}
     >
       <div style={estiloWrapperConteudoRequisicaoPreview()}>
@@ -572,6 +574,7 @@ export function ConfiguracoesOsModeloProducaoConteudo({
   const [salvando, setSalvando] = useState(false);
   const [mensagem, setMensagem] = useState("");
   const [carregando, setCarregando] = useState(true);
+  const [textoMarcado, setTextoMarcado] = useState(false);
 
   useEffect(() => {
     let ativo = true;
@@ -680,6 +683,11 @@ export function ConfiguracoesOsModeloProducaoConteudo({
             value={layout.tamanhoFonte}
             onChange={(v) => patchLayout({ tamanhoFonte: v })}
           />
+          <SeletorFonteTexto
+            fonte={layout.fonte}
+            onChange={(fonte: FonteImpressao) => patchLayout({ fonte })}
+            ajuda={textoMarcado ? undefined : t("settings.fontePaginaAjuda")}
+          />
 
           <CampoNumero
             label={t("settings.espacamento")}
@@ -753,8 +761,19 @@ export function ConfiguracoesOsModeloProducaoConteudo({
           </div>
         ) : null}
         <ConfiguracoesOsBarraEditor modeloAtivo={editor.modeloId} />
-        <div className="flex min-h-0 flex-1 w-full justify-center overflow-auto p-2 sm:p-4">
+        <div
+          className="flex min-h-0 flex-1 w-full justify-center overflow-auto p-2 sm:p-4"
+          onMouseUp={() => {
+            const selecao = window.getSelection();
+            if (selecao && !selecao.isCollapsed && String(selecao).trim()) setTextoMarcado(true);
+          }}
+        >
           <div className="shrink-0">
+            <BarraFonteFlutuante
+              visivel={textoMarcado}
+              fonte={layout.fonte}
+              onChange={(fonte) => patchLayout({ fonte })}
+            />
             {editor.tipoPreview === "comprovante" ? (
               <PreviewOsModeloComprovante cfg={cfg} layout={layout} />
             ) : (

@@ -22,6 +22,8 @@ import {
   type OsModelo4Layout,
 } from "@/lib/os-modelo4-layout";
 import { useI18n } from "@/components/i18n-provider";
+import { BarraFonteFlutuante, SeletorFonteTexto } from "@/components/configuracoes/SeletorFonteTexto";
+import type { FonteImpressao } from "@/lib/fonte-impressao";
 import { PreviewOsModelo4Termica } from "@/components/configuracoes/ConfiguracoesOsModelo4Preview";
 import { ConfiguracoesOsBarraEditor } from "@/components/configuracoes/ConfiguracoesOsBarraEditor";
 
@@ -135,6 +137,7 @@ export function ConfiguracoesOsModelo4Conteudo() {
   const [salvando, setSalvando] = useState(false);
   const [mensagem, setMensagem] = useState("");
   const [carregando, setCarregando] = useState(true);
+  const [textoMarcado, setTextoMarcado] = useState(false);
 
   useEffect(() => {
     let ativo = true;
@@ -227,6 +230,11 @@ export function ConfiguracoesOsModelo4Conteudo() {
             min={8}
             max={18}
           />
+          <SeletorFonteTexto
+            fonte={layout.fonte}
+            onChange={(fonte: FonteImpressao) => patchLayout({ fonte })}
+            ajuda={textoMarcado ? undefined : t("settings.fontePaginaAjuda")}
+          />
 
           <div>
             <span className="mb-1 block text-[11px] font-semibold text-slate-700">
@@ -306,8 +314,19 @@ export function ConfiguracoesOsModelo4Conteudo() {
           </div>
         ) : null}
         <ConfiguracoesOsBarraEditor modeloAtivo="modelo4" />
-        <div className="flex min-h-0 flex-1 w-full justify-center overflow-auto p-2 sm:p-4">
+        <div
+          className="flex min-h-0 flex-1 w-full justify-center overflow-auto p-2 sm:p-4"
+          onMouseUp={() => {
+            const selecao = window.getSelection();
+            if (selecao && !selecao.isCollapsed && String(selecao).trim()) setTextoMarcado(true);
+          }}
+        >
           <div className="shrink-0">
+            <BarraFonteFlutuante
+              visivel={textoMarcado}
+              fonte={layout.fonte}
+              onChange={(fonte) => patchLayout({ fonte })}
+            />
             <PreviewOsModelo4Termica cfg={cfg} layout={layout} />
           </div>
         </div>

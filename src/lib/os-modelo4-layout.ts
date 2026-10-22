@@ -108,7 +108,8 @@ export function normalizarOsModelo4Layout(
       key !== "tamanhoFonte" &&
       key !== "bordas" &&
       key !== "mensagem" &&
-      key !== "espacamentoRequisicao"
+      key !== "espacamentoRequisicao" &&
+      key !== "fonte"
     ) {
       base[key] = Boolean(valor![key]);
     }

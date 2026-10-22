@@ -1,3 +1,4 @@
+import { normalizarFonteImpressao, type FonteImpressao } from "@/lib/fonte-impressao";
 import {
   persistirArmazenamentoImediato,
   readStorage,
@@ -31,6 +32,7 @@ export const MODELOS_ETIQUETA: Array<{
 export type ConfiguracoesEtiquetas = {
   modeloPadrao: ModeloEtiquetaId | null;
   duasVias: Record<ModeloEtiquetaId, boolean>;
+  fonte: FonteImpressao;
 };
 
 export const CONFIG_ETIQUETAS_PADRAO: ConfiguracoesEtiquetas = {
@@ -41,6 +43,7 @@ export const CONFIG_ETIQUETAS_PADRAO: ConfiguracoesEtiquetas = {
     "2rlh-28x89": false,
     "mrl-20x51": false,
   },
+  fonte: "arial",
 };
 
 export function modeloEtiquetaValido(id: string): id is ModeloEtiquetaId {
@@ -152,7 +155,7 @@ export function normalizarConfiguracoesEtiquetas(
     }
   }
 
-  return { modeloPadrao, duasVias };
+  return { modeloPadrao, duasVias, fonte: normalizarFonteImpressao(valor.fonte) };
 }
 
 function lerConfigEtiquetasDoStorage(): ConfiguracoesEtiquetas {

@@ -3,6 +3,7 @@
 import { Fragment, useMemo } from "react";
 import { useI18n } from "@/components/i18n-provider";
 import type { ConfigLaboratorio } from "@/lib/configuracoes-lab";
+import { cssFonteImpressao } from "@/lib/fonte-impressao";
 import { nomeUsuarioDocumentosLaboratorio } from "@/lib/configuracoes-lab";
 import { configParaLabImpressao } from "@/lib/lab-logo";
 import { normalizarCorBorda } from "@/lib/os-modelo1-layout";
@@ -79,7 +80,7 @@ export function PreviewFaturaModelo4Termica({
         maxWidth: "100%",
         padding: "3mm 2mm",
         fontSize: `${fs}px`,
-        fontFamily: "Arial, Helvetica, sans-serif",
+        fontFamily: cssFonteImpressao(layout.fonte),
         boxSizing: "border-box",
       }}
     >

@@ -8,6 +8,8 @@ import { Button } from "@/components/ui";
 import { useI18n } from "@/components/i18n-provider";
 import { cn } from "@/lib/utils";
 import { ConfiguracoesFaturaModeloPreview } from "@/components/configuracoes/ConfiguracoesFaturaModeloPreview";
+import { BarraFonteFlutuante, SeletorFonteTexto } from "@/components/configuracoes/SeletorFonteTexto";
+import type { FonteImpressao } from "@/lib/fonte-impressao";
 import {
   carregarConfigLaboratorio,
   type ConfigLaboratorio,
@@ -201,6 +203,7 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
   const [mensagem, setMensagem] = useState("");
   const [carregando, setCarregando] = useState(true);
   const [menuEdicaoAberto, setMenuEdicaoAberto] = useState(true);
+  const [textoMarcado, setTextoMarcado] = useState(false);
 
   const modeloValido = MODELOS_FATURA.some((m) => m.id === modeloId);
   const termica = formatoPorModeloFatura(modeloId) === "termica";
@@ -375,6 +378,11 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
                 min={8}
                 max={20}
               />
+              <SeletorFonteTexto
+                fonte={layout.fonte}
+                onChange={(fonte: FonteImpressao) => patchLayout({ fonte })}
+                ajuda={textoMarcado ? undefined : t("settings.fontePaginaAjuda")}
+              />
 
               <div className="space-y-1">
                 {CAMPOS_FATURA_PARES.map(([esq, dir], indice) => (
@@ -488,6 +496,11 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
                 min={8}
                 max={18}
               />
+              <SeletorFonteTexto
+                fonte={layout.fonte}
+                onChange={(fonte: FonteImpressao) => patchLayout({ fonte })}
+                ajuda={textoMarcado ? undefined : t("settings.fontePaginaAjuda")}
+              />
               <div className="space-y-1 border-t border-slate-300/80 pt-2">
                 {CAMPOS_FATURA_TERMICA_PARES.map(([esq, dir], indice) => (
                   <div key={indice} className="grid grid-cols-2 gap-x-2">
@@ -551,12 +564,25 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
           </div>
         ) : null}
         {barraSuperior}
-        <div className="min-h-0 flex-1 overflow-auto bg-[#e8eaed] p-6">
+        <div
+          className="min-h-0 flex-1 overflow-auto bg-[#e8eaed] p-6"
+          onMouseUp={() => {
+            if (!termica) return;
+            const selecao = window.getSelection();
+            if (selecao && !selecao.isCollapsed && String(selecao).trim()) setTextoMarcado(true);
+          }}
+        >
+          <BarraFonteFlutuante
+            visivel={textoMarcado}
+            fonte={layout.fonte}
+            onChange={(fonte) => patchLayout({ fonte })}
+          />
           <ConfiguracoesFaturaModeloPreview
             cfg={cfg}
             layout={layout}
             modeloId={modeloId}
             termica={termica}
+            onTextoMarcado={() => setTextoMarcado(true)}
           />
         </div>
       </div>

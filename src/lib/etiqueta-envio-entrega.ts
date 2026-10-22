@@ -311,38 +311,6 @@ export function htmlEtiquetaEnvio(dados: {
     <button type="button" onclick="window.print()">${escapeHtml(dados.textos.imprimir)}</button>
     <button type="button" class="secundario" onclick="window.close()">${escapeHtml(dados.textos.fechar)}</button>
   </div>`;
-  const scriptSelecao = dados.opcoes?.preview
-    ? `<script>
-    (function () {
-      function publicar(campos) {
-        if (!campos.length || !window.parent) return;
-        window.parent.postMessage({ tipo: "etiqueta-selecao", campos: campos }, "*");
-      }
-      document.addEventListener("mouseup", function (evento) {
-        var sel = window.getSelection();
-        var campos = [];
-        var vistos = {};
-        function adiciona(valor) {
-          if (!valor || vistos[valor]) return;
-          vistos[valor] = true;
-          campos.push(valor);
-        }
-        if (sel && sel.rangeCount && !sel.isCollapsed) {
-          var range = sel.getRangeAt(0);
-          var nodes = document.querySelectorAll("[data-campo]");
-          for (var i = 0; i < nodes.length; i++) {
-            if (range.intersectsNode && range.intersectsNode(nodes[i])) adiciona(nodes[i].getAttribute("data-campo"));
-          }
-        }
-        if (!campos.length && evento.target && evento.target.closest) {
-          var alvo = evento.target.closest("[data-campo]");
-          if (alvo) adiciona(alvo.getAttribute("data-campo"));
-        }
-        publicar(campos);
-      });
-    })();
-  </script>`
-    : "";
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -353,7 +321,6 @@ export function htmlEtiquetaEnvio(dados: {
 <body class="formato-${formato}${classeModelo}${semBorda}" style="--escala:${escala};--espaco:${layout.espacamento};--cor-borda:${layout.corBorda}">
   ${acoes}
   ${folhas}
-  ${scriptSelecao}
 </body>
 </html>`;
 }
