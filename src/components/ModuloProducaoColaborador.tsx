@@ -76,7 +76,7 @@ import { useSessaoInatividade } from "@/hooks/use-sessao-inatividade";
 import {
   aplicarControleEntregaAposMudancaStatus,
 } from "@/lib/controle-entregas-automatico-cliente";
-import { limparUltimaAtividadeSessao } from "@/lib/sessao-inatividade";
+import { irParaLogin } from "@/lib/redirecionar-login-sessao";
 import {
   chaveMesAtual,
   DIARIAS_ATUALIZADAS_EVENT,
@@ -147,13 +147,8 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
   });
   const [imprimindoDiarias, setImprimindoDiarias] = useState(false);
 
-  const logoutPorInatividade = useCallback(async () => {
-    try {
-      await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
-    } finally {
-      limparUltimaAtividadeSessao();
-      window.location.href = "/login";
-    }
+  const logoutPorInatividade = useCallback(() => {
+    irParaLogin();
   }, []);
 
   useSessaoInatividade(() => void logoutPorInatividade());

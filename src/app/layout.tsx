@@ -7,6 +7,7 @@ import { LabDocumentHead } from "@/components/LabDocumentHead";
 import { I18nRoot } from "@/components/I18nRoot";
 import { SiteTopoMarca } from "@/components/SiteTopoMarca";
 import { DesativarSelecaoTexto } from "@/components/DesativarSelecaoTexto";
+import { SessaoExpiradaRedirect } from "@/components/SessaoExpiradaRedirect";
 import {
   FAVICON_PADRAO,
   montarTituloDocumento,
@@ -195,6 +196,7 @@ export default async function RootLayout({
         />
       </head>
       <body className={`${fonteApp.className} select-none caret-transparent`}>
+        <SessaoExpiradaRedirect />
         <DesativarSelecaoTexto />
         <LabConfigProvider lab={lab} configLaboratorio={configLaboratorio}>
           <I18nRoot>

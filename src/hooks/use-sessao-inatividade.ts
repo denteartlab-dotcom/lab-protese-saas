@@ -64,6 +64,7 @@ export function useSessaoInatividade(
     let ultimoRegistro = Date.now();
     let ultimaRenovacao = Date.now();
     const registrar = () => {
+      if (verificarExpiracao()) return;
       const agora = Date.now();
       if (agora - ultimoRegistro < 15_000) return;
       ultimoRegistro = agora;

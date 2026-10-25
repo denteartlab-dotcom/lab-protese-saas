@@ -42,6 +42,7 @@ import {
   metaStatusTrabalho,
 } from "@/lib/i18n/status-trabalho-i18n";
 import { localeDataIntl } from "@/lib/i18n/tr-ui";
+import { irParaLogin } from "@/lib/redirecionar-login-sessao";
 import { limparUltimaAtividadeSessao } from "@/lib/sessao-inatividade";
 import { readStorage, writeStorage } from "@/lib/persisted-storage";
 import { persistirTemaLocal, lerTemaLocal } from "@/lib/theme-ui";
@@ -416,16 +417,8 @@ function AppShellInner({
     });
   }
 
-  const logoutPorInatividade = useCallback(async () => {
-    try {
-      await fetch("/api/auth/logout", {
-        method: "POST",
-        credentials: "same-origin",
-      });
-    } finally {
-      limparUltimaAtividadeSessao();
-      window.location.href = "/login";
-    }
+  const logoutPorInatividade = useCallback(() => {
+    irParaLogin();
   }, []);
 
   useSessaoInatividade(() => void logoutPorInatividade(), {

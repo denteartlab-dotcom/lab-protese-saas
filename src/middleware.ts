@@ -11,6 +11,7 @@ import {
 } from "@/lib/rotas-app";
 import { rotaLiberadaAssinaturaVencida, apiLiberadaAssinaturaVencida } from "@/lib/rotas-assinatura-vencida";
 import { sessaoInativaPorIat } from "@/lib/sessao-ttl";
+import { requisicaoEhDocumento } from "@/lib/sessao-navegacao";
 
 const COOKIE_NAME = "lab-protese-session";
 const MASTER_COOKIE_NAME = "lab-protese-master-session";
@@ -248,6 +249,19 @@ function urlNoSite(request: NextRequest, caminho: string): URL {
   return new URL(caminho, origemPublica(request));
 }
 
+/**
+ * Navegação interna do Next (clique em menu, prefetch) não pode receber
+ * redirect para /login: o roteador fica esperando o payload e a tela trava.
+ * Devolve 401 para o cliente trocar a página inteira pelo login.
+ */
+function negarSessaoNaNavegacaoCliente(request: NextRequest, nonce: string) {
+  if (requisicaoEhDocumento(request.headers)) return null;
+  const res = NextResponse.json({ error: "Sessão expirada" }, { status: 401 });
+  res.headers.set("x-sessao-expirada", "1");
+  res.headers.set("Cache-Control", "no-store");
+  return aplicarCsp(limparCookieSessao(res), nonce);
+}
+
 function processarRotaApp(
   request: NextRequest,
   pathname: string,
@@ -438,6 +452,8 @@ export async function middleware(request: NextRequest) {
   if (rotasRenovacao && !pathname.startsWith("/api")) {
     const tokenRenovacao = request.cookies.get(COOKIE_NAME)?.value;
     if (!tokenRenovacao || !(await sessionTokenAceito(tokenRenovacao))) {
+      const cliente = negarSessaoNaNavegacaoCliente(request, nonce);
+      if (cliente) return cliente;
       const login = new URL("/login", request.url);
       login.searchParams.set("redirect", pathname);
       return aplicarCsp(limparCookieSessao(NextResponse.redirect(login)), nonce);
@@ -467,6 +483,8 @@ export async function middleware(request: NextRequest) {
         nonce
       );
     }
+    const cliente = negarSessaoNaNavegacaoCliente(request, nonce);
+    if (cliente) return cliente;
     const login = urlNoSite(request, "/login");
     login.searchParams.set("redirect", pathname);
     return aplicarCsp(limparCookieSessao(NextResponse.redirect(login)), nonce);
