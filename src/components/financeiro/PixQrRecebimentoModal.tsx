@@ -19,9 +19,11 @@ type Props = {
   onClose: () => void;
   dados: DadosPixQrRecebimento | null;
   money: (value: number) => string;
+  /** Dentro de outro painel: não abre um segundo overlay. */
+  embutido?: boolean;
 };
 
-export function PixQrRecebimentoModal({ open, onClose, dados, money }: Props) {
+export function PixQrRecebimentoModal({ open, onClose, dados, money, embutido = false }: Props) {
   const [mounted, setMounted] = useState(false);
   const [copiado, setCopiado] = useState(false);
 
@@ -50,10 +52,16 @@ export function PixQrRecebimentoModal({ open, onClose, dados, money }: Props) {
     ? dados.pixEncodedImage
     : `data:image/png;base64,${dados.pixEncodedImage}`;
 
-  return createPortal(
+  const arvore = (
     <I18nPortal>
-      <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/45" onClick={onClose} aria-hidden />
+      <div
+        className={
+          embutido
+            ? "relative flex h-full w-full items-center justify-center bg-white p-4"
+            : "fixed inset-0 z-[80] flex items-center justify-center p-4"
+        }
+      >
+      {embutido ? null : <div className="absolute inset-0 bg-black/45" onClick={onClose} aria-hidden />}
       <div
         role="dialog"
         aria-modal="true"
@@ -112,7 +120,8 @@ export function PixQrRecebimentoModal({ open, onClose, dados, money }: Props) {
         </div>
       </div>
     </div>
-    </I18nPortal>,
-    document.body
+    </I18nPortal>
   );
+  if (embutido) return arvore;
+  return createPortal(arvore, document.body);
 }

@@ -3132,7 +3132,7 @@ function FinanceiroReceberConteudo() {
         </Suspense>
       ) : null}
 
-      {recebendoCliente ? (
+      {recebendoCliente && !detalheCliente ? (
         <Suspense fallback={null}>
           <LancarRecebimentoModalLazy
             open
@@ -3155,7 +3155,24 @@ function FinanceiroReceberConteudo() {
               setItensFatura(lancamento as Lancamento);
             }}
             pixAsaasDisponivel={pixAsaasDisponivel}
-          />
+          >
+            {pixQrRecebimento ? (
+              <PixQrRecebimentoModal
+                embutido
+                open
+                onClose={() => setPixQrRecebimento(null)}
+                dados={pixQrRecebimento}
+                money={currency}
+              />
+            ) : itensFatura ? (
+              <ItensFaturaModalLazy
+                embutido
+                open
+                onClose={() => setItensFatura(null)}
+                linhas={linhasItensFaturaFromTrabalhos(trabalhosDaFatura(itensFatura), formatDate)}
+              />
+            ) : null}
+          </LancarRecebimentoModalLazy>
         </Suspense>
       ) : null}
 
@@ -3163,7 +3180,21 @@ function FinanceiroReceberConteudo() {
         <Suspense fallback={null}>
           <VisualizacaoClienteReceberModalLazy
             open
-            onClose={() => setDetalheCliente(null)}
+            onClose={() => {
+              if (pixQrRecebimento) {
+                setPixQrRecebimento(null);
+                return;
+              }
+              if (itensFatura) {
+                setItensFatura(null);
+                return;
+              }
+              if (recebendoCliente) {
+                setRecebendoCliente(null);
+                return;
+              }
+              setDetalheCliente(null);
+            }}
             cliente={detalheCliente}
         clientes={clientesReceber}
         clienteTelefone={
@@ -3207,15 +3238,11 @@ function FinanceiroReceberConteudo() {
         situacaoFaturaLabel={(l) => situacaoFaturaLabel(l as Lancamento)}
         onReceber={() => {
           if (!detalheCliente) return;
-          const cliente = detalheCliente;
-          setDetalheCliente(null);
-          receberCliente(cliente);
+          receberCliente(detalheCliente);
         }}
         onReceberFatura={() => {
           if (!detalheCliente) return;
-          const cliente = detalheCliente;
-          setDetalheCliente(null);
-          receberCliente(cliente);
+          receberCliente(detalheCliente);
         }}
         onImprimirNota={() => {
           if (!detalheCliente) return;
@@ -3243,7 +3270,57 @@ function FinanceiroReceberConteudo() {
           if (!detalheCliente) return;
           setDetalheRecebimento({ cliente: detalheCliente, lancamento: l as Lancamento });
         }}
-          />
+          >
+            {pixQrRecebimento ? (
+              <PixQrRecebimentoModal
+                embutido
+                open
+                onClose={() => setPixQrRecebimento(null)}
+                dados={pixQrRecebimento}
+                money={currency}
+              />
+            ) : itensFatura ? (
+              <Suspense fallback={null}>
+                <ItensFaturaModalLazy
+                  embutido
+                  open
+                  onClose={() => setItensFatura(null)}
+                  linhas={linhasItensFaturaFromTrabalhos(
+                    trabalhosDaFatura(itensFatura),
+                    formatDate
+                  )}
+                />
+              </Suspense>
+            ) : recebendoCliente ? (
+              <Suspense fallback={null}>
+                <LancarRecebimentoModalLazy
+                  embutido
+                  open
+                  onClose={() => setRecebendoCliente(null)}
+                  clienteNome={recebendoCliente.nome}
+                  totalDevido={faturasPendentesCliente(recebendoCliente.clienteId).reduce(
+                    (sum, l) => sum + saldoFatura(l),
+                    0
+                  )}
+                  faturas={faturasPendentesCliente(recebendoCliente.clienteId)}
+                  numeroFatura={numeroFatura}
+                  saldoFatura={saldoFatura}
+                  formatDate={formatDate}
+                  money={money}
+                  parseMoney={parseMoney}
+                  formatCurrencyInput={formatCurrencyInput}
+                  onConfirmar={(payload, imprimir) =>
+                    void confirmarRecebimento(payload, imprimir)
+                  }
+                  creditoDisponivel={creditoDisponivelCliente(recebendoCliente.clienteId)}
+                  onVisualizar={(lancamento) => {
+                    setItensFatura(lancamento as Lancamento);
+                  }}
+                  pixAsaasDisponivel={pixAsaasDisponivel}
+                />
+              </Suspense>
+            ) : null}
+          </VisualizacaoClienteReceberModalLazy>
         </Suspense>
       ) : null}
 
@@ -3631,7 +3708,7 @@ function FinanceiroReceberConteudo() {
         </Suspense>
       ) : null}
 
-      {itensFatura ? (
+      {itensFatura && !detalheCliente && !recebendoCliente ? (
         <Suspense fallback={null}>
           <ItensFaturaModalLazy
             open
@@ -3856,7 +3933,7 @@ function FinanceiroReceberConteudo() {
       ) : null}
 
       <PixQrRecebimentoModal
-        open={pixQrRecebimento !== null}
+        open={pixQrRecebimento !== null && !detalheCliente && !recebendoCliente}
         onClose={() => setPixQrRecebimento(null)}
         dados={pixQrRecebimento}
         money={currency}

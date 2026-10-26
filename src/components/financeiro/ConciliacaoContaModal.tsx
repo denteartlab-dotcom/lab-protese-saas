@@ -454,7 +454,7 @@ export function ConciliacaoContaModal({
         contasBancarias={contas
           .filter((c) => !c.excluida)
           .map((c) => ({ nome: c.nome }))}
-        overlayZIndex={10001}
+        embutido
         salvando={salvandoProcedimento}
       />
     ) : (
@@ -472,7 +472,7 @@ export function ConciliacaoContaModal({
         contasBancarias={contas
           .filter((c) => !c.excluida)
           .map((c) => ({ nome: c.nome }))}
-        overlayZIndex={10001}
+        embutido
         salvando={salvandoProcedimento}
       />
     )
@@ -507,7 +507,8 @@ export function ConciliacaoContaModal({
             <X className="h-5 w-5" />
           </button>
         </div>
-
+        {modalProcedimento ?? (
+        <>
         <div className="flex flex-1 flex-col space-y-4 px-4 py-4">
           <div>
             <label className="mb-1.5 block text-[12px] text-slate-700">
@@ -800,16 +801,13 @@ export function ConciliacaoContaModal({
             Fechar
           </button>
         </div>
+        </>
+        )}
       </div>
     </div>
     </I18nPortal>,
     document.body
   );
 
-  return (
-    <>
-      {portalConciliacao}
-      {modalProcedimento}
-    </>
-  );
+  return portalConciliacao;
 }

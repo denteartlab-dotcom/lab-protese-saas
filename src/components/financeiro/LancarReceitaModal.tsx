@@ -154,6 +154,8 @@ type Props = {
   conciliacaoInicial?: ConciliacaoInicial | null;
   contasBancarias?: { nome: string }[];
   overlayZIndex?: number;
+  /** Dentro de outro painel: não abre um segundo overlay. */
+  embutido?: boolean;
   /** Libera Pix/Boleto Asaas quando a conta digital estiver ativa. */
   pixAsaasDisponivel?: boolean;
 };
@@ -200,6 +202,7 @@ export function LancarReceitaModal({
   conciliacaoInicial = null,
   contasBancarias = [],
   overlayZIndex = 9999,
+  embutido = false,
   pixAsaasDisponivel = false,
 }: Props) {
   const ehConciliacao = variante === "conciliacao-smart";
@@ -835,13 +838,18 @@ export function LancarReceitaModal({
 
   const conteudo = (
     <div
-      className="fixed inset-0 flex items-start justify-center overflow-y-auto bg-black/45 p-4 pt-6"
-      style={{ zIndex: overlayZIndex }}
+      className={
+        embutido
+          ? "relative w-full"
+          : "fixed inset-0 flex items-start justify-center overflow-y-auto bg-black/45 p-4 pt-6"
+      }
+      style={embutido ? undefined : { zIndex: overlayZIndex }}
       data-modal={cfg.dataModal}
       role="dialog"
-      aria-modal="true"
+      aria-modal={embutido ? undefined : true}
       aria-labelledby="lancar-receita-titulo"
     >
+      {embutido ? null : (
       <div
         className="absolute inset-0"
         onClick={() => {
@@ -849,6 +857,7 @@ export function LancarReceitaModal({
         }}
         aria-hidden
       />
+      )}
       <div
         className={cn(
           "relative my-auto flex w-full flex-col rounded border border-slate-200 bg-white shadow-[0_12px_40px_rgba(0,0,0,0.18)]",
@@ -1839,6 +1848,7 @@ export function LancarReceitaModal({
     </div>
   );
 
+  if (embutido) return conteudo;
   return createPortal(conteudo, document.body);
 }
 

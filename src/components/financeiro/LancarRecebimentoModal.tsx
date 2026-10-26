@@ -1,7 +1,7 @@
 "use client";
 
 import { I18nPortal } from "@/components/I18nPortal";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Eye, Pencil, Plus, X } from "lucide-react";
 import { CampoDataBr } from "@/components/campo-data-br";
@@ -65,6 +65,9 @@ type Props = {
   emitirNotaFiscalPadrao?: boolean;
   creditoDisponivel?: number;
   pixAsaasDisponivel?: boolean;
+  /** Dentro do painel do cliente: não abre um segundo overlay. */
+  embutido?: boolean;
+  children?: ReactNode;
 };
 
 const FORMAS_BASE = ["Pix Externo", "Dinheiro", "Cartão", "Boleto", "Transferência"];
@@ -144,6 +147,8 @@ export function LancarRecebimentoModal({
   emitirNotaFiscalPadrao = false,
   creditoDisponivel = 0,
   pixAsaasDisponivel = false,
+  embutido = false,
+  children,
 }: Props) {
   const formasDisponiveis = useMemo(
     () => (pixAsaasDisponivel ? ["Pix", ...FORMAS_BASE] : FORMAS_BASE),
@@ -308,15 +313,25 @@ export function LancarRecebimentoModal({
 
   if (!open || !mounted) return null;
 
-  return createPortal(
+  const arvore = (
     <I18nPortal>
-      <div className="fixed inset-0 z-[70] flex items-center justify-center p-3 sm:p-5">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden />
+      <div
+        className={
+          embutido
+            ? "relative flex h-full min-h-0 w-full flex-col bg-white"
+            : "fixed inset-0 z-[70] flex items-center justify-center p-3 sm:p-5"
+        }
+      >
+      {embutido ? null : <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden />}
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="lancar-recebimento-titulo"
-        className="relative flex max-h-[94vh] w-full max-w-[1120px] flex-col rounded-sm bg-white shadow-2xl"
+        className={
+          embutido
+            ? "relative flex h-full min-h-0 w-full flex-col bg-white"
+            : "relative flex max-h-[94vh] w-full max-w-[1120px] flex-col rounded-sm bg-white shadow-2xl"
+        }
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex shrink-0 items-center justify-between border-b border-[#e5e7eb] px-5 py-3">
@@ -629,9 +644,13 @@ export function LancarRecebimentoModal({
             Fechar
           </button>
         </div>
+        {children ? (
+          <div className="absolute inset-0 z-20 overflow-auto bg-white">{children}</div>
+        ) : null}
       </div>
     </div>
-    </I18nPortal>,
-    document.body
+    </I18nPortal>
   );
+  if (embutido) return arvore;
+  return createPortal(arvore, document.body);
 }

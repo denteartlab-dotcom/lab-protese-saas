@@ -2,7 +2,7 @@
 
 import { I18nPortal } from "@/components/I18nPortal";
 import { useI18n } from "@/components/i18n-provider";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal, flushSync } from "react-dom";
 import {
   ChevronsUpDown,
@@ -112,6 +112,8 @@ type Props = {
   filtrosPainel: FiltrosPainelContasReceber;
   clienteTelefone?: string | null;
   onRecarregarDados?: () => void | Promise<void>;
+  /** Quitação, Pix ou itens na mesma superfície, sem segundo overlay. */
+  children?: ReactNode;
 };
 
 type ExtratoModeloModal = "1" | "2" | "3";
@@ -351,6 +353,7 @@ export function VisualizacaoClienteReceberModal({
   filtrosPainel,
   clienteTelefone,
   onRecarregarDados,
+  children,
 }: Props) {
   const { t } = useI18n();
   const [mounted, setMounted] = useState(false);
@@ -1422,17 +1425,22 @@ export function VisualizacaoClienteReceberModal({
             />
           </div>
         ) : null}
+        {whatsappExtratoAberto ? (
+          <div className="absolute inset-0 z-30 overflow-auto bg-white">
+            <EnviarExtratoWhatsappModal
+              open
+              onClose={() => setWhatsappExtratoAberto(false)}
+              clienteNome={cliente.nome}
+              telefoneInicial={clienteTelefone}
+              gerarPdf={gerarExtratoPdfBlob}
+              embutido
+            />
+          </div>
+        ) : null}
+        {children ? (
+          <div className="absolute inset-0 z-40 overflow-auto bg-white">{children}</div>
+        ) : null}
       </div>
-
-      {cliente ? (
-        <EnviarExtratoWhatsappModal
-          open={whatsappExtratoAberto}
-          onClose={() => setWhatsappExtratoAberto(false)}
-          clienteNome={cliente.nome}
-          telefoneInicial={clienteTelefone}
-          gerarPdf={gerarExtratoPdfBlob}
-        />
-      ) : null}
     </div>
     </I18nPortal>,
     document.body
