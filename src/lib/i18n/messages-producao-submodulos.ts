@@ -234,6 +234,11 @@ const pt = {
   "producao.diarias.configuracao": "Configuração da diária",
   "producao.diarias.valorDiaria": "Valor da diária",
   "producao.diarias.jornada": "Jornada (horas)",
+  "producao.diarias.horasTurnoManha": "Horas do turno manhã",
+  "producao.diarias.horasTurnoTarde": "Horas do turno tarde",
+  "producao.diarias.intervaloHoras": "Intervalo (horas)",
+  "producao.diarias.duracaoProximosDias":
+    "Essas horas e o intervalo valem para os próximos dias lançados.",
   "producao.diarias.sugerirSalario": "Sugerir pelo salário (÷ 22 dias)",
   "producao.diarias.marcarJornada": "Marcar jornada do mês",
   "producao.diarias.limparMes": "Limpar mês",
@@ -241,8 +246,6 @@ const pt = {
   "producao.diarias.saida": "Saída",
   "producao.diarias.turnoManha": "Turno manhã",
   "producao.diarias.turnoTarde": "Turno tarde",
-  "producao.diarias.turnoManhaFaixa": "06:00 às 12:00",
-  "producao.diarias.turnoTardeFaixa": "13:00 às 18:00",
   "producao.diarias.selecioneTurno":
     "Selecione o turno da manhã, da tarde ou os dois para configurar o horário.",
   "producao.diarias.entradaManha": "Entrada manhã",
@@ -602,6 +605,11 @@ const en: Record<keyof typeof pt, string> = {
   "producao.diarias.configuracao": "Daily rate setup",
   "producao.diarias.valorDiaria": "Daily rate",
   "producao.diarias.jornada": "Workday (hours)",
+  "producao.diarias.horasTurnoManha": "Morning shift hours",
+  "producao.diarias.horasTurnoTarde": "Afternoon shift hours",
+  "producao.diarias.intervaloHoras": "Break (hours)",
+  "producao.diarias.duracaoProximosDias":
+    "These hours and the break apply to the next days you add.",
   "producao.diarias.sugerirSalario": "Suggest from salary (÷ 22 days)",
   "producao.diarias.marcarJornada": "Fill month from schedule",
   "producao.diarias.limparMes": "Clear month",
@@ -609,8 +617,6 @@ const en: Record<keyof typeof pt, string> = {
   "producao.diarias.saida": "Clock out",
   "producao.diarias.turnoManha": "Morning shift",
   "producao.diarias.turnoTarde": "Afternoon shift",
-  "producao.diarias.turnoManhaFaixa": "06:00 to 12:00",
-  "producao.diarias.turnoTardeFaixa": "13:00 to 18:00",
   "producao.diarias.selecioneTurno":
     "Select the morning shift, the afternoon shift, or both to set the hours.",
   "producao.diarias.entradaManha": "Morning in",
@@ -970,6 +976,11 @@ const es: Record<keyof typeof pt, string> = {
   "producao.diarias.configuracao": "Configuración de la diaria",
   "producao.diarias.valorDiaria": "Valor de la diaria",
   "producao.diarias.jornada": "Jornada (horas)",
+  "producao.diarias.horasTurnoManha": "Horas del turno mañana",
+  "producao.diarias.horasTurnoTarde": "Horas del turno tarde",
+  "producao.diarias.intervaloHoras": "Intervalo (horas)",
+  "producao.diarias.duracaoProximosDias":
+    "Estas horas y el intervalo valen para los próximos días registrados.",
   "producao.diarias.sugerirSalario": "Sugerir por el salario (÷ 22 días)",
   "producao.diarias.marcarJornada": "Marcar jornada del mes",
   "producao.diarias.limparMes": "Limpiar mes",
@@ -977,8 +988,6 @@ const es: Record<keyof typeof pt, string> = {
   "producao.diarias.saida": "Salida",
   "producao.diarias.turnoManha": "Turno mañana",
   "producao.diarias.turnoTarde": "Turno tarde",
-  "producao.diarias.turnoManhaFaixa": "06:00 a 12:00",
-  "producao.diarias.turnoTardeFaixa": "13:00 a 18:00",
   "producao.diarias.selecioneTurno":
     "Seleccione el turno de la mañana, el de la tarde o ambos para configurar el horario.",
   "producao.diarias.entradaManha": "Entrada mañana",

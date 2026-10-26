@@ -16,17 +16,19 @@ import {
   celulasCalendarioMes,
   criarLancamentoDiaria,
   dataHojeKey,
+  duracaoHorasEntre,
+  duracoesEfetivas,
   ENTRADA_TARDE_PADRAO,
   formatarHoraDigitada,
   formatarHorasDecimais,
   garantirConfigColaborador,
-  horarioPadraoDoDia,
+  HORAS_TURNO_PADRAO,
+  horarioLancamentoPadrao,
+  horarioPorDuracao,
   horaTextoValida,
+  INTERVALO_HORAS_PADRAO,
+  limitarDuracaoHoras,
   limitarHoraNoPeriodo,
-  PERIODO_MANHA_FIM,
-  PERIODO_MANHA_INICIO,
-  PERIODO_TARDE_FIM,
-  PERIODO_TARDE_INICIO,
   chaveMesAtual,
   lancamentoDoDia,
   lancamentosDoMes,
@@ -37,7 +39,6 @@ import {
   removerLancamentoDia,
   resumoDiariasMes,
   SAIDA_MANHA_PADRAO,
-  SAIDA_PADRAO,
   salvarDiariasColaboradores,
   turnosAtivosLancamento,
   sincronizarDiariasStoreNoCadastro,
@@ -46,6 +47,7 @@ import {
   textoIntervaloLancamento,
   upsertLancamento,
   type ColaboradorDiariaOrigem,
+  type ConfigDiariaColaborador,
   type DiariasStore,
   type LancamentoDiaria,
 } from "@/lib/diarias-colaboradores";
@@ -53,6 +55,9 @@ import { sincronizarDespesasDiariasColaboradores } from "@/lib/despesa-diaria-co
 import { imprimirNotasPagamentoDiarias } from "@/lib/imprimir-nota-diarias";
 import type { MessageKey } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+
+const HORA_DIA_MIN = "00:00";
+const HORA_DIA_MAX = "23:59";
 
 const DIAS_CABECALHO: MessageKey[] = [
   "producao.agenda.dia.seg",
@@ -97,6 +102,117 @@ function CampoHoraTexto({
         className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-blue-500"
       />
     </label>
+  );
+}
+
+function CampoDuracao({
+  label,
+  value,
+  min,
+  max,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  onChange: (value: number) => void;
+}) {
+  const [texto, setTexto] = useState(() => String(value));
+  const focado = useRef(false);
+
+  useEffect(() => {
+    if (focado.current) return;
+    setTexto(String(value));
+  }, [value]);
+
+  function publicar(bruto: string) {
+    const numero = Number(bruto.replace(",", "."));
+    if (!Number.isFinite(numero)) return;
+    const limitado = Math.min(max, Math.max(min, numero));
+    onChange(limitado);
+    return limitado;
+  }
+
+  return (
+    <label className="block text-sm">
+      <span className="mb-1 block text-slate-600">{label}</span>
+      <input
+        type="number"
+        inputMode="decimal"
+        min={min}
+        max={max}
+        step={0.5}
+        value={texto}
+        onFocus={() => {
+          focado.current = true;
+        }}
+        onBlur={() => {
+          focado.current = false;
+          const limitado = publicar(texto);
+          setTexto(String(limitado ?? value));
+        }}
+        onChange={(event) => {
+          const bruto = event.target.value;
+          setTexto(bruto);
+          if (!bruto || bruto === "-" || bruto.endsWith(".") || bruto.endsWith(",")) return;
+          publicar(bruto);
+        }}
+        className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-blue-500"
+      />
+    </label>
+  );
+}
+
+function DuracaoTurnosConfig({
+  config,
+  carga,
+  data,
+  labelManha,
+  labelTarde,
+  labelIntervalo,
+  ajuda,
+  onChange,
+}: {
+  config: ConfigDiariaColaborador;
+  carga: ColaboradorDiariaOrigem["cargaHoraria"];
+  data: string;
+  labelManha: string;
+  labelTarde: string;
+  labelIntervalo: string;
+  ajuda: string;
+  onChange: (parcial: {
+    horasTurnoManha?: number;
+    horasTurnoTarde?: number;
+    intervaloHoras?: number;
+  }) => void;
+}) {
+  const duracao = duracoesEfetivas(config, carga, data);
+  return (
+    <div className="space-y-2">
+      <CampoDuracao
+        label={labelManha}
+        value={duracao.horasTurnoManha}
+        min={0.5}
+        max={12}
+        onChange={(horasTurnoManha) => onChange({ horasTurnoManha })}
+      />
+      <CampoDuracao
+        label={labelTarde}
+        value={duracao.horasTurnoTarde}
+        min={0.5}
+        max={12}
+        onChange={(horasTurnoTarde) => onChange({ horasTurnoTarde })}
+      />
+      <CampoDuracao
+        label={labelIntervalo}
+        value={duracao.intervaloHoras}
+        min={0}
+        max={6}
+        onChange={(intervaloHoras) => onChange({ intervaloHoras })}
+      />
+      <p className="text-[11px] leading-snug text-slate-400">{ajuda}</p>
+    </div>
   );
 }
 
@@ -338,7 +454,7 @@ export function DiariasColaboradoresModal({ open, onClose }: Props) {
           colaborador.id,
           data,
           cfg,
-          horarioPadraoDoDia(colaborador.cargaHoraria, data)
+          horarioLancamentoPadrao(cfg, colaborador.cargaHoraria, data)
         )
       );
     });
@@ -358,18 +474,102 @@ export function DiariasColaboradoresModal({ open, onClose }: Props) {
     campo: "entrada" | "saidaManha" | "entradaTarde" | "saida",
     valor: string
   ) {
-    if (!lancamento) return;
+    if (!lancamento || !colaborador || !config) return;
     const turnos = turnosAtivosLancamento(lancamento);
-    alterarLancamento({
+    const horario = horarioLancamentoPadrao(config, colaborador.cargaHoraria, lancamento.data);
+    const proximo = {
       turnoManha: turnos.manha,
       turnoTarde: turnos.tarde,
-      entrada: campo === "entrada" ? valor : lancamento.entrada || PERIODO_MANHA_INICIO,
-      saidaManha:
-        campo === "saidaManha" ? valor : lancamento.saidaManha || PERIODO_MANHA_FIM,
-      entradaTarde:
-        campo === "entradaTarde" ? valor : lancamento.entradaTarde || "",
-      saida: campo === "saida" ? valor : lancamento.saida || PERIODO_TARDE_FIM,
+      entrada: campo === "entrada" ? valor : lancamento.entrada || horario.entrada,
+      saidaManha: campo === "saidaManha" ? valor : lancamento.saidaManha || horario.saidaManha,
+      entradaTarde: campo === "entradaTarde" ? valor : lancamento.entradaTarde || horario.entradaTarde,
+      saida: campo === "saida" ? valor : lancamento.saida || horario.saida,
+    };
+    const intervalo = duracaoHorasEntre(proximo.saidaManha, proximo.entradaTarde);
+    alterarLancamento({
+      ...proximo,
+      intervaloMinutos: Math.round(intervalo * 60),
+      ...(lancamento.calcularPorHora ? { valorManual: false } : {}),
     });
+  }
+
+  function alterarDuracaoDia(parcial: {
+    horasManha?: number;
+    horasTarde?: number;
+    intervaloHoras?: number;
+  }) {
+    if (!lancamento || !colaborador || !config) return;
+    const turnos = turnosAtivosLancamento(lancamento);
+    const atual = duracoesEfetivas(config, colaborador.cargaHoraria, lancamento.data);
+    const manhaMedida = duracaoHorasEntre(lancamento.entrada, lancamento.saidaManha);
+    const tardeMedida = duracaoHorasEntre(lancamento.entradaTarde, lancamento.saida);
+    const intervaloMedido =
+      horaTextoValida(lancamento.saidaManha || "") && horaTextoValida(lancamento.entradaTarde || "")
+        ? duracaoHorasEntre(lancamento.saidaManha, lancamento.entradaTarde)
+        : atual.intervaloHoras;
+    const horasManha = limitarDuracaoHoras(
+      parcial.horasManha ?? (manhaMedida > 0 ? manhaMedida : atual.horasTurnoManha),
+      0.5,
+      12,
+      HORAS_TURNO_PADRAO
+    );
+    const horasTarde = limitarDuracaoHoras(
+      parcial.horasTarde ?? (tardeMedida > 0 ? tardeMedida : atual.horasTurnoTarde),
+      0.5,
+      12,
+      HORAS_TURNO_PADRAO
+    );
+    const intervaloHoras = limitarDuracaoHoras(
+      parcial.intervaloHoras ?? intervaloMedido,
+      0,
+      6,
+      INTERVALO_HORAS_PADRAO
+    );
+    const horario = horarioPorDuracao(
+      lancamento.entrada || horarioLancamentoPadrao(config, colaborador.cargaHoraria, lancamento.data).entrada,
+      horasManha,
+      horasTarde,
+      intervaloHoras
+    );
+    alterarLancamento({
+      ...horario,
+      turnoManha: turnos.manha,
+      turnoTarde: turnos.tarde,
+      intervaloMinutos: Math.round(intervaloHoras * 60),
+      ...(lancamento.calcularPorHora ? { valorManual: false } : {}),
+    });
+  }
+
+  function alterarDuracaoConfig(parcial: {
+    horasTurnoManha?: number;
+    horasTurnoTarde?: number;
+    intervaloHoras?: number;
+  }) {
+    if (!config || !colaborador) return;
+    const atual = duracoesEfetivas(config, colaborador.cargaHoraria, diaSelecionado);
+    setStore((storeAtual) =>
+      atualizarConfigERecalcular(storeAtual, {
+        ...config,
+        horasTurnoManha: limitarDuracaoHoras(
+          parcial.horasTurnoManha ?? atual.horasTurnoManha,
+          0.5,
+          12,
+          HORAS_TURNO_PADRAO
+        ),
+        horasTurnoTarde: limitarDuracaoHoras(
+          parcial.horasTurnoTarde ?? atual.horasTurnoTarde,
+          0.5,
+          12,
+          HORAS_TURNO_PADRAO
+        ),
+        intervaloHoras: limitarDuracaoHoras(
+          parcial.intervaloHoras ?? atual.intervaloHoras,
+          0,
+          6,
+          INTERVALO_HORAS_PADRAO
+        ),
+      })
+    );
   }
 
   function alternarCalculoPorHora(ativo: boolean) {
@@ -380,14 +580,18 @@ export function DiariasColaboradoresModal({ open, onClose }: Props) {
   function alternarTurno(periodo: "manha" | "tarde", ativo: boolean) {
     if (!lancamento) return;
     const atual = turnosAtivosLancamento(lancamento);
+    const horario = horarioLancamentoPadrao(
+      config,
+      colaborador?.cargaHoraria,
+      lancamento.data
+    );
     if (periodo === "manha") {
       const semManha = !horaTextoValida(lancamento.entrada) || !horaTextoValida(lancamento.saidaManha || "");
       alterarLancamento({
         turnoManha: ativo,
         turnoTarde: atual.tarde,
-        entrada: ativo && semManha ? PERIODO_MANHA_INICIO : lancamento.entrada,
-        saidaManha:
-          ativo && semManha ? PERIODO_MANHA_FIM : lancamento.saidaManha || SAIDA_MANHA_PADRAO,
+        entrada: ativo && semManha ? horario.entrada : lancamento.entrada,
+        saidaManha: ativo && semManha ? horario.saidaManha : lancamento.saidaManha || horario.saidaManha,
       });
       return;
     }
@@ -396,9 +600,8 @@ export function DiariasColaboradoresModal({ open, onClose }: Props) {
     alterarLancamento({
       turnoTarde: ativo,
       turnoManha: atual.manha,
-      entradaTarde:
-        ativo && semTarde ? PERIODO_TARDE_INICIO : lancamento.entradaTarde || ENTRADA_TARDE_PADRAO,
-      saida: ativo && semTarde ? PERIODO_TARDE_FIM : lancamento.saida || SAIDA_PADRAO,
+      entradaTarde: ativo && semTarde ? horario.entradaTarde : lancamento.entradaTarde || horario.entradaTarde,
+      saida: ativo && semTarde ? horario.saida : lancamento.saida || horario.saida,
     });
   }
 
@@ -511,6 +714,18 @@ export function DiariasColaboradoresModal({ open, onClose }: Props) {
                   className="h-10 w-full rounded-lg border border-slate-300 px-3 text-[14px] outline-none focus:border-blue-500"
                 />
               </div>
+              {config && colaborador ? (
+                <DuracaoTurnosConfig
+                  config={config}
+                  carga={colaborador.cargaHoraria}
+                  data={diaSelecionado}
+                  labelManha={t("producao.diarias.horasTurnoManha")}
+                  labelTarde={t("producao.diarias.horasTurnoTarde")}
+                  labelIntervalo={t("producao.diarias.intervaloHoras")}
+                  ajuda={t("producao.diarias.duracaoProximosDias")}
+                  onChange={alterarDuracaoConfig}
+                />
+              ) : null}
               <button
                 type="button"
                 disabled={!colaborador}
@@ -713,31 +928,84 @@ export function DiariasColaboradoresModal({ open, onClose }: Props) {
                             checked={turnos.manha}
                             onChange={(ativo) => alternarTurno("manha", ativo)}
                             label={t("producao.diarias.turnoManha")}
-                            faixa={t("producao.diarias.turnoManhaFaixa")}
+                            faixa={
+                              turnos.manha && lancamento.entrada && lancamento.saidaManha
+                                ? `${lancamento.entrada}–${lancamento.saidaManha}`
+                                : formatarHorasDecimais(
+                                    duracoesEfetivas(config, colaborador.cargaHoraria, lancamento.data)
+                                      .horasTurnoManha
+                                  )
+                            }
                           />
                           <ToggleTurno
                             checked={turnos.tarde}
                             onChange={(ativo) => alternarTurno("tarde", ativo)}
                             label={t("producao.diarias.turnoTarde")}
-                            faixa={t("producao.diarias.turnoTardeFaixa")}
+                            faixa={
+                              turnos.tarde && lancamento.entradaTarde && lancamento.saida
+                                ? `${lancamento.entradaTarde}–${lancamento.saida}`
+                                : formatarHorasDecimais(
+                                    duracoesEfetivas(config, colaborador.cargaHoraria, lancamento.data)
+                                      .horasTurnoTarde
+                                  )
+                            }
                           />
                         </div>
+                        {turnos.manha || turnos.tarde ? (
+                          <div className="grid gap-3 sm:grid-cols-3">
+                            {turnos.manha ? (
+                              <CampoDuracao
+                                label={t("producao.diarias.horasTurnoManha")}
+                                value={
+                                  duracaoHorasEntre(lancamento.entrada, lancamento.saidaManha) ||
+                                  duracoesEfetivas(config, colaborador.cargaHoraria, lancamento.data)
+                                    .horasTurnoManha
+                                }
+                                min={0.5}
+                                max={12}
+                                onChange={(horasManha) => alterarDuracaoDia({ horasManha })}
+                              />
+                            ) : null}
+                            {turnos.manha && turnos.tarde ? (
+                              <CampoDuracao
+                                label={t("producao.diarias.intervaloHoras")}
+                                value={duracaoHorasEntre(lancamento.saidaManha, lancamento.entradaTarde)}
+                                min={0}
+                                max={6}
+                                onChange={(intervaloHoras) => alterarDuracaoDia({ intervaloHoras })}
+                              />
+                            ) : null}
+                            {turnos.tarde ? (
+                              <CampoDuracao
+                                label={t("producao.diarias.horasTurnoTarde")}
+                                value={
+                                  duracaoHorasEntre(lancamento.entradaTarde, lancamento.saida) ||
+                                  duracoesEfetivas(config, colaborador.cargaHoraria, lancamento.data)
+                                    .horasTurnoTarde
+                                }
+                                min={0.5}
+                                max={12}
+                                onChange={(horasTarde) => alterarDuracaoDia({ horasTarde })}
+                              />
+                            ) : null}
+                          </div>
+                        ) : null}
                         {turnos.manha ? (
                           <div className="grid gap-3 sm:grid-cols-2">
                             <CampoHoraTexto
                               label={t("producao.diarias.entradaManha")}
                               value={lancamento.entrada || ""}
-                              placeholder={PERIODO_MANHA_INICIO}
-                              min={PERIODO_MANHA_INICIO}
-                              max={PERIODO_MANHA_FIM}
+                              placeholder="08:00"
+                              min={HORA_DIA_MIN}
+                              max={HORA_DIA_MAX}
                               onChange={(value) => alterarHorario("entrada", value)}
                             />
                             <CampoHoraTexto
                               label={t("producao.diarias.saidaManha")}
                               value={lancamento.saidaManha || SAIDA_MANHA_PADRAO}
-                              placeholder={PERIODO_MANHA_FIM}
-                              min={PERIODO_MANHA_INICIO}
-                              max={PERIODO_MANHA_FIM}
+                              placeholder="12:00"
+                              min={HORA_DIA_MIN}
+                              max={HORA_DIA_MAX}
                               onChange={(value) => alterarHorario("saidaManha", value)}
                             />
                           </div>
@@ -747,17 +1015,17 @@ export function DiariasColaboradoresModal({ open, onClose }: Props) {
                             <CampoHoraTexto
                               label={t("producao.diarias.entradaTarde")}
                               value={lancamento.entradaTarde || ENTRADA_TARDE_PADRAO}
-                              placeholder={PERIODO_TARDE_INICIO}
-                              min={PERIODO_TARDE_INICIO}
-                              max={PERIODO_TARDE_FIM}
+                              placeholder="13:00"
+                              min={HORA_DIA_MIN}
+                              max={HORA_DIA_MAX}
                               onChange={(value) => alterarHorario("entradaTarde", value)}
                             />
                             <CampoHoraTexto
                               label={t("producao.diarias.saidaTarde")}
                               value={lancamento.saida || ""}
-                              placeholder={PERIODO_TARDE_FIM}
-                              min={PERIODO_TARDE_INICIO}
-                              max={PERIODO_TARDE_FIM}
+                              placeholder="17:00"
+                              min={HORA_DIA_MIN}
+                              max={HORA_DIA_MAX}
                               onChange={(value) => alterarHorario("saida", value)}
                             />
                           </div>

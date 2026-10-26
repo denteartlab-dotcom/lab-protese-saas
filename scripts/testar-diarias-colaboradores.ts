@@ -29,7 +29,11 @@ import {
   aplicarCadastroNaConfigDiaria,
   garantirConfigColaborador,
   horasLancamentoDiaria,
+  horasTrabalhadasLancamento,
+  horarioLancamentoPadrao,
   horarioPadraoDoDia,
+  horarioPorDuracao,
+  normalizarConfigDiaria,
   limitarHoraNoPeriodo,
   PERIODO_MANHA_FIM,
   PERIODO_MANHA_INICIO,
@@ -367,5 +371,80 @@ const exemploDiaria = montarTextoExemploRemuneracao({
 });
 assert.equal(exemploDiaria.includes("180"), true);
 ok("texto de exemplo da remuneração por diária");
+
+assert.deepEqual(horarioPorDuracao("08:00", 4, 4, 1), {
+  entrada: "08:00",
+  saidaManha: "12:00",
+  entradaTarde: "13:00",
+  saida: "17:00",
+});
+ok("4h + intervalo de 1h + 4h monta 08:00–12:00 e 13:00–17:00");
+
+assert.deepEqual(horarioPorDuracao("08:00", 3, 4, 2), {
+  entrada: "08:00",
+  saidaManha: "11:00",
+  entradaTarde: "13:00",
+  saida: "17:00",
+});
+ok("3h de manhã, 2h de intervalo e 4h de tarde");
+
+const configDuracao = normalizarConfigDiaria({
+  colaboradorId: "c1",
+  colaboradorNome: "Ana",
+  valorDiaria: "200,00",
+  horasJornada: 8,
+  horasTurnoManha: 3,
+  horasTurnoTarde: 4,
+  intervaloHoras: 2,
+});
+assert.deepEqual(horarioLancamentoPadrao(configDuracao, null, "2026-10-26"), {
+  entrada: "08:00",
+  saidaManha: "11:00",
+  entradaTarde: "13:00",
+  saida: "17:00",
+});
+ok("dias novos usam as horas e o intervalo configurados");
+
+const lancamentoFracao = recalcularLancamento(
+  {
+    id: "d1",
+    colaboradorId: "c1",
+    data: "2026-10-26",
+    ...horarioPorDuracao("08:00", 3, 4, 2),
+    turnoManha: true,
+    turnoTarde: true,
+    calcularPorHora: true,
+    intervaloMinutos: 120,
+    horas: 0,
+    valor: 0,
+  },
+  configDuracao
+);
+assert.equal(horasTrabalhadasLancamento(lancamentoFracao), 7);
+assert.equal(lancamentoFracao.horas, 7);
+assert.equal(lancamentoFracao.valor, 175);
+ok("fração usa as horas dos turnos e deixa o intervalo de fora");
+
+const lancamentoTurno = recalcularLancamento(
+  { ...lancamentoFracao, calcularPorHora: false, valorManual: false },
+  configDuracao
+);
+assert.equal(lancamentoTurno.valor, 200);
+assert.equal(horasLancamentoDiaria(lancamentoTurno), 9);
+ok("com o cálculo por hora desligado os dois turnos continuam valendo a diária inteira");
+
+let storeDuracao: DiariasStore = {
+  configs: {},
+  lancamentos: [lancamentoTurno],
+  despesas: {},
+};
+storeDuracao = atualizarConfigERecalcular(storeDuracao, {
+  ...configDuracao,
+  horasTurnoManha: 5,
+});
+assert.equal(storeDuracao.lancamentos[0].entrada, "08:00");
+assert.equal(storeDuracao.lancamentos[0].saidaManha, "11:00");
+assert.equal(storeDuracao.configs.c1.horasTurnoManha, 5);
+ok("mudar a configuração não reescreve o horário de um dia já lançado");
 
 console.log("todos os testes de diárias passaram");

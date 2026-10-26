@@ -27,6 +27,8 @@ import { persistirArmazenamentoImediato, readStorage, writeStorage } from "@/lib
 export const DIARIAS_STORAGE_KEY = "labProteseDiariasColaboradores";
 export const DIARIAS_ATUALIZADAS_EVENT = "lab-protese-diarias-atualizadas";
 export const HORAS_JORNADA_PADRAO = 8;
+export const HORAS_TURNO_PADRAO = 4;
+export const INTERVALO_HORAS_PADRAO = 1;
 export const DIAS_UTEIS_MES_PADRAO = 22;
 export const ENTRADA_PADRAO = "08:00";
 export const SAIDA_MANHA_PADRAO = "12:00";
@@ -44,6 +46,12 @@ export type ConfigDiariaColaborador = {
   colaboradorNome: string;
   valorDiaria: string;
   horasJornada: number;
+  /** Horas do turno da manhã nos próximos dias. Ausente: segue a carga horária. */
+  horasTurnoManha?: number;
+  /** Horas do turno da tarde nos próximos dias. Ausente: segue a carga horária. */
+  horasTurnoTarde?: number;
+  /** Intervalo entre os turnos, em horas. Ausente: segue a carga horária. */
+  intervaloHoras?: number;
 };
 
 export type LancamentoDiaria = {
@@ -466,6 +474,111 @@ export function diaCargaPorData(
   return dias.find((item) => item.id === id) || null;
 }
 
+/** Horas entre dois horários do mesmo dia. Horário incompleto ou invertido vale zero. */
+export function duracaoHorasEntre(inicio?: string, fim?: string): number {
+  const a = minutosDeHora(horaTextoValida(inicio || ""));
+  const b = minutosDeHora(horaTextoValida(fim || ""));
+  if (a == null || b == null || b <= a) return 0;
+  return Math.round(((b - a) / 60) * 100) / 100;
+}
+
+export function limitarDuracaoHoras(valor: number, min: number, max: number, fallback: number): number {
+  const n = Number(valor);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.round(Math.min(max, Math.max(min, n)) * 100) / 100;
+}
+
+/** Monta os quatro horários a partir da entrada e das durações de cada turno e do intervalo. */
+export function horarioPorDuracao(
+  entradaBase: string,
+  horasManha: number,
+  horasTarde: number,
+  intervaloHoras: number
+): HorarioDoisTurnos {
+  const limite = 23 * 60 + 59;
+  const entradaPadrao = minutosDeHora(ENTRADA_PADRAO) ?? 8 * 60;
+  let cursor = minutosDeHora(horaTextoValida(entradaBase) || "") ?? entradaPadrao;
+  if (cursor > limite) cursor = entradaPadrao;
+  const manha = Math.max(0, Math.round((Number(horasManha) || 0) * 60));
+  const intervalo = Math.max(0, Math.round((Number(intervaloHoras) || 0) * 60));
+  const tarde = Math.max(0, Math.round((Number(horasTarde) || 0) * 60));
+  const saidaManha = Math.min(limite, cursor + manha);
+  const entradaTarde = Math.min(limite, saidaManha + intervalo);
+  const saida = Math.min(limite, entradaTarde + tarde);
+  return {
+    entrada: minutosParaHora(cursor),
+    saidaManha: minutosParaHora(saidaManha),
+    entradaTarde: minutosParaHora(entradaTarde),
+    saida: minutosParaHora(saida),
+  };
+}
+
+export function duracoesEfetivas(
+  config: Pick<ConfigDiariaColaborador, "horasTurnoManha" | "horasTurnoTarde" | "intervaloHoras"> | null | undefined,
+  carga: HorarioFuncionamentoConfig | null | undefined,
+  data: string
+) {
+  const base = horarioPadraoDoDia(carga, data);
+  const manhaBase = duracaoHorasEntre(base.entrada, base.saidaManha);
+  const tardeBase = duracaoHorasEntre(base.entradaTarde, base.saida);
+  return {
+    horasTurnoManha: config?.horasTurnoManha ?? (manhaBase > 0 ? manhaBase : HORAS_TURNO_PADRAO),
+    horasTurnoTarde: config?.horasTurnoTarde ?? (tardeBase > 0 ? tardeBase : HORAS_TURNO_PADRAO),
+    intervaloHoras: config?.intervaloHoras ?? duracaoHorasEntre(base.saidaManha, base.entradaTarde),
+  };
+}
+
+/** Horário de um dia novo: entrada da carga e durações configuradas na diária. */
+export function horarioLancamentoPadrao(
+  config: Pick<ConfigDiariaColaborador, "horasTurnoManha" | "horasTurnoTarde" | "intervaloHoras"> | null | undefined,
+  carga: HorarioFuncionamentoConfig | null | undefined,
+  data: string
+): HorarioDoisTurnos {
+  const base = horarioPadraoDoDia(carga, data);
+  const duracao = duracoesEfetivas(config, carga, data);
+  return horarioPorDuracao(base.entrada, duracao.horasTurnoManha, duracao.horasTurnoTarde, duracao.intervaloHoras);
+}
+
+export function normalizarConfigDiaria(config: ConfigDiariaColaborador): ConfigDiariaColaborador {
+  const horasJornada = Math.min(24, Math.max(0.5, Number(config.horasJornada) || HORAS_JORNADA_PADRAO));
+  return {
+    colaboradorId: config.colaboradorId,
+    colaboradorNome: config.colaboradorNome || "",
+    valorDiaria: config.valorDiaria || "0,00",
+    horasJornada,
+    ...(config.horasTurnoManha != null && Number.isFinite(Number(config.horasTurnoManha))
+      ? {
+          horasTurnoManha: limitarDuracaoHoras(
+            Number(config.horasTurnoManha),
+            0.5,
+            12,
+            HORAS_TURNO_PADRAO
+          ),
+        }
+      : {}),
+    ...(config.horasTurnoTarde != null && Number.isFinite(Number(config.horasTurnoTarde))
+      ? {
+          horasTurnoTarde: limitarDuracaoHoras(
+            Number(config.horasTurnoTarde),
+            0.5,
+            12,
+            HORAS_TURNO_PADRAO
+          ),
+        }
+      : {}),
+    ...(config.intervaloHoras != null && Number.isFinite(Number(config.intervaloHoras))
+      ? {
+          intervaloHoras: limitarDuracaoHoras(
+            Number(config.intervaloHoras),
+            0,
+            6,
+            INTERVALO_HORAS_PADRAO
+          ),
+        }
+      : {}),
+  };
+}
+
 export function horarioPadraoDoDia(
   carga: HorarioFuncionamentoConfig | null | undefined,
   data: string
@@ -579,7 +692,10 @@ export function criarLancamentoDiaria(
       saida: horario.saida,
       turnoManha: horarioTemTurno(horario.entrada, horario.saidaManha),
       turnoTarde: horarioTemTurno(horario.entradaTarde, horario.saida),
-      intervaloMinutos: 0,
+      intervaloMinutos: Math.max(
+        0,
+        (minutosDeHora(horario.entradaTarde) ?? 0) - (minutosDeHora(horario.saidaManha) ?? 0)
+      ),
       horas: 0,
       valor: 0,
       observacao,
@@ -627,8 +743,7 @@ export function atualizarConfigERecalcular(
   store: DiariasStore,
   config: ConfigDiariaColaborador
 ): DiariasStore {
-  const horasJornada = Math.min(24, Math.max(0.5, Number(config.horasJornada) || HORAS_JORNADA_PADRAO));
-  const normalizada: ConfigDiariaColaborador = { ...config, horasJornada };
+  const normalizada = normalizarConfigDiaria(config);
   return {
     ...store,
     configs: { ...store.configs, [normalizada.colaboradorId]: normalizada },
@@ -658,7 +773,12 @@ export function preencherMesComJornada(
   for (const data of datasDoMes(ano, mes)) {
     if (existentes.has(data) || !diaDeveTrabalhar(carga, data)) continue;
     novos.push(
-      criarLancamentoDiaria(colaboradorId, data, config, horarioPadraoDoDia(carga, data))
+      criarLancamentoDiaria(
+        colaboradorId,
+        data,
+        config,
+        horarioLancamentoPadrao(config, carga, data)
+      )
     );
   }
   return { ...store, lancamentos: [...store.lancamentos, ...novos] };
@@ -887,6 +1007,9 @@ export function aplicarCadastroNaConfigDiaria(
     colaboradorNome: colaborador.nome,
     valorDiaria,
     horasJornada: atual?.horasJornada ?? horasJornadaDaCarga(colaborador.cargaHoraria),
+    ...(atual?.horasTurnoManha != null ? { horasTurnoManha: atual.horasTurnoManha } : {}),
+    ...(atual?.horasTurnoTarde != null ? { horasTurnoTarde: atual.horasTurnoTarde } : {}),
+    ...(atual?.intervaloHoras != null ? { intervaloHoras: atual.intervaloHoras } : {}),
   });
 }
 
@@ -938,12 +1061,7 @@ function normalizarStore(raw: Partial<DiariasStore> | null | undefined): Diarias
   if (raw?.configs && typeof raw.configs === "object") {
     for (const [id, config] of Object.entries(raw.configs)) {
       if (!config?.colaboradorId) continue;
-      configs[id] = {
-        colaboradorId: config.colaboradorId,
-        colaboradorNome: config.colaboradorNome || "",
-        valorDiaria: config.valorDiaria || "0,00",
-        horasJornada: Number(config.horasJornada) > 0 ? Number(config.horasJornada) : HORAS_JORNADA_PADRAO,
-      };
+      configs[id] = normalizarConfigDiaria(config);
     }
   }
   const lancamentos = Array.isArray(raw?.lancamentos)
