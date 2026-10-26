@@ -67,7 +67,6 @@ export function useSessaoInatividade(
           if (!deveEncerrarPorInatividadeLocal(true, res.ok)) {
             confirmarSessaoRenovada();
             registrarAtividadeSessao();
-            renovarCookieSessao();
             return;
           }
           onInativoRef.current();
@@ -79,8 +78,8 @@ export function useSessaoInatividade(
     };
 
     if (!verificarExpiracao()) {
+      // Só marca atividade local. Renovar o cookie aqui atrasava toda tela no login.
       registrarAtividadeSessao();
-      renovarCookieSessao();
     }
 
     let ultimoRegistro = Date.now();

@@ -74,6 +74,24 @@ Auditoria jul/2026 — ordem para reduzir janelas de multi-ações:
 Módulos **sem issue necessária** (já razoáveis): Disparos WhatsApp (wizard inline), Assinatura UX (1 modal), PDF relatórios (issue 015).  
 Lacunas fechadas nesta rodada: TV (037), Financeiro formulários (038).
 
+### Módulos fora das issues de multi-ações (031–038)
+
+Não abrir 031–038 para aliviar o sistema. Estes módulos não têm issue de empilhar janelas. A lentidão depois do login vinha do shell renovar a sessão em toda tela. O primeiro carregamento só marca atividade local; o cookie renova depois de 5 minutos de uso.
+
+- Disparos WhatsApp (wizard na própria página, inclusive histórico)
+- Assinatura (um modal de PIX)
+- Relatórios em PDF (DRE, fluxo de caixa e os demais de `/app/relatorios`) — coberto pela 015
+- Busca rápida de OS no topo — 019 concluída
+- Produção que não é entrega/agenda: controle, módulo do colaborador, comissão e finalizadores (007/008 só mexeram na API)
+- Comissão de colaboradores e de prestadores (modais de relatório, sem issue)
+- Etapas, setores e material do dentista
+- Usuários, alterar senha, modelos de OS/fatura e etiquetas de entrega
+- Liberar espaço e lista de imagens
+- Portal público, acompanhamento e orçamento público
+- Admin Master
+- Landing, login e cadastro
+- Sininho e chat de suporte (018 e 027 são lote/API, não multi-ação de tela)
+
 ## Labels sugeridas (GitHub)
 
 - `otimizacao` — melhoria de performance/arquitetura
