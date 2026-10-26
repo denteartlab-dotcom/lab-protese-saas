@@ -31,6 +31,8 @@ type Props = {
   anexoAberto: { name: string; type: string; url: string } | null;
   onAnexoAberto: (anexo: { name: string; type: string; url: string } | null) => void;
   onAdicionarImagem?: () => void;
+  /** Agenda: produtos e anexo ficam na linha, sem segundo overlay. */
+  painelUnico?: boolean;
 };
 
 export function AgendaOsDetalheExpandido({
@@ -38,6 +40,7 @@ export function AgendaOsDetalheExpandido({
   anexoAberto,
   onAnexoAberto,
   onAdicionarImagem,
+  painelUnico = false,
 }: Props) {
   const { t, locale } = useI18n();
   const [produtosAbertos, setProdutosAbertos] = useState(false);
@@ -182,6 +185,7 @@ export function AgendaOsDetalheExpandido({
       </div>
 
       <AgendaVerProdutosModal
+        embutido={painelUnico}
         open={produtosAbertos}
         onClose={() => setProdutosAbertos(false)}
         numeroOs={principal.numeroOs}
@@ -189,7 +193,13 @@ export function AgendaOsDetalheExpandido({
       />
 
       {anexoAberto && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4">
+        <div
+          className={
+            painelUnico
+              ? "border-t border-slate-200 bg-slate-950 p-4"
+              : "fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4"
+          }
+        >
           <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
               <div className="min-w-0">

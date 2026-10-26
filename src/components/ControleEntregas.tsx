@@ -279,12 +279,24 @@ export function ControleEntregas() {
     setSelecionados(new Set(entregasFiltradas.map((item) => item.id)));
   }
 
+  function fecharCamadasEntrega() {
+    setRelatorioAberto(false);
+    setHistoricoAberto(false);
+    setEtiquetaImprimindo(null);
+    setSituacaoEditando(null);
+    setVisualizando(null);
+    setExcluindo(null);
+    setHistoricoExcluindo(null);
+  }
+
   function abrirNovaEntrega() {
+    fecharCamadasEntrega();
     setEditando(null);
     setModalAberto(true);
   }
 
   function abrirEdicao(entrega: EntregaControle) {
+    fecharCamadasEntrega();
     setEditando(entrega);
     setModalAberto(true);
   }
@@ -350,7 +362,10 @@ export function ControleEntregas() {
     <>
       <button
         type="button"
-        onClick={() => setRelatorioAberto(true)}
+        onClick={() => {
+          fecharCamadasEntrega();
+          setRelatorioAberto(true);
+        }}
         className="rounded bg-[#3b82f6] px-4 py-1.5 text-[11px] font-medium text-white hover:bg-blue-600"
       >
         {t("producao.comum.relatorios")}
@@ -401,6 +416,7 @@ export function ControleEntregas() {
             labelVer={t("producao.comum.ver")}
             ativo={historicoAberto}
             onVer={() => {
+              fecharCamadasEntrega();
               setHistoricoCliente("");
               setHistoricoDataInicio("");
               setHistoricoDataFim("");
@@ -507,6 +523,14 @@ export function ControleEntregas() {
           </div>
         </div>
 
+        <FormularioRotaEntregaModal
+          embutido
+          open={modalAberto}
+          editando={editando}
+          onClose={fecharModalRota}
+          onSalvo={recarregar}
+        />
+
         <div className="overflow-x-auto rounded border border-slate-200">
           <table className="w-full min-w-[1180px] text-[11px]">
             <thead>
@@ -562,7 +586,10 @@ export function ControleEntregas() {
                     <td className="px-2 py-2">
                       <button
                         type="button"
-                        onClick={() => setSituacaoEditando(entrega)}
+                        onClick={() => {
+                          fecharCamadasEntrega();
+                          setSituacaoEditando(entrega);
+                        }}
                         className={`inline-flex rounded px-2 py-0.5 text-[10px] font-semibold transition hover:opacity-90 hover:ring-2 hover:ring-blue-200 ${
                           SITUACOES_ENTREGA[entrega.situacao].badge
                         }`}
@@ -576,7 +603,10 @@ export function ControleEntregas() {
                       <div className="flex items-center justify-center gap-1 text-slate-500">
                         <button
                           type="button"
-                          onClick={() => setVisualizando(entrega)}
+                          onClick={() => {
+                            fecharCamadasEntrega();
+                            setVisualizando(entrega);
+                          }}
                           className="rounded p-1 hover:bg-blue-50 hover:text-blue-600"
                           title={t("producao.comum.visualizar")}
                         >
@@ -584,7 +614,10 @@ export function ControleEntregas() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => setEtiquetaImprimindo(entrega)}
+                          onClick={() => {
+                            fecharCamadasEntrega();
+                            setEtiquetaImprimindo(entrega);
+                          }}
                           className="rounded p-1 hover:bg-slate-100 hover:text-blue-600"
                           title={t("producao.entregas.etiqueta.imprimir")}
                         >
@@ -600,7 +633,10 @@ export function ControleEntregas() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => setExcluindo(entrega)}
+                          onClick={() => {
+                            fecharCamadasEntrega();
+                            setExcluindo(entrega);
+                          }}
                           className="rounded p-1 text-red-500 hover:bg-red-50"
                           title={t("common.excluir")}
                         >
@@ -615,13 +651,6 @@ export function ControleEntregas() {
           </table>
         </div>
       </div>
-
-      <FormularioRotaEntregaModal
-        open={modalAberto}
-        editando={editando}
-        onClose={fecharModalRota}
-        onSalvo={recarregar}
-      />
 
       <ImprimirEtiquetaEntregaModal
         open={Boolean(etiquetaImprimindo)}
@@ -749,7 +778,10 @@ export function ControleEntregas() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => setHistoricoExcluindo(item)}
+                            onClick={() => {
+                              fecharCamadasEntrega();
+                              setHistoricoExcluindo(item);
+                            }}
                             className="rounded p-1 text-red-500 hover:bg-red-50"
                             title={t("producao.comum.excluirHistorico")}
                           >

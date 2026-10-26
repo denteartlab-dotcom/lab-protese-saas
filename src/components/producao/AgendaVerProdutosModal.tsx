@@ -17,17 +17,29 @@ type Props = {
   onClose: () => void;
   numeroOs: number;
   produtos: Produto[];
+  /** Na linha da agenda: lista no próprio painel. */
+  embutido?: boolean;
 };
 
-export function AgendaVerProdutosModal({ open, onClose, numeroOs, produtos }: Props) {
+export function AgendaVerProdutosModal({
+  open,
+  onClose,
+  numeroOs,
+  produtos,
+  embutido = false,
+}: Props) {
   const { t } = useI18n();
 
   if (!open) return null;
 
-  return (
-    <I18nPortal>
-      <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4">
-      <div className="max-h-[85vh] w-full max-w-lg overflow-auto rounded border border-slate-200 bg-white shadow-xl">
+  const card = (
+      <div
+        className={
+          embutido
+            ? "max-h-[360px] w-full overflow-auto rounded border border-slate-200 bg-white"
+            : "max-h-[85vh] w-full max-w-lg overflow-auto rounded border border-slate-200 bg-white shadow-xl"
+        }
+      >
         <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
           <h2 className="text-sm font-semibold text-slate-700">
             {t("producao.controle.produtosOs", { numeroOs })}
@@ -81,7 +93,17 @@ export function AgendaVerProdutosModal({ open, onClose, numeroOs, produtos }: Pr
           </div>
         </div>
       </div>
-    </div>
+  );
+
+  if (embutido) {
+    return <div className="border-t border-slate-200 bg-white px-4 py-3">{card}</div>;
+  }
+
+  return (
+    <I18nPortal>
+      <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4">
+        {card}
+      </div>
     </I18nPortal>
   );
 }

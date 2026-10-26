@@ -176,6 +176,7 @@ export function RelatorioEntregasModal({
     try {
       const linhas = await obterLinhasComProducao();
       await imprimirRelatorioEntregas(linhas, filtroAtual);
+      onClose();
     } catch (err) {
       console.error("[relatorio-entregas] imprimir", err);
       alert(

@@ -1,7 +1,7 @@
 "use client";
 
 import { useI18n } from "@/components/i18n-provider";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { MapPin, Truck, User } from "lucide-react";
 import { Modal, SelectPesquisavel } from "@/components/ui";
 import { CampoDataBr } from "@/components/campo-data-br";
@@ -75,7 +75,52 @@ type Props = {
   editando: EntregaControle | null;
   onClose: () => void;
   onSalvo: () => void;
+  /** Na lista de entregas: o formulário fica na página, sem overlay. */
+  embutido?: boolean;
 };
+
+function PainelOuModalRota({
+  embutido,
+  open,
+  onClose,
+  title,
+  size = "xl",
+  layerClassName,
+  children,
+}: {
+  embutido: boolean;
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  size?: "lg" | "xl";
+  layerClassName?: string;
+  children: ReactNode;
+}) {
+  if (!open) return null;
+  if (embutido) {
+    return (
+      <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+          <h2 className="text-lg font-semibold text-slate-800">{title}</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            aria-label="Fechar"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="max-h-[70vh] overflow-y-auto p-5">{children}</div>
+      </section>
+    );
+  }
+  return (
+    <Modal open onClose={onClose} title={title} size={size} layerClassName={layerClassName}>
+      {children}
+    </Modal>
+  );
+}
 
 function labelCampo(texto: string) {
   return <span className="mb-0.5 block text-[11px] text-slate-600">{texto}</span>;
@@ -114,6 +159,7 @@ export function FormularioRotaEntregaModal({
   editando,
   onClose,
   onSalvo,
+  embutido = false,
 }: Props) {
   const { t } = useI18n();
 
@@ -554,8 +600,9 @@ export function FormularioRotaEntregaModal({
 
   return (
     <>
-    <Modal
-      open={open}
+    <PainelOuModalRota
+      embutido={embutido}
+      open={open && !osModalAberto}
       onClose={onClose}
       title={
         editando
@@ -854,10 +901,11 @@ export function FormularioRotaEntregaModal({
           </p>
         </div>
       </form>
-    </Modal>
+    </PainelOuModalRota>
 
-    <Modal
-      open={osModalAberto}
+    <PainelOuModalRota
+      embutido={embutido}
+      open={open && osModalAberto}
       onClose={() => setOsModalAberto(false)}
       title={t("producao.entregas.rota.osSaiuEntregaTitulo")}
       size="lg"
@@ -954,7 +1002,7 @@ export function FormularioRotaEntregaModal({
           </button>
         </div>
       </div>
-    </Modal>
+    </PainelOuModalRota>
     </>
   );
 }

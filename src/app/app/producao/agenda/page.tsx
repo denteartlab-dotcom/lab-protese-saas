@@ -308,6 +308,8 @@ export default function AgendaPage() {
   }
 
   function abrirEdicao(linha: LinhaAgendaGrupoOs) {
+    setImprimirOs(null);
+    setOsAberta(linha.chaveGrupo);
     setEditandoId(editIdLinha(linha));
   }
 
@@ -583,7 +585,10 @@ export default function AgendaPage() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => setImprimirOs(principal)}
+                            onClick={() => {
+                              setEditandoId(null);
+                              setImprimirOs(principal);
+                            }}
                             title={t("producao.controle.acao.imprimir")}
                             className="rounded p-1 text-red-500 hover:bg-white hover:text-red-600"
                           >
@@ -596,6 +601,8 @@ export default function AgendaPage() {
                                 setAvisoExclusaoOs(MENSAGEM_OS_FATURADA_NAO_EXCLUI);
                                 return;
                               }
+                              setImprimirOs(null);
+                              setEditandoId(null);
                               setOsExcluindo(linha);
                             }}
                             title={t("producao.controle.acao.excluir")}
@@ -609,11 +616,20 @@ export default function AgendaPage() {
                     {expandida && (
                       <tr>
                         <td colSpan={12} className="bg-slate-50 p-0">
-                          <AgendaOsDetalheExpandido
-                            linha={linha}
-                            anexoAberto={anexoAberto}
-                            onAnexoAberto={setAnexoAberto}
-                          />
+                          {editandoId === editIdLinha(linha) ? (
+                            <AgendaEditarOsModal
+                              embutido
+                              trabalhoId={editandoId}
+                              onClose={fecharEdicao}
+                            />
+                          ) : (
+                            <AgendaOsDetalheExpandido
+                              linha={linha}
+                              anexoAberto={anexoAberto}
+                              onAnexoAberto={setAnexoAberto}
+                              painelUnico
+                            />
+                          )}
                         </td>
                       </tr>
                     )}
@@ -659,9 +675,6 @@ export default function AgendaPage() {
         }
       />
 
-      {editandoId && (
-        <AgendaEditarOsModal trabalhoId={editandoId} onClose={fecharEdicao} />
-      )}
     </div>
   );
 }

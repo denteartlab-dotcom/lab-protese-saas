@@ -1,5 +1,5 @@
 import { formatarDataHoraEntrega } from "@/lib/controle-entregas";
-import { abrirPdfGerando } from "@/lib/pdf-viewer";
+import { abrirPdfBlobGerandoNoVisualizadorUnificado } from "@/lib/pdf-viewer-unificado";
 import {
   carregarHistoricoEntregas,
   ENTREGAS_HISTORICO_EVENT,
@@ -78,7 +78,7 @@ export async function imprimirHistoricoEntregas(historico: EntregaHistorico[]) {
     valor: item.valor,
   }));
 
-  await abrirPdfGerando(
+  await abrirPdfBlobGerandoNoVisualizadorUnificado(
     async () => {
       const { gerarHistoricoEntregasPdf } = await import("@/lib/relatorios-impressao-pdf");
       return gerarHistoricoEntregasPdf(
@@ -86,7 +86,7 @@ export async function imprimirHistoricoEntregas(historico: EntregaHistorico[]) {
         `Emitido em ${emitidoEm} · ${historico.length} registro(s)`
       );
     },
-    "historico-entregas.pdf",
-    "Histórico de entregas"
+    "Histórico de entregas",
+    "historico-entregas.pdf"
   );
 }
