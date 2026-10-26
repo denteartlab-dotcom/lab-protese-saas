@@ -456,7 +456,22 @@ export default function TabelaPrecosPage() {
     ]);
   }
 
+  function fecharOverlaysTabela() {
+    setModalCadastrarTabela(false);
+    setModalTabelas(false);
+    setModalEditarTabela(false);
+    setModalClientesTabela(null);
+    setCategoriaServico(null);
+    setModalProdutosCategoriaId(null);
+    setModalTransporte(null);
+    setModalCustos(null);
+    setModalEditarValores(false);
+    setModalEtapasServico(null);
+    setModalCadastroEtapasServico(false);
+  }
+
   function adicionarTabela() {
+    fecharOverlaysTabela();
     setNomeNovaTabela("");
     setModalCadastrarTabela(true);
     setDropdownTabelaAberto(false);
@@ -511,6 +526,7 @@ export default function TabelaPrecosPage() {
   }
 
   function abrirModalClientesTabela(tabelaSelecionada: string) {
+    fecharOverlaysTabela();
     setBuscaClienteTabela("");
     setModalClientesTabela({ tabela: tabelaSelecionada });
     void carregarClientesDaTabela(tabelaSelecionada);
@@ -608,6 +624,7 @@ export default function TabelaPrecosPage() {
   }
 
   function abrirEditarTabela() {
+    fecharOverlaysTabela();
     setNomeTabelaEditando(tabela);
     setModalEditarTabela(true);
   }
@@ -725,6 +742,7 @@ export default function TabelaPrecosPage() {
   }, [persistenciaPronta, migracaoCustosFeita, produtosEstoque]);
 
   function abrirCadastroServico(categoriaId: string) {
+    fecharOverlaysTabela();
     const categoria = categorias.find((item) => item.id === categoriaId) || null;
     setTipoItemCadastro("servico");
     setCategoriaServico(categoria);
@@ -784,6 +802,7 @@ export default function TabelaPrecosPage() {
   }
 
   function abrirModalProdutos(categoriaId: string) {
+    fecharOverlaysTabela();
     setModalProdutosCategoriaId(categoriaId);
     setBuscaProdutoEstoque("");
     setProdutosSelecionados(new Set());
@@ -796,6 +815,7 @@ export default function TabelaPrecosPage() {
   }
 
   function abrirModalTransporte(categoriaId: string, item?: ServicoPreco) {
+    fecharOverlaysTabela();
     setModalTransporte({ categoriaId, itemId: item?.id ?? null });
     setFormTransporte({
       nome: item?.nome ?? "",
@@ -1024,6 +1044,7 @@ export default function TabelaPrecosPage() {
   }
 
   function editarServico(categoria: CategoriaPreco, servico: ServicoPreco) {
+    fecharOverlaysTabela();
     setTipoItemCadastro("servico");
     setCategoriaServico(categoria);
     setServicoEditando(servico);
@@ -1041,6 +1062,7 @@ export default function TabelaPrecosPage() {
   }
 
   function abrirModalEtapas(categoria: CategoriaPreco, servico: ServicoPreco) {
+    fecharOverlaysTabela();
     setFormServico((atual) => ({
       ...atual,
       etapas: servico.etapas || [],
@@ -1120,6 +1142,7 @@ export default function TabelaPrecosPage() {
   }
 
   function abrirModalCustos(categoriaId: string, item: ServicoPreco) {
+    fecharOverlaysTabela();
     setModalCustos({ categoriaId, itemId: item.id, tipo: item.tipo });
     if (item.tipo === "servico") {
       setFormCustoProduto({ produtoId: "", qtd: "1", custo: "0,00" });
@@ -1487,6 +1510,7 @@ export default function TabelaPrecosPage() {
       alert(t("cadastros.tabelaPrecos.alerta.semItensReajustar"));
       return;
     }
+    fecharOverlaysTabela();
     setModalEditarValores(true);
   }
 
@@ -2056,6 +2080,53 @@ export default function TabelaPrecosPage() {
             </div>
             ))}
 
+
+            {!recolhida && !editandoRapido && !mostrarServicosExcluidos && (
+            <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 px-3 py-2">
+              {botoesAdicao.servico && (
+              <button
+                type="button"
+                onClick={() => abrirCadastroServico(categoria.id)}
+                className="inline-flex items-center gap-1 rounded bg-emerald-500 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-600"
+              >
+                <Plus className="h-3 w-3" />
+                Serviço
+              </button>
+              )}
+              {botoesAdicao.produto && (
+              <button
+                type="button"
+                onClick={() => abrirModalProdutos(categoria.id)}
+                className="inline-flex items-center gap-1 rounded bg-blue-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-blue-700"
+              >
+                <Plus className="h-3 w-3" />
+                Produto
+              </button>
+              )}
+              {botoesAdicao.transporte && (
+              <button
+                type="button"
+                onClick={() => abrirModalTransporte(categoria.id)}
+                className="inline-flex items-center gap-1 rounded bg-blue-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-blue-700"
+              >
+                <Plus className="h-3 w-3" />
+                Transporte
+              </button>
+              )}
+              <button
+                type="button"
+                onClick={() => solicitarRemoverCategoria(categoria.id)}
+                className="ml-auto text-[10px] font-semibold text-red-500 hover:underline"
+              >
+                Excluir categoria
+              </button>
+            </div>
+            )}
+              </CategoriaPrecoArrastavel>
+              );
+            })}
+          </ListaCategoriasPrecoDnd>
+
             {modalCustos && (() => {
               const data = servicoNoModalCustos();
               if (!data) return null;
@@ -2298,52 +2369,6 @@ export default function TabelaPrecosPage() {
               );
             })()}
 
-            {!recolhida && !editandoRapido && !mostrarServicosExcluidos && (
-            <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 px-3 py-2">
-              {botoesAdicao.servico && (
-              <button
-                type="button"
-                onClick={() => abrirCadastroServico(categoria.id)}
-                className="inline-flex items-center gap-1 rounded bg-emerald-500 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-600"
-              >
-                <Plus className="h-3 w-3" />
-                Serviço
-              </button>
-              )}
-              {botoesAdicao.produto && (
-              <button
-                type="button"
-                onClick={() => abrirModalProdutos(categoria.id)}
-                className="inline-flex items-center gap-1 rounded bg-blue-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-blue-700"
-              >
-                <Plus className="h-3 w-3" />
-                Produto
-              </button>
-              )}
-              {botoesAdicao.transporte && (
-              <button
-                type="button"
-                onClick={() => abrirModalTransporte(categoria.id)}
-                className="inline-flex items-center gap-1 rounded bg-blue-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-blue-700"
-              >
-                <Plus className="h-3 w-3" />
-                Transporte
-              </button>
-              )}
-              <button
-                type="button"
-                onClick={() => solicitarRemoverCategoria(categoria.id)}
-                className="ml-auto text-[10px] font-semibold text-red-500 hover:underline"
-              >
-                Excluir categoria
-              </button>
-            </div>
-            )}
-              </CategoriaPrecoArrastavel>
-              );
-            })}
-          </ListaCategoriasPrecoDnd>
-
           <div className="text-right text-[11px] text-slate-400">
             Total de serviços: {totalServicos}
           </div>
@@ -2548,7 +2573,7 @@ export default function TabelaPrecosPage() {
         </div>
       )}
 
-      {categoriaServico && tipoItemCadastro === "servico" && (
+      {categoriaServico && tipoItemCadastro === "servico" && !modalEtapasServico && !modalCadastroEtapasServico && (
         <div className="fixed inset-0 z-[60] flex items-start justify-center bg-black/45 p-4 pt-16">
           <div className="relative flex max-h-[calc(100vh-5rem)] w-full max-w-6xl flex-col rounded bg-white shadow-2xl">
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-4 py-3">
@@ -2926,7 +2951,7 @@ export default function TabelaPrecosPage() {
         </div>
       )}
 
-      {modalEtapasServico && (
+      {modalEtapasServico && !modalCadastroEtapasServico && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/45 p-4">
           <div className="flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col rounded bg-white shadow-2xl">
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
