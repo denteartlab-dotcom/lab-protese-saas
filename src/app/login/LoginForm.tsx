@@ -17,7 +17,11 @@ import {
   ULTIMO_LAB_SLUG_COOKIE,
   JA_ENTROU_COOKIE,
 } from "@/lib/auth-client";
-import { registrarAtividadeSessao } from "@/lib/sessao-inatividade";
+import { confirmarSessaoRenovada } from "@/lib/redirecionar-login-sessao";
+import {
+  limparUltimaAtividadeSessao,
+  registrarAtividadeSessao,
+} from "@/lib/sessao-inatividade";
 import { montarTituloDocumento } from "@/lib/document-title";
 import { LAB_CONFIG_ATUALIZADA_EVENT } from "@/lib/configuracoes-lab";
 import type { LabBrandingPublico } from "@/lib/lab-branding-types";
@@ -53,6 +57,7 @@ async function entrarNoApp(destino: string) {
   if (!sessaoOk) {
     throw new Error("SESSAO_NAO_CONFIRMADA");
   }
+  confirmarSessaoRenovada();
   window.location.assign(url);
 }
 export type LoginBranding = {
@@ -121,6 +126,11 @@ export function LoginForm({
   const [mfaUserSlug, setMfaUserSlug] = useState<{ slug?: string; nome?: string }>({});
   const redirectDestino = searchParams.get("redirect") || "/app";
   const cadastroOk = searchParams.get("cadastro") === "ok";
+
+  // O relógio de 2h da sessão anterior não pode expulsar o login que acabou de entrar.
+  useEffect(() => {
+    limparUltimaAtividadeSessao();
+  }, []);
 
   // Login principal nunca usa modo noturno (preferência continua salva para o app).
   useEffect(() => {

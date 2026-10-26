@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { confirmarSessaoRenovada } from "@/lib/redirecionar-login-sessao";
+import { deveEncerrarPorInatividadeLocal } from "@/lib/sessao-navegacao";
 import {
   registrarAtividadeSessao,
   sessaoExpiradaPorInatividade,
@@ -48,18 +50,38 @@ export function useSessaoInatividade(
   useEffect(() => {
     if (desabilitado) return;
 
+    let cancelado = false;
+    let checandoServidor = false;
+
     const verificarExpiracao = () => {
-      if (sessaoExpiradaPorInatividade()) {
-        onInativoRef.current();
-        return true;
-      }
-      return false;
+      if (!sessaoExpiradaPorInatividade()) return false;
+      if (checandoServidor) return true;
+      checandoServidor = true;
+      void fetch("/api/auth/me", {
+        credentials: "same-origin",
+        cache: "no-store",
+      })
+        .then((res) => {
+          if (cancelado) return;
+          checandoServidor = false;
+          if (!deveEncerrarPorInatividadeLocal(true, res.ok)) {
+            confirmarSessaoRenovada();
+            registrarAtividadeSessao();
+            renovarCookieSessao();
+            return;
+          }
+          onInativoRef.current();
+        })
+        .catch(() => {
+          checandoServidor = false;
+        });
+      return true;
     };
 
-    if (verificarExpiracao()) return;
-
-    registrarAtividadeSessao();
-    renovarCookieSessao();
+    if (!verificarExpiracao()) {
+      registrarAtividadeSessao();
+      renovarCookieSessao();
+    }
 
     let ultimoRegistro = Date.now();
     let ultimaRenovacao = Date.now();
@@ -102,6 +124,7 @@ export function useSessaoInatividade(
       document.removeEventListener("visibilitychange", onVisivel);
       window.removeEventListener("pageshow", onPageShow);
       window.clearInterval(intervalo);
+      cancelado = true;
     };
   }, [desabilitado]);
 }

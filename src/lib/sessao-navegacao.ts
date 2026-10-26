@@ -32,6 +32,27 @@ export function pedidoPodeRedirecionarSessao(caminho: string): boolean {
   return true;
 }
 
+export function paginaIgnoraInatividade(caminho: string) {
+  return (
+    caminho === "/login" ||
+    caminho.startsWith("/login/") ||
+    caminho.startsWith("/admin-master/login") ||
+    caminho === "/limpar-sessao"
+  );
+}
+
+/**
+ * O relógio local da sessão anterior não pode expulsar um login novo.
+ * Só sai se o servidor também disser que não há sessão.
+ */
+export function deveEncerrarPorInatividadeLocal(
+  localExpirada: boolean,
+  servidorAutenticado: boolean
+) {
+  if (!localExpirada) return false;
+  return !servidorAutenticado;
+}
+
 export function respostaIndicaSessaoExpirada(opcoes: {
   status: number;
   redirected: boolean;

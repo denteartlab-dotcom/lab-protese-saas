@@ -113,7 +113,12 @@ export async function createSession(
   });
 
   const cookieStore = await cookies();
-  cookieStore.set(COOKIE_NAME, token, opcoesCookieSessao(maxAge, options?.request));
+  const opcoes = opcoesCookieSessao(maxAge, options?.request);
+  // Host-only antigo não pode ir junto do Domain e ser lido no lugar do token novo.
+  if (opcoes.domain) {
+    cookieStore.set(COOKIE_NAME, "", { ...opcoes, domain: undefined, maxAge: 0 });
+  }
+  cookieStore.set(COOKIE_NAME, token, opcoes);
 }
 
 /** Preferível em Route Handlers: grava Set-Cookie na resposta HTTP. */
@@ -127,7 +132,19 @@ export async function anexarCookieSessao(
     remember: options?.remember,
     ttlSegundos: maxAge,
   });
-  response.cookies.set(COOKIE_NAME, token, opcoesCookieSessao(maxAge, options?.request));
+  const opcoes = opcoesCookieSessao(maxAge, options?.request);
+  // O cookie sem Domain (login antigo / host-only) pode ser enviado na frente
+  // do novo. O servidor lia a sessão vencida e a conta saía de novo.
+  if (opcoes.domain) {
+    response.cookies.set(COOKIE_NAME, "", {
+      httpOnly: true,
+      secure: opcoes.secure,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 0,
+    });
+  }
+  response.cookies.set(COOKIE_NAME, token, opcoes);
   return response;
 }
 

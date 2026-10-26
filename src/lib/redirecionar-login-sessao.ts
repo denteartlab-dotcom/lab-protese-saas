@@ -1,27 +1,31 @@
 "use client";
 
-import { sessaoExpiradaPorInatividade, limparUltimaAtividadeSessao } from "@/lib/sessao-inatividade";
-import { respostaIndicaSessaoExpirada } from "@/lib/sessao-navegacao";
+import { limparUltimaAtividadeSessao } from "@/lib/sessao-inatividade";
+import {
+  paginaIgnoraInatividade,
+  respostaIndicaSessaoExpirada,
+} from "@/lib/sessao-navegacao";
 
 let redirecionando = false;
 let instalado = false;
+let servidorMorto = false;
 
-function paginaDeLogin(caminho: string) {
-  return caminho === "/login" || caminho.startsWith("/login/") || caminho.startsWith("/admin-master/login");
+/** Login novo confirmado: o clique deixa de ser tratado como sessão morta. */
+export function confirmarSessaoRenovada() {
+  servidorMorto = false;
+  redirecionando = false;
 }
 
 export function irParaLogin() {
   if (typeof window === "undefined" || redirecionando) return;
   const caminho = window.location.pathname;
-  if (paginaDeLogin(caminho) || caminho === "/limpar-sessao") return;
+  if (paginaIgnoraInatividade(caminho)) return;
   redirecionando = true;
+  servidorMorto = true;
   limparUltimaAtividadeSessao();
   const destino = caminho.startsWith("/admin-master") ? "/admin-master/login" : "/login";
-  void fetch("/api/auth/logout", {
-    method: "POST",
-    credentials: "same-origin",
-    keepalive: true,
-  }).catch(() => undefined);
+  // Não chama /api/auth/logout aqui: a resposta pode chegar depois do novo
+  // login e apagar o cookie da sessão que acabou de entrar.
   window.location.replace(destino);
 }
 
@@ -38,7 +42,8 @@ export function instalarRedirecionamentoSessaoExpirada() {
   instalado = true;
 
   const aoInteragir = (evento: Event) => {
-    if (!sessaoExpiradaPorInatividade()) return;
+    if (paginaIgnoraInatividade(window.location.pathname)) return;
+    if (!servidorMorto) return;
     evento.preventDefault();
     evento.stopPropagation();
     irParaLogin();
@@ -59,7 +64,7 @@ export function instalarRedirecionamentoSessaoExpirada() {
         urlPedido: pedido || resposta.url,
         origem: window.location.origin,
       }) &&
-      !paginaDeLogin(window.location.pathname)
+      !paginaIgnoraInatividade(window.location.pathname)
     ) {
       irParaLogin();
     }

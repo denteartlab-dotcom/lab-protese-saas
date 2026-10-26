@@ -3,6 +3,8 @@
  * Uso: npx tsx scripts/testar-sessao-inatividade.ts
  */
 import {
+  deveEncerrarPorInatividadeLocal,
+  paginaIgnoraInatividade,
   pedidoPodeRedirecionarSessao,
   requisicaoEhDocumento,
   respostaIndicaSessaoExpirada,
@@ -85,6 +87,21 @@ assert(
     origem: "https://lab.example",
   }),
   "redirect seguido até /login também indica sessão caída"
+);
+
+assert(paginaIgnoraInatividade("/login"), "formulário de login não pode ser bloqueado");
+assert(!paginaIgnoraInatividade("/app"), "app continua sujeita à sessão");
+assert(
+  !deveEncerrarPorInatividadeLocal(true, true),
+  "login novo com relógio local antigo deve permanecer"
+);
+assert(
+  deveEncerrarPorInatividadeLocal(true, false),
+  "sem sessão no servidor a inatividade local encerra"
+);
+assert(
+  !deveEncerrarPorInatividadeLocal(false, true),
+  "uso recente não encerra"
 );
 
 console.log("ok: logout automático vale com o site fechado (cookie 2h)");
