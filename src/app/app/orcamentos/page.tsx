@@ -190,13 +190,20 @@ export default function OrcamentosPage() {
     },
   });
 
+  function fecharRespostaParaFormulario() {
+    setRespostaModalAberto(false);
+    setOrcamentoResposta(null);
+  }
+
   function abrirNovo() {
+    fecharRespostaParaFormulario();
     setOrcamentoAtual(null);
     setSomenteLeitura(false);
     setModalAberto(true);
   }
 
   function abrirEdicao(orcamento: Orcamento) {
+    fecharRespostaParaFormulario();
     setOrcamentoAtual(orcamento);
     setSomenteLeitura(false);
     setModalAberto(true);
@@ -212,21 +219,30 @@ export default function OrcamentosPage() {
 
   function abrirVisualizacao(orcamento: Orcamento) {
     if (orcamento.status === "enviado" || orcamento.status === "aprovado") {
+      setModalAberto(false);
+      setOrcamentoAtual(null);
+      setSomenteLeitura(false);
       setOrcamentoResposta(orcamento);
       setRespostaModalAberto(true);
       return;
     }
+    fecharRespostaParaFormulario();
     setOrcamentoAtual(orcamento);
     setSomenteLeitura(true);
     setModalAberto(true);
   }
 
   function abrirAprovacao(orcamento: Orcamento) {
+    setModalAberto(false);
+    setOrcamentoAtual(null);
+    setSomenteLeitura(false);
     setOrcamentoResposta(orcamento);
     setRespostaModalAberto(true);
   }
 
   function solicitarAprovarOrcamento(orcamento: Orcamento) {
+    setRespostaModalAberto(false);
+    setModalAberto(false);
     setOrcamentoParaAprovar(orcamento);
   }
 
@@ -240,6 +256,8 @@ export default function OrcamentosPage() {
   }
 
   function solicitarRecusarOrcamento(orcamento: Orcamento) {
+    setRespostaModalAberto(false);
+    setModalAberto(false);
     setOrcamentoParaRecusar(orcamento);
   }
 

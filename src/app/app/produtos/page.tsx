@@ -783,7 +783,15 @@ function ProdutosConteudo() {
     setHistoricoMovimentos(getHistoricoMovimentosProduto(historicoProduto.id));
   }
 
+  function liberarCamadaProduto() {
+    setModalEtiquetasAberto(false);
+    setHistoricoProduto(null);
+    setMovimentoProduto(null);
+    setModalExcluidosAberto(false);
+  }
+
   function abrirHistoricoProduto(produto: Produto) {
+    liberarCamadaProduto();
     carregarResponsaveisMovimento();
     setHistoricoProduto(produto);
     setHistoricoFiltros({
@@ -891,6 +899,7 @@ function ProdutosConteudo() {
   }, [historicoMovimentos, setoresCadastrados]);
 
   function abrirMovimentacao(produto: Produto) {
+    liberarCamadaProduto();
     carregarResponsaveisMovimento();
     setMovimentoProduto(produto);
     setMovimentoForm({
@@ -1031,6 +1040,7 @@ function ProdutosConteudo() {
             <button
               type="button"
               onClick={() => {
+                liberarCamadaProduto();
                 setBuscaExcluidos("");
                 setModalExcluidosAberto(true);
               }}
@@ -1041,7 +1051,10 @@ function ProdutosConteudo() {
             </button>
             <button
               type="button"
-              onClick={() => setModalEtiquetasAberto(true)}
+              onClick={() => {
+                liberarCamadaProduto();
+                setModalEtiquetasAberto(true);
+              }}
               className="inline-flex h-7 items-center gap-1 rounded-sm bg-emerald-500 px-3 text-[10px] font-semibold text-white hover:bg-emerald-600"
             >
               <Plus className="h-3.5 w-3.5" />
@@ -1258,7 +1271,13 @@ function ProdutosConteudo() {
       </div>
 
       <Modal
-        open={open}
+        open={
+          open &&
+          !modalEtiquetasAberto &&
+          !historicoProduto &&
+          !movimentoProduto &&
+          !modalExcluidosAberto
+        }
         onClose={() => {
           if (salvandoProduto) return;
           setOpen(false);
@@ -1317,7 +1336,10 @@ function ProdutosConteudo() {
                   </Select>
                   <button
                     type="button"
-                    onClick={() => setModalEtiquetasAberto(true)}
+                    onClick={() => {
+                      liberarCamadaProduto();
+                      setModalEtiquetasAberto(true);
+                    }}
                     className="text-[10px] font-semibold text-emerald-600 hover:text-emerald-700 hover:underline"
                   >
                     {t("estoque.produtos.adicionarEtiqueta")}
@@ -1425,7 +1447,7 @@ function ProdutosConteudo() {
       />
 
       <Modal
-        open={modalExcluidosAberto}
+        open={modalExcluidosAberto && !produtoParaExcluirPermanente}
         onClose={() => setModalExcluidosAberto(false)}
         title={t("estoque.produtos.excluidosTitulo")}
         size="lg"
@@ -1623,7 +1645,7 @@ function ProdutosConteudo() {
       </Modal>
 
       <HistoricoMovimentosModal
-        open={Boolean(historicoProduto)}
+        open={Boolean(historicoProduto) && !movimentoParaExcluir}
         onClose={() => setHistoricoProduto(null)}
         filtros={historicoFiltros}
         onFiltrosChange={setHistoricoFiltros}
