@@ -100,6 +100,49 @@ function CampoHoraTexto({
   );
 }
 
+function ToggleCalculoHoras({
+  checked,
+  onChange,
+  titulo,
+  ajuda,
+}: {
+  checked: boolean;
+  onChange: (ativo: boolean) => void;
+  titulo: string;
+  ajuda: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className={cn(
+        "flex w-full items-center gap-4 rounded-xl border px-4 py-3 text-left transition",
+        checked ? "border-[#4cae4c] bg-[#f3fbf3]" : "border-slate-200 bg-white hover:border-slate-300"
+      )}
+    >
+      <span
+        className={cn(
+          "relative h-9 w-16 shrink-0 rounded-full transition-colors",
+          checked ? "bg-[#4cae4c]" : "bg-slate-300"
+        )}
+      >
+        <span
+          className={cn(
+            "absolute top-1 h-7 w-7 rounded-full bg-white shadow transition-transform",
+            checked ? "left-8" : "left-1"
+          )}
+        />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-[15px] font-semibold text-slate-800">{titulo}</span>
+        <span className="block text-[12px] leading-snug text-slate-500">{ajuda}</span>
+      </span>
+    </button>
+  );
+}
+
 function ToggleTurno({
   checked,
   onChange,
@@ -327,6 +370,11 @@ export function DiariasColaboradoresModal({ open, onClose }: Props) {
         campo === "entradaTarde" ? valor : lancamento.entradaTarde || "",
       saida: campo === "saida" ? valor : lancamento.saida || PERIODO_TARDE_FIM,
     });
+  }
+
+  function alternarCalculoPorHora(ativo: boolean) {
+    if (!lancamento) return;
+    alterarLancamento({ calcularPorHora: ativo, valorManual: false });
   }
 
   function alternarTurno(periodo: "manha" | "tarde", ativo: boolean) {
@@ -647,8 +695,19 @@ export function DiariasColaboradoresModal({ open, onClose }: Props) {
                 <div className="space-y-3">
                   {(() => {
                     const turnos = turnosAtivosLancamento(lancamento);
+                    const porHora = lancamento.calcularPorHora === true;
                     return (
                       <>
+                        <ToggleCalculoHoras
+                          checked={porHora}
+                          onChange={alternarCalculoPorHora}
+                          titulo={t("producao.diarias.calcularPorHora")}
+                          ajuda={
+                            porHora
+                              ? t("producao.diarias.calcularPorHoraOn")
+                              : t("producao.diarias.calcularPorHoraOff")
+                          }
+                        />
                         <div className="grid gap-3 sm:grid-cols-2">
                           <ToggleTurno
                             checked={turnos.manha}
@@ -715,7 +774,7 @@ export function DiariasColaboradoresModal({ open, onClose }: Props) {
                               saidaManha: lancamento.saidaManha || SAIDA_MANHA_PADRAO,
                               entradaTarde: lancamento.entradaTarde || ENTRADA_TARDE_PADRAO,
                             }) || "—"}
-                            . {t("producao.diarias.intervaloNaoDesconta")}
+                            {porHora ? "" : `. ${t("producao.diarias.intervaloNaoDesconta")}`}
                           </p>
                         ) : null}
                       </>

@@ -57,6 +57,8 @@ export type LancamentoDiaria = {
   /** Ausente em lançamentos antigos: o turno segue preenchido se o horário existir. */
   turnoManha?: boolean;
   turnoTarde?: boolean;
+  /** Ligado: o valor é a fração das horas trabalhadas sobre a jornada. */
+  calcularPorHora?: boolean;
   intervaloMinutos: number;
   horas: number;
   valor: number;
@@ -327,7 +329,25 @@ export function turnosAtivosLancamento(
   return { manha: temManha, tarde: temTarde };
 }
 
-/** Horas pagas: da primeira entrada à última saída, sem descontar o intervalo. */
+/** Horas de cada turno ligado, sem o intervalo entre manhã e tarde. */
+export function horasTrabalhadasLancamento(
+  lancamento: Pick<
+    LancamentoDiaria,
+    "entrada" | "saida" | "saidaManha" | "entradaTarde" | "turnoManha" | "turnoTarde"
+  >
+): number {
+  const turnos = turnosAtivosLancamento(lancamento);
+  let minutos = 0;
+  if (turnos.manha && horarioTemTurno(lancamento.entrada, lancamento.saidaManha)) {
+    minutos += minutosLiquidosTurno(lancamento.entrada, lancamento.saidaManha || "", 0);
+  }
+  if (turnos.tarde && horarioTemTurno(lancamento.entradaTarde, lancamento.saida)) {
+    minutos += minutosLiquidosTurno(lancamento.entradaTarde || "", lancamento.saida, 0);
+  }
+  return minutos / 60;
+}
+
+/** Horas exibidas no modo por turno: da primeira entrada à última saída, sem descontar o intervalo. */
 export function horasLancamentoDiaria(
   lancamento: Pick<
     LancamentoDiaria,
@@ -514,7 +534,8 @@ export function recalcularLancamento(
   lancamento: LancamentoDiaria,
   config: ConfigDiariaColaborador
 ): LancamentoDiaria {
-  const horas = horasLancamentoDiaria(lancamento);
+  const porHora = lancamento.calcularPorHora === true;
+  const horas = porHora ? horasTrabalhadasLancamento(lancamento) : horasLancamentoDiaria(lancamento);
   if (lancamento.valorManual) {
     return {
       ...lancamento,
@@ -522,7 +543,10 @@ export function recalcularLancamento(
       valor: Math.round(Math.max(0, Number(lancamento.valor) || 0) * 100) / 100,
     };
   }
-  const valor = valorDiariaPorTurnos(lancamento, parseValorNumericoBr(config.valorDiaria));
+  const valorDiaria = parseValorNumericoBr(config.valorDiaria);
+  const valor = porHora
+    ? valorDiariaProporcional(horas, config.horasJornada, valorDiaria)
+    : valorDiariaPorTurnos(lancamento, valorDiaria);
   return { ...lancamento, horas, valor };
 }
 
@@ -935,6 +959,7 @@ function normalizarStore(raw: Partial<DiariasStore> | null | undefined): Diarias
           saida: item.saida || SAIDA_PADRAO,
           ...(typeof item.turnoManha === "boolean" ? { turnoManha: item.turnoManha } : {}),
           ...(typeof item.turnoTarde === "boolean" ? { turnoTarde: item.turnoTarde } : {}),
+          ...(item.calcularPorHora === true ? { calcularPorHora: true } : {}),
           intervaloMinutos: Math.max(0, Number(item.intervaloMinutos) || 0),
           horas: Number(item.horas) || 0,
           valor: Number(item.valor) || 0,

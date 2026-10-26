@@ -252,6 +252,11 @@ const pt = {
   "producao.diarias.intervalo": "Intervalo",
   "producao.diarias.intervaloNaoDesconta":
     "Cada turno vale metade da diária, sem cálculo por hora.",
+  "producao.diarias.calcularPorHora": "Calcular pela fração das horas",
+  "producao.diarias.calcularPorHoraOff":
+    "Desligado: cada turno vale metade da diária, como já está programado.",
+  "producao.diarias.calcularPorHoraOn":
+    "Ligado: o valor segue as horas trabalhadas divididas pela jornada. O intervalo não entra.",
   "producao.diarias.horas": "Horas",
   "producao.diarias.editarValor": "Clique no R$ para editar o valor",
   "producao.diarias.observacao": "Observação",
@@ -615,6 +620,11 @@ const en: Record<keyof typeof pt, string> = {
   "producao.diarias.intervalo": "Break",
   "producao.diarias.intervaloNaoDesconta":
     "Each shift is half the daily rate, not calculated by the hour.",
+  "producao.diarias.calcularPorHora": "Calculate by the fraction of hours",
+  "producao.diarias.calcularPorHoraOff":
+    "Off: each shift is half the daily rate, as already set.",
+  "producao.diarias.calcularPorHoraOn":
+    "On: the amount follows hours worked divided by the workday. The break is not included.",
   "producao.diarias.horas": "Hours",
   "producao.diarias.editarValor": "Click the amount to edit the value",
   "producao.diarias.observacao": "Note",
@@ -978,6 +988,11 @@ const es: Record<keyof typeof pt, string> = {
   "producao.diarias.intervalo": "Intervalo",
   "producao.diarias.intervaloNaoDesconta":
     "Cada turno vale la mitad de la diaria, sin cálculo por hora.",
+  "producao.diarias.calcularPorHora": "Calcular por la fracción de horas",
+  "producao.diarias.calcularPorHoraOff":
+    "Desactivado: cada turno vale la mitad de la diaria, como ya está programado.",
+  "producao.diarias.calcularPorHoraOn":
+    "Activado: el valor sigue las horas trabajadas divididas por la jornada. El intervalo no entra.",
   "producao.diarias.horas": "Horas",
   "producao.diarias.editarValor": "Haga clic en R$ para editar el valor",
   "producao.diarias.observacao": "Observación",
