@@ -297,6 +297,7 @@ export function Modal({
   children,
   size = "md",
   layerClassName = "z-50",
+  ancora = "centro",
 }: {
   open: boolean;
   onClose: () => void;
@@ -305,6 +306,8 @@ export function Modal({
   size?: "sm" | "md" | "lg" | "xl" | "2xl" | "smart";
   /** z-index da camada (ex.: z-[60] sobre outro modal). */
   layerClassName?: string;
+  /** Lateral mantém a listagem visível atrás do painel. */
+  ancora?: "centro" | "lateral";
 }) {
   const { tr } = useTrUi();
   if (!open) return null;
@@ -320,20 +323,32 @@ export function Modal({
   const alturaConteudo =
     size === "smart" ? "max-h-[calc(88vh-57px)]" : size === "2xl" ? "max-h-[90vh]" : "max-h-[80vh]";
   const ehSmart = size === "smart";
+  const ehLateral = ancora === "lateral";
+  const larguraLateral =
+    size === "sm" || size === "md"
+      ? "max-w-md"
+      : size === "lg"
+        ? "max-w-2xl"
+        : "max-w-3xl";
   return (
     <div
       className={cn(
-        "fixed inset-0 flex items-center justify-center",
-        ehSmart ? "p-3" : "p-4",
+        "fixed inset-0 flex",
+        ehLateral ? "justify-end" : "items-center justify-center",
+        !ehLateral && (ehSmart ? "p-3" : "p-4"),
         layerClassName
       )}
     >
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div
+        className={ehLateral ? "absolute inset-0 bg-black/25" : "absolute inset-0 bg-black/40"}
+        onClick={onClose}
+      />
       <div
         className={cn(
-          "relative flex w-full flex-col rounded-xl bg-white shadow-xl dark:border dark:border-slate-700 dark:bg-slate-900",
-          sizes[size],
-          alturaModal
+          "relative flex w-full flex-col bg-white shadow-xl dark:border dark:border-slate-700 dark:bg-slate-900",
+          ehLateral
+            ? cn("h-full", larguraLateral)
+            : cn("rounded-xl", sizes[size], alturaModal)
         )}
       >
         <div
@@ -361,11 +376,11 @@ export function Modal({
         </div>
         <div
           className={cn(
-            "min-h-0 flex-1 overflow-y-auto",
+            "relative min-h-0 flex-1 overflow-y-auto",
             ehSmart ? "px-6 py-4" : "p-5",
-            !ehSmart && alturaConteudo
+            !ehLateral && !ehSmart && alturaConteudo
           )}
-          style={ehSmart ? { maxHeight: "calc(88vh - 57px)" } : undefined}
+          style={!ehLateral && ehSmart ? { maxHeight: "calc(88vh - 57px)" } : undefined}
         >
           {children}
         </div>

@@ -7,7 +7,8 @@ import { ImportarClientesExcelModal } from "@/components/clientes/ImportarClient
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { ModuloCabecalho } from "@/components/ModuloCabecalho";
 import { useI18n } from "@/components/i18n-provider";
-import { Input, Modal } from "@/components/ui";
+import { CadastroPainelLateral } from "@/components/cadastros/CadastroPainelLateral";
+import { Input } from "@/components/ui";
 import { LinkWhatsApp } from "@/components/LinkWhatsApp";
 import { mensagemAcompanhamentoCliente, formatWhatsAppPhone } from "@/lib/whatsapp";
 import { dispararOuAbrirWhatsapp } from "@/lib/whatsapp-disparo-cliente";
@@ -1060,11 +1061,10 @@ export default function ClientesPage() {
         </BarraConfigListagem>
       </div>
 
-      <Modal
-        open={open}
-        onClose={() => setOpen(false)}
-        title={editing ? t("cadastros.clientes.editarTitulo") : t("cadastros.clientes.cadastrarTitulo")}
-        size="smart"
+      <CadastroPainelLateral
+        aberto={open}
+        onFechar={() => setOpen(false)}
+        titulo={editing ? t("cadastros.clientes.editarTitulo") : t("cadastros.clientes.cadastrarTitulo")}
       >
         <form onSubmit={save} className="space-y-4 text-xs text-slate-800">
           <div className="flex flex-wrap gap-1 border-b border-slate-200">
@@ -1498,7 +1498,7 @@ export default function ClientesPage() {
             </div>
           </div>
         </form>
-      </Modal>
+      </CadastroPainelLateral>
 
       <ImportarClientesExcelModal
         aberto={importarAberto}

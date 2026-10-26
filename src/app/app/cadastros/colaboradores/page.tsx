@@ -913,8 +913,18 @@ export default function ColaboradoresPage() {
       </ListagemPorNome>
 
       {modalAberto && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/45 p-4 pt-16">
-          <div className="relative w-full max-w-[1180px] rounded bg-white shadow-2xl">
+        <div
+          className={
+            modalSetorAberto || modalCargaHorariaAberto
+              ? "hidden"
+              : "fixed inset-0 z-50 flex justify-end bg-black/25"
+          }
+          onClick={fecharModalColaborador}
+        >
+          <div
+            className="relative flex h-full w-full max-w-[920px] flex-col overflow-y-auto bg-white shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
             <div className="flex h-9 items-center justify-between border-b border-slate-100 px-4">
               <h2 className="text-[13px] font-medium text-slate-700">
                 {colaboradorEditando ? t("cadastros.colaboradores.modalTituloEditar") : t("cadastros.colaboradores.modalTituloCadastrar")}

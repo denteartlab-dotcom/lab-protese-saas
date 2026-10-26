@@ -15,7 +15,8 @@ import {
   gerarListaFornecedoresPdf,
 } from "@/lib/fornecedores-lista-export";
 import { abrirPdfGerando } from "@/lib/pdf-viewer";
-import { Button, Input, Modal } from "@/components/ui";
+import { CadastroPainelLateral } from "@/components/cadastros/CadastroPainelLateral";
+import { Button, Input } from "@/components/ui";
 import { usePageReady } from "@/hooks/use-page-ready";
 import {
   aplicarEspelhoContatoCadastro,
@@ -522,11 +523,13 @@ export default function FornecedoresPage() {
         </ListagemPorNome>
       </div>
 
-      <Modal
-        open={modalAberto}
-        onClose={() => setModalAberto(false)}
-        title={editando ? t("cadastros.fornecedores.editar") : t("cadastros.fornecedores.cadastrar")}
-        size="xl"
+      <CadastroPainelLateral
+        aberto={modalAberto}
+        onFechar={() => {
+          setModalCategoriaAberto(false);
+          setModalAberto(false);
+        }}
+        titulo={editando ? t("cadastros.fornecedores.editar") : t("cadastros.fornecedores.cadastrar")}
       >
         <form onSubmit={salvarFornecedor} className="space-y-5 text-[11px] text-slate-600">
           <section className="space-y-3">
@@ -717,14 +720,11 @@ export default function FornecedoresPage() {
             </Button>
           </div>
         </form>
-      </Modal>
-
-      <Modal
-        open={modalCategoriaAberto}
-        onClose={() => setModalCategoriaAberto(false)}
-        title={t("cadastros.comum.modalAdicionarCategoria")}
-        size="sm"
-      >
+        {modalCategoriaAberto ? (
+          <div className="absolute inset-0 z-10 overflow-auto bg-white p-5">
+            <h3 className="mb-4 text-base font-semibold text-slate-800">
+              {t("cadastros.comum.modalAdicionarCategoria")}
+            </h3>
         <form onSubmit={adicionarCategoria} className="space-y-4">
           <Input
             label={t("cadastros.comum.nomeCategoria")}
@@ -740,7 +740,9 @@ export default function FornecedoresPage() {
             <Button type="submit">{t("cadastros.comum.adicionar")}</Button>
           </div>
         </form>
-      </Modal>
+          </div>
+        ) : null}
+      </CadastroPainelLateral>
 
       <ImportarFornecedoresExcelModal
         aberto={importarAberto}
