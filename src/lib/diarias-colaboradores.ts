@@ -1116,6 +1116,11 @@ export function salvarDiariasColaboradores(store: DiariasStore) {
   return normalizado;
 }
 
+/** A diária lista quem foi cadastrado por diária, inclusive diária com comissão. */
+export function colaboradorPodeLancarDiaria(tipoContratacao: string): boolean {
+  return usaDiariaColaborador(tipoContratacao);
+}
+
 export function carregarColaboradoresDiaria(): ColaboradorDiariaOrigem[] {
   const lista = readStorage<ColaboradorStorageDiaria[]>(COLABORADORES_STORAGE_KEY, []);
   return lista
@@ -1133,6 +1138,7 @@ export function carregarColaboradoresDiaria(): ColaboradorDiariaOrigem[] {
     })
     .filter((item): item is ColaboradorDiariaOrigem => item !== null)
     .filter((item) => !colaboradorEstaExcluido(item))
+    .filter((item) => colaboradorPodeLancarDiaria(item.tipoContratacao))
     .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 }
 

@@ -392,7 +392,7 @@ export function DiariasColaboradoresModal({ open, onClose }: Props) {
     };
     setColaboradores(lista);
     setStore(atual);
-    setColaboradorId((id) => id || lista[0]?.id || "");
+    setColaboradorId((id) => (lista.some((item) => item.id === id) ? id : lista[0]?.id || ""));
     setBusca("");
     setSalvoMsg("");
     const vigente = chaveMesAtual();
@@ -745,9 +745,12 @@ export function DiariasColaboradoresModal({ open, onClose }: Props) {
             </div>
 
             <div className="p-4 pb-2">
-              <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                 {t("producao.diarias.colaboradores")}
               </label>
+              <p className="mb-2 text-[11px] leading-snug text-slate-400">
+                {t("producao.diarias.somenteDiaria")}
+              </p>
               <input
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}

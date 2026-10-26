@@ -28,6 +28,7 @@ import {
   valorDiariaProporcional,
   aplicarCadastroNaConfigDiaria,
   garantirConfigColaborador,
+  colaboradorPodeLancarDiaria,
   horasLancamentoDiaria,
   horasTrabalhadasLancamento,
   horarioLancamentoPadrao,
@@ -446,5 +447,15 @@ assert.equal(storeDuracao.lancamentos[0].entrada, "08:00");
 assert.equal(storeDuracao.lancamentos[0].saidaManha, "11:00");
 assert.equal(storeDuracao.configs.c1.horasTurnoManha, 5);
 ok("mudar a configuração não reescreve o horário de um dia já lançado");
+
+assert.equal(colaboradorPodeLancarDiaria("Diária"), true);
+assert.equal(colaboradorPodeLancarDiaria("Diária + Comissão"), true);
+assert.equal(colaboradorPodeLancarDiaria("Daily rate"), true);
+assert.equal(colaboradorPodeLancarDiaria("Comissão"), false);
+assert.equal(colaboradorPodeLancarDiaria("Salário + Comissão"), false);
+assert.equal(colaboradorPodeLancarDiaria("Salário"), false);
+assert.equal(colaboradorPodeLancarDiaria("Commission"), false);
+assert.equal(colaboradorPodeLancarDiaria(""), false);
+ok("a busca da diária deixa de fora quem está cadastrado só por comissão ou salário");
 
 console.log("todos os testes de diárias passaram");
