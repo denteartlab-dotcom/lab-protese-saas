@@ -1,3 +1,4 @@
+import { mesclarConfigAposBusca } from "@/lib/mesclar-config-servidor";
 import {
   persistirArmazenamentoImediato,
   readStorage,
@@ -235,33 +236,41 @@ export function normalizarConfiguracoesEtiquetaEntrega(
   return { modeloPadrao, duasVias, layouts };
 }
 
-function lerDoStorage(): ConfiguracoesEtiquetaEntrega {
-  if (typeof window === "undefined") return normalizarConfiguracoesEtiquetaEntrega(null);
+function lerEtiquetaEntregaSalva(): Partial<ConfiguracoesEtiquetaEntrega> | null {
+  if (typeof window === "undefined") return null;
   try {
     const salvo = readStorage<Partial<ConfiguracoesEtiquetaEntrega> | null>(
       CONFIG_ETIQUETA_ENTREGA_STORAGE_KEY,
       null
     );
-    return normalizarConfiguracoesEtiquetaEntrega(salvo);
+    if (!salvo || typeof salvo !== "object") return null;
+    return salvo;
   } catch {
-    return normalizarConfiguracoesEtiquetaEntrega(null);
+    return null;
   }
+}
+
+function lerDoStorage(): ConfiguracoesEtiquetaEntrega {
+  return normalizarConfiguracoesEtiquetaEntrega(lerEtiquetaEntregaSalva());
 }
 
 export function carregarConfiguracoesEtiquetaEntrega(): ConfiguracoesEtiquetaEntrega {
   return lerDoStorage();
 }
 
-export function salvarConfiguracoesEtiquetaEntrega(config: ConfiguracoesEtiquetaEntrega) {
-  if (typeof window === "undefined") return;
+export function salvarConfiguracoesEtiquetaEntrega(
+  config: ConfiguracoesEtiquetaEntrega
+): Promise<void> {
+  if (typeof window === "undefined") return Promise.resolve();
   const normalizado = normalizarConfiguracoesEtiquetaEntrega(config);
   writeStorage(CONFIG_ETIQUETA_ENTREGA_STORAGE_KEY, normalizado);
-  void persistirArmazenamentoImediato(CONFIG_ETIQUETA_ENTREGA_STORAGE_KEY, normalizado);
   window.dispatchEvent(new Event(CONFIG_ETIQUETA_ENTREGA_ATUALIZADA_EVENT));
+  return persistirArmazenamentoImediato(CONFIG_ETIQUETA_ENTREGA_STORAGE_KEY, normalizado);
 }
 
 export async function sincronizarConfiguracoesEtiquetaEntregaDoServidor(): Promise<ConfiguracoesEtiquetaEntrega> {
   try {
+    const localAntes = lerEtiquetaEntregaSalva();
     const res = await fetch(
       `/api/json-store/${encodeURIComponent(CONFIG_ETIQUETA_ENTREGA_STORAGE_KEY)}`,
       { cache: "no-store", credentials: "same-origin" }
@@ -269,11 +278,10 @@ export async function sincronizarConfiguracoesEtiquetaEntregaDoServidor(): Promi
     if (!res.ok) return carregarConfiguracoesEtiquetaEntrega();
     const remoto = (await res.json()) as Partial<ConfiguracoesEtiquetaEntrega> | null;
     if (!remoto || typeof remoto !== "object") return carregarConfiguracoesEtiquetaEntrega();
-    const mesclado = normalizarConfiguracoesEtiquetaEntrega({
-      ...remoto,
-      ...lerDoStorage(),
-    });
-    salvarConfiguracoesEtiquetaEntrega(mesclado);
+    const mesclado = normalizarConfiguracoesEtiquetaEntrega(
+      mesclarConfigAposBusca(remoto, localAntes, lerEtiquetaEntregaSalva())
+    );
+    void salvarConfiguracoesEtiquetaEntrega(mesclado).catch(() => undefined);
     return mesclado;
   } catch {
     return carregarConfiguracoesEtiquetaEntrega();

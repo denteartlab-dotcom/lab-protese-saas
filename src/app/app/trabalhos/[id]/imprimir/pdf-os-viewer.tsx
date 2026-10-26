@@ -54,6 +54,7 @@ import { normalizarOsModelo5Layout, type OsModelo5Layout } from "@/lib/os-modelo
 import { desenharCabecalhoRequisicaoPdf } from "@/lib/pdf-cabecalho-os";
 import {
   carregarConfiguracoesEtiquetas,
+  sincronizarConfiguracoesEtiquetasDoServidor,
   dimensoesModeloEtiqueta,
   modeloEtiquetaValido,
   nomeModeloEtiqueta,
@@ -2233,6 +2234,7 @@ export function PdfOsViewer({
         await Promise.all([
           sincronizarConfigLaboratorioDoServidor(),
           sincronizarConfiguracoesOsDoServidor(),
+          sincronizarConfiguracoesEtiquetasDoServidor(),
         ]);
       } catch {
         /* offline */

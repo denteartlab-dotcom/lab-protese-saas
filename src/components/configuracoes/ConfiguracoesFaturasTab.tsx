@@ -15,6 +15,7 @@ import {
   type ConfiguracoesFaturas,
   type ModeloFaturaId,
 } from "@/lib/configuracoes-faturas";
+import { hrefAppNaSessao } from "@/lib/rotas-app";
 import { cn } from "@/lib/utils";
 
 function ToggleSimNao({
@@ -76,7 +77,7 @@ export function ConfiguracoesFaturasTab() {
   }
 
   function abrirConfigurar(id: ModeloFaturaId) {
-    router.push(`/app/configuracoes/faturas/${id}`);
+    router.push(hrefAppNaSessao(window.location.pathname, `/app/configuracoes/faturas/${id}`));
   }
 
   function alternarPadrao(id: ModeloFaturaId) {

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/components/i18n-provider";
 import {
@@ -8,6 +7,8 @@ import {
   ROTAS_MODELO_OS,
   type ModeloOsId,
 } from "@/lib/configuracoes-os";
+import { sairParaRotaApp } from "@/lib/navegar-app";
+import { hrefAppNaSessao } from "@/lib/rotas-app";
 
 type Props = {
   modeloAtivo: ModeloOsId;
@@ -24,7 +25,7 @@ export function ConfiguracoesOsBarraEditor({ modeloAtivo }: Props) {
         onChange={(e) => {
           const id = e.target.value as ModeloOsId;
           if (id !== modeloAtivo) {
-            router.push(ROTAS_MODELO_OS[id]);
+            router.push(hrefAppNaSessao(window.location.pathname, ROTAS_MODELO_OS[id]));
           }
         }}
         className="max-w-[min(100%,28rem)] rounded border border-[#5a6068] bg-white px-3 py-2 text-[12px] text-slate-800 outline-none focus:border-[#4a90d9]"
@@ -36,12 +37,13 @@ export function ConfiguracoesOsBarraEditor({ modeloAtivo }: Props) {
           </option>
         ))}
       </select>
-      <Link
-        href="/app/configuracoes?aba=os"
+      <button
+        type="button"
+        onClick={() => sairParaRotaApp("/app/configuracoes?aba=os")}
         className="shrink-0 rounded bg-[#5a6068] px-5 py-2 text-[12px] text-white hover:bg-[#6a7078]"
       >
         {t("settings.voltar")}
-      </Link>
+      </button>
     </div>
   );
 }

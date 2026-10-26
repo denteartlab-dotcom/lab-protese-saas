@@ -7,6 +7,7 @@ import {
   normalizarFaturaModeloLayout,
   type FaturaModeloLayout,
 } from "@/lib/fatura-modelo-layout";
+import { mesclarConfigAposBusca } from "@/lib/mesclar-config-servidor";
 import {
   persistirArmazenamentoImediato,
   readStorage,
@@ -237,30 +238,34 @@ export function normalizarConfiguracoesFaturas(
   return base;
 }
 
-function lerConfigFaturasDoStorage(): ConfiguracoesFaturas {
-  if (typeof window === "undefined") return normalizarConfiguracoesFaturas(null);
+function lerConfigFaturasSalva(): Partial<ConfiguracoesFaturas> | null {
+  if (typeof window === "undefined") return null;
   try {
     const salvo = readStorage<Partial<ConfiguracoesFaturas> | null>(
       CONFIG_FATURAS_STORAGE_KEY,
       null
     );
-    if (!salvo) return normalizarConfiguracoesFaturas(null);
-    return normalizarConfiguracoesFaturas(salvo);
+    if (!salvo || typeof salvo !== "object") return null;
+    return salvo;
   } catch {
-    return normalizarConfiguracoesFaturas(null);
+    return null;
   }
+}
+
+function lerConfigFaturasDoStorage(): ConfiguracoesFaturas {
+  return normalizarConfiguracoesFaturas(lerConfigFaturasSalva());
 }
 
 export function carregarConfiguracoesFaturas(): ConfiguracoesFaturas {
   return lerConfigFaturasDoStorage();
 }
 
-export function salvarConfiguracoesFaturas(config: ConfiguracoesFaturas) {
-  if (typeof window === "undefined") return;
+export function salvarConfiguracoesFaturas(config: ConfiguracoesFaturas): Promise<void> {
+  if (typeof window === "undefined") return Promise.resolve();
   const normalizado = normalizarConfiguracoesFaturas(config);
   writeStorage(CONFIG_FATURAS_STORAGE_KEY, normalizado);
-  void persistirArmazenamentoImediato(CONFIG_FATURAS_STORAGE_KEY, normalizado);
   window.dispatchEvent(new Event(CONFIG_FATURAS_ATUALIZADA_EVENT));
+  return persistirArmazenamentoImediato(CONFIG_FATURAS_STORAGE_KEY, normalizado);
 }
 
 export async function carregarConfiguracoesFaturasFresh(): Promise<ConfiguracoesFaturas> {
@@ -269,6 +274,7 @@ export async function carregarConfiguracoesFaturasFresh(): Promise<Configuracoes
 
 export async function sincronizarConfiguracoesFaturasDoServidor(): Promise<ConfiguracoesFaturas> {
   try {
+    const localAntes = lerConfigFaturasSalva();
     const res = await fetch(
       `/api/json-store/${encodeURIComponent(CONFIG_FATURAS_STORAGE_KEY)}`,
       { cache: "no-store", credentials: "same-origin" }
@@ -276,8 +282,10 @@ export async function sincronizarConfiguracoesFaturasDoServidor(): Promise<Confi
     if (!res.ok) return carregarConfiguracoesFaturas();
     const remoto = (await res.json()) as Partial<ConfiguracoesFaturas> | null;
     if (!remoto || typeof remoto !== "object") return carregarConfiguracoesFaturas();
-    const mesclado = mesclarConfiguracoesFaturas(lerConfigFaturasDoStorage(), remoto);
-    salvarConfiguracoesFaturas(mesclado);
+    const mesclado = normalizarConfiguracoesFaturas(
+      mesclarConfigAposBusca(remoto, localAntes, lerConfigFaturasSalva())
+    );
+    void salvarConfiguracoesFaturas(mesclado).catch(() => undefined);
     return mesclado;
   } catch {
     return carregarConfiguracoesFaturas();

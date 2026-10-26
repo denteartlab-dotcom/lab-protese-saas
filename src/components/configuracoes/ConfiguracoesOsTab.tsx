@@ -16,6 +16,7 @@ import {
   type ConfiguracoesOs,
   type ModeloOsId,
 } from "@/lib/configuracoes-os";
+import { hrefAppNaSessao } from "@/lib/rotas-app";
 import { cn } from "@/lib/utils";
 
 function ToggleSimNao({
@@ -75,7 +76,7 @@ export function ConfiguracoesOsTab() {
   }
 
   function abrirConfigurar(id: ModeloOsId) {
-    router.push(ROTAS_MODELO_OS[id]);
+    router.push(hrefAppNaSessao(window.location.pathname, ROTAS_MODELO_OS[id]));
   }
 
   function alternarPadrao(id: ModeloOsId) {

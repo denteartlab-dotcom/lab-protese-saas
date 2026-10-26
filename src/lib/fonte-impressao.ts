@@ -151,7 +151,7 @@ function cssDaFonte(nome: string, estilo: EstiloFonte): string {
 
 function pdfDaFonte(estilo: EstiloFonte): FamiliaPdfFonte {
   if (estilo === "mono") return "courier";
-  if (estilo === "serif") return "times";
+  if (estilo === "serif" || estilo === "script") return "times";
   return "helvetica";
 }
 
@@ -213,16 +213,49 @@ export function fontePdfImpressao(valor: unknown): FamiliaPdfFonte {
   return definicaoFonteImpressao(valor).pdf;
 }
 
-export function usarFonteNoPdf(
-  pdf: { setFont: (nome: string, estilo?: string) => void },
-  fonte: unknown
-) {
-  const destino = fontePdfImpressao(fonte);
-  const original = pdf.setFont.bind(pdf);
-  pdf.setFont = (nome: string, estilo?: string) => {
-    const padrao = nome === "helvetica" || nome === "times" || nome === "courier";
-    original(padrao ? destino : nome, estilo);
-  };
+type PdfComFonte = {
+  setFont: (nome?: string, estilo?: string, peso?: string | number) => unknown;
+};
+
+const fontesPadraoPdf = new Set(["helvetica", "times", "courier"]);
+
+const origemSetFont = new WeakMap<object, PdfComFonte["setFont"]>();
+const escolhaFontePdf = new WeakMap<object, { destino: FamiliaPdfFonte; script: boolean }>();
+
+function estiloFontePdf(script: boolean, estilo?: string) {
+  if (!script) return estilo;
+  if (!estilo || estilo === "normal") return "italic";
+  if (estilo === "bold") return "bolditalic";
+  return estilo;
+}
+
+/**
+ * Troca a família do PDF pela fonte escolhida na configuração.
+ * Helvetica/Times/Courier escritos no desenho passam a usar essa família,
+ * inclusive negrito. Fontes manuscritas saem em Times itálico.
+ */
+export function usarFonteNoPdf(pdf: PdfComFonte, fonte: unknown) {
+  const definicao = definicaoFonteImpressao(fonte);
+  const chave = pdf as object;
+  escolhaFontePdf.set(chave, {
+    destino: definicao.pdf,
+    script: definicao.css.includes("cursive"),
+  });
+  if (!origemSetFont.has(chave)) {
+    const original = pdf.setFont.bind(pdf);
+    origemSetFont.set(chave, original);
+    pdf.setFont = (nome?: string, estilo?: string, peso?: string | number) => {
+      const escolha = escolhaFontePdf.get(chave);
+      const destino = escolha?.destino ?? "helvetica";
+      const pedido = (nome || "").toLowerCase();
+      const familia =
+        !nome || fontesPadraoPdf.has(pedido) ? destino : nome;
+      const estiloFinal = estiloFontePdf(Boolean(escolha?.script), estilo);
+      if (peso != null && peso !== "") return original(familia, estiloFinal, peso);
+      return original(familia, estiloFinal);
+    };
+  }
+  pdf.setFont(definicao.pdf, "normal");
 }
 
 function adicionarCampo(lista: string[], vistos: Set<string>, valor: string | null) {

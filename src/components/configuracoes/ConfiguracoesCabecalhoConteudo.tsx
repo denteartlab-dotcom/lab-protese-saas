@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui";
@@ -18,6 +17,7 @@ import {
 } from "@/lib/configuracoes-lab";
 import { persistirConfigLaboratorioServidor } from "@/lib/lab-config-sync";
 import { configParaLabImpressao, escalaLogoMultiplicador } from "@/lib/lab-logo";
+import { sairParaRotaApp } from "@/lib/navegar-app";
 import { cn } from "@/lib/utils";
 
 function CampoNumero({
@@ -346,12 +346,13 @@ export function ConfiguracoesCabecalhoConteudo() {
 
       <div className="flex min-h-0 flex-1 flex-col bg-[#4a4f56]">
         <div className="flex shrink-0 items-center justify-end gap-2 border-b border-[#3d4248] bg-[#4a4f56] px-4 py-2.5">
-          <Link
-            href="/app/configuracoes?aba=dados"
+          <button
+            type="button"
+            onClick={() => sairParaRotaApp("/app/configuracoes?aba=dados")}
             className="rounded bg-[#5a6068] px-5 py-2 text-[12px] text-white hover:bg-[#6a7078]"
           >
             {t("settings.voltar")}
-          </Link>
+          </button>
         </div>
         <div className="min-h-0 flex-1 overflow-auto p-4 md:p-6">
           <PreviewCabecalho cfg={cfg} cab={cab} />

@@ -18,6 +18,7 @@ import {
   normalizarOsModelo5Layout,
   type OsModelo5Layout,
 } from "@/lib/os-modelo5-layout";
+import { mesclarConfigAposBusca } from "@/lib/mesclar-config-servidor";
 import {
   persistirArmazenamentoImediato,
   readStorage,
@@ -191,15 +192,19 @@ export function carregarLayoutModelo1(): OsModelo1Layout {
   return carregarConfiguracoesOs().layoutModelo1;
 }
 
-function lerConfigOsDoStorage(): ConfiguracoesOs {
-  if (typeof window === "undefined") return normalizarConfiguracoesOs(null);
+function lerConfigOsSalva(): Partial<ConfiguracoesOs> | null {
+  if (typeof window === "undefined") return null;
   try {
     const salvo = readStorage<Partial<ConfiguracoesOs> | null>(CONFIG_OS_STORAGE_KEY, null);
-    if (!salvo) return normalizarConfiguracoesOs(null);
-    return normalizarConfiguracoesOs(salvo);
+    if (!salvo || typeof salvo !== "object") return null;
+    return salvo;
   } catch {
-    return normalizarConfiguracoesOs(null);
+    return null;
   }
+}
+
+function lerConfigOsDoStorage(): ConfiguracoesOs {
+  return normalizarConfiguracoesOs(lerConfigOsSalva());
 }
 
 export function carregarConfiguracoesOs(): ConfiguracoesOs {
@@ -213,16 +218,17 @@ export function carregarConfiguracoesOs(): ConfiguracoesOs {
   return config;
 }
 
-export function salvarConfiguracoesOs(config: ConfiguracoesOs) {
-  if (typeof window === "undefined") return;
+export function salvarConfiguracoesOs(config: ConfiguracoesOs): Promise<void> {
+  if (typeof window === "undefined") return Promise.resolve();
   const normalizado = normalizarConfiguracoesOs(config);
   writeStorage(CONFIG_OS_STORAGE_KEY, normalizado);
-  void persistirArmazenamentoImediato(CONFIG_OS_STORAGE_KEY, normalizado);
   window.dispatchEvent(new Event(CONFIG_OS_ATUALIZADA_EVENT));
+  return persistirArmazenamentoImediato(CONFIG_OS_STORAGE_KEY, normalizado);
 }
 
 export async function sincronizarConfiguracoesOsDoServidor(): Promise<ConfiguracoesOs> {
   try {
+    const localAntes = lerConfigOsSalva();
     const res = await fetch(
       `/api/json-store/${encodeURIComponent(CONFIG_OS_STORAGE_KEY)}`,
       { cache: "no-store", credentials: "same-origin" }
@@ -230,13 +236,11 @@ export async function sincronizarConfiguracoesOsDoServidor(): Promise<Configurac
     if (!res.ok) return carregarConfiguracoesOs();
     const remoto = (await res.json()) as Partial<ConfiguracoesOs> | null;
     if (!remoto || typeof remoto !== "object") return carregarConfiguracoesOs();
-    /** Local por último: lê após o fetch para não sobrescrever cliques recentes. */
-    const mesclado = normalizarConfiguracoesOs({
-      ...remoto,
-      ...lerConfigOsDoStorage(),
-    });
+    const mesclado = normalizarConfiguracoesOs(
+      mesclarConfigAposBusca(remoto, localAntes, lerConfigOsSalva())
+    );
     const { config, alterou } = aplicarMigracaoBordaDesligadaModelos123(mesclado);
-    salvarConfiguracoesOs(config);
+    void salvarConfiguracoesOs(config).catch(() => undefined);
     if (alterou) {
       await persistirConfiguracoesOsServidor(config).catch(() => undefined);
     }

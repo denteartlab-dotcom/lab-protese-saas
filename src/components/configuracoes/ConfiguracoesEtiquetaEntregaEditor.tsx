@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Bold, Minus, Plus, Underline } from "lucide-react";
 import { Button } from "@/components/ui";
@@ -29,6 +28,8 @@ import {
 } from "@/lib/configuracoes-etiqueta-entrega";
 import { htmlEtiquetaEnvio, remetenteDoLaboratorio } from "@/lib/etiqueta-envio-entrega";
 import { ligarSelecaoTexto } from "@/lib/fonte-impressao";
+import { sairParaRotaApp } from "@/lib/navegar-app";
+import { hrefAppNaSessao } from "@/lib/rotas-app";
 import { BarraFonteFlutuante, SeletorFonteTexto } from "@/components/configuracoes/SeletorFonteTexto";
 
 function CampoNumero({
@@ -222,9 +223,10 @@ export function ConfiguracoesEtiquetaEntregaEditor({
     };
     setConfig(nova);
     setLayout(layoutNorm);
-    salvarConfiguracoesEtiquetaEntrega(nova);
+    const espelho = salvarConfiguracoesEtiquetaEntrega(nova).catch(() => undefined);
     try {
       await persistirConfiguracoesEtiquetaEntregaServidor(nova);
+      await espelho;
       setMensagem(t("settings.salvoConfigSucesso"));
     } catch {
       setMensagem(t("settings.erroSalvarServidor"));
@@ -405,7 +407,9 @@ export function ConfiguracoesEtiquetaEntregaEditor({
             value={modelo}
             onChange={(e) => {
               const id = e.target.value as ModeloEtiquetaEntregaId;
-              if (id !== modelo) router.push(ROTAS_ETIQUETA_ENTREGA[id]);
+              if (id !== modelo) {
+                router.push(hrefAppNaSessao(window.location.pathname, ROTAS_ETIQUETA_ENTREGA[id]));
+              }
             }}
             className="max-w-[min(100%,28rem)] rounded border border-[#5a6068] bg-white px-3 py-2 text-[12px] text-slate-800 outline-none"
             aria-label={t("settings.etiquetasEntrega")}
@@ -416,12 +420,13 @@ export function ConfiguracoesEtiquetaEntregaEditor({
               </option>
             ))}
           </select>
-          <Link
-            href="/app/configuracoes?aba=etiquetasEntrega"
+          <button
+            type="button"
+            onClick={() => sairParaRotaApp("/app/configuracoes?aba=etiquetasEntrega")}
             className="shrink-0 rounded bg-[#5a6068] px-5 py-2 text-[12px] text-white hover:bg-[#6a7078]"
           >
             {t("settings.voltar")}
-          </Link>
+          </button>
         </div>
         <div className="min-h-0 flex-1 overflow-auto p-4">
           <BarraFonteFlutuante

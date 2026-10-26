@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Minus, Plus, Settings } from "lucide-react";
@@ -34,7 +33,9 @@ import {
   normalizarFaturaModeloLayout,
   type FaturaModeloLayout,
 } from "@/lib/fatura-modelo-layout";
+import { sairParaRotaApp } from "@/lib/navegar-app";
 import { normalizarCorBorda } from "@/lib/os-modelo1-layout";
+import { hrefAppNaSessao } from "@/lib/rotas-app";
 
 type Props = {
   modeloId: ModeloFaturaId;
@@ -249,7 +250,7 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
   function trocarModelo(id: ModeloFaturaId) {
     if (id === modeloId) return;
     setCarregando(true);
-    router.replace(`/app/configuracoes/faturas/${id}`);
+    router.replace(hrefAppNaSessao(window.location.pathname, `/app/configuracoes/faturas/${id}`));
   }
 
   async function salvar() {
@@ -264,9 +265,10 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
     );
     setConfig(novaConfig);
     setLayout(layoutNorm);
-    salvarConfiguracoesFaturas(novaConfig);
+    const espelho = salvarConfiguracoesFaturas(novaConfig).catch(() => undefined);
     try {
       await persistirConfiguracoesFaturasServidor(novaConfig);
+      await espelho;
       setMensagem(t("settings.salvoConfigSucesso"));
     } catch {
       setMensagem(t("settings.erroSalvarServidor"));
@@ -303,12 +305,13 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
             </option>
           ))}
         </select>
-        <Link
-          href="/app/configuracoes?aba=faturas"
+        <button
+          type="button"
+          onClick={() => sairParaRotaApp("/app/configuracoes?aba=faturas")}
           className="shrink-0 rounded bg-[#5a6068] px-5 py-2 text-[12px] text-white hover:bg-[#6a7078]"
         >
           {t("settings.voltar")}
-        </Link>
+        </button>
       </div>
     </header>
   );
@@ -320,9 +323,13 @@ export function ConfiguracoesFaturaModeloConteudo({ modeloId }: Props) {
           {barraSuperior}
           <p className="p-6 text-sm text-slate-600">
             {t("settings.modeloNaoEncontrado")}{" "}
-            <Link href="/app/configuracoes?aba=faturas" className="text-[#4a90d9] hover:underline">
+            <button
+              type="button"
+              onClick={() => sairParaRotaApp("/app/configuracoes?aba=faturas")}
+              className="text-[#4a90d9] hover:underline"
+            >
               {t("settings.voltarFaturas")}
-            </Link>
+            </button>
           </p>
         </div>
       </div>

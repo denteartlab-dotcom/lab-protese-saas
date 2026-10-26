@@ -173,9 +173,10 @@ export function ConfiguracoesOsModelo4Conteudo() {
       layoutModelo4: layoutNorm,
     };
     setConfigOs(novaConfig);
-    salvarConfiguracoesOs(novaConfig);
+    const espelho = salvarConfiguracoesOs(novaConfig).catch(() => undefined);
     try {
       await persistirConfiguracoesOsServidor(novaConfig);
+      await espelho;
       setLayout(layoutNorm);
       setMensagem(t("settings.salvoConfigSucesso"));
     } catch {

@@ -52,6 +52,26 @@ export function montarCaminhoAppComSlug(slug: string, restante = ""): string {
   return `/app/${slug}${sufixo}`;
 }
 
+/**
+ * O middleware redireciona /app/configuracoes para /app/{slug}/configuracoes.
+ * O roteador do Next trava nesse redirect. Esta função já devolve o caminho com slug.
+ */
+export function hrefAppNaSessao(pathname: string, destino: string): string {
+  const hashIdx = destino.indexOf("#");
+  const hash = hashIdx >= 0 ? destino.slice(hashIdx) : "";
+  const semHash = hashIdx >= 0 ? destino.slice(0, hashIdx) : destino;
+  const qIdx = semHash.indexOf("?");
+  const path = qIdx >= 0 ? semHash.slice(0, qIdx) : semHash;
+  const query = qIdx >= 0 ? semHash.slice(qIdx) : "";
+  if (!path.startsWith("/app")) return destino;
+
+  const atual = analisarCaminhoApp(pathname);
+  const alvo = analisarCaminhoApp(path);
+  const slug = atual.slug || alvo.slug;
+  if (!slug || alvo.slug === slug) return path + query + hash;
+  return montarCaminhoAppComSlug(slug, alvo.restante) + query + hash;
+}
+
 export function caminhoInternoApp(restante: string): string {
   if (!restante || restante === "/") return "/app";
   return `/app${restante.startsWith("/") ? restante : `/${restante}`}`;

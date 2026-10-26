@@ -1,5 +1,5 @@
 import { nomeExibicaoLaboratorio, carregarConfigLaboratorio } from "@/lib/configuracoes-lab";
-import { cssRegrasFonteImpressao } from "@/lib/fonte-impressao";
+import { cssFonteImpressao, cssRegrasFonteImpressao } from "@/lib/fonte-impressao";
 import {
   normalizarLayoutEtiquetaEntrega,
   type CampoTextoEtiquetaEntrega,
@@ -136,7 +136,7 @@ function attrsTexto(
   if (estilo.negrito) classes.push("negrito");
   if (estilo.sublinhado) classes.push("sublinhado");
   if (destacados?.has(campo)) classes.push("destacado");
-  return `class="${classes.join(" ")}" data-campo="${campo}"`;
+  return `class="${classes.join(" ")}" style="font-family:${cssFonteImpressao(estilo.fonte).replace(/"/g, "'")}" data-campo="${campo}"`;
 }
 
 function blocoEndereco(

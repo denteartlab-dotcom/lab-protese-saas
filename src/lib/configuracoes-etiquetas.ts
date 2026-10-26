@@ -1,4 +1,5 @@
 import { normalizarFonteImpressao, type FonteImpressao } from "@/lib/fonte-impressao";
+import { mesclarConfigAposBusca } from "@/lib/mesclar-config-servidor";
 import {
   persistirArmazenamentoImediato,
   readStorage,
@@ -158,34 +159,39 @@ export function normalizarConfiguracoesEtiquetas(
   return { modeloPadrao, duasVias, fonte: normalizarFonteImpressao(valor.fonte) };
 }
 
-function lerConfigEtiquetasDoStorage(): ConfiguracoesEtiquetas {
-  if (typeof window === "undefined") return normalizarConfiguracoesEtiquetas(null);
+function lerConfigEtiquetasSalva(): Partial<ConfiguracoesEtiquetas> | null {
+  if (typeof window === "undefined") return null;
   try {
     const salvo = readStorage<Partial<ConfiguracoesEtiquetas> | null>(
       CONFIG_ETIQUETAS_STORAGE_KEY,
       null
     );
-    if (!salvo) return normalizarConfiguracoesEtiquetas(null);
-    return normalizarConfiguracoesEtiquetas(salvo);
+    if (!salvo || typeof salvo !== "object") return null;
+    return salvo;
   } catch {
-    return normalizarConfiguracoesEtiquetas(null);
+    return null;
   }
+}
+
+function lerConfigEtiquetasDoStorage(): ConfiguracoesEtiquetas {
+  return normalizarConfiguracoesEtiquetas(lerConfigEtiquetasSalva());
 }
 
 export function carregarConfiguracoesEtiquetas(): ConfiguracoesEtiquetas {
   return lerConfigEtiquetasDoStorage();
 }
 
-export function salvarConfiguracoesEtiquetas(config: ConfiguracoesEtiquetas) {
-  if (typeof window === "undefined") return;
+export function salvarConfiguracoesEtiquetas(config: ConfiguracoesEtiquetas): Promise<void> {
+  if (typeof window === "undefined") return Promise.resolve();
   const normalizado = normalizarConfiguracoesEtiquetas(config);
   writeStorage(CONFIG_ETIQUETAS_STORAGE_KEY, normalizado);
-  void persistirArmazenamentoImediato(CONFIG_ETIQUETAS_STORAGE_KEY, normalizado);
   window.dispatchEvent(new Event(CONFIG_ETIQUETAS_ATUALIZADA_EVENT));
+  return persistirArmazenamentoImediato(CONFIG_ETIQUETAS_STORAGE_KEY, normalizado);
 }
 
 export async function sincronizarConfiguracoesEtiquetasDoServidor(): Promise<ConfiguracoesEtiquetas> {
   try {
+    const localAntes = lerConfigEtiquetasSalva();
     const res = await fetch(
       `/api/json-store/${encodeURIComponent(CONFIG_ETIQUETAS_STORAGE_KEY)}`,
       { cache: "no-store", credentials: "same-origin" }
@@ -193,11 +199,10 @@ export async function sincronizarConfiguracoesEtiquetasDoServidor(): Promise<Con
     if (!res.ok) return carregarConfiguracoesEtiquetas();
     const remoto = (await res.json()) as Partial<ConfiguracoesEtiquetas> | null;
     if (!remoto || typeof remoto !== "object") return carregarConfiguracoesEtiquetas();
-    const mesclado = normalizarConfiguracoesEtiquetas({
-      ...remoto,
-      ...lerConfigEtiquetasDoStorage(),
-    });
-    salvarConfiguracoesEtiquetas(mesclado);
+    const mesclado = normalizarConfiguracoesEtiquetas(
+      mesclarConfigAposBusca(remoto, localAntes, lerConfigEtiquetasSalva())
+    );
+    void salvarConfiguracoesEtiquetas(mesclado).catch(() => undefined);
     return mesclado;
   } catch {
     return carregarConfiguracoesEtiquetas();

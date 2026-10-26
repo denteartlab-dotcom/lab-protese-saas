@@ -16,6 +16,7 @@ import {
   type ConfiguracoesEtiquetaEntrega,
   type ModeloEtiquetaEntregaId,
 } from "@/lib/configuracoes-etiqueta-entrega";
+import { hrefAppNaSessao } from "@/lib/rotas-app";
 import { cn } from "@/lib/utils";
 
 function ToggleSimNao({
@@ -142,7 +143,9 @@ export function ConfiguracoesEtiquetaEntregaTab() {
               <td className="px-4 py-3.5 text-center">
                 <button
                   type="button"
-                  onClick={() => router.push(ROTAS_ETIQUETA_ENTREGA[modelo.id])}
+                  onClick={() =>
+                    router.push(hrefAppNaSessao(window.location.pathname, ROTAS_ETIQUETA_ENTREGA[modelo.id]))
+                  }
                   className="inline-flex items-center gap-1.5 rounded border border-[#5cb85c] bg-white px-3 py-1.5 text-[12px] font-medium text-[#5cb85c] transition hover:bg-[#f0faf0]"
                 >
                   <Settings className="h-3.5 w-3.5" />
