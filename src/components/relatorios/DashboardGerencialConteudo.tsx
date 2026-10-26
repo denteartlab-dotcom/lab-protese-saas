@@ -723,6 +723,9 @@ export function DashboardGerencialConteudo() {
     (classe: "A" | "B" | "C") => {
       const secao =
         dados.curvaAbcServicosSecoes.find((s) => s.classe === classe) ?? null;
+      setModalInadimplentes(false);
+      setSecaoAbcFornecedores(null);
+      setSecaoAbcClientes(null);
       setSecaoAbcServicos(secao);
     },
     [dados.curvaAbcServicosSecoes]
@@ -732,6 +735,9 @@ export function DashboardGerencialConteudo() {
     (classe: "A" | "B" | "C") => {
       const secao =
         dados.curvaAbcFornecedoresSecoes.find((s) => s.classe === classe) ?? null;
+      setModalInadimplentes(false);
+      setSecaoAbcServicos(null);
+      setSecaoAbcClientes(null);
       setSecaoAbcFornecedores(secao);
     },
     [dados.curvaAbcFornecedoresSecoes]
@@ -741,6 +747,9 @@ export function DashboardGerencialConteudo() {
     (classe: "A" | "B" | "C") => {
       const secao =
         dados.curvaAbcClientesSecoes.find((s) => s.classe === classe) ?? null;
+      setModalInadimplentes(false);
+      setSecaoAbcServicos(null);
+      setSecaoAbcFornecedores(null);
       setSecaoAbcClientes(secao);
     },
     [dados.curvaAbcClientesSecoes]
@@ -779,7 +788,12 @@ export function DashboardGerencialConteudo() {
               icone={<User className="h-5 w-5" />}
               corFundo="#dbeafe"
               corIcone="#3b82f6"
-              onClick={() => setModalInadimplentes(true)}
+              onClick={() => {
+                setSecaoAbcServicos(null);
+                setSecaoAbcFornecedores(null);
+                setSecaoAbcClientes(null);
+                setModalInadimplentes(true);
+              }}
             />
             <ResumoMetrica
               titulo={t("relatorio.dashboard.servicosAtrasados")}

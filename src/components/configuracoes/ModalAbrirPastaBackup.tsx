@@ -17,9 +17,11 @@ type Props = {
   open: boolean;
   onClose: () => void;
   onMensagem?: (texto: string, tipo?: "info" | "sucesso" | "erro") => void;
+  /** Na aba de backup: lista na própria seção, sem overlay. */
+  embutido?: boolean;
 };
 
-export function ModalAbrirPastaBackup({ open, onClose, onMensagem }: Props) {
+export function ModalAbrirPastaBackup({ open, onClose, onMensagem, embutido = false }: Props) {
   const { t } = useI18n();
   const [senha, setSenha] = useState("");
   const [erroInline, setErroInline] = useState<string | null>(null);
@@ -194,8 +196,15 @@ export function ModalAbrirPastaBackup({ open, onClose, onMensagem }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-[96] flex items-center justify-center bg-black/50 p-4"
-      onClick={() => !processando && !excluindo && !baixando && onClose()}
+      className={
+        embutido
+          ? "relative mt-4"
+          : "fixed inset-0 z-[96] flex items-center justify-center bg-black/50 p-4"
+      }
+      onClick={() => {
+        if (embutido) return;
+        if (!processando && !excluindo && !baixando) onClose();
+      }}
     >
       <div
         role="dialog"

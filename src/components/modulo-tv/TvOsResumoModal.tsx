@@ -89,22 +89,15 @@ export function TvOsResumoModal({ ordem, onClose }: Props) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[80] flex items-center justify-center p-4 tv:p-6"
+          className="fixed inset-y-0 right-0 z-[80] flex h-full w-full max-w-md"
         >
-          <button
-            type="button"
-            aria-label="Fechar"
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={onClose}
-          />
-
           <motion.div
-            initial={{ opacity: 0, y: 16, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 12, scale: 0.98 }}
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 24 }}
             transition={{ duration: 0.22 }}
             className={cn(
-              "relative z-10 flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden",
+              "relative z-10 flex h-full w-full flex-col overflow-hidden",
               TV_GLASS_PANEL,
               "border-slate-600/50 shadow-[0_24px_80px_rgba(0,0,0,0.55)]"
             )}

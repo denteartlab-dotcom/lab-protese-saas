@@ -40,8 +40,8 @@ export function ModalCurvaAbcDetalheDashboard({
 
   return (
     <I18nPortal>
-      <div className="fixed inset-0 z-[80] flex items-start justify-center bg-black/45 p-4 pt-16">
-      <div className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-sm border border-[#e5e7eb] bg-white shadow-2xl">
+      <div className="fixed inset-0 z-[80] flex justify-end bg-black/25">
+      <div className="flex h-full w-full max-w-xl flex-col overflow-hidden border-l border-[#e5e7eb] bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-[#e5e7eb] px-4 py-3">
           <h2 className="text-[14px] font-semibold text-[#374151]">{titulo}</h2>
           <button
