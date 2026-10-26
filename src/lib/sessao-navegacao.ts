@@ -26,6 +26,9 @@ export function pedidoPodeRedirecionarSessao(caminho: string): boolean {
   if (!caminho) return false;
   if (caminho === "/api/auth/login" || caminho.startsWith("/api/auth/login/")) return false;
   if (caminho.startsWith("/api/auth/mfa")) return false;
+  // Falha ao renovar não pode recarregar a página: o cookie ainda vale e o
+  // login devolveria o usuário para o app, piscando sem parar.
+  if (caminho === "/api/auth/renovar-sessao") return false;
   if (caminho === "/api/admin-master/auth/login" || caminho.startsWith("/api/admin-master/auth/mfa")) {
     return false;
   }

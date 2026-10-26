@@ -57,6 +57,10 @@ assert(
   "prefetch também é navegação interna"
 );
 assert(!pedidoPodeRedirecionarSessao("/api/auth/login"), "senha errada não volta para o login");
+assert(
+  !pedidoPodeRedirecionarSessao("/api/auth/renovar-sessao"),
+  "renovar a sessão não pode recarregar o app"
+);
 assert(pedidoPodeRedirecionarSessao("/api/trabalhos"), "api autenticada caída deve ir ao login");
 assert(
   respostaIndicaSessaoExpirada({

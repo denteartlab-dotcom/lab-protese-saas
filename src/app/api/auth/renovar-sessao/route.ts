@@ -18,7 +18,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
-  const versaoOk = await sessaoUsuarioVersaoValida(session);
+  // id e versão: passar o objeto inteiro fazia a consulta falhar e responder 401
+  // com a sessão ainda válida. O app ia ao login e o login devolvia ao app.
+  const versaoOk = await sessaoUsuarioVersaoValida(session.id, session.sessionVersion);
   if (!versaoOk) {
     return NextResponse.json({ error: "Sessão inválida" }, { status: 401 });
   }
