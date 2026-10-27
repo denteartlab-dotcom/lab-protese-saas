@@ -2,6 +2,7 @@
  * Sessão cai após 2h mesmo com o site fechado (cookie/iat).
  * Uso: npx tsx scripts/testar-sessao-inatividade.ts
  */
+import { listarValoresCookie, serializarSetCookie } from "../src/lib/cookie-sessao-bruto";
 import {
   deveEncerrarPorInatividadeLocal,
   paginaIgnoraInatividade,
@@ -94,7 +95,36 @@ assert(
 );
 
 assert(paginaIgnoraInatividade("/login"), "formulário de login não pode ser bloqueado");
+assert(paginaIgnoraInatividade("/"), "visitante na home não pode ser jogado ao login");
+assert(paginaIgnoraInatividade("/cadastro"), "cadastro é página pública");
+assert(paginaIgnoraInatividade("/privacidade"), "política pública não exige sessão");
 assert(!paginaIgnoraInatividade("/app"), "app continua sujeita à sessão");
+assert(!paginaIgnoraInatividade("/app/denteart"), "app da empresa continua sujeita à sessão");
+assert(!paginaIgnoraInatividade("/pagamento"), "pagamento sem sessão ainda vai ao login");
+
+const cabecalhoDuplo =
+  "lab-protese-session=token-velho; lab-protese-session=token-novo";
+const valores = listarValoresCookie(cabecalhoDuplo, "lab-protese-session");
+assert(valores.length === 2, "cookie repetido não pode ser descartado");
+assert(valores[0] === "token-velho" && valores[1] === "token-novo", "ordem do header preservada");
+const limpeza = serializarSetCookie("lab-protese-session", "", {
+  httpOnly: true,
+  secure: true,
+  sameSite: "lax",
+  path: "/",
+  maxAge: 0,
+});
+const gravado = serializarSetCookie("lab-protese-session", "abc", {
+  httpOnly: true,
+  secure: true,
+  sameSite: "lax",
+  path: "/",
+  maxAge: 7200,
+  domain: ".denteartlab.com.br",
+});
+assert(limpeza.includes("Max-Age=0") && !limpeza.includes("Domain="), "limpa o cookie host-only");
+assert(gravado.includes("Domain=.denteartlab.com.br"), "grava o cookie no domínio do site");
+assert(limpeza !== gravado, "limpeza e sessão são Set-Cookie diferentes");
 assert(
   !deveEncerrarPorInatividadeLocal(true, true),
   "login novo com relógio local antigo deve permanecer"

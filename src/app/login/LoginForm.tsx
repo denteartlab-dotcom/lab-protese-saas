@@ -49,9 +49,23 @@ async function aguardarSessaoConfirmada(): Promise<boolean> {
   return false;
 }
 
+function destinoDepoisDoLogin(destino: string) {
+  const path = destino.startsWith("/") ? destino : `/${destino}`;
+  const base = path.split("?")[0] || "/";
+  if (
+    base === "/" ||
+    base === "/login" ||
+    base.startsWith("/login/") ||
+    base.startsWith("/admin-master/login")
+  ) {
+    return "/app";
+  }
+  return path;
+}
+
 async function entrarNoApp(destino: string) {
   const sessaoOk = await aguardarSessaoConfirmada();
-  const path = destino.startsWith("/") ? destino : `/${destino}`;
+  const path = destinoDepoisDoLogin(destino);
   // Sempre no MESMO host da página (evita 301 apex↔www roubar o cookie).
   const url = `${window.location.origin}${path}`;
   if (!sessaoOk) {

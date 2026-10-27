@@ -3,11 +3,13 @@
 import { usePathname } from "next/navigation";
 import { AppFaixaTopo } from "@/components/AppFaixaTopo";
 import { useSessaoAutenticada } from "@/hooks/use-sessao-autenticada";
+import { paginaIgnoraInatividade } from "@/lib/sessao-navegacao";
 
 /** Login e páginas públicas — mesma faixa cinza estreita da referência. */
 export function SiteTopoMarca() {
   const pathname = usePathname() ?? "";
-  const autenticado = useSessaoAutenticada();
+  // Na home e no login o 401 de visitante não pode disparar ida ao /login.
+  const autenticado = useSessaoAutenticada(!paginaIgnoraInatividade(pathname));
 
   if (
     pathname === "/" ||

@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import {
+  anexarSetCookiesMesmoNome,
+  listarValoresCookie,
+  serializarSetCookie,
+} from "@/lib/cookie-sessao-bruto";
 import { sessaoCookieSecure } from "@/lib/cookie-secure";
 import { gerarNonceCsp, montarContentSecurityPolicy } from "@/lib/csp";
 import { verificarJwtHs256 } from "@/lib/jwt-edge";
@@ -79,9 +84,17 @@ function payloadSessaoLabValida(payload: PayloadSessao | null): payload is Paylo
   return true;
 }
 
-async function sessionTokenAceito(token: string): Promise<boolean> {
-  const payload = await verificarPayloadSessao(token);
-  return payloadSessaoLabValida(payload);
+async function payloadSessaoDoPedido(request: NextRequest): Promise<PayloadSessao | null> {
+  const tokens = listarValoresCookie(request.headers.get("cookie"), COOKIE_NAME);
+  for (let i = tokens.length - 1; i >= 0; i -= 1) {
+    const payload = await verificarPayloadSessao(tokens[i]);
+    if (payloadSessaoLabValida(payload)) return payload;
+  }
+  return null;
+}
+
+function pedidoTemCookieSessao(request: NextRequest): boolean {
+  return listarValoresCookie(request.headers.get("cookie"), COOKIE_NAME).length > 0;
 }
 
 async function masterTokenAceito(token: string): Promise<boolean> {
@@ -179,9 +192,11 @@ function limparCookieSessao(response: NextResponse) {
     path: "/",
     maxAge: 0,
   };
-  // Limpa host-only e Domain=.denteartlab.com.br (login apex/www).
-  response.cookies.set(COOKIE_NAME, "", base);
-  response.cookies.set(COOKIE_NAME, "", { ...base, domain: ".denteartlab.com.br" });
+  // Dois Set-Cookie: host-only e Domain. O mapa do Next apaga o primeiro.
+  anexarSetCookiesMesmoNome(response.headers, COOKIE_NAME, [
+    serializarSetCookie(COOKIE_NAME, "", base),
+    serializarSetCookie(COOKIE_NAME, "", { ...base, domain: ".denteartlab.com.br" }),
+  ]);
   return response;
 }
 
@@ -431,9 +446,9 @@ export async function middleware(request: NextRequest) {
   }
 
   if (PUBLIC.includes(pathname)) {
-    const token = request.cookies.get(COOKIE_NAME)?.value;
+    const sessaoPublica = await payloadSessaoDoPedido(request);
     const res =
-      token && !(await sessionTokenAceito(token))
+      pedidoTemCookieSessao(request) && !sessaoPublica
         ? limparCookieSessao(nextComCsp(request, nonce))
         : nextComCsp(request, nonce);
 
@@ -450,8 +465,8 @@ export async function middleware(request: NextRequest) {
   const rotasRenovacao = rotaLiberadaAssinaturaVencida(pathname);
 
   if (rotasRenovacao && !pathname.startsWith("/api")) {
-    const tokenRenovacao = request.cookies.get(COOKIE_NAME)?.value;
-    if (!tokenRenovacao || !(await sessionTokenAceito(tokenRenovacao))) {
+    const sessaoRenovacao = await payloadSessaoDoPedido(request);
+    if (!sessaoRenovacao) {
       const cliente = negarSessaoNaNavegacaoCliente(request, nonce);
       if (cliente) return cliente;
       const login = new URL("/login", request.url);
@@ -471,12 +486,8 @@ export async function middleware(request: NextRequest) {
     return res;
   }
 
-  const token = request.cookies.get(COOKIE_NAME)?.value;
-  const payloadSessaoBruto = token ? await verificarPayloadSessao(token) : null;
-  const payloadSessao = payloadSessaoLabValida(payloadSessaoBruto)
-    ? payloadSessaoBruto
-    : null;
-  if (!token || !payloadSessao?.id) {
+  const payloadSessao = await payloadSessaoDoPedido(request);
+  if (!payloadSessao?.id) {
     if (pathname.startsWith("/api")) {
       return aplicarCsp(
         NextResponse.json({ error: "Não autorizado" }, { status: 401 }),

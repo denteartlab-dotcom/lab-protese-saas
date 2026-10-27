@@ -35,13 +35,35 @@ export function pedidoPodeRedirecionarSessao(caminho: string): boolean {
   return true;
 }
 
+const PAGINAS_PUBLICAS = new Set([
+  "/",
+  "/login",
+  "/cadastro",
+  "/criar-conta",
+  "/recuperar-senha",
+  "/redefinir-senha",
+  "/limpar-sessao",
+  "/logout",
+  "/privacidade",
+  "/termos",
+]);
+
+/**
+ * Home, cadastro e login não têm sessão. Um 401 de /api/auth/me nessas
+ * páginas é o visitante anônimo — não pode mandar a home para /login.
+ */
 export function paginaIgnoraInatividade(caminho: string) {
-  return (
-    caminho === "/login" ||
-    caminho.startsWith("/login/") ||
-    caminho.startsWith("/admin-master/login") ||
-    caminho === "/limpar-sessao"
-  );
+  if (!caminho) return false;
+  if (PAGINAS_PUBLICAS.has(caminho)) return true;
+  if (caminho.startsWith("/login/")) return true;
+  if (caminho.startsWith("/cadastro/")) return true;
+  if (caminho.startsWith("/criar-conta/")) return true;
+  if (caminho.startsWith("/admin-master/login")) return true;
+  if (caminho.startsWith("/acompanhamento/")) return true;
+  if (caminho.startsWith("/orcamento/")) return true;
+  if (caminho.startsWith("/extrato/")) return true;
+  if (caminho.startsWith("/fatura/")) return true;
+  return false;
 }
 
 /**

@@ -3,10 +3,15 @@
 import { useEffect, useState } from "react";
 
 /** Verifica se há sessão ativa (cookie JWT) sem deslogar o usuário. */
-export function useSessaoAutenticada() {
-  const [autenticado, setAutenticado] = useState<boolean | null>(null);
+export function useSessaoAutenticada(consultar = true) {
+  const [autenticado, setAutenticado] = useState<boolean | null>(consultar ? null : false);
 
   useEffect(() => {
+    if (!consultar) {
+      setAutenticado(false);
+      return;
+    }
+
     let ativo = true;
 
     void (async () => {
@@ -24,7 +29,7 @@ export function useSessaoAutenticada() {
     return () => {
       ativo = false;
     };
-  }, []);
+  }, [consultar]);
 
   return autenticado;
 }

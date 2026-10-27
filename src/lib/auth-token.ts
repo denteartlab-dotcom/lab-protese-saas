@@ -1,4 +1,5 @@
 import { SignJWT, jwtVerify } from "jose";
+import { listarValoresCookie } from "@/lib/cookie-sessao-bruto";
 import {
   SESSAO_INATIVIDADE_S,
   sessaoInativaPorIat,
@@ -161,10 +162,12 @@ export async function verifySessionToken(
 export async function getSessionFromCookieHeader(
   cookieHeader: string | undefined
 ): Promise<SessionUser | null> {
-  if (!cookieHeader) return null;
-  const match = cookieHeader.match(
-    new RegExp(`(?:^|;\\s*)${COOKIE_NAME}=([^;]+)`)
-  );
-  if (!match?.[1]) return null;
-  return verifySessionToken(decodeURIComponent(match[1]));
+  const tokens = listarValoresCookie(cookieHeader, COOKIE_NAME);
+  // O cookie mais novo vem por último. Um host-only vencido na frente
+  // não pode esconder o token que o login acabou de gravar.
+  for (let i = tokens.length - 1; i >= 0; i -= 1) {
+    const session = await verifySessionToken(tokens[i]);
+    if (session) return session;
+  }
+  return null;
 }

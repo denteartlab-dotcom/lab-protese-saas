@@ -1,6 +1,11 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import type { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import {
+  anexarSetCookiesMesmoNome,
+  listarValoresCookie,
+  serializarSetCookie,
+} from "@/lib/cookie-sessao-bruto";
 import { sessaoCookieSecure } from "@/lib/cookie-secure";
 import {
   COOKIE_NAME,
@@ -114,10 +119,8 @@ export async function createSession(
 
   const cookieStore = await cookies();
   const opcoes = opcoesCookieSessao(maxAge, options?.request);
-  // Host-only antigo não pode ir junto do Domain e ser lido no lugar do token novo.
-  if (opcoes.domain) {
-    cookieStore.set(COOKIE_NAME, "", { ...opcoes, domain: undefined, maxAge: 0 });
-  }
+  // cookies().set só guarda um nome: o token com Domain fica; a limpeza
+  // host-only sai em anexarCookieSessao, que escreve os dois Set-Cookie.
   cookieStore.set(COOKIE_NAME, token, opcoes);
 }
 
@@ -133,18 +136,20 @@ export async function anexarCookieSessao(
     ttlSegundos: maxAge,
   });
   const opcoes = opcoesCookieSessao(maxAge, options?.request);
-  // O cookie sem Domain (login antigo / host-only) pode ser enviado na frente
-  // do novo. O servidor lia a sessão vencida e a conta saía de novo.
+  const linhas = [serializarSetCookie(COOKIE_NAME, token, opcoes)];
+  // Host-only antigo chega antes do Domain e o servidor lia a sessão vencida.
   if (opcoes.domain) {
-    response.cookies.set(COOKIE_NAME, "", {
-      httpOnly: true,
-      secure: opcoes.secure,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 0,
-    });
+    linhas.unshift(
+      serializarSetCookie(COOKIE_NAME, "", {
+        httpOnly: true,
+        secure: opcoes.secure,
+        sameSite: "lax",
+        path: "/",
+        maxAge: 0,
+      })
+    );
   }
-  response.cookies.set(COOKIE_NAME, token, opcoes);
+  anexarSetCookiesMesmoNome(response.headers, COOKIE_NAME, linhas);
   return response;
 }
 
@@ -161,26 +166,43 @@ export async function anexarLimpezaCookieSessao(
   request?: Request
 ) {
   const base = opcoesCookieSessao(0, request);
-  response.cookies.set(COOKIE_NAME, "", {
-    httpOnly: true,
+  const limpo = {
+    httpOnly: true as const,
     secure: base.secure,
-    sameSite: "lax",
+    sameSite: "lax" as const,
     path: "/",
     maxAge: 0,
-  });
-  response.cookies.set(COOKIE_NAME, "", base);
+  };
+  const linhas = [serializarSetCookie(COOKIE_NAME, "", limpo)];
+  if (base.domain) {
+    linhas.push(serializarSetCookie(COOKIE_NAME, "", { ...limpo, domain: base.domain }));
+  }
+  anexarSetCookiesMesmoNome(response.headers, COOKIE_NAME, linhas);
   return response;
 }
 
-export async function getSession(): Promise<SessionUser | null> {
+async function tokensSessaoDaRequisicao(): Promise<string[]> {
+  try {
+    const lista = await headers();
+    const varios = listarValoresCookie(lista.get("cookie"), COOKIE_NAME);
+    if (varios.length) return varios;
+  } catch {
+    /* fora de um request */
+  }
   const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
-  if (!token) return null;
-  const session = await verifySessionToken(token);
-  if (!session) return null;
-  const ok = await sessaoUsuarioVersaoValida(session.id, session.sessionVersion);
-  if (!ok) return null;
-  return session;
+  const unico = cookieStore.get(COOKIE_NAME)?.value;
+  return unico ? [unico] : [];
+}
+
+export async function getSession(): Promise<SessionUser | null> {
+  const tokens = await tokensSessaoDaRequisicao();
+  for (let i = tokens.length - 1; i >= 0; i -= 1) {
+    const session = await verifySessionToken(tokens[i]);
+    if (!session) continue;
+    const ok = await sessaoUsuarioVersaoValida(session.id, session.sessionVersion);
+    if (ok) return session;
+  }
+  return null;
 }
 
 export async function requireSession() {
