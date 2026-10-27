@@ -1336,7 +1336,7 @@ function AppShellInner({
                         type="button"
                         onClick={() =>
                           window.open(
-                            `/app/trabalhos/${osSelecionada.id}/imprimir`,
+                            `/app/trabalhos/${osSelecionada.id}/imprimir?r=${Date.now()}`,
                             "_blank",
                             "noopener,noreferrer"
                           )

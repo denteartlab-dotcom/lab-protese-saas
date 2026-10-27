@@ -18,7 +18,7 @@ const CHAVES_SENSIVEIS_JSON_STORE = new Set([
   "labProteseBackup",
 ]);
 
-export async function GET(_request: Request, { params }: Params) {
+export async function GET(request: Request, { params }: Params) {
   const ctx = await requireEmpresaContext().catch(() => null);
   if (!ctx) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
@@ -30,7 +30,8 @@ export async function GET(_request: Request, { params }: Params) {
     if (negado) return negado;
   }
 
-  const valor = await lerJsonStoreTenant(ctx.empresaId, key);
+  const fresco = new URL(request.url).searchParams.get("fresco") === "1";
+  const valor = await lerJsonStoreTenant(ctx.empresaId, key, { ignorarCache: fresco });
   if (valor === null) {
     return NextResponse.json(null);
   }

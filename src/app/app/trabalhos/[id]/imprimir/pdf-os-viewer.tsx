@@ -12,12 +12,14 @@ import {
   type ConfigLaboratorio,
 } from "@/lib/configuracoes-lab";
 import {
+  carregarConfiguracoesOs,
   carregarLayoutModelo1,
   carregarLayoutModelo2,
   carregarLayoutModelo3,
   carregarLayoutModelo4,
   carregarLayoutModelo5,
-  sincronizarConfiguracoesOsDoServidor,
+  lerConfiguracoesOsDoServidor,
+  normalizarConfiguracoesOs,
   CONFIG_OS_ATUALIZADA_EVENT,
   type ConfiguracoesOs,
 } from "@/lib/configuracoes-os";
@@ -2157,7 +2159,18 @@ export function PdfOsViewer({
   const buildPdfSeqRef = useRef(0);
   const nomeArquivoPdf = nomeArquivoOsPdf(data.numeroOs);
 
-  function layoutsOsParaPdf(_base: PdfOsData, _cfgOs?: ConfiguracoesOs | null) {
+  function layoutsOsParaPdf(base: PdfOsData, cfgOs?: ConfiguracoesOs | null) {
+    const bruto = cfgOs === undefined ? base.configuracoesOs : cfgOs;
+    if (bruto) {
+      const cfg = normalizarConfiguracoesOs(bruto);
+      return {
+        layoutModelo1: cfg.layoutModelo1,
+        layoutModelo2: cfg.layoutModelo2,
+        layoutModelo3: cfg.layoutModelo3,
+        layoutModelo4: cfg.layoutModelo4,
+        layoutModelo5: cfg.layoutModelo5,
+      };
+    }
     return {
       layoutModelo1: carregarLayoutModelo1(),
       layoutModelo2: carregarLayoutModelo2(),
@@ -2167,9 +2180,16 @@ export function PdfOsViewer({
     };
   }
 
-  function montarDadosPdfDeServidor(base: PdfOsData): PdfOsData {
+  function montarDadosPdfDeServidor(base: PdfOsData, cfgOs?: ConfiguracoesOs | null): PdfOsData {
+    const configOs =
+      cfgOs === undefined ? base.configuracoesOs : cfgOs ?? base.configuracoesOs;
     if (typeof window === "undefined") {
-      return { ...base, lab: base.lab || LAB_IMPRESSAO_PADRAO };
+      return {
+        ...base,
+        lab: base.lab || LAB_IMPRESSAO_PADRAO,
+        configuracoesOs: configOs,
+        ...layoutsOsParaPdf(base, cfgOs),
+      };
     }
     try {
       const cfg = configLaboratorioCabecalhoAtual();
@@ -2182,7 +2202,8 @@ export function PdfOsViewer({
         lab,
         configLab: cfg,
         cabecalhoRequisicao: normalizarCabecalhoRequisicao(cfg.cabecalhoRequisicao),
-        ...layoutsOsParaPdf(base),
+        configuracoesOs: configOs,
+        ...layoutsOsParaPdf(base, cfgOs),
       };
     } catch (err) {
       console.error("[PdfOsViewer] montarDadosPdf", err);
@@ -2193,6 +2214,7 @@ export function PdfOsViewer({
         lab,
         configLab: cfg,
         cabecalhoRequisicao: normalizarCabecalhoRequisicao(cfg.cabecalhoRequisicao),
+        configuracoesOs: configOs,
         layoutModelo1: normalizarOsModelo1Layout(null),
         layoutModelo2: normalizarOsModelo2Layout(null),
         layoutModelo3: normalizarOsModelo3Layout(null),
@@ -2221,46 +2243,86 @@ export function PdfOsViewer({
   const [dadosPdf, setDadosPdf] = useState<PdfOsData>(() => montarDadosPdfDeServidor(data));
   dadosPdfRef.current = dadosPdf;
   const [configOsPronta, setConfigOsPronta] = useState(false);
+  const [pedidoFonte, setPedidoFonte] = useState(0);
+  const [geracaoLayout, setGeracaoLayout] = useState(0);
+  const impressaoAbertaRef = useRef(false);
 
   useEffect(() => {
     let ativo = true;
 
     async function prepararConfigImpressao() {
-      setPdfUrl("");
       setErroPdf("");
-      setConfigOsPronta(false);
+      if (pedidoFonte === 0) setConfigOsPronta(false);
       await aguardarArmazenamentoLaboratorioPronto();
+      let cfgOs: ConfiguracoesOs | null = data.configuracoesOs
+        ? normalizarConfiguracoesOs(data.configuracoesOs)
+        : null;
       try {
-        await Promise.all([
+        const [cfgServidor] = await Promise.all([
+          lerConfiguracoesOsDoServidor(),
           sincronizarConfigLaboratorioDoServidor(),
-          sincronizarConfiguracoesOsDoServidor(),
           sincronizarConfiguracoesEtiquetasDoServidor(),
         ]);
+        if (cfgServidor) cfgOs = cfgServidor;
       } catch {
-        /* offline */
+        /* offline: fica a config que a página já trouxe do servidor */
       }
       if (!ativo) return;
       try {
-        const montado = montarDadosPdfDeServidor(data);
+        const montado = montarDadosPdfDeServidor(data, cfgOs);
         dadosPdfRef.current = montado;
         setDadosPdf(montado);
       } catch (err) {
         console.error("[PdfOsViewer] preparar config", err);
       }
       setConfigOsPronta(true);
+      if (pedidoFonte > 0) setGeracaoLayout((n) => n + 1);
     }
 
     void prepararConfigImpressao();
     return () => {
       ativo = false;
     };
-  }, [data]);
+  }, [data, pedidoFonte]);
+
+  useEffect(() => {
+    const inicio = Date.now();
+    function pedirFonteSalva() {
+      if (impressaoAbertaRef.current) return;
+      if (document.visibilityState === "hidden") return;
+      if (Date.now() - inicio < 1500) return;
+      setPedidoFonte((n) => n + 1);
+    }
+    function aoMostrarPagina(ev: PageTransitionEvent) {
+      if (ev.persisted) setPedidoFonte((n) => n + 1);
+    }
+    function aoAntesImprimir() {
+      impressaoAbertaRef.current = true;
+    }
+    function aoDepoisImprimir() {
+      impressaoAbertaRef.current = false;
+    }
+    document.addEventListener("visibilitychange", pedirFonteSalva);
+    window.addEventListener("pageshow", aoMostrarPagina);
+    window.addEventListener("beforeprint", aoAntesImprimir);
+    window.addEventListener("afterprint", aoDepoisImprimir);
+    return () => {
+      document.removeEventListener("visibilitychange", pedirFonteSalva);
+      window.removeEventListener("pageshow", aoMostrarPagina);
+      window.removeEventListener("beforeprint", aoAntesImprimir);
+      window.removeEventListener("afterprint", aoDepoisImprimir);
+    };
+  }, []);
 
   useEffect(() => {
     function atualizarLayoutOs() {
-      const montado = montarDadosPdfDeServidor(dadosPdfRef.current);
+      const montado = montarDadosPdfDeServidor(
+        dadosPdfRef.current,
+        carregarConfiguracoesOs()
+      );
       dadosPdfRef.current = montado;
       setDadosPdf(montado);
+      setGeracaoLayout((n) => n + 1);
     }
     window.addEventListener(CONFIG_OS_ATUALIZADA_EVENT, atualizarLayoutOs);
     return () => window.removeEventListener(CONFIG_OS_ATUALIZADA_EVENT, atualizarLayoutOs);
@@ -2356,7 +2418,7 @@ export function PdfOsViewer({
       pdfUrlRef.current = "";
       pdfBlobRef.current = null;
     };
-  }, [configOsPronta, formato, modelo, duasVias, data.numeroOs]);
+  }, [configOsPronta, formato, modelo, duasVias, data.numeroOs, geracaoLayout]);
 
   function baixarPdf() {
     if (pdfBlobRef.current) {

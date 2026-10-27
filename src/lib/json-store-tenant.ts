@@ -39,11 +39,14 @@ export function extrairChaveBaseTenant(chave: string, empresaId: string): string
 
 export async function lerJsonStoreTenant<T>(
   empresaId: string,
-  key: string
+  key: string,
+  opcoes?: { ignorarCache?: boolean }
 ): Promise<T | null> {
-  const emCache = lerJsonStoreCache(empresaId, key);
-  if (emCache !== undefined) {
-    return emCache as T;
+  if (!opcoes?.ignorarCache) {
+    const emCache = lerJsonStoreCache(empresaId, key);
+    if (emCache !== undefined) {
+      return emCache as T;
+    }
   }
 
   const ctx = contextoTenantAtual();

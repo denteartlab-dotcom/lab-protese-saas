@@ -226,16 +226,20 @@ export function salvarConfiguracoesOs(config: ConfiguracoesOs): Promise<void> {
   return persistirArmazenamentoImediato(CONFIG_OS_STORAGE_KEY, normalizado);
 }
 
-export async function sincronizarConfiguracoesOsDoServidor(): Promise<ConfiguracoesOs> {
+/**
+ * Lê a config salva no servidor, sem cache de memória.
+ * Null quando a rede falha — o chamador fica com o que já tem.
+ */
+export async function lerConfiguracoesOsDoServidor(): Promise<ConfiguracoesOs | null> {
   try {
     const localAntes = lerConfigOsSalva();
     const res = await fetch(
-      `/api/json-store/${encodeURIComponent(CONFIG_OS_STORAGE_KEY)}`,
+      `/api/json-store/${encodeURIComponent(CONFIG_OS_STORAGE_KEY)}?fresco=1`,
       { cache: "no-store", credentials: "same-origin" }
     );
-    if (!res.ok) return carregarConfiguracoesOs();
+    if (!res.ok) return null;
     const remoto = (await res.json()) as Partial<ConfiguracoesOs> | null;
-    if (!remoto || typeof remoto !== "object") return carregarConfiguracoesOs();
+    if (!remoto || typeof remoto !== "object" || Array.isArray(remoto)) return null;
     const mesclado = normalizarConfiguracoesOs(
       mesclarConfigAposBusca(remoto, localAntes, lerConfigOsSalva())
     );
@@ -246,8 +250,14 @@ export async function sincronizarConfiguracoesOsDoServidor(): Promise<Configurac
     }
     return config;
   } catch {
-    return carregarConfiguracoesOs();
+    return null;
   }
+}
+
+export async function sincronizarConfiguracoesOsDoServidor(): Promise<ConfiguracoesOs> {
+  const atualizada = await lerConfiguracoesOsDoServidor();
+  if (!atualizada) return carregarConfiguracoesOs();
+  return atualizada;
 }
 
 export async function persistirConfiguracoesOsServidor(

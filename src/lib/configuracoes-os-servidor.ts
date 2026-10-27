@@ -11,7 +11,8 @@ export async function carregarConfiguracoesOsServidor(
 ): Promise<ConfiguracoesOs> {
   const remoto = await lerJsonStoreTenant<Partial<ConfiguracoesOs>>(
     empresaId,
-    CONFIG_OS_STORAGE_KEY
+    CONFIG_OS_STORAGE_KEY,
+    { ignorarCache: true }
   );
   return normalizarConfiguracoesOs(remoto);
 }

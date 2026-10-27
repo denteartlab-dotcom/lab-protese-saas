@@ -9,6 +9,7 @@ import {
 } from "@/lib/configuracoes-os";
 import { segmentoEfetivoTrabalho } from "@/lib/trabalho-os-segmento";
 import {
+  abrirImpressaoOs,
   montarUrlImpressaoOs,
   type FormatoImpressaoOs,
   type TrabalhoImpressaoOs,
@@ -43,7 +44,16 @@ export function LinkImprimirOs({
   });
 
   return (
-    <Link href={href} target="_blank" className={className}>
+    <Link
+      href={href}
+      target="_blank"
+      prefetch={false}
+      className={className}
+      onClick={(evento) => {
+        evento.preventDefault();
+        abrirImpressaoOs(href);
+      }}
+    >
       {children}
     </Link>
   );

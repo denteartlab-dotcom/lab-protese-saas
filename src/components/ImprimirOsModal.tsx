@@ -76,6 +76,12 @@ export function montarUrlImpressaoOs(
   return `/app/trabalhos/${trabalhoId}/imprimir${qs ? `?${qs}` : ""}`;
 }
 
+/** Cada clique abre uma página nova para o PDF nascer com a fonte salva agora. */
+export function abrirImpressaoOs(url: string) {
+  const separador = url.includes("?") ? "&" : "?";
+  window.open(`${url}${separador}r=${Date.now()}`, "_blank", "noopener,noreferrer");
+}
+
 function aplicarConfigNoModal(
   cfgOs: ConfiguracoesOs,
   cfgEtiquetas: ConfiguracoesEtiquetas,
@@ -274,7 +280,7 @@ export function ImprimirOsModal({
       modelo: modeloImpressao,
       duasVias: duasVias === "sim",
     });
-    window.open(url, "_blank", "noopener,noreferrer");
+    abrirImpressaoOs(url);
     onClose();
   }
 
