@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AppMobileNav, BotaoMenuMobile } from "@/components/AppMobileNav";
 import { ConfiguracoesGearMenu } from "@/components/ConfiguracoesGearMenu";
@@ -24,6 +24,8 @@ import { FaixaVisualizacaoMaster } from "@/components/FaixaVisualizacaoMaster";
 import { SuporteChatWidget } from "@/components/SuporteChatWidget";
 import { ArmazenamentoCheioModalHost } from "@/components/ArmazenamentoCheioModal";
 import { NOME_LAB_PADRAO } from "@/lib/document-title";
+import { sairParaRotaApp } from "@/lib/navegar-app";
+import { hrefAppNaSessao } from "@/lib/rotas-app";
 import { useLabConfigClient } from "@/lib/use-lab-config-client";
 import {
   appNavPrincipal,
@@ -226,6 +228,15 @@ function AppShellInner({
 }) {
   const { t, locale } = useI18n();
   const pathname = usePathname();
+  const hrefMenu = (destino: string) => hrefAppNaSessao(pathname, destino);
+  function abrirOsNoClique(evento: MouseEvent<HTMLAnchorElement>, destino: string) {
+    if (!destino.startsWith("/app/producao/os")) return;
+    if (evento.button !== 0 || evento.metaKey || evento.ctrlKey || evento.shiftKey || evento.altKey) {
+      return;
+    }
+    evento.preventDefault();
+    sairParaRotaApp(destino);
+  }
   const searchParams = useSearchParams();
   const router = useRouter();
   const isPrint =
@@ -834,7 +845,7 @@ function AppShellInner({
                     type="button"
                     onClick={() => {
                       setMenuUsuarioAberto(false);
-                      router.push("/app/alterar-senha");
+                      router.push(hrefMenu("/app/alterar-senha"));
                     }}
                     className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
                   >
@@ -851,7 +862,8 @@ function AppShellInner({
               return (
                 <Link
                   key={`${item.href}-${item.labelKey}`}
-                  href={item.href}
+                  href={hrefMenu(item.href)}
+                  onClick={(evento) => abrirOsNoClique(evento, item.href)}
                   className={classeItemNavPrincipal(active)}
                 >
                   <IconeNav
@@ -903,7 +915,8 @@ function AppShellInner({
                       {grupo.itens.filter((item) => podeVerMenu(item.href)).map((item) => (
                         <Link
                           key={`${grupo.id}-${item.href}-${item.labelKey}`}
-                          href={item.href}
+                          href={hrefMenu(item.href)}
+                          onClick={(evento) => abrirOsNoClique(evento, item.href)}
                           className={classeLinkSubmenu(submenuLinkAtivo(item.href))}
                         >
                           {t(item.labelKey)}
@@ -944,7 +957,8 @@ function AppShellInner({
               return (
                 <Link
                   key={`${item.href}-${item.labelKey}`}
-                  href={item.href}
+                  href={hrefMenu(item.href)}
+                  onClick={(evento) => abrirOsNoClique(evento, item.href)}
                   className={classeItemNavPrincipal(active)}
                 >
                   <IconeNav emoji={item.emoji} Icon={item.icon} strokeWidth={2} />
@@ -1349,7 +1363,7 @@ function AppShellInner({
                         type="button"
                         onClick={() => {
                           fecharBuscaOs();
-                          router.push(`/app/producao/controle?q=${osSelecionada.numeroOs}`);
+                          router.push(hrefMenu(`/app/producao/controle?q=${osSelecionada.numeroOs}`));
                         }}
                         className="h-8 rounded border border-emerald-200 bg-white px-3 text-[10px] font-semibold text-emerald-600 hover:bg-emerald-50"
                       >
@@ -1360,7 +1374,7 @@ function AppShellInner({
                           type="button"
                           onClick={() => {
                             fecharBuscaOs();
-                            router.push(`/app/producao/os?edit=${osSelecionada.id}`);
+                            sairParaRotaApp(`/app/producao/os?edit=${osSelecionada.id}`);
                           }}
                           className="h-8 rounded border border-emerald-200 bg-white px-3 text-[10px] font-semibold text-emerald-600 hover:bg-emerald-50"
                         >
@@ -1371,7 +1385,7 @@ function AppShellInner({
                         type="button"
                         onClick={() => {
                           fecharBuscaOs();
-                          router.push(`/app/producao/os?edit=${osSelecionada.id}`);
+                          sairParaRotaApp(`/app/producao/os?edit=${osSelecionada.id}`);
                         }}
                         className="h-8 rounded bg-blue-600 px-4 text-[10px] font-semibold text-white hover:bg-blue-700"
                       >

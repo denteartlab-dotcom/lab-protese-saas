@@ -19,7 +19,9 @@ import {
 } from "@/lib/permissoes-acesso";
 import { limparUltimaAtividadeSessao } from "@/lib/sessao-inatividade";
 import { cn } from "@/lib/utils";
-import { menuAppHrefAtivo } from "@/lib/rotas-app";
+import { sairParaRotaApp } from "@/lib/navegar-app";
+import { hrefAppNaSessao, menuAppHrefAtivo } from "@/lib/rotas-app";
+import type { MouseEvent } from "react";
 
 type Props = {
   aberto: boolean;
@@ -30,6 +32,15 @@ type Props = {
   logoLargura?: number;
   logoAltura?: number;
 };
+
+function abrirOsNoClique(evento: MouseEvent<HTMLAnchorElement>, destino: string) {
+  if (!destino.startsWith("/app/producao/os")) return;
+  if (evento.button !== 0 || evento.metaKey || evento.ctrlKey || evento.shiftKey || evento.altKey) {
+    return;
+  }
+  evento.preventDefault();
+  sairParaRotaApp(destino);
+}
 
 function linkAtivo(
   pathname: string,
@@ -81,8 +92,11 @@ function ItemNavSimples({
 
   return (
     <Link
-      href={item.href}
-      onClick={onNavigate}
+      href={hrefAppNaSessao(pathname, item.href)}
+      onClick={(evento) => {
+        onNavigate();
+        abrirOsNoClique(evento, item.href);
+      }}
       className={cn(
         "flex cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium caret-transparent outline-none transition-colors focus:outline-none",
         ativo
@@ -143,8 +157,11 @@ function GrupoNavExpansivel({
             return (
               <Link
                 key={`${grupo.id}-${item.href}-${item.labelKey}`}
-                href={item.href}
-                onClick={onNavigate}
+                href={hrefAppNaSessao(pathname, item.href)}
+                onClick={(evento) => {
+                  onNavigate();
+                  abrirOsNoClique(evento, item.href);
+                }}
                 className={cn(
                   "flex cursor-pointer select-none items-center rounded-lg px-3 py-2 text-[13px] caret-transparent outline-none transition-colors focus:outline-none",
                   itemAtivo
@@ -325,7 +342,7 @@ export function AppMobileNav({
                 type="button"
                 onClick={() => {
                   onFechar();
-                  router.push("/app/alterar-senha");
+                  router.push(hrefAppNaSessao(pathname, "/app/alterar-senha"));
                 }}
                 className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-white dark:text-slate-200 dark:hover:bg-slate-700"
               >

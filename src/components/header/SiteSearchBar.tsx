@@ -1,9 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
+import { usePathname } from "next/navigation";
 import { Search, X } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
+import { sairParaRotaApp } from "@/lib/navegar-app";
+import { hrefAppNaSessao } from "@/lib/rotas-app";
 import { filtrarPaginasSite } from "@/lib/site-pages";
 import { cn } from "@/lib/utils";
 
@@ -12,8 +15,18 @@ type Props = {
   onFechar: () => void;
 };
 
+function abrirOsNoClique(evento: MouseEvent<HTMLAnchorElement>, destino: string) {
+  if (!destino.startsWith("/app/producao/os")) return;
+  if (evento.button !== 0 || evento.metaKey || evento.ctrlKey || evento.shiftKey || evento.altKey) {
+    return;
+  }
+  evento.preventDefault();
+  sairParaRotaApp(destino);
+}
+
 export function SiteSearchBar({ aberto, onFechar }: Props) {
   const { t } = useI18n();
+  const pathname = usePathname();
   const [termo, setTermo] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -68,8 +81,11 @@ export function SiteSearchBar({ aberto, onFechar }: Props) {
               {resultados.map((page) => (
                 <li key={page.href}>
                   <Link
-                    href={page.href}
-                    onClick={onFechar}
+                    href={hrefAppNaSessao(pathname, page.href)}
+                    onClick={(evento) => {
+                      onFechar();
+                      abrirOsNoClique(evento, page.href);
+                    }}
                     className="flex flex-col gap-0.5 border-b border-slate-50 px-4 py-2.5 text-left transition hover:bg-slate-50 last:border-0 dark:border-slate-800 dark:hover:bg-slate-800"
                   >
                     <span className="text-sm font-medium text-slate-800 dark:text-slate-100">

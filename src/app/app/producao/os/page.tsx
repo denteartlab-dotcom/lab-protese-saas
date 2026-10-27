@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
+import { sairParaRotaApp } from "@/lib/navegar-app";
+import { hrefAppNaSessao } from "@/lib/rotas-app";
 import { AlertTriangle, ImageUp, Info, Plus, Save, Tag, Trash2 } from "lucide-react";
 import { PainelCarregando } from "@/components/ListaCarregando";
 import { useI18n } from "@/components/i18n-provider";
@@ -1135,7 +1137,7 @@ export default function OrdemServicoPage() {
           (t: { numeroOs?: number }) => Number(t.numeroOs) === numero
         );
         if (trabalho?.id) {
-          router.replace(`/app/producao/os?edit=${trabalho.id}`);
+          sairParaRotaApp(`/app/producao/os?edit=${trabalho.id}`);
         }
       } catch {
         // ignora
@@ -4938,7 +4940,7 @@ export default function OrdemServicoPage() {
         </section>
 
         <div className="flex justify-end gap-2 border-t border-slate-100 p-4 dark:border-slate-700">
-          <Button type="button" variant="outline" onClick={() => router.push("/app/producao/controle")}>
+          <Button type="button" variant="outline" onClick={() => router.push(hrefAppNaSessao(window.location.pathname, "/app/producao/controle"))}>
             {t("common.cancelar")}
           </Button>
           <Button type="submit" disabled={salvando || Boolean(bloqueioSaldoDevedorOs?.bloqueado)}>
