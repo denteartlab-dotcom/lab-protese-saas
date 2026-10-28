@@ -18,11 +18,11 @@ export default function Error({
   }, [error]);
 
   return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4 text-center">
-      <h1 className="text-lg font-semibold text-slate-800">
+    <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-4 bg-[#edf5f6] px-4 text-center dark:bg-slate-950">
+      <h1 className="text-lg font-semibold text-slate-800 dark:text-slate-100">
         Não foi possível carregar o sistema
       </h1>
-      <p className="max-w-md text-sm text-slate-600">
+      <p className="max-w-md text-sm text-slate-600 dark:text-slate-300">
         Isso costuma acontecer quando a sessão do navegador ficou inválida após
         fechar e abrir o Chrome. Limpe a sessão para voltar ao login.
       </p>
@@ -36,7 +36,7 @@ export default function Error({
         <button
           type="button"
           onClick={reset}
-          className="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          className="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-800"
         >
           Tentar novamente
         </button>

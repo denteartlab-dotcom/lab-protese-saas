@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { AppMobileNav, BotaoMenuMobile } from "@/components/AppMobileNav";
 import { ConfiguracoesGearMenu } from "@/components/ConfiguracoesGearMenu";
 import { LanguageMenu } from "@/components/header/LanguageMenu";
@@ -178,23 +178,21 @@ export function AppShell({
 }) {
   return (
     <ArmazenamentoLaboratorioProvider somenteLeitura={visualizacaoMaster}>
-      <Suspense fallback={null}>
-        <AppShellInner
-          userName={userName}
-          userRole={userRole}
-          userEmail={userEmail}
-          isMasterAdmin={isMasterAdmin}
-          visualizacaoMaster={visualizacaoMaster}
-          suporteExpiraEm={suporteExpiraEm}
-          empresaNomeVisualizacao={empresaNomeVisualizacao}
-          dataVencimentoAssinatura={dataVencimentoAssinatura}
-          suporteWhatsapp={suporteWhatsapp}
-          initialLab={initialLab}
-          initialNomeLaboratorio={initialNomeLaboratorio}
-        >
-          {children}
-        </AppShellInner>
-      </Suspense>
+      <AppShellInner
+        userName={userName}
+        userRole={userRole}
+        userEmail={userEmail}
+        isMasterAdmin={isMasterAdmin}
+        visualizacaoMaster={visualizacaoMaster}
+        suporteExpiraEm={suporteExpiraEm}
+        empresaNomeVisualizacao={empresaNomeVisualizacao}
+        dataVencimentoAssinatura={dataVencimentoAssinatura}
+        suporteWhatsapp={suporteWhatsapp}
+        initialLab={initialLab}
+        initialNomeLaboratorio={initialNomeLaboratorio}
+      >
+        {children}
+      </AppShellInner>
     </ArmazenamentoLaboratorioProvider>
   );
 }
@@ -227,7 +225,15 @@ function AppShellInner({
   children: React.ReactNode;
 }) {
   const { t, locale } = useI18n();
-  const pathname = usePathname();
+  const pathname = usePathname() || "";
+  // useSearchParams() suspende a casca inteira. Sem o fallback, a tela ficava
+  // só com o fundo escuro em /app/{slug}.
+  const [consulta, setConsulta] = useState("");
+  useEffect(() => {
+    const qs = window.location.search;
+    setConsulta(qs.startsWith("?") ? qs.slice(1) : qs);
+  }, [pathname]);
+  const searchParams = useMemo(() => new URLSearchParams(consulta), [consulta]);
   const hrefMenu = (destino: string) => hrefAppNaSessao(pathname, destino);
   function abrirOsNoClique(evento: MouseEvent<HTMLAnchorElement>, destino: string) {
     if (!destino.startsWith("/app/producao/os")) return;
@@ -237,7 +243,6 @@ function AppShellInner({
     evento.preventDefault();
     sairParaRotaApp(destino);
   }
-  const searchParams = useSearchParams();
   const router = useRouter();
   const isPrint =
     pathname.includes("/imprimir") ||

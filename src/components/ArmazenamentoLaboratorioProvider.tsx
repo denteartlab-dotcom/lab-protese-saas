@@ -115,14 +115,8 @@ export function ArmazenamentoLaboratorioProvider({
 
     void (async () => {
       if (typeof window !== "undefined") {
-        const host = window.location.hostname.toLowerCase();
-        const pathComQuery = `${window.location.pathname}${window.location.search}`;
-        if (host === "denteartlab.com.br") {
-          const proto = window.location.protocol;
-          window.location.replace(`${proto}//www.denteartlab.com.br${pathComQuery}`);
-          return;
-        }
-
+        // Não manda o apex para www daqui. O proxy também manda www de volta
+        // ao apex, e a tela ficava escura porque o bootstrap nem começava.
         const recarregou = await garantirVersaoAplicacaoAtual(BUILD_ID_ATUAL);
         if (recarregou) return;
       }
@@ -174,7 +168,9 @@ export function ArmazenamentoLaboratorioProvider({
     };
   }, [ignoraBootstrap]);
 
-  const mostrarCarregando = montado && !ignoraBootstrap && estado === "carregando";
+  // O aviso entra no HTML. Sem isso a primeira pintura é só o fundo escuro
+  // e, se o JS atrasar, o sistema parece que não abriu.
+  const mostrarCarregando = !ignoraBootstrap && estado === "carregando";
   const mostrarErro = montado && !ignoraBootstrap && estado === "erro";
 
   const podeRenderizarFilhos = ignoraBootstrap || estado === "pronto";
@@ -183,8 +179,8 @@ export function ArmazenamentoLaboratorioProvider({
     <>
       {podeRenderizarFilhos ? children : null}
       {mostrarCarregando ? (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-[#f4f6f8]/95 px-4 dark:bg-slate-950/95">
-          <p className="text-center text-sm text-slate-500">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-[#f4f6f8] px-4 dark:bg-slate-950">
+          <p className="text-center text-sm font-medium text-slate-700 dark:text-slate-100">
             Carregando dados do banco de dados…
             {process.env.NODE_ENV === "development" ? (
               <span className="mt-1 block text-xs text-slate-400">
@@ -195,8 +191,8 @@ export function ArmazenamentoLaboratorioProvider({
         </div>
       ) : null}
       {mostrarErro ? (
-        <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center gap-3 bg-[#f4f6f8]/95 px-4 text-center dark:bg-slate-950/95">
-          <p className="max-w-md text-sm text-amber-900">{erro}</p>
+        <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center gap-3 bg-[#f4f6f8] px-4 text-center dark:bg-slate-950">
+          <p className="max-w-md text-sm text-amber-950 dark:text-amber-100">{erro}</p>
           <button
             type="button"
             disabled={tentando}
