@@ -64,13 +64,20 @@ function ok(nome: string) {
 }
 
 assert.equal(formatarHoraDigitada("8"), "08:");
+assert.equal(formatarHoraDigitada("9"), "09:");
+assert.equal(formatarHoraDigitada("90"), "09:0");
+assert.equal(formatarHoraDigitada("900"), "09:00");
+assert.equal(formatarHoraDigitada("9000"), "09:00");
+assert.equal(formatarHoraDigitada("09"), "09:");
+assert.equal(formatarHoraDigitada("0900"), "09:00");
 assert.equal(formatarHoraDigitada("3", "08:"), "03:");
 assert.equal(formatarHoraDigitada("13"), "13:");
 assert.equal(formatarHoraDigitada("13:0", "13:"), "13:0");
 assert.equal(formatarHoraDigitada("1300"), "13:00");
 assert.equal(formatarHoraDigitada("0800"), "08:00");
 assert.equal(formatarHoraDigitada("8:30"), "08:30");
-assert.equal(formatarHoraDigitada("13:", "13:0"), "13");
+assert.equal(formatarHoraDigitada("13:", "13:0"), "13:");
+assert.equal(formatarHoraDigitada("13", "13:"), "1");
 assert.equal(formatarHoraDigitada("1360"), "13:59");
 assert.equal(formatarHoraDigitada(""), "");
 ok("horário digitado completa sozinho no formato 00:00");

@@ -269,44 +269,35 @@ export function horasTrabalhadas(
 
 /**
  * Máscara de horário enquanto a pessoa digita.
- * O dois-pontos entra sozinho: 8 vira 08:, 0800 vira 08:00.
+ * 9, 90 e 900 viram 09:, 09:0 e 09:00 — o 9 não fica preso como hora 90.
  * `anterior` deixa apagar o dois-pontos sem ele voltar na mesma tecla.
  */
 export function formatarHoraDigitada(value: string, anterior = ""): string {
   const bruto = String(value ?? "");
   const antes = String(anterior ?? "");
-  const digitos = bruto.replace(/\D/g, "").slice(0, 4);
-  const digitosAntes = antes.replace(/\D/g, "");
+  const digitos = bruto.replace(/\D/g, "");
   if (!digitos) return "";
 
-  const apagouDigito =
-    digitos.length < digitosAntes.length && digitosAntes.startsWith(digitos);
-  const apagouDoisPontos =
-    antes.includes(":") && !bruto.includes(":") && digitos === digitosAntes;
-  const apagou = apagouDigito || apagouDoisPontos;
-
-  if (bruto.includes(":")) {
-    const [horaBruta, minutoBruto = ""] = bruto.split(":");
-    const horaParte = horaBruta.replace(/\D/g, "").slice(0, 2);
-    const minutoParte = minutoBruto.replace(/\D/g, "").slice(0, 2);
-    if (horaParte.length === 1 && minutoParte) {
-      return montarHoraDigitada(`0${horaParte}`, minutoParte);
-    }
+  const formatado = digitosParaHora(digitos);
+  const apagou = bruto.length < antes.length;
+  if (apagou && formatado === antes) {
+    return digitosParaHora(antes.replace(/\D/g, "").slice(0, -1));
   }
+  return formatado;
+}
 
-  if (digitos.length === 1) {
-    if (!apagou && Number(digitos) > 2) return `0${digitos}:`;
-    return digitos;
-  }
+/** 3–9 na primeira tecla é hora de um dígito: 90 significa 09:0, não hora 90. */
+function digitosParaHora(brutos: string): string {
+  const limpos = brutos.replace(/\D/g, "");
+  if (!limpos) return "";
+  const horaDeUmDigito = Number(limpos[0]) > 2;
+  const d = (horaDeUmDigito ? `0${limpos}` : limpos).slice(0, 4);
+  if (d.length <= 1) return d;
 
-  if (digitos.length === 2) {
-    const hora = Number(digitos);
-    if (hora > 23) return montarHoraDigitada("02", digitos.slice(1));
-    if (apagou) return digitos;
-    return `${digitos}:`;
-  }
-
-  return montarHoraDigitada(digitos.slice(0, 2), digitos.slice(2));
+  const horaNum = Number(d.slice(0, 2));
+  if (horaNum > 23) return montarHoraDigitada(`0${limpos[0]}`, limpos.slice(1));
+  if (d.length === 2) return `${d}:`;
+  return montarHoraDigitada(d.slice(0, 2), d.slice(2));
 }
 
 function montarHoraDigitada(horaDigitos: string, minutoDigitos: string): string {

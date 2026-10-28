@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Printer, Wallet } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
 import { Button, Modal } from "@/components/ui";
@@ -89,25 +89,30 @@ function CampoHoraTexto({
   min: string;
   max: string;
 }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useLayoutEffect(() => {
+    const el = inputRef.current;
+    if (!el || document.activeElement !== el) return;
+    const fim = el.value.length;
+    el.setSelectionRange(fim, fim);
+  }, [value]);
+
   return (
     <label className="block text-sm">
       <span className="mb-1 block text-slate-600">{label}</span>
       <input
+        ref={inputRef}
         type="text"
         inputMode="numeric"
         autoComplete="off"
         spellCheck={false}
-        maxLength={5}
         placeholder={placeholder}
         value={value}
-        onChange={(event) => {
-          const formatado = formatarHoraDigitada(event.target.value, value);
-          onChange(formatado);
-          const el = event.target;
-          const fim = formatado.length;
-          requestAnimationFrame(() => el.setSelectionRange(fim, fim));
-        }}
-        onBlur={() => onChange(limitarHoraNoPeriodo(horaTextoValida(value), min, max))}
+        onChange={(event) => onChange(formatarHoraDigitada(event.target.value, value))}
+        onBlur={() =>
+          onChange(limitarHoraNoPeriodo(horaTextoValida(formatarHoraDigitada(value)), min, max))
+        }
         className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-blue-500"
       />
     </label>
