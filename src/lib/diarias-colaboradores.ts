@@ -267,16 +267,54 @@ export function horasTrabalhadas(
   return minutosLiquidosTurno(entrada, saida, intervaloMinutos) / 60;
 }
 
-export function formatarHoraDigitada(value: string): string {
-  const limpo = String(value || "")
-    .replace(/[^\d:]/g, "")
-    .slice(0, 5);
-  const partes = limpo.split(":");
-  const hora = (partes[0] || "").slice(0, 2);
-  const minuto = (partes[1] || "").slice(0, 2);
-  if (!hora && !minuto) return "";
-  if (hora.length < 2) return hora;
-  if (!limpo.includes(":")) return hora;
+/**
+ * Máscara de horário enquanto a pessoa digita.
+ * O dois-pontos entra sozinho: 8 vira 08:, 0800 vira 08:00.
+ * `anterior` deixa apagar o dois-pontos sem ele voltar na mesma tecla.
+ */
+export function formatarHoraDigitada(value: string, anterior = ""): string {
+  const bruto = String(value ?? "");
+  const antes = String(anterior ?? "");
+  const digitos = bruto.replace(/\D/g, "").slice(0, 4);
+  const digitosAntes = antes.replace(/\D/g, "");
+  if (!digitos) return "";
+
+  const apagouDigito =
+    digitos.length < digitosAntes.length && digitosAntes.startsWith(digitos);
+  const apagouDoisPontos =
+    antes.includes(":") && !bruto.includes(":") && digitos === digitosAntes;
+  const apagou = apagouDigito || apagouDoisPontos;
+
+  if (bruto.includes(":")) {
+    const [horaBruta, minutoBruto = ""] = bruto.split(":");
+    const horaParte = horaBruta.replace(/\D/g, "").slice(0, 2);
+    const minutoParte = minutoBruto.replace(/\D/g, "").slice(0, 2);
+    if (horaParte.length === 1 && minutoParte) {
+      return montarHoraDigitada(`0${horaParte}`, minutoParte);
+    }
+  }
+
+  if (digitos.length === 1) {
+    if (!apagou && Number(digitos) > 2) return `0${digitos}:`;
+    return digitos;
+  }
+
+  if (digitos.length === 2) {
+    const hora = Number(digitos);
+    if (hora > 23) return montarHoraDigitada("02", digitos.slice(1));
+    if (apagou) return digitos;
+    return `${digitos}:`;
+  }
+
+  return montarHoraDigitada(digitos.slice(0, 2), digitos.slice(2));
+}
+
+function montarHoraDigitada(horaDigitos: string, minutoDigitos: string): string {
+  const hora = String(Math.min(23, Number(horaDigitos) || 0)).padStart(2, "0");
+  const minutoBruto = minutoDigitos.replace(/\D/g, "").slice(0, 2);
+  if (!minutoBruto) return `${hora}:`;
+  if (minutoBruto.length < 2) return `${hora}:${minutoBruto}`;
+  const minuto = String(Math.min(59, Number(minutoBruto))).padStart(2, "0");
   return `${hora}:${minuto}`;
 }
 

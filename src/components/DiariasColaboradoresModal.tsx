@@ -95,9 +95,18 @@ function CampoHoraTexto({
       <input
         type="text"
         inputMode="numeric"
+        autoComplete="off"
+        spellCheck={false}
+        maxLength={5}
         placeholder={placeholder}
         value={value}
-        onChange={(event) => onChange(formatarHoraDigitada(event.target.value))}
+        onChange={(event) => {
+          const formatado = formatarHoraDigitada(event.target.value, value);
+          onChange(formatado);
+          const el = event.target;
+          const fim = formatado.length;
+          requestAnimationFrame(() => el.setSelectionRange(fim, fim));
+        }}
         onBlur={() => onChange(limitarHoraNoPeriodo(horaTextoValida(value), min, max))}
         className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-blue-500"
       />
