@@ -12,6 +12,11 @@ import {
 import { montarSubcontaPainelContaDigital } from "@/lib/asaas-conta-digital";
 import { exigirProprietario } from "@/lib/exigir-proprietario";
 import { negarSeSemPermissao } from "@/lib/require-permissao";
+import {
+  marcarCadastroSubcontaAberto,
+  resumoTaxaAberturaSubconta,
+  taxaAberturaSubcontaPaga,
+} from "@/lib/taxa-abertura-subconta";
 
 export async function GET() {
   const ctx = await requireEmpresaContext().catch(() => null);
@@ -44,9 +49,11 @@ export async function GET() {
       nenhumDocumentoEnviadoSubconta(documentos);
 
     const subconta = await montarSubcontaPainelContaDigital(ctx.empresaId);
+    const taxaAbertura = await resumoTaxaAberturaSubconta(ctx.empresaId);
 
     return NextResponse.json({
       subconta: { ...subconta, envioDocumentosPendente },
+      taxaAbertura,
       documentos: documentos.map((doc) => ({
         id: doc.id,
         type: doc.type,
@@ -74,12 +81,39 @@ export async function POST() {
   }
 
   try {
+    const existente = await obterSubcontaEmpresa(ctx.empresaId);
+    if (!existente?.apiKey) {
+      const taxaPaga = await taxaAberturaSubcontaPaga(ctx.empresaId);
+      if (!taxaPaga) {
+        return NextResponse.json(
+          {
+            error:
+              "Pague a taxa única de R$ 15,00 para abrir a conta digital. O PIX usa o Mercado Pago da assinatura.",
+          },
+          { status: 422 }
+        );
+      }
+    }
+
     await criarSubcontaEmpresa(ctx.empresaId);
     let documentos: Awaited<ReturnType<typeof listarDocumentosSubconta>> = [];
     try {
       documentos = await listarDocumentosSubcontaParaEnvio(ctx.empresaId);
     } catch {
       documentos = [];
+    }
+
+    const linkCadastro = documentos.find((doc) => doc.onboardingUrl);
+    if (linkCadastro?.onboardingUrl) {
+      try {
+        await marcarCadastroSubcontaAberto(
+          ctx.empresaId,
+          linkCadastro.onboardingUrl,
+          linkCadastro.onboardingUrlExpirationDate || null
+        );
+      } catch (erro) {
+        console.error("[asaas/subconta] salvar link de cadastro", erro);
+      }
     }
 
     return NextResponse.json(

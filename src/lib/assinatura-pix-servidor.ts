@@ -21,6 +21,7 @@ import {
 } from "@/lib/mercadopago-plataforma";
 import { prisma } from "@/lib/db";
 import { PIX_ASSINATURA_QR_EXPIRACAO_MS } from "@/lib/assinatura-pix-constants";
+import { cobrancaEhTaxaAberturaSubconta } from "@/lib/taxa-abertura-subconta-const";
 import {
   diasRenovacaoPlano,
   limitesDoPlano,
@@ -461,6 +462,15 @@ export async function sincronizarPagamentoAssinatura(
   });
 
   if (!pago || cobranca.renovadoEm) {
+    return { renovado: false, empresaId: cobranca.empresaId };
+  }
+
+  // A taxa da subconta usa o mesmo webhook do Mercado Pago, mas não estende a assinatura.
+  if (cobrancaEhTaxaAberturaSubconta(cobranca.plano)) {
+    await prisma.cobrancaAssinatura.updateMany({
+      where: { id: cobranca.id, renovadoEm: null },
+      data: { renovadoEm: new Date() },
+    });
     return { renovado: false, empresaId: cobranca.empresaId };
   }
 

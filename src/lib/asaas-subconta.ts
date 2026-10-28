@@ -835,6 +835,14 @@ export async function encerrarSubcontaEmpresa(
       data: { asaasCustomerId: null },
     }),
   ]);
+  try {
+    const { exigirNovaTaxaAberturaSubconta } = await import(
+      "@/lib/taxa-abertura-subconta"
+    );
+    await exigirNovaTaxaAberturaSubconta(empresaId);
+  } catch (erro) {
+    console.error("[asaas-subconta] exigir nova taxa de abertura", erro);
+  }
   return { ok: true as const, podeReabrir: true as const };
 }
 

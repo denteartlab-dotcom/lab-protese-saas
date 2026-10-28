@@ -118,6 +118,9 @@ export async function criarPixAssinaturaMercadoPago(params: {
   emailUsuario?: string | null;
   valor: number;
   descricao: string;
+  /** Padrão: assinatura. A taxa da subconta usa o mesmo webhook, sem renovar o plano. */
+  metadataTipo?: string;
+  idempotencyKey?: string;
 }): Promise<MercadoPagoPixCriado> {
   const doc = somenteDigitos(params.cnpj || "");
   const email = resolverEmailPagadorMercadoPago({
@@ -135,7 +138,7 @@ export async function criarPixAssinaturaMercadoPago(params: {
     date_of_expiration: expiracao.toISOString(),
     external_reference: params.empresaId,
     metadata: {
-      tipo: "assinatura_plataforma",
+      tipo: params.metadataTipo || "assinatura_plataforma",
       empresa_id: params.empresaId,
     },
     payer: {
@@ -160,7 +163,8 @@ export async function criarPixAssinaturaMercadoPago(params: {
   const pagamento = await mpPlataformaFetch<MpPaymentResponse>("/v1/payments", {
     method: "POST",
     body: JSON.stringify(body),
-    idempotencyKey: `assinatura-${params.empresaId}-${Date.now()}`,
+    idempotencyKey:
+      params.idempotencyKey || `assinatura-${params.empresaId}-${Date.now()}`,
   });
 
   const tx = pagamento.point_of_interaction?.transaction_data;

@@ -126,6 +126,7 @@ function rotuloPlano(plano: string, t: TranslateFn) {
     basico: "admin.master.plano.basico",
     profissional: "admin.master.plano.profissional",
     premium: "admin.master.plano.premium",
+    taxa_abertura_subconta: "admin.master.plano.taxaSubconta",
   };
   return t(mapa[plano] ?? "admin.master.plano.basico");
 }
@@ -193,7 +194,14 @@ function badgePlano(plano: string, t: TranslateFn) {
     premium: "bg-amber-100 text-amber-800",
   };
   return (
-    <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", mapa[plano] ?? mapa.basico)}>
+    <span
+      className={cn(
+        "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+        plano === "taxa_abertura_subconta"
+          ? "bg-slate-100 text-slate-700"
+          : (mapa[plano] ?? mapa.basico)
+      )}
+    >
       {rotuloPlano(plano, t)}
     </span>
   );
@@ -242,7 +250,9 @@ function tabelaCobrancas(
                   <td className="px-3 py-2 text-slate-600">{rotuloProvedor(item.provedor, t)}</td>
                   <td className="px-3 py-2">{badgePlano(item.plano, t)}</td>
                   <td className="px-3 py-2 font-medium text-slate-700">{formatarMoeda(item.valor)}</td>
-                  <td className="px-3 py-2 text-slate-600">+{item.diasRenovacao}</td>
+                  <td className="px-3 py-2 text-slate-600">
+                    {item.plano === "taxa_abertura_subconta" ? "—" : `+${item.diasRenovacao}`}
+                  </td>
                   <td className="px-3 py-2">{badgeCobranca(item.pago, item.statusAsaas, t)}</td>
                   <td className="px-3 py-2 text-slate-600">
                     {item.pagoEm ? formatarData(item.pagoEm) : "—"}

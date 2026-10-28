@@ -3,6 +3,7 @@ import {
   sincronizarStatusPagamentoAssinatura,
 } from "@/lib/assinatura-pix-servidor";
 import { statusCobrancaAssinaturaPago } from "@/lib/assinatura-pix-provedor";
+import { PLANO_TAXA_ABERTURA_SUBCONTA } from "@/lib/taxa-abertura-subconta-const";
 import type { Prisma } from "@prisma/client";
 
 const FUSO_BRASILIA = "America/Sao_Paulo";
@@ -55,6 +56,7 @@ export function whereCobrancaAssinaturaPagaNoPeriodo(
   const periodo = fim ? { gte: inicio, lte: fim } : { gte: inicio };
 
   return {
+    plano: { not: PLANO_TAXA_ABERTURA_SUBCONTA },
     OR: [
       { pagoEm: periodo },
       { renovadoEm: periodo },
@@ -70,6 +72,7 @@ export function whereCobrancaAssinaturaPagaNoPeriodo(
 
 export function whereCobrancaAssinaturaPagaTotal(): Prisma.CobrancaAssinaturaWhereInput {
   return {
+    plano: { not: PLANO_TAXA_ABERTURA_SUBCONTA },
     OR: [
       { pagoEm: { not: null } },
       { renovadoEm: { not: null } },

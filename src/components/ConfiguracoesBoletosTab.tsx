@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CheckCircle2,
   Clock,
@@ -11,9 +11,11 @@ import {
   XCircle,
 } from "lucide-react";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
+import { TaxaAberturaSubcontaModal } from "@/components/configuracoes/TaxaAberturaSubcontaModal";
 import { Button } from "@/components/ui";
 import { AsaasSeloInstitucional } from "@/components/AsaasSeloInstitucional";
 import type { TipoMensagemForm } from "@/components/DadosLaboratorioForm";
+import { onboardingUrlAindaValida } from "@/lib/taxa-abertura-subconta-const";
 import { cn } from "@/lib/utils";
 
 const labelClass = "mb-1 block text-[11px] font-medium text-slate-600 dark:text-slate-400";
@@ -34,6 +36,20 @@ type DocumentoOnboarding = {
   description?: string;
   status?: string;
   onboardingUrl?: string | null;
+  onboardingUrlExpirationDate?: string | null;
+};
+
+type TaxaAbertura = {
+  paga: boolean;
+  cadastroAberto: boolean;
+  onboardingUrl: string | null;
+  onboardingUrlExpiraEm: string | null;
+  cobranca: {
+    cobrancaId: string;
+    pixPayload: string | null;
+    pixEncodedImage: string | null;
+    pago: boolean;
+  } | null;
 };
 
 type SubcontaResumo = {
@@ -138,18 +154,35 @@ function prepararAbaEnvioDocumentos() {
   }
 }
 
+function irParaUrl(aba: Window | null, url: string) {
+  if (aba && !aba.closed) {
+    aba.location.href = url;
+    return true;
+  }
+  const nova = window.open(url, "_blank", "noopener,noreferrer");
+  return Boolean(nova);
+}
+
 function irParaEnvioDocumentos(aba: Window | null, docs: DocumentoOnboarding[]) {
   const url = urlEnvioDocumentos(docs);
   if (!url) {
     if (aba && !aba.closed) aba.close();
     return false;
   }
-  if (aba && !aba.closed) {
-    aba.location.href = url;
-    return true;
+  return irParaUrl(aba, url);
+}
+
+function escreverAbaAguardando(aba: Window | null) {
+  if (!aba || aba.closed) return;
+  try {
+    aba.document.open();
+    aba.document.write(
+      "<!doctype html><title>Aguardando pagamento</title><p style=\"font-family:sans-serif;padding:24px\">Aguardando a confirmação do PIX de R$ 15,00. Esta aba abrirá o cadastro da subconta quando o pagamento for confirmado.</p>"
+    );
+    aba.document.close();
+  } catch {
+    /* a aba segue em branco até o pagamento */
   }
-  window.open(url, "_blank", "noopener,noreferrer");
-  return true;
 }
 
 export function ConfiguracoesBoletosTab() {
@@ -174,6 +207,14 @@ export function ConfiguracoesBoletosTab() {
     texto: string;
     tipo: TipoMensagemForm;
   } | null>(null);
+  const [taxaAbertura, setTaxaAbertura] = useState<TaxaAbertura | null>(null);
+  const [modalTaxaAberto, setModalTaxaAberto] = useState(false);
+  const [etapaTaxa, setEtapaTaxa] = useState<"aviso" | "pix" | "confirmado">("aviso");
+  const [erroTaxa, setErroTaxa] = useState("");
+  const [gerandoTaxa, setGerandoTaxa] = useState(false);
+  const [abrindoCadastro, setAbrindoCadastro] = useState(false);
+  const abaTaxaRef = useRef<Window | null>(null);
+  const abrindoCadastroRef = useRef(false);
 
   function exibirFeedback(texto: string, tipo: TipoMensagemForm = "info") {
     setFeedbackLocal({ texto, tipo });
@@ -195,6 +236,7 @@ export function ConfiguracoesBoletosTab() {
         subconta?: SubcontaResumo;
         documentos?: DocumentoOnboarding[];
         aberturaResetada?: boolean;
+        taxaAbertura?: TaxaAbertura;
       };
       const jsonCfg = (await resCfg.json()) as {
         config?: { ambiente?: "sandbox" | "producao"; apiKeyConfigurada?: boolean };
@@ -209,6 +251,7 @@ export function ConfiguracoesBoletosTab() {
       const docs = jsonSub.documentos || [];
       setSubconta(jsonSub.subconta || null);
       setDocumentos(docs);
+      if (jsonSub.taxaAbertura) setTaxaAbertura(jsonSub.taxaAbertura);
       if (jsonCfg.config?.ambiente) setAmbiente(jsonCfg.config.ambiente);
       setApiKeyConfigurada(Boolean(jsonCfg.config?.apiKeyConfigurada));
       setPodeUsarIntegracaoManual(
@@ -254,41 +297,72 @@ export function ConfiguracoesBoletosTab() {
     };
   }, [carregar]);
 
-  async function abrirContaDigital() {
-    const aba = prepararAbaEnvioDocumentos();
+  async function consultarTaxaAtual() {
+    const res = await fetch("/api/asaas/subconta/taxa", { cache: "no-store" });
+    const json = (await res.json()) as { error?: string; taxa?: TaxaAbertura };
+    if (!res.ok) throw new Error(json.error || "Não foi possível consultar a taxa.");
+    if (json.taxa) setTaxaAbertura(json.taxa);
+    return json.taxa || null;
+  }
 
-    if (subconta?.envioDocumentosPendente) {
+  function linkSalvoValido(taxa: TaxaAbertura | null) {
+    if (!taxa?.onboardingUrl) return null;
+    if (!onboardingUrlAindaValida(taxa.onboardingUrlExpiraEm)) return null;
+    return taxa.onboardingUrl;
+  }
+
+  async function abrirEnvioDireto(aba: Window | null) {
+    const salva = linkSalvoValido(taxaAbertura);
+    if (salva && irParaUrl(aba, salva)) {
       marcarOnboardingAsaasAtivo();
       setDocumentosReabertos(true);
-      try {
-        let docs = documentos;
-        if (!urlEnvioDocumentos(docs)) {
-          docs = (await carregar({ silencioso: true })) || docs;
-        }
-        setDocumentosReabertos(true);
-        if (irParaEnvioDocumentos(aba, docs)) {
-          exibirFeedback(
-            "A página de envio dos documentos foi aberta. Conclua o envio no Asaas.",
-            "sucesso"
-          );
-        } else {
-          exibirFeedback(
-            "Conta reaberta. Se o link ainda não aparecer, clique em Atualizar status em alguns segundos e depois em Enviar documentos.",
-            "info"
-          );
-        }
-      } catch (e) {
-        if (aba && !aba.closed) aba.close();
-        exibirFeedback(
-          e instanceof Error ? e.message : "Falha ao reabrir o envio de documentos.",
-          "erro"
-        );
-      }
+      exibirFeedback(
+        "A página de envio dos documentos foi aberta. Conclua o envio no Asaas.",
+        "sucesso"
+      );
       return;
     }
 
+    marcarOnboardingAsaasAtivo();
+    setDocumentosReabertos(true);
+    let docs = documentos;
+    if (!urlEnvioDocumentos(docs)) {
+      docs = (await carregar({ silencioso: true })) || docs;
+    }
+    setDocumentosReabertos(true);
+    if (irParaEnvioDocumentos(aba, docs)) {
+      const url = urlEnvioDocumentos(docs);
+      const doc = docs.find((item) => item.onboardingUrl);
+      if (url) {
+        void fetch("/api/asaas/subconta/taxa", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            marcarCadastroAberto: true,
+            onboardingUrl: url,
+            onboardingUrlExpiraEm: doc?.onboardingUrlExpirationDate || null,
+          }),
+        }).catch(() => undefined);
+      }
+      exibirFeedback(
+        "A página de envio dos documentos foi aberta. Conclua o envio no Asaas.",
+        "sucesso"
+      );
+      return;
+    }
+    if (aba && !aba.closed) aba.close();
+    exibirFeedback(
+      "Conta reaberta. Se o link ainda não aparecer, clique em Atualizar status em alguns segundos e depois em Enviar documentos.",
+      "info"
+    );
+  }
+
+  async function criarContaEAbrir(aba: Window | null) {
+    if (abrindoCadastroRef.current) return;
+    abrindoCadastroRef.current = true;
+    setAbrindoCadastro(true);
     setAbrindo(true);
-    setFeedbackLocal(null);
+    setErroTaxa("");
     let abriu = false;
     try {
       const res = await fetch("/api/asaas/subconta", { method: "POST" });
@@ -311,15 +385,63 @@ export function ConfiguracoesBoletosTab() {
       if (recarregados.length === 0 && docsResposta.length > 0) {
         setDocumentos(docsResposta);
       }
-      if (!abriu) abriu = irParaEnvioDocumentos(null, recarregados.length ? recarregados : docsResposta);
+      if (!abriu) {
+        abriu = irParaEnvioDocumentos(null, recarregados.length ? recarregados : docsResposta);
+      }
+      if (!abriu) {
+        setEtapaTaxa("confirmado");
+        setModalTaxaAberto(true);
+        setErroTaxa("O pagamento foi confirmado. Clique em abrir o cadastro da subconta.");
+        return;
+      }
+      setModalTaxaAberto(false);
+      setEtapaTaxa("aviso");
       exibirFeedback(
-        abriu
-          ? "A página de envio dos documentos foi aberta. Conclua o envio no Asaas."
-          : "Conta digital reaberta. Conclua o envio dos documentos para liberar boletos e pagamentos.",
+        "A página de cadastro da subconta foi aberta. Conclua o envio dos documentos no Asaas.",
         "sucesso"
       );
     } catch (e) {
       if (!abriu && aba && !aba.closed) aba.close();
+      setEtapaTaxa("confirmado");
+      setModalTaxaAberto(true);
+      setErroTaxa(e instanceof Error ? e.message : "Falha ao abrir a conta digital.");
+    } finally {
+      abrindoCadastroRef.current = false;
+      setAbrindoCadastro(false);
+      setAbrindo(false);
+    }
+  }
+
+  async function abrirContaDigital() {
+    const aba = prepararAbaEnvioDocumentos();
+
+    if (subconta?.envioDocumentosPendente) {
+      try {
+        await abrirEnvioDireto(aba);
+      } catch (e) {
+        if (aba && !aba.closed) aba.close();
+        exibirFeedback(
+          e instanceof Error ? e.message : "Falha ao reabrir o envio de documentos.",
+          "erro"
+        );
+      }
+      return;
+    }
+
+    setAbrindo(true);
+    setFeedbackLocal(null);
+    try {
+      const taxa = await consultarTaxaAtual();
+      if (taxa?.paga) {
+        await criarContaEAbrir(aba);
+        return;
+      }
+      if (aba && !aba.closed) aba.close();
+      setErroTaxa("");
+      setEtapaTaxa("aviso");
+      setModalTaxaAberto(true);
+    } catch (e) {
+      if (aba && !aba.closed) aba.close();
       exibirFeedback(
         e instanceof Error ? e.message : "Falha ao abrir conta digital.",
         "erro"
@@ -328,6 +450,56 @@ export function ConfiguracoesBoletosTab() {
       setAbrindo(false);
     }
   }
+
+  async function aceitarTaxa() {
+    const aba = prepararAbaEnvioDocumentos();
+    escreverAbaAguardando(aba);
+    abaTaxaRef.current = aba;
+    setGerandoTaxa(true);
+    setErroTaxa("");
+    try {
+      const res = await fetch("/api/asaas/subconta/taxa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const json = (await res.json()) as { error?: string; taxa?: TaxaAbertura };
+      if (!res.ok) throw new Error(json.error || "Não foi possível gerar o PIX.");
+      if (json.taxa) setTaxaAbertura(json.taxa);
+      if (json.taxa?.paga) {
+        setEtapaTaxa("confirmado");
+        await criarContaEAbrir(aba);
+        return;
+      }
+      setEtapaTaxa("pix");
+    } catch (e) {
+      if (aba && !aba.closed) aba.close();
+      setErroTaxa(e instanceof Error ? e.message : "Não foi possível gerar o PIX.");
+    } finally {
+      setGerandoTaxa(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!modalTaxaAberto || etapaTaxa !== "pix") return;
+    let parado = false;
+    const timer = window.setInterval(() => {
+      void (async () => {
+        try {
+          const taxa = await consultarTaxaAtual();
+          if (parado || !taxa?.paga) return;
+          setEtapaTaxa("confirmado");
+          await criarContaEAbrir(abaTaxaRef.current);
+        } catch {
+          /* a próxima consulta tenta de novo */
+        }
+      })();
+    }, 4000);
+    return () => {
+      parado = true;
+      window.clearInterval(timer);
+    };
+  }, [modalTaxaAberto, etapaTaxa]);
 
   async function atualizarStatus() {
     setAtualizando(true);
@@ -367,7 +539,7 @@ export function ConfiguracoesBoletosTab() {
       limparOnboardingAsaasAtivo();
       setDocumentos([]);
       exibirFeedback(
-        "Conta digital cancelada. Para usar de novo, clique em Abrir conta digital e refaça todo o processo (documentos e análise).",
+        "Conta digital cancelada. Para usar de novo, clique em Abrir conta digital. A taxa única de R$ 15,00 será pedida outra vez, porque é uma nova abertura no Asaas.",
         "sucesso"
       );
       await carregar();
@@ -457,7 +629,8 @@ export function ConfiguracoesBoletosTab() {
         <p className="font-semibold text-slate-800">Conta Digital Asaas</p>
         <p className="mt-1">
           Abra sua conta dentro do Lab Prótese para emitir boletos, receber Pix, pagar contas e
-          transferir valores. Após enviar os documentos, a análise leva até 48 horas. Antes de
+          transferir valores. A abertura da subconta tem taxa única de R$ 15,00, paga no PIX do
+          Mercado Pago da assinatura. Após enviar os documentos, a análise leva até 48 horas. Antes de
           abrir, preencha CNPJ, celular e Renda/Faturamento R$ em Dados do laboratório. Se cancelar
           a conta, poderá abrir outra depois — será necessário passar por todo o processo novamente.
         </p>
@@ -681,11 +854,37 @@ export function ConfiguracoesBoletosTab() {
         className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-5"
       />
 
+      <TaxaAberturaSubcontaModal
+        open={modalTaxaAberto}
+        etapa={etapaTaxa}
+        pixPayload={taxaAbertura?.cobranca?.pixPayload || null}
+        pixEncodedImage={taxaAbertura?.cobranca?.pixEncodedImage || null}
+        erro={erroTaxa}
+        gerando={gerandoTaxa}
+        abrindoCadastro={abrindoCadastro}
+        onClose={() => {
+          if (etapaTaxa === "pix" && abaTaxaRef.current && !abaTaxaRef.current.closed) {
+            abaTaxaRef.current.close();
+          }
+          setModalTaxaAberto(false);
+          setErroTaxa("");
+        }}
+        onAceitar={() => void aceitarTaxa()}
+        onAbrirCadastro={() => {
+          const aba =
+            abaTaxaRef.current && !abaTaxaRef.current.closed
+              ? abaTaxaRef.current
+              : prepararAbaEnvioDocumentos();
+          abaTaxaRef.current = aba;
+          void criarContaEAbrir(aba);
+        }}
+      />
+
       <ConfirmacaoExclusaoModal
         open={confirmandoCancelamento}
         titulo="Cancelar conta digital"
         mensagem="Deseja cancelar definitivamente a conta digital Asaas deste laboratório?"
-        aviso="Esta ação é irreversível na conta atual. Só é permitida com saldo zerado e sem cobranças ou saques pendentes. Depois você poderá abrir uma nova conta, refazendo documentos e análise."
+        aviso="Esta ação é irreversível na conta atual. Só é permitida com saldo zerado e sem cobranças ou saques pendentes. Depois você poderá abrir uma nova conta, pagando de novo a taxa única de R$ 15,00 e refazendo documentos e análise."
         detalhe={
           saldoAtual != null
             ? `Saldo atual: R$ ${saldoAtual.toLocaleString("pt-BR", {
