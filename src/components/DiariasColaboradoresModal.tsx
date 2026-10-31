@@ -15,6 +15,7 @@ import {
   carregarColaboradoresDiaria,
   celulasCalendarioMes,
   criarLancamentoDiaria,
+  dataFimMesCompetencia,
   dataHojeKey,
   duracaoHorasEntre,
   duracoesEfetivas,
@@ -51,7 +52,12 @@ import {
   type DiariasStore,
   type LancamentoDiaria,
 } from "@/lib/diarias-colaboradores";
-import { sincronizarDespesasDiariasColaboradores } from "@/lib/despesa-diaria-colaborador";
+import { sincronizarDespesaDiariaColaborador } from "@/lib/despesa-diaria-colaborador";
+import { sincronizarCobrancaDiariaColaborador } from "@/lib/cobranca-diaria-colaborador";
+import {
+  GerarFinanceiroDiariaModal,
+  type ModoFinanceiroDiaria,
+} from "@/components/GerarFinanceiroDiariaModal";
 import { imprimirNotasPagamentoDiarias } from "@/lib/imprimir-nota-diarias";
 import type { MessageKey } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -389,6 +395,9 @@ export function DiariasColaboradoresModal({ open, onClose }: Props) {
   const [salvoMsg, setSalvoMsg] = useState("");
   const [imprimindo, setImprimindo] = useState(false);
   const [salvando, setSalvando] = useState(false);
+  const [financeiroAberto, setFinanceiroAberto] = useState(false);
+  const [modoFinanceiro, setModoFinanceiro] = useState<ModoFinanceiroDiaria>("despesa");
+  const [gerandoFinanceiro, setGerandoFinanceiro] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -625,19 +634,75 @@ export function DiariasColaboradoresModal({ open, onClose }: Props) {
     try {
       const persistido = salvarDiariasColaboradores(store);
       sincronizarDiariasStoreNoCadastro(persistido);
-      const resultado = await sincronizarDespesasDiariasColaboradores(persistido);
-      setStore(resultado.store);
-      setSalvoMsg(
-        resultado.pagas.length > 0
-          ? t("producao.diarias.salvoDespesaPaga")
-          : t("producao.diarias.salvoComDespesa")
-      );
-    } catch (err) {
-      console.error("despesa diaria colaborador", err);
-      window.alert(t("producao.diarias.erroDespesa"));
+      setStore(persistido);
       setSalvoMsg(t("producao.diarias.salvo"));
     } finally {
       setSalvando(false);
+    }
+  }
+
+  async function confirmarFinanceiro(
+    modo: ModoFinanceiroDiaria,
+    cliente: { id: string; nome: string } | null
+  ) {
+    if (!colaborador) return;
+    const valor = resumo.valor;
+    if (valor <= 0) {
+      window.alert(t("producao.diarias.semValorFinanceiro"));
+      return;
+    }
+    if (modo === "cobranca" && !cliente) {
+      window.alert(t("producao.diarias.escolherCliente"));
+      return;
+    }
+    const mesCompetencia = `${ano}-${String(mes).padStart(2, "0")}`;
+    const vencimento = dataFimMesCompetencia(mesCompetencia);
+    setGerandoFinanceiro(true);
+    setSalvoMsg("");
+    try {
+      const persistido = salvarDiariasColaboradores(store);
+      sincronizarDiariasStoreNoCadastro(persistido);
+      const atual =
+        modo === "despesa"
+          ? await sincronizarDespesaDiariaColaborador({
+              store: persistido,
+              colaboradorId: colaborador.id,
+              colaborador: colaborador.nome,
+              mesCompetencia,
+              valor,
+              diaPagamento: 1,
+              dataVencimento: vencimento,
+            })
+          : await sincronizarCobrancaDiariaColaborador({
+              store: persistido,
+              colaboradorId: colaborador.id,
+              colaborador: colaborador.nome,
+              mesCompetencia,
+              valor,
+              clienteId: cliente?.id || "",
+              clienteNome: cliente?.nome || "",
+              dataVencimento: vencimento,
+            });
+      const gravado = salvarDiariasColaboradores(atual);
+      setStore(gravado);
+      setFinanceiroAberto(false);
+      setSalvoMsg(
+        modo === "despesa"
+          ? t("producao.diarias.despesaGerada")
+          : t("producao.diarias.cobrancaGerada", { cliente: cliente?.nome || "" })
+      );
+    } catch (err) {
+      console.error("financeiro diaria colaborador", err);
+      const nome = err instanceof Error ? err.name : "";
+      if (nome === "DespesaDiariaPagaError") {
+        window.alert(t("producao.diarias.despesaJaPaga"));
+      } else if (nome === "CobrancaDiariaPagaError") {
+        window.alert(t("producao.diarias.cobrancaJaPaga"));
+      } else {
+        window.alert(t("producao.diarias.erroFinanceiro"));
+      }
+    } finally {
+      setGerandoFinanceiro(false);
     }
   }
 
@@ -674,6 +739,7 @@ export function DiariasColaboradoresModal({ open, onClose }: Props) {
   }
 
   return (
+    <>
     <Modal open={open} onClose={onClose} title={t("producao.diarias.titulo")} size="smart">
       <div className="-mx-6 -my-4 flex min-h-[min(72vh,760px)] flex-col">
         <p className="border-b border-slate-100 px-6 py-2 text-[13px] text-slate-500">
@@ -756,6 +822,30 @@ export function DiariasColaboradoresModal({ open, onClose }: Props) {
               >
                 {t("producao.diarias.sugerirSalario")}
               </button>
+              <label className="block">
+                <span className="mb-1 block text-[12px] text-slate-500">
+                  {t("producao.diarias.gerarFinanceiro")}
+                </span>
+                <select
+                  value=""
+                  disabled={!colaborador}
+                  onChange={(event) => {
+                    const escolhido = event.target.value;
+                    if (escolhido !== "despesa" && escolhido !== "cobranca") return;
+                    if (resumo.valor <= 0) {
+                      window.alert(t("producao.diarias.semValorFinanceiro"));
+                      return;
+                    }
+                    setModoFinanceiro(escolhido);
+                    setFinanceiroAberto(true);
+                  }}
+                  className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-[14px] outline-none focus:border-blue-500 disabled:opacity-60"
+                >
+                  <option value="">{t("producao.diarias.gerarFinanceiro")}</option>
+                  <option value="despesa">{t("producao.diarias.gerarDespesa")}</option>
+                  <option value="cobranca">{t("producao.diarias.gerarCobranca")}</option>
+                </select>
+              </label>
             </div>
 
             <div className="p-4 pb-2">
@@ -1154,5 +1244,19 @@ export function DiariasColaboradoresModal({ open, onClose }: Props) {
         </div>
       </div>
     </Modal>
+    <GerarFinanceiroDiariaModal
+      open={financeiroAberto}
+      modoInicial={modoFinanceiro}
+      colaboradorNome={colaborador?.nome || ""}
+      mesLabel={nomeMes}
+      valorLabel={formatarValorMonetarioBr(resumo.valor)}
+      dias={resumo.dias}
+      confirmando={gerandoFinanceiro}
+      onClose={() => {
+        if (!gerandoFinanceiro) setFinanceiroAberto(false);
+      }}
+      onConfirmar={(modo, cliente) => void confirmarFinanceiro(modo, cliente)}
+    />
+    </>
   );
 }

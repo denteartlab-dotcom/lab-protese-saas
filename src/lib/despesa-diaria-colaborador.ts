@@ -96,10 +96,13 @@ export async function sincronizarDespesaDiariaColaborador(opts: {
   mesCompetencia: string;
   valor: number;
   diaPagamento: number;
+  /** Quando informado, o vencimento fica nesse dia (mês vigente da diária). */
+  dataVencimento?: string;
 }): Promise<DiariasStore> {
   const { colaborador, colaboradorId, mesCompetencia, diaPagamento } = opts;
   const valor = Math.max(0, Math.round((Number(opts.valor) || 0) * 100) / 100);
-  const vencimento = dataVencimentoComissaoMensal(mesCompetencia, diaPagamento);
+  const vencimento =
+    opts.dataVencimento || dataVencimentoComissaoMensal(mesCompetencia, diaPagamento);
   const descricao = montarDescricaoDespesa(colaborador, mesCompetencia, diaPagamento);
   const existente = await localizarDespesaDiaria(opts.store, colaborador, mesCompetencia);
   const refExtra = {

@@ -35,6 +35,8 @@ import {
   horarioPadraoDoDia,
   horarioPorDuracao,
   formatarHoraDigitada,
+  descricaoCobrancaDiariaColaborador,
+  dataFimMesCompetencia,
   normalizarConfigDiaria,
   limitarHoraNoPeriodo,
   PERIODO_MANHA_FIM,
@@ -81,6 +83,14 @@ assert.equal(formatarHoraDigitada("13", "13:"), "1");
 assert.equal(formatarHoraDigitada("1360"), "13:59");
 assert.equal(formatarHoraDigitada(""), "");
 ok("horário digitado completa sozinho no formato 00:00");
+
+assert.equal(dataFimMesCompetencia("2026-10"), "2026-10-31");
+assert.equal(dataFimMesCompetencia("2024-02"), "2024-02-29");
+assert.equal(
+  descricaoCobrancaDiariaColaborador("Mateus Bonfim", "2026-10").startsWith("Cobrança sem O.S."),
+  true
+);
+ok("cobrança da diária cai no mês vigente e entra em contas a receber");
 
 assert.equal(minutosLiquidosTurno("08:00", "18:00", 60), 540);
 assert.equal(horasTrabalhadas("08:00", "18:00", 60), 9);

@@ -89,10 +89,21 @@ export type DespesaDiariaRef = {
   mesCompetencia?: string;
 };
 
+export type CobrancaDiariaRef = {
+  id: string;
+  status?: string;
+  clienteId: string;
+  clienteNome?: string;
+  colaboradorId?: string;
+  colaboradorNome?: string;
+  mesCompetencia?: string;
+};
+
 export type DiariasStore = {
   configs: Record<string, ConfigDiariaColaborador>;
   lancamentos: LancamentoDiaria[];
   despesas: Record<string, DespesaDiariaRef>;
+  cobrancas?: Record<string, CobrancaDiariaRef>;
 };
 
 export type TotalDiariaCompetencia = {
@@ -146,6 +157,23 @@ export function descricaoDespesaDiariaColaborador(nome: string, mesCompetencia: 
   return `Diária ${nome} — ${nomeMesCompetenciaPt(mesCompetencia)}`;
 }
 
+export function referenciaCobrancaDiariaColaborador(nome: string, mesCompetencia: string) {
+  return `diaria-cobranca:${slugColaboradorComissao(nome)}:${mesCompetencia}`;
+}
+
+/** Fatura reconhecida em Contas a receber: precisa começar com "Cobrança sem O.S.". */
+export function descricaoCobrancaDiariaColaborador(nome: string, mesCompetencia: string) {
+  return `Cobrança sem O.S. - Diária ${nome} — ${nomeMesCompetenciaPt(mesCompetencia)}`;
+}
+
+/** Último dia do mês da competência, para o lançamento cair no mês vigente. */
+export function dataFimMesCompetencia(mesCompetencia: string): string {
+  const match = /^(\d{4})-(\d{2})$/.exec(mesCompetencia);
+  if (!match) return "";
+  const ultimo = new Date(Number(match[1]), Number(match[2]), 0).getDate();
+  return `${match[1]}-${match[2]}-${String(ultimo).padStart(2, "0")}`;
+}
+
 export function chaveDespesaDiariaStore(nome: string, mesCompetencia: string) {
   return referenciaDespesaDiariaColaborador(nome, mesCompetencia);
 }
@@ -165,6 +193,21 @@ export function registrarDespesaDiariaStore(
     despesas: {
       ...store.despesas,
       [chaveDespesaDiariaStore(colaboradorNome, mesCompetencia)]: despesa,
+    },
+  };
+}
+
+export function registrarCobrancaDiariaStore(
+  store: DiariasStore,
+  colaboradorNome: string,
+  mesCompetencia: string,
+  cobranca: CobrancaDiariaRef
+): DiariasStore {
+  return {
+    ...store,
+    cobrancas: {
+      ...(store.cobrancas || {}),
+      [referenciaCobrancaDiariaColaborador(colaboradorNome, mesCompetencia)]: cobranca,
     },
   };
 }
@@ -1127,7 +1170,22 @@ function normalizarStore(raw: Partial<DiariasStore> | null | undefined): Diarias
       };
     }
   }
-  return { configs, lancamentos, despesas };
+  const cobrancas: Record<string, CobrancaDiariaRef> = {};
+  if (raw?.cobrancas && typeof raw.cobrancas === "object") {
+    for (const [chave, cobranca] of Object.entries(raw.cobrancas)) {
+      if (!cobranca?.id || !cobranca.clienteId) continue;
+      cobrancas[chave] = {
+        id: cobranca.id,
+        status: cobranca.status,
+        clienteId: cobranca.clienteId,
+        clienteNome: cobranca.clienteNome,
+        colaboradorId: cobranca.colaboradorId,
+        colaboradorNome: cobranca.colaboradorNome,
+        mesCompetencia: cobranca.mesCompetencia,
+      };
+    }
+  }
+  return { configs, lancamentos, despesas, cobrancas };
 }
 
 export function lerDiariasColaboradores(): DiariasStore {
