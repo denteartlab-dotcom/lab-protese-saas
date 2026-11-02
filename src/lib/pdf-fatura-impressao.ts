@@ -71,13 +71,13 @@ function colunasSmart(diaria = false): ColunaFatura[] {
   const base: ColunaFatura[] = [
     { chave: "numOs", titulo: pl("print.fatura.col.os"), larguraPct: 5, align: "left" },
     { chave: "qtd", titulo: pl("print.fatura.col.qtd"), larguraPct: 5, align: "center" },
-    { chave: "servico", titulo: pl("print.fatura.col.servicos"), larguraPct: diaria ? 18 : 22, align: "left" },
+    { chave: "servico", titulo: pl("print.fatura.col.servicos"), larguraPct: 22, align: "left" },
   ];
   if (diaria) {
     base.push({
       chave: "diasTrabalhados",
       titulo: pl("print.fatura.col.diasTrabalhados"),
-      larguraPct: 24,
+      larguraPct: 46,
       align: "left",
     });
   } else {
@@ -86,9 +86,13 @@ function colunasSmart(diaria = false): ColunaFatura[] {
       { chave: "paciente", titulo: pl("print.fatura.col.paciente"), larguraPct: 13, align: "left" }
     );
   }
+  if (!diaria) {
+    base.push(
+      { chave: "valorUnit", titulo: pl("print.fatura.col.unitario"), larguraPct: 13, align: "right" },
+      { chave: "desconto", titulo: pl("print.fatura.col.desconto"), larguraPct: 9, align: "right" }
+    );
+  }
   base.push(
-    { chave: "valorUnit", titulo: pl("print.fatura.col.unitario"), larguraPct: 13, align: "right" },
-    { chave: "desconto", titulo: pl("print.fatura.col.desconto"), larguraPct: 9, align: "right" },
     { chave: "subtotal", titulo: pl("print.fatura.col.subtotal"), larguraPct: 13, align: "right" }
   );
   return base;
@@ -444,13 +448,14 @@ function desenharTotais(
   if (modelo === "modelo3" && layout.saldoAnterior) {
     linhaTotal(pl("print.fatura.saldoAnteriorMais"), dados.saldoAnterior || "R$ 0,00");
   }
-  if (layout.descontoServicos) {
+  const diaria = faturaSomenteDiaria(dados.linhas);
+  if (!diaria && layout.descontoServicos) {
     linhaTotal(
       pl("print.fatura.descontoServicos"),
       formatarMoedaPdf(dados.descontoServicos ?? 0)
     );
   }
-  if (layout.descontoFatura) {
+  if (!diaria && layout.descontoFatura) {
     linhaTotal(
       pl("print.fatura.descontoFatura"),
       formatarMoedaPdf(descontoFaturaImpressaoTotal(dados))

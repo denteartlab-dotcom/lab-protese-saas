@@ -233,9 +233,9 @@ function contarColunasItensSmart(layout: FaturaModeloLayout, diaria = false) {
   else {
     if (layout.numDente) n += 1;
     if (layout.paciente) n += 1;
+    if (layout.valorUnit) n += 1;
+    if (layout.desconto) n += 1;
   }
-  if (layout.valorUnit) n += 1;
-  if (layout.desconto) n += 1;
   if (layout.subtotal) n += 1;
   return n;
 }
@@ -355,14 +355,14 @@ function colunasLarguraSmart(layout: FaturaModeloLayout, diaria = false) {
   const cols: string[] = [];
   if (layout.numOs) cols.push("5%");
   if (layout.qtd) cols.push("5%");
-  if (layout.servico) cols.push(diaria ? "18%" : "22%");
-  if (diaria) cols.push("24%");
+  if (layout.servico) cols.push("22%");
+  if (diaria) cols.push("46%");
   else {
     if (layout.numDente) cols.push("11%");
     if (layout.paciente) cols.push("13%");
+    if (layout.valorUnit) cols.push("13%");
+    if (layout.desconto) cols.push("9%");
   }
-  if (layout.valorUnit) cols.push("13%");
-  if (layout.desconto) cols.push("9%");
   if (layout.subtotal) cols.push("13%");
   return cols.map((w) => `<col style="width:${w}" />`).join("");
 }
@@ -937,8 +937,8 @@ function htmlTabelaItensA4(
       ${diaria ? `<th>${pl("print.fatura.col.diasTrabalhados")}</th>` : ""}
       ${!diaria && layout.numDente ? `<th>${pl("print.fatura.col.numDente")}</th>` : ""}
       ${!diaria && layout.paciente ? `<th>${pl("print.fatura.col.paciente")}</th>` : ""}
-      ${layout.valorUnit ? `<th class="right">${pl("print.fatura.col.unitario")}</th>` : ""}
-      ${layout.desconto ? `<th class="right">${pl("print.fatura.col.desconto")}</th>` : ""}
+      ${!diaria && layout.valorUnit ? `<th class="right">${pl("print.fatura.col.unitario")}</th>` : ""}
+      ${!diaria && layout.desconto ? `<th class="right">${pl("print.fatura.col.desconto")}</th>` : ""}
       ${layout.subtotal ? `<th class="right">${pl("print.fatura.col.subtotal")}</th>` : ""}
     </tr></thead>`;
 
@@ -954,8 +954,8 @@ function htmlTabelaItensA4(
           ${diaria ? `<td class="cel-servico">${escapeHtml(linha.diasTrabalhados || "—")}</td>` : ""}
           ${!diaria && layout.numDente ? `<td>${escapeHtml(linha.dentes)}</td>` : ""}
           ${!diaria && layout.paciente ? `<td>${escapeHtml(linha.paciente)}</td>` : ""}
-          ${layout.valorUnit ? `<td class="right">${escapeHtml(formatarMoedaReais(linha.unitario, money))}</td>` : ""}
-          ${layout.desconto ? `<td class="right">${escapeHtml(linha.desconto)}</td>` : ""}
+          ${!diaria && layout.valorUnit ? `<td class="right">${escapeHtml(formatarMoedaReais(linha.unitario, money))}</td>` : ""}
+          ${!diaria && layout.desconto ? `<td class="right">${escapeHtml(linha.desconto)}</td>` : ""}
           ${layout.subtotal ? `<td class="right">${escapeHtml(formatarMoedaReais(linha.subtotal, money))}</td>` : ""}
         </tr>`;
 
@@ -1037,6 +1037,7 @@ function htmlTotaisA4(
   money: (n: number) => string
 ) {
   const saldoAnteriorNosTotais = modelo === "modelo3" && layout.saldoAnterior;
+  const diaria = faturaSomenteDiaria(dados.linhas);
   const partes: string[] = [];
   if (layout.totalServicos) {
     const rotulo =
@@ -1060,14 +1061,14 @@ function htmlTotaisA4(
         : "R$ 0,00";
     partes.push(`<div><span>${pl("print.fatura.saldoAnteriorMais")}</span><span class="right">${escapeHtml(saldo)}</span></div>`);
   }
-  if (layout.descontoServicos) {
+  if (!diaria && layout.descontoServicos) {
     const desconto =
       dados.descontoServicos != null
         ? formatarMoedaReais(dados.descontoServicos, money)
         : "R$ 0,00";
     partes.push(`<div><span>Desconto Serviços (-)</span><span class="right">${escapeHtml(desconto)}</span></div>`);
   }
-  if (layout.descontoFatura) {
+  if (!diaria && layout.descontoFatura) {
     partes.push(
       `<div><span>Desconto Fatura (-)</span><span class="right">${escapeHtml(formatarMoedaReais(descontoFaturaImpressaoTotal(dados), money))}</span></div>`
     );
@@ -1354,7 +1355,10 @@ function gerarHtmlFaturaTermica(
   const cor = normalizarCorBorda(layout.bordas || "#000");
   const logoHtml = htmlLogo(cfg, layout, true);
   const saldoAnteriorNosTotais = modelo === "modelo5" && layout.saldoAnterior;
-  const exibirItens = layout.qtd || layout.servico || layout.valorUnit || layout.desconto;
+  const diaria = faturaSomenteDiaria(dados.linhas);
+  const exibirUnitario = layout.valorUnit && !diaria;
+  const exibirDesconto = layout.desconto && !diaria;
+  const exibirItens = layout.qtd || layout.servico || exibirUnitario || exibirDesconto;
   const exibirMeta =
     layout.numOs ||
     layout.paciente ||
@@ -1387,8 +1391,8 @@ function gerarHtmlFaturaTermica(
             <tr style="border-bottom:1px solid ${cor}">
               ${layout.qtd ? '<th style="text-align:left;font-weight:bold;width:24px">Qtd</th>' : ""}
               ${layout.servico ? '<th style="text-align:left;font-weight:bold">Descrição</th>' : ""}
-              ${layout.valorUnit ? '<th style="text-align:right;font-weight:bold;width:4.2rem">Valor Unit</th>' : ""}
-              ${layout.desconto ? '<th style="text-align:right;font-weight:bold;width:3.2rem">Desc.</th>' : ""}
+              ${exibirUnitario ? '<th style="text-align:right;font-weight:bold;width:4.2rem">Valor Unit</th>' : ""}
+              ${exibirDesconto ? '<th style="text-align:right;font-weight:bold;width:3.2rem">Desc.</th>' : ""}
             </tr>
           </thead>
           <tbody>
@@ -1416,8 +1420,9 @@ function gerarHtmlFaturaTermica(
                           : ""}`
                     : "";
                 const temMeta = Boolean(dentesCor || cabecalhoOs || metaPrazo);
+                const colspanMeta = [layout.qtd, layout.servico, exibirUnitario, exibirDesconto].filter(Boolean).length || 1;
                 const meta = temMeta
-                  ? `<tr><td colspan="4" style="padding-bottom:${ultimaDaOs ? "6px" : "1px"}">
+                  ? `<tr><td colspan="${colspanMeta}" style="padding-bottom:${ultimaDaOs ? "6px" : "1px"}">
                       ${dentesCor}
                       ${cabecalhoOs}
                       ${metaPrazo}
@@ -1426,8 +1431,8 @@ function gerarHtmlFaturaTermica(
                 return `<tr>
                   ${layout.qtd ? `<td style="font-weight:bold">${escapeHtml(linha.qtd)}</td>` : ""}
                   ${layout.servico ? `<td class="cel-servico">${escapeHtml(linha.servico)}</td>` : ""}
-                  ${layout.valorUnit ? `<td class="right">${escapeHtml(linha.unitario)}</td>` : ""}
-                  ${layout.desconto ? `<td class="right">${escapeHtml(linha.desconto)}</td>` : ""}
+                  ${exibirUnitario ? `<td class="right">${escapeHtml(linha.unitario)}</td>` : ""}
+                  ${exibirDesconto ? `<td class="right">${escapeHtml(linha.desconto)}</td>` : ""}
                 </tr>${meta}`;
               })
               .join("")}
@@ -1447,8 +1452,8 @@ function gerarHtmlFaturaTermica(
       ? `<div style="margin-top:6px;text-align:right;font-size:${fsSmall}px">
           ${layout.totalServicos ? `<p style="margin:2px 0"><strong>Total Serviços(+): </strong>${escapeHtml(money(dados.totalServicos))}</p>` : ""}
           ${saldoAnteriorNosTotais ? `<p style="margin:2px 0"><strong>Saldo Anterior(+): </strong>${escapeHtml(dados.saldoAnterior || "0,00")}</p>` : ""}
-          ${layout.descontoServicos ? `<p style="margin:2px 0"><strong>Desconto Serviços(-): </strong>${escapeHtml(formatarMoedaReais(dados.descontoServicos ?? 0, money))}</p>` : ""}
-          ${layout.descontoFatura ? `<p style="margin:2px 0"><strong>Desconto Fatura(-): </strong>${escapeHtml(formatarMoedaReais(descontoFaturaImpressaoTotal(dados), money))}</p>` : ""}
+          ${!diaria && layout.descontoServicos ? `<p style="margin:2px 0"><strong>Desconto Serviços(-): </strong>${escapeHtml(formatarMoedaReais(dados.descontoServicos ?? 0, money))}</p>` : ""}
+          ${!diaria && layout.descontoFatura ? `<p style="margin:2px 0"><strong>Desconto Fatura(-): </strong>${escapeHtml(formatarMoedaReais(descontoFaturaImpressaoTotal(dados), money))}</p>` : ""}
           ${
             saldoDevedorIncorporadoImpressao(dados) > 0.009
               ? `<p style="margin:2px 0"><strong>${pl("print.fatura.saldoAnterior")}: </strong>${escapeHtml(`- ${formatarMoedaReais(saldoDevedorIncorporadoImpressao(dados), money)}`)}</p>`
