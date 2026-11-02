@@ -402,6 +402,7 @@ export const messagesFinanceiroPt = {
   "financeiro.receber.col.referencia": "Referência",
   "financeiro.receber.vazioRecebimentos":
     "Nenhum recebimento encontrado para este cliente no período selecionado.",
+  "financeiro.receber.paginacaoResumo": "{inicio}–{fim} de {total}",
   "financeiro.receber.estornarRecebimento": "Estornar recebimento",
   "financeiro.receber.imprimirRecibo": "Imprimir recibo",
   "financeiro.receber.recibo": "Recibo",
@@ -880,6 +881,7 @@ export const messagesFinanceiroEn = {
   "financeiro.receber.col.referencia": "Reference",
   "financeiro.receber.vazioRecebimentos":
     "No receipts found for this client in the selected period.",
+  "financeiro.receber.paginacaoResumo": "{inicio}–{fim} of {total}",
   "financeiro.receber.estornarRecebimento": "Reverse receipt",
   "financeiro.receber.imprimirRecibo": "Print receipt",
   "financeiro.receber.recibo": "Receipt",
@@ -1358,6 +1360,7 @@ export const messagesFinanceiroEs = {
   "financeiro.receber.col.referencia": "Referencia",
   "financeiro.receber.vazioRecebimentos":
     "Ningún cobro encontrado para este cliente en el período seleccionado.",
+  "financeiro.receber.paginacaoResumo": "{inicio}–{fim} de {total}",
   "financeiro.receber.estornarRecebimento": "Revertir cobro",
   "financeiro.receber.imprimirRecibo": "Imprimir recibo",
   "financeiro.receber.recibo": "Recibo",

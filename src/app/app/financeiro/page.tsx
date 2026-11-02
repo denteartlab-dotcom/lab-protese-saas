@@ -16,6 +16,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { BotoesImprimirExportarToolbar } from "@/components/BotoesImprimirExportarToolbar";
+import { PaginacaoLista } from "@/components/listagem/PaginacaoLista";
 import { MovimentacoesRecebimentoModal } from "@/components/financeiro/MovimentacoesRecebimentoModal";
 import {
   ContaBancariaConteudoLazy,
@@ -116,6 +117,7 @@ import {
   gerarContasReceberClientesPdf,
 } from "@/lib/contas-receber-clientes-export";
 import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebidoCliente, isRecebimentoParcial, isSaldoAnteriorIncorporado, deveExibirNoHistoricoRecebimentos, valorHistoricoRecebimentoCliente, referenciaLancamento as referenciaHistoricoRecebimento, recebidoNaFatura as recebidoNaFaturaLib, saldoFatura as saldoFaturaLib, valorNotaFatura as valorNotaFaturaLib, classeReferenciaHistoricoRecebimento, faturaExibeSituacaoParcial, faturasExibicaoPainelCliente, faturaQuitada, faturaTemNotaImprimivel, recebimentosHistoricoCliente, movimentacoesRecebimentoDaFatura, ehFaturaCobrancaOsParaExclusao, idsLancamentosExclusaoAoRemoverFatura, ehDescricaoFaturaContasReceber, empacotarSaldoDevedorIncorporado, extrairSaldoDevedorIncorporado, descricaoSaldoAnteriorIncorporado, FORMA_PAGAMENTO_SALDO_ANTERIOR_INCORPORADO, listarAbatimentosCreditoSemFatura, listarFaturasAbatimentoComValorZerado, payloadReparoFaturaDeAbatimento, passaFiltroPeriodoOuVencido, type LancamentoContasReceber } from "@/lib/contas-receber-financeiro";
+import { paginarLista } from "@/lib/contas-receber-financeiro";
 import { calcularContasRecebidasPeriodo } from "@/lib/lancamento-valor-caixa";
 import { telefoneWhatsappCliente } from "@/lib/cliente-observacoes";
 import { abrirWhatsAppWebLembreteCobrancaFatura } from "@/lib/mensagem-cobranca-fatura";
@@ -382,6 +384,8 @@ function FinanceiroReceberConteudo() {
     lancamento: Lancamento;
   } | null>(null);
   const [clienteCollapseAberto, setClienteCollapseAberto] = useState<string | null>(null);
+  const [paginaFaturasPainel, setPaginaFaturasPainel] = useState(1);
+  const [paginaRecebimentosPainel, setPaginaRecebimentosPainel] = useState(1);
   const [faturaEditando, setFaturaEditando] = useState<Lancamento | null>(null);
   const [detalheRecebimento, setDetalheRecebimento] = useState<{
     cliente: ClienteReceber;
@@ -565,6 +569,11 @@ function FinanceiroReceberConteudo() {
   useEffect(() => {
     void load();
   }, []);
+
+  useEffect(() => {
+    setPaginaFaturasPainel(1);
+    setPaginaRecebimentosPainel(1);
+  }, [clienteCollapseAberto]);
 
   useEffect(() => {
     void fetch("/api/asaas/pix-cobranca", { cache: "no-store" })
@@ -2918,6 +2927,8 @@ function FinanceiroReceberConteudo() {
                 const faturasContasReceber = faturasPainelCliente(cliente.clienteId);
                 const temFatura = faturasContasReceber.length > 0;
                 const recebimentosCliente = recebimentosDoCliente(cliente.clienteId);
+                const faturasPagina = paginarLista(faturasContasReceber, paginaFaturasPainel);
+                const recebimentosPagina = paginarLista(recebimentosCliente, paginaRecebimentosPainel);
 
                 return (
                   <Fragment key={chave}>
@@ -3007,7 +3018,7 @@ function FinanceiroReceberConteudo() {
                                         </td>
                                       </tr>
                                     )}
-                                    {faturasContasReceber.map((l) => {
+                                    {faturasPagina.itens.map((l) => {
                                       const situacao = situacaoFatura(l);
                                       const quitada = faturaQuitada(l, data?.lancamentos || []);
                                       return (
@@ -3120,6 +3131,23 @@ function FinanceiroReceberConteudo() {
                                   </tbody>
                                 </table>
                               </div>
+                              {faturasContasReceber.length > 6 ? (
+                                <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-1 pt-1">
+                                  <p className="px-2 text-[11px] text-slate-500">
+                                    {t("financeiro.receber.paginacaoResumo", {
+                                      inicio: faturasPagina.inicioExibido,
+                                      fim: faturasPagina.fimExibido,
+                                      total: faturasPagina.total,
+                                    })}
+                                  </p>
+                                  <PaginacaoLista
+                                    pagina={faturasPagina.paginaAtual}
+                                    totalPaginas={faturasPagina.totalPaginas}
+                                    onPagina={setPaginaFaturasPainel}
+                                    className="border-t-0 py-2"
+                                  />
+                                </div>
+                              ) : null}
                             </div>
                             <div className="rounded border border-emerald-200 bg-white p-3 shadow-sm">
                               <div className="mb-3 flex items-center gap-2 text-emerald-700">
@@ -3145,7 +3173,7 @@ function FinanceiroReceberConteudo() {
                                         </td>
                                       </tr>
                                     )}
-                                    {recebimentosCliente.map((l) => (
+                                    {recebimentosPagina.itens.map((l) => (
                                       <tr key={`recebimento-${l.id}`} className="border-b border-slate-100">
                                         <td className="px-2 py-2">{formatDate(l.data)}</td>
                                         <td className="px-2 py-2">
@@ -3244,6 +3272,23 @@ function FinanceiroReceberConteudo() {
                                   </tbody>
                                 </table>
                               </div>
+                              {recebimentosCliente.length > 6 ? (
+                                <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-1 pt-1">
+                                  <p className="px-2 text-[11px] text-slate-500">
+                                    {t("financeiro.receber.paginacaoResumo", {
+                                      inicio: recebimentosPagina.inicioExibido,
+                                      fim: recebimentosPagina.fimExibido,
+                                      total: recebimentosPagina.total,
+                                    })}
+                                  </p>
+                                  <PaginacaoLista
+                                    pagina={recebimentosPagina.paginaAtual}
+                                    totalPaginas={recebimentosPagina.totalPaginas}
+                                    onPagina={setPaginaRecebimentosPainel}
+                                    className="border-t-0 py-2"
+                                  />
+                                </div>
+                              ) : null}
                             </div>
                           </div>
                         </td>

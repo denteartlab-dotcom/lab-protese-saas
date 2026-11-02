@@ -608,6 +608,26 @@ function descricoesFaturaCoincidem(a: string, b: string) {
   return x === y || x.includes(y) || y.includes(x);
 }
 
+/** Linhas de cada página no painel do cliente (Contas a Receber e Recebimentos). */
+export const LINHAS_PAGINA_PAINEL_RECEBER = 6;
+
+/** A lista já vem da mais recente para a mais antiga; a página 1 fica com o começo. */
+export function paginarLista<T>(lista: T[], pagina: number, tamanho = LINHAS_PAGINA_PAINEL_RECEBER) {
+  const total = lista.length;
+  const porPagina = Math.max(1, tamanho);
+  const totalPaginas = Math.max(1, Math.ceil(total / porPagina));
+  const paginaAtual = Math.min(Math.max(1, Math.floor(pagina) || 1), totalPaginas);
+  const inicio = (paginaAtual - 1) * porPagina;
+  return {
+    itens: lista.slice(inicio, inicio + porPagina),
+    paginaAtual,
+    totalPaginas,
+    inicioExibido: total === 0 ? 0 : inicio + 1,
+    fimExibido: Math.min(inicio + porPagina, total),
+    total,
+  };
+}
+
 function ordenarFaturasMaisRecentePrimeiro(
   a: LancamentoContasReceber,
   b: LancamentoContasReceber
