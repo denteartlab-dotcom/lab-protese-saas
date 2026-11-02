@@ -5,9 +5,10 @@ import {
   type ConfigLaboratorio,
 } from "@/lib/configuracoes-lab";
 import type { FormatoHtmlPdf } from "@/lib/html-para-pdf";
-import type {
-  DadosFaturaImpressao,
-  LinhaFaturaImpressao,
+import {
+  faturaSomenteDiaria,
+  type DadosFaturaImpressao,
+  type LinhaFaturaImpressao,
 } from "@/lib/fatura-impressao-html";
 import {
   descontoFaturaImpressaoTotal,
@@ -60,23 +61,37 @@ function rotuloFatura(chave: Parameters<typeof pl>[0]) {
 }
 
 type ColunaFatura = {
-  chave: keyof FaturaModeloLayout;
+  chave: keyof FaturaModeloLayout | "diasTrabalhados";
   titulo: string;
   larguraPct: number;
   align?: "left" | "center" | "right";
 };
 
-function colunasSmart(): ColunaFatura[] {
-  return [
+function colunasSmart(diaria = false): ColunaFatura[] {
+  const base: ColunaFatura[] = [
     { chave: "numOs", titulo: pl("print.fatura.col.os"), larguraPct: 5, align: "left" },
     { chave: "qtd", titulo: pl("print.fatura.col.qtd"), larguraPct: 5, align: "center" },
-    { chave: "servico", titulo: pl("print.fatura.col.servicos"), larguraPct: 22, align: "left" },
-    { chave: "numDente", titulo: pl("print.fatura.col.numDente"), larguraPct: 11, align: "left" },
-    { chave: "paciente", titulo: pl("print.fatura.col.paciente"), larguraPct: 13, align: "left" },
+    { chave: "servico", titulo: pl("print.fatura.col.servicos"), larguraPct: diaria ? 18 : 22, align: "left" },
+  ];
+  if (diaria) {
+    base.push({
+      chave: "diasTrabalhados",
+      titulo: pl("print.fatura.col.diasTrabalhados"),
+      larguraPct: 24,
+      align: "left",
+    });
+  } else {
+    base.push(
+      { chave: "numDente", titulo: pl("print.fatura.col.numDente"), larguraPct: 11, align: "left" },
+      { chave: "paciente", titulo: pl("print.fatura.col.paciente"), larguraPct: 13, align: "left" }
+    );
+  }
+  base.push(
     { chave: "valorUnit", titulo: pl("print.fatura.col.unitario"), larguraPct: 13, align: "right" },
     { chave: "desconto", titulo: pl("print.fatura.col.desconto"), larguraPct: 9, align: "right" },
-    { chave: "subtotal", titulo: pl("print.fatura.col.subtotal"), larguraPct: 13, align: "right" },
-  ];
+    { chave: "subtotal", titulo: pl("print.fatura.col.subtotal"), larguraPct: 13, align: "right" }
+  );
+  return base;
 }
 
 export function faturaSuportaPdfNativo(modelo: ModeloFaturaId, formato: FormatoHtmlPdf) {
@@ -149,12 +164,15 @@ function desenharBordaRequisicaoPdf(pdf: PdfApi, corHex: string, yFimConteudo: n
   pdf.rect(pw - m - t, yTop, t, h, "F");
 }
 
-function colunasAtivas(layout: FaturaModeloLayout) {
-  return colunasSmart().filter((c) => layout[c.chave]);
+function colunasAtivas(layout: FaturaModeloLayout, diaria = false) {
+  return colunasSmart(diaria).filter((c) => {
+    if (c.chave === "diasTrabalhados") return true;
+    return Boolean(layout[c.chave]);
+  });
 }
 
-function largurasColunas(layout: FaturaModeloLayout, larguraTabela: number) {
-  const cols = colunasAtivas(layout);
+function largurasColunas(layout: FaturaModeloLayout, larguraTabela: number, diaria = false) {
+  const cols = colunasAtivas(layout, diaria);
   const totalPct = cols.reduce((s, c) => s + c.larguraPct, 0) || 100;
   let x = 0;
   return cols.map((col) => {
@@ -177,6 +195,8 @@ function textoCelula(linha: LinhaFaturaImpressao, col: ColunaFatura) {
       return linha.dentes;
     case "paciente":
       return linha.paciente;
+    case "diasTrabalhados":
+      return linha.diasTrabalhados || "—";
     case "valorUnit":
       return linha.unitario;
     case "desconto":
@@ -343,7 +363,7 @@ function desenharTabelaItens(
   const pageHeight = pdf.internal.pageSize.getHeight();
   const m = margensLinhaRequisicao(pageWidth);
   const larguraTabela = m.tabelaDir - m.tabelaEsq;
-  const cols = largurasColunas(layout, larguraTabela);
+  const cols = largurasColunas(layout, larguraTabela, faturaSomenteDiaria(dados.linhas));
   if (!cols.length) return yInicio;
 
   let y = yInicio;

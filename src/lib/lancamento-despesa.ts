@@ -70,6 +70,8 @@ export type DespesaMeta = {
   fixaMes?: string;
   /** Dia preferido de vencimento no mês (1–31). */
   fixaDiaVencimento?: number;
+  /** Dias trabalhados da fatura de diária, separados por vírgula (YYYY-MM-DD). */
+  diasDiaria?: string;
   /** Meses (YYYY-MM) em que a instância foi excluída e não deve ser recriada. */
   fixaMesesIgnorados?: string[];
 };

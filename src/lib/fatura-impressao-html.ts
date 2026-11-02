@@ -26,6 +26,12 @@ import {
 } from "@/lib/contas-receber-financeiro";
 import { resolverDataFinalizadoImpressao } from "@/lib/os-itens-impressao";
 import {
+  datasTrabalhadasCobrancaDiaria,
+  interpretarDescricaoCobrancaDiaria,
+  lerDiariasColaboradores,
+  textoDatasTrabalhadasDiaria,
+} from "@/lib/diarias-colaboradores";
+import {
   definirLocaleImpressao,
   pl,
   resolverLocaleImpressao,
@@ -114,7 +120,14 @@ export type LinhaFaturaImpressao = {
   desconto: string;
   subtotal: string;
   segmento: SegmentoFaturamento;
+  /** Fatura de diária: Qtd é a quantidade de dias e a coluna mostra as datas. */
+  ehDiaria?: boolean;
+  diasTrabalhados?: string;
 };
+
+export function faturaSomenteDiaria(linhas: Pick<LinhaFaturaImpressao, "ehDiaria">[]) {
+  return linhas.length > 0 && linhas.every((linha) => linha.ehDiaria);
+}
 
 export type ParcelaFaturaImpressao = {
   parcela: string;
@@ -179,18 +192,48 @@ function formatarMoedaReais(valor: string | number, money: (n: number) => string
   return `R$ ${money(valor)}`;
 }
 
+function datasDaMetaDiaria(valor?: string | null) {
+  if (!valor) return [];
+  return valor
+    .split(",")
+    .map((data) => data.trim())
+    .filter((data) => /^\d{4}-\d{2}-\d{2}$/.test(data));
+}
+
+function linhaDiariaDaFatura(descricao: string, diasMeta?: string | null) {
+  const lida = interpretarDescricaoCobrancaDiaria(descricao);
+  if (!lida) return null;
+  const gravadas = datasDaMetaDiaria(diasMeta);
+  const datas = gravadas.length
+    ? gravadas
+    : typeof window === "undefined"
+      ? []
+      : datasTrabalhadasCobrancaDiaria(
+          lerDiariasColaboradores(),
+          lida.colaboradorNome,
+          lida.mesCompetencia
+        );
+  return {
+    datas,
+    texto: textoDatasTrabalhadasDiaria(datas),
+  };
+}
+
 function dataSomenteEmissao(dataEmissao: string) {
   const parte = dataEmissao.trim().split(/\s+/)[0];
   return parte || dataEmissao;
 }
 
-function contarColunasItensSmart(layout: FaturaModeloLayout) {
+function contarColunasItensSmart(layout: FaturaModeloLayout, diaria = false) {
   let n = 0;
   if (layout.numOs) n += 1;
   if (layout.qtd) n += 1;
   if (layout.servico) n += 1;
-  if (layout.numDente) n += 1;
-  if (layout.paciente) n += 1;
+  if (diaria) n += 1;
+  else {
+    if (layout.numDente) n += 1;
+    if (layout.paciente) n += 1;
+  }
   if (layout.valorUnit) n += 1;
   if (layout.desconto) n += 1;
   if (layout.subtotal) n += 1;
@@ -308,13 +351,16 @@ function trMetaAbaixoServico(
   return `<tr class="meta-row">${layout.numOs ? "<td></td>" : ""}<td colspan="${colspan}">${htmlMeta}</td></tr>`;
 }
 
-function colunasLarguraSmart(layout: FaturaModeloLayout) {
+function colunasLarguraSmart(layout: FaturaModeloLayout, diaria = false) {
   const cols: string[] = [];
   if (layout.numOs) cols.push("5%");
   if (layout.qtd) cols.push("5%");
-  if (layout.servico) cols.push("22%");
-  if (layout.numDente) cols.push("11%");
-  if (layout.paciente) cols.push("13%");
+  if (layout.servico) cols.push(diaria ? "18%" : "22%");
+  if (diaria) cols.push("24%");
+  else {
+    if (layout.numDente) cols.push("11%");
+    if (layout.paciente) cols.push("13%");
+  }
   if (layout.valorUnit) cols.push("13%");
   if (layout.desconto) cols.push("9%");
   if (layout.subtotal) cols.push("13%");
@@ -578,20 +624,31 @@ export function montarDadosFaturaImpressao(params: {
   } else {
     const valorServicosSemSaldo = Math.max(0, lancamento.valor - saldoDevedorIncorporado);
     totalServicos = valorServicosSemSaldo;
+    const servico = observacao || lancamento.descricao;
+    const diaria = linhaDiariaDaFatura(servico, pack.meta.diasDiaria);
+    const qtdDias = diaria?.datas.length || 0;
+    const qtd = qtdDias > 0 ? qtdDias : 1;
+    const unitario = diaria && qtdDias > 0 ? valorServicosSemSaldo / qtdDias : valorServicosSemSaldo;
     linhas.push({
       os: lancamento.trabalho?.numeroOs ? String(lancamento.trabalho.numeroOs) : "-",
       osExterna: "-",
       dataOs: formatDate(lancamento.data),
       finalizado: "-",
       cor: "-",
-      servico: observacao || lancamento.descricao,
+      servico,
       dentes: "-",
       paciente: "-",
-      qtd: "1",
-      unitario: money(valorServicosSemSaldo),
+      qtd: String(qtd),
+      unitario: money(Math.round(unitario * 100) / 100),
       desconto: formatarDescontoImpressaoOs(),
       subtotal: money(valorServicosSemSaldo),
-      segmento: classificarItemOs({ servico: observacao || lancamento.descricao }),
+      segmento: classificarItemOs({ servico }),
+      ...(diaria
+        ? {
+            ehDiaria: true,
+            diasTrabalhados: diaria.texto || "—",
+          }
+        : {}),
     });
   }
 
@@ -870,20 +927,22 @@ function htmlTabelaItensA4(
   money: (n: number) => string = (n) =>
     n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 ) {
+  const diaria = faturaSomenteDiaria(dados.linhas);
   if (smartModelo1) {
-    const colgroup = `<colgroup>${colunasLarguraSmart(layout)}</colgroup>`;
+    const colgroup = `<colgroup>${colunasLarguraSmart(layout, diaria)}</colgroup>`;
     const cabecalho = `<thead><tr>
       ${layout.numOs ? `<th>${pl("print.fatura.col.os")}</th>` : ""}
       ${layout.qtd ? `<th class="center">${pl("print.fatura.col.qtd")}</th>` : ""}
       ${layout.servico ? `<th>${pl("print.fatura.col.servicos")}</th>` : ""}
-      ${layout.numDente ? `<th>${pl("print.fatura.col.numDente")}</th>` : ""}
-      ${layout.paciente ? `<th>${pl("print.fatura.col.paciente")}</th>` : ""}
+      ${diaria ? `<th>${pl("print.fatura.col.diasTrabalhados")}</th>` : ""}
+      ${!diaria && layout.numDente ? `<th>${pl("print.fatura.col.numDente")}</th>` : ""}
+      ${!diaria && layout.paciente ? `<th>${pl("print.fatura.col.paciente")}</th>` : ""}
       ${layout.valorUnit ? `<th class="right">${pl("print.fatura.col.unitario")}</th>` : ""}
       ${layout.desconto ? `<th class="right">${pl("print.fatura.col.desconto")}</th>` : ""}
       ${layout.subtotal ? `<th class="right">${pl("print.fatura.col.subtotal")}</th>` : ""}
     </tr></thead>`;
 
-    const colunas = contarColunasItensSmart(layout);
+    const colunas = contarColunasItensSmart(layout, diaria);
     const linhas = dados.linhas
       .flatMap((linha, indice) => {
         const novaOs = indice === 0 || linha.os !== dados.linhas[indice - 1]?.os;
@@ -892,8 +951,9 @@ function htmlTabelaItensA4(
           ${layout.numOs ? celulaOsFatura(linha, novaOs, layout) : ""}
           ${layout.qtd ? `<td class="center">${escapeHtml(linha.qtd)}</td>` : ""}
           ${layout.servico ? `<td class="cel-servico">${escapeHtml(linha.servico)}</td>` : ""}
-          ${layout.numDente ? `<td>${escapeHtml(linha.dentes)}</td>` : ""}
-          ${layout.paciente ? `<td>${escapeHtml(linha.paciente)}</td>` : ""}
+          ${diaria ? `<td class="cel-servico">${escapeHtml(linha.diasTrabalhados || "—")}</td>` : ""}
+          ${!diaria && layout.numDente ? `<td>${escapeHtml(linha.dentes)}</td>` : ""}
+          ${!diaria && layout.paciente ? `<td>${escapeHtml(linha.paciente)}</td>` : ""}
           ${layout.valorUnit ? `<td class="right">${escapeHtml(formatarMoedaReais(linha.unitario, money))}</td>` : ""}
           ${layout.desconto ? `<td class="right">${escapeHtml(linha.desconto)}</td>` : ""}
           ${layout.subtotal ? `<td class="right">${escapeHtml(formatarMoedaReais(linha.subtotal, money))}</td>` : ""}
@@ -1339,14 +1399,21 @@ function gerarHtmlFaturaTermica(
                   ultimaDaOs && (layout.data || layout.finalizado)
                     ? htmlMetaDatasFaturaLinha(linha, layout, "Entregue", true)
                     : "";
-                const dentesCor =
-                  layout.numDente || layout.corDente
+                const dentesCor = linha.ehDiaria
+                  ? `<p style="margin:0">${pl("print.fatura.col.diasTrabalhados")}: <strong>${escapeHtml(linha.diasTrabalhados || "—")}</strong></p>`
+                  : layout.numDente || layout.corDente
                     ? `<p style="margin:0">${layout.numDente ? `Mat/Dente: <strong>${escapeHtml(linha.dentes)}</strong>` : ""}${layout.numDente && layout.corDente ? " " : ""}${layout.corDente ? `Cor Dente: <strong>${escapeHtml(linha.cor)}</strong>` : ""}</p>`
                     : "";
                 const cabecalhoOs =
                   ultimaDaOs && exibirMeta
                     ? `${layout.numOs ? `<p style="margin:0">OS: <strong>${escapeHtml(linha.os)}</strong></p>` : ""}
-                      ${layout.paciente || layout.dentista ? `<p style="margin:0">${layout.paciente ? `Paciente: <strong>${escapeHtml(linha.paciente)}</strong>` : ""}${layout.paciente && layout.dentista ? " " : ""}${layout.dentista ? `Dr: <strong>${escapeHtml(dados.dentista)}</strong>` : ""}</p>` : ""}`
+                      ${linha.ehDiaria
+                        ? layout.dentista
+                          ? `<p style="margin:0">Dr: <strong>${escapeHtml(dados.dentista)}</strong></p>`
+                          : ""
+                        : layout.paciente || layout.dentista
+                          ? `<p style="margin:0">${layout.paciente ? `Paciente: <strong>${escapeHtml(linha.paciente)}</strong>` : ""}${layout.paciente && layout.dentista ? " " : ""}${layout.dentista ? `Dr: <strong>${escapeHtml(dados.dentista)}</strong>` : ""}</p>`
+                          : ""}`
                     : "";
                 const temMeta = Boolean(dentesCor || cabecalhoOs || metaPrazo);
                 const meta = temMeta

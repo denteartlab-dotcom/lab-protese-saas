@@ -1,4 +1,5 @@
 import {
+  datasLancamentosDiaria,
   descricaoCobrancaDiariaColaborador,
   referenciaCobrancaDiariaColaborador,
   registrarCobrancaDiariaStore,
@@ -100,6 +101,7 @@ export async function sincronizarCobrancaDiariaColaborador(opts: {
     status: "pendente",
     valor,
     dataVencimento,
+    datas: datasLancamentosDiaria(opts.store, colaborador, mesCompetencia),
     ...ref,
   });
 }

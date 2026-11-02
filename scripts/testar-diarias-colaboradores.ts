@@ -38,6 +38,10 @@ import {
   descricaoCobrancaDiariaColaborador,
   dataFimMesCompetencia,
   listarDiariasPendentesReceita,
+  interpretarDescricaoCobrancaDiaria,
+  datasLancamentosDiaria,
+  datasTrabalhadasCobrancaDiaria,
+  textoDatasTrabalhadasDiaria,
   normalizarStore,
   normalizarConfigDiaria,
   limitarHoraNoPeriodo,
@@ -127,6 +131,61 @@ const diariasSemFaturaViva = listarDiariasPendentesReceita(storeCobranca, new Se
 assert.equal(diariasSemFaturaViva.length, 2);
 assert.equal(listarDiariasPendentesReceita(storeCobranca).length, 1);
 ok("cobrança da diária fica pendente nos finalizados até virar fatura separada");
+
+const lida = interpretarDescricaoCobrancaDiaria(
+  "Cobrança sem O.S. - Diária Mateus Bonfim — Outubro de 2026"
+);
+assert.equal(lida?.colaboradorNome, "Mateus Bonfim");
+assert.equal(lida?.mesCompetencia, "2026-10");
+const storeDias = {
+  configs: {
+    c1: {
+      colaboradorId: "c1",
+      colaboradorNome: "Mateus Bonfim",
+      valorDiaria: "150,00",
+      horasJornada: 8,
+    },
+  },
+  lancamentos: [
+    {
+      id: "d1",
+      colaboradorId: "c1",
+      data: "2026-10-02",
+      entrada: "08:00",
+      saida: "18:00",
+      intervaloMinutos: 60,
+      horas: 9,
+      valor: 150,
+      observacao: "",
+    },
+    {
+      id: "d2",
+      colaboradorId: "c1",
+      data: "2026-10-01",
+      entrada: "08:00",
+      saida: "18:00",
+      intervaloMinutos: 60,
+      horas: 9,
+      valor: 150,
+      observacao: "",
+    },
+  ],
+  despesas: {},
+  cobrancas: {},
+} as DiariasStore;
+assert.deepEqual(datasLancamentosDiaria(storeDias, "Mateus Bonfim", "2026-10"), [
+  "2026-10-01",
+  "2026-10-02",
+]);
+assert.equal(
+  textoDatasTrabalhadasDiaria(datasLancamentosDiaria(storeDias, "Mateus Bonfim", "2026-10")),
+  "01/10/2026, 02/10/2026"
+);
+assert.deepEqual(
+  datasTrabalhadasCobrancaDiaria(storeDias, "Mateus Bonfim", "2026-10", ["2026-10-05"]),
+  ["2026-10-05"]
+);
+ok("fatura da diária conta os dias e lista as datas trabalhadas");
 
 assert.equal(minutosLiquidosTurno("08:00", "18:00", 60), 540);
 assert.equal(horasTrabalhadas("08:00", "18:00", 60), 9);

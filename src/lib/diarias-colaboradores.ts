@@ -100,6 +100,8 @@ export type CobrancaDiariaRef = {
   mesCompetencia?: string;
   valor?: number;
   dataVencimento?: string;
+  /** Dias trabalhados no momento da cobrança (YYYY-MM-DD). */
+  datas?: string[];
 };
 
 export type DiariaPendenteReceita = {
@@ -111,6 +113,7 @@ export type DiariaPendenteReceita = {
   valor: number;
   descricao: string;
   dataVencimento: string;
+  datas: string[];
 };
 
 export type DiariasStore = {
@@ -196,6 +199,97 @@ export function mesCompetenciaDeDataIso(data: string) {
   return /^\d{4}-\d{2}-\d{2}$/.test(data) ? data.slice(0, 7) : "";
 }
 
+const MESES_COMPETENCIA_PT = [
+  "janeiro",
+  "fevereiro",
+  "marco",
+  "abril",
+  "maio",
+  "junho",
+  "julho",
+  "agosto",
+  "setembro",
+  "outubro",
+  "novembro",
+  "dezembro",
+] as const;
+
+function textoSemAcento(valor: string) {
+  return valor
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase();
+}
+
+export function mesCompetenciaDeNomePt(nomeMes: string) {
+  const texto = textoSemAcento(nomeMes).replace(/\s+/g, " ").trim();
+  const match = texto.match(/^([a-z]+)\s+de\s+(\d{4})$/);
+  if (!match) return "";
+  const indice = MESES_COMPETENCIA_PT.indexOf(match[1] as (typeof MESES_COMPETENCIA_PT)[number]);
+  if (indice < 0) return "";
+  return `${match[2]}-${String(indice + 1).padStart(2, "0")}`;
+}
+
+/** Lê "Cobrança sem O.S. - Diária Nome — Outubro de 2026". */
+export function interpretarDescricaoCobrancaDiaria(descricao: string) {
+  const texto = descricao.replace(/\s+/g, " ").trim();
+  const match = texto.match(/^cobran[cç]a sem o\.?s\.?\s*-\s*di[aá]ria\s+(.+?)\s+[—–-]\s+(.+)$/i);
+  if (!match) return null;
+  const colaboradorNome = match[1].trim();
+  const mesCompetencia = mesCompetenciaDeNomePt(match[2]);
+  if (!colaboradorNome || !mesCompetencia) return null;
+  return { colaboradorNome, mesCompetencia };
+}
+
+function datasValidasOrdenadas(datas: string[]) {
+  return [...new Set(datas.filter((data) => /^\d{4}-\d{2}-\d{2}$/.test(data)))].sort();
+}
+
+export function datasLancamentosDiaria(
+  store: DiariasStore,
+  colaboradorNome: string,
+  mesCompetencia: string
+) {
+  const slug = slugColaboradorComissao(colaboradorNome);
+  const ids = new Set<string>();
+  for (const config of Object.values(store.configs || {})) {
+    if (slugColaboradorComissao(config.colaboradorNome || "") === slug && config.colaboradorId) {
+      ids.add(config.colaboradorId);
+    }
+  }
+  const ref = store.cobrancas?.[referenciaCobrancaDiariaColaborador(colaboradorNome, mesCompetencia)];
+  if (ref?.colaboradorId) ids.add(ref.colaboradorId);
+  const prefixo = `${mesCompetencia}-`;
+  const datas: string[] = [];
+  for (const lancamento of store.lancamentos || []) {
+    if (!lancamento.data?.startsWith(prefixo)) continue;
+    const nomeConfig = store.configs?.[lancamento.colaboradorId]?.colaboradorNome || "";
+    const mesmoNome = nomeConfig && slugColaboradorComissao(nomeConfig) === slug;
+    if (!ids.has(lancamento.colaboradorId) && !mesmoNome) continue;
+    datas.push(lancamento.data);
+  }
+  return datasValidasOrdenadas(datas);
+}
+
+/** Dias da cobrança: o recorte gravado na geração, ou os lançamentos do mês. */
+export function datasTrabalhadasCobrancaDiaria(
+  store: DiariasStore,
+  colaboradorNome: string,
+  mesCompetencia: string,
+  datasGravadas?: string[] | null
+) {
+  const gravadas = datasValidasOrdenadas(datasGravadas || []);
+  if (gravadas.length) return gravadas;
+  const ref = store.cobrancas?.[referenciaCobrancaDiariaColaborador(colaboradorNome, mesCompetencia)];
+  const doRef = datasValidasOrdenadas(ref?.datas || []);
+  if (doRef.length) return doRef;
+  return datasLancamentosDiaria(store, colaboradorNome, mesCompetencia);
+}
+
+export function textoDatasTrabalhadasDiaria(datas: string[]) {
+  return datasValidasOrdenadas(datas).map((data) => formatarDataIsoBr(data)).join(", ");
+}
+
 export function registrarDespesaDiariaStore(
   store: DiariasStore,
   colaboradorNome: string,
@@ -259,6 +353,7 @@ export function listarDiariasPendentesReceita(
       valor,
       descricao: descricaoCobrancaDiariaColaborador(colaboradorNome, mesCompetencia),
       dataVencimento: cobranca.dataVencimento || dataFimMesCompetencia(mesCompetencia),
+      datas: datasTrabalhadasCobrancaDiaria(store, colaboradorNome, mesCompetencia, cobranca.datas),
     });
   }
   return saida.sort((a, b) => a.descricao.localeCompare(b.descricao, "pt-BR"));
@@ -1246,6 +1341,9 @@ export function normalizarStore(raw: Partial<DiariasStore> | null | undefined): 
       if (!clienteId) continue;
       const id = cobranca.id?.trim() || "";
       const valor = Math.round((Number(cobranca.valor) || 0) * 100) / 100;
+      const datas = Array.isArray(cobranca.datas)
+        ? cobranca.datas.filter((data) => /^\d{4}-\d{2}-\d{2}$/.test(data || ""))
+        : [];
       if (!id && valor <= 0) continue;
       cobrancas[chave] = {
         ...(id ? { id } : {}),
@@ -1257,6 +1355,7 @@ export function normalizarStore(raw: Partial<DiariasStore> | null | undefined): 
         mesCompetencia: cobranca.mesCompetencia,
         ...(valor > 0 ? { valor } : {}),
         ...(cobranca.dataVencimento ? { dataVencimento: cobranca.dataVencimento } : {}),
+        ...(datas.length ? { datas } : {}),
       };
     }
   }

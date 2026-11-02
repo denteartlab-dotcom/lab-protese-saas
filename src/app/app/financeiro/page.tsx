@@ -1076,12 +1076,17 @@ function FinanceiroReceberConteudo() {
     return categoriaPadraoLancamento(plano, "receitas") || "Receitas de Serviços";
   }
 
-  function descricaoReceitaComPlano(descricaoBase: string, anexos?: AnexoDespesa[]) {
+  function descricaoReceitaComPlano(
+    descricaoBase: string,
+    anexos?: AnexoDespesa[],
+    extra?: { diasDiaria?: string }
+  ) {
     return empacotarDespesa(descricaoBase, {
       categoria: form.categoria || categoriaPadraoReceita(),
       conta: form.conta,
       parcela: form.parcela,
       ...(anexos?.length ? { anexos } : {}),
+      ...(extra?.diasDiaria ? { diasDiaria: extra.diasDiaria } : {}),
     });
   }
 
@@ -1498,7 +1503,11 @@ function FinanceiroReceberConteudo() {
           body: JSON.stringify({
             tipo: "receita",
             clienteId: form.clienteId || undefined,
-            descricao: descricaoReceitaComPlano(diaria.descricao),
+            descricao: descricaoReceitaComPlano(
+              diaria.descricao,
+              undefined,
+              diaria.datas.length ? { diasDiaria: diaria.datas.join(",") } : undefined
+            ),
             valor: diaria.valor,
             data: dataDiaria,
             status: diariaRecebida ? "pago" : "pendente",
