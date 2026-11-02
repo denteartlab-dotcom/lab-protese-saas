@@ -396,7 +396,6 @@ export function DiariasColaboradoresModal({ open, onClose }: Props) {
   const [imprimindo, setImprimindo] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [financeiroAberto, setFinanceiroAberto] = useState(false);
-  const [modoFinanceiro, setModoFinanceiro] = useState<ModoFinanceiroDiaria>("despesa");
   const [gerandoFinanceiro, setGerandoFinanceiro] = useState(false);
 
   useEffect(() => {
@@ -822,30 +821,21 @@ export function DiariasColaboradoresModal({ open, onClose }: Props) {
               >
                 {t("producao.diarias.sugerirSalario")}
               </button>
-              <label className="block">
-                <span className="mb-1 block text-[12px] text-slate-500">
-                  {t("producao.diarias.gerarFinanceiro")}
-                </span>
-                <select
-                  value=""
-                  disabled={!colaborador}
-                  onChange={(event) => {
-                    const escolhido = event.target.value;
-                    if (escolhido !== "despesa" && escolhido !== "cobranca") return;
-                    if (resumo.valor <= 0) {
-                      window.alert(t("producao.diarias.semValorFinanceiro"));
-                      return;
-                    }
-                    setModoFinanceiro(escolhido);
-                    setFinanceiroAberto(true);
-                  }}
-                  className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-[14px] outline-none focus:border-blue-500 disabled:opacity-60"
-                >
-                  <option value="">{t("producao.diarias.gerarFinanceiro")}</option>
-                  <option value="despesa">{t("producao.diarias.gerarDespesa")}</option>
-                  <option value="cobranca">{t("producao.diarias.gerarCobranca")}</option>
-                </select>
-              </label>
+              <button
+                type="button"
+                disabled={!colaborador}
+                onClick={() => {
+                  if (!colaborador) return;
+                  if (resumo.valor <= 0) {
+                    window.alert(t("producao.diarias.semValorFinanceiro"));
+                    return;
+                  }
+                  setFinanceiroAberto(true);
+                }}
+                className="w-full rounded-lg bg-blue-600 px-3 py-3 text-left text-[17px] font-bold leading-snug text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {t("producao.diarias.gerarFinanceiro")}
+              </button>
             </div>
 
             <div className="p-4 pb-2">
@@ -1246,7 +1236,7 @@ export function DiariasColaboradoresModal({ open, onClose }: Props) {
     </Modal>
     <GerarFinanceiroDiariaModal
       open={financeiroAberto}
-      modoInicial={modoFinanceiro}
+      modoInicial="despesa"
       colaboradorNome={colaborador?.nome || ""}
       mesLabel={nomeMes}
       valorLabel={formatarValorMonetarioBr(resumo.valor)}
