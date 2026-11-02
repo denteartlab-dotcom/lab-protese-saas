@@ -286,7 +286,7 @@ const pt = {
   "producao.diarias.financeiroDespesaAjuda":
     "O laboratório paga o colaborador. O valor entra nas despesas do mês para pagamento.",
   "producao.diarias.financeiroCobrancaAjuda":
-    "Escolha o cliente externo. A fatura entra em Contas a receber desse cliente.",
+    "Escolha o cliente externo. O valor entra nos finalizados de Contas a receber. A fatura só sai quando você lançar a receita.",
   "producao.diarias.escolherCliente": "Cliente",
   "producao.diarias.buscarCliente": "Buscar cliente",
   "producao.diarias.carregandoClientes": "Carregando clientes…",
@@ -296,7 +296,8 @@ const pt = {
   "producao.diarias.confirmarGerar": "Confirmar",
   "producao.diarias.gerando": "Gerando…",
   "producao.diarias.despesaGerada": "Despesa lançada para pagamento ao colaborador neste mês.",
-  "producao.diarias.cobrancaGerada": "Fatura gerada em Contas a receber de {cliente}.",
+  "producao.diarias.cobrancaGerada":
+    "Diária lançada nos finalizados de Contas a receber de {cliente}. A fatura sai no lançamento.",
   "producao.diarias.despesaJaPaga": "A despesa deste mês já foi paga e não foi alterada.",
   "producao.diarias.cobrancaJaPaga": "A fatura deste mês já foi recebida e não foi alterada.",
   "producao.diarias.erroFinanceiro": "Não foi possível gerar o lançamento financeiro.",
@@ -679,7 +680,7 @@ const en: Record<keyof typeof pt, string> = {
   "producao.diarias.financeiroDespesaAjuda":
     "The lab pays the staff member. The amount is posted to this month's expenses.",
   "producao.diarias.financeiroCobrancaAjuda":
-    "Choose the external client. The invoice is posted to that client's receivables.",
+    "Choose the external client. The amount goes to finished, not-yet-invoiced receivables. The invoice is created only when you post the receipt.",
   "producao.diarias.escolherCliente": "Client",
   "producao.diarias.buscarCliente": "Search client",
   "producao.diarias.carregandoClientes": "Loading clients…",
@@ -689,7 +690,8 @@ const en: Record<keyof typeof pt, string> = {
   "producao.diarias.confirmarGerar": "Confirm",
   "producao.diarias.gerando": "Creating…",
   "producao.diarias.despesaGerada": "Expense posted for payment to the staff member this month.",
-  "producao.diarias.cobrancaGerada": "Invoice posted to {cliente}'s receivables.",
+  "producao.diarias.cobrancaGerada":
+    "Daily rate added to {cliente}'s finished receivables. The invoice is created when you post it.",
   "producao.diarias.despesaJaPaga": "This month's expense is already paid and was not changed.",
   "producao.diarias.cobrancaJaPaga": "This month's invoice is already received and was not changed.",
   "producao.diarias.erroFinanceiro": "Could not create the financial entry.",
@@ -1072,7 +1074,7 @@ const es: Record<keyof typeof pt, string> = {
   "producao.diarias.financeiroDespesaAjuda":
     "El laboratorio paga al colaborador. El valor entra en los gastos del mes.",
   "producao.diarias.financeiroCobrancaAjuda":
-    "Elija el cliente externo. La factura entra en Cuentas por cobrar de ese cliente.",
+    "Elija el cliente externo. El valor entra en los finalizados de Cuentas por cobrar. La factura sale solo al lanzar el cobro.",
   "producao.diarias.escolherCliente": "Cliente",
   "producao.diarias.buscarCliente": "Buscar cliente",
   "producao.diarias.carregandoClientes": "Cargando clientes…",
@@ -1082,7 +1084,8 @@ const es: Record<keyof typeof pt, string> = {
   "producao.diarias.confirmarGerar": "Confirmar",
   "producao.diarias.gerando": "Generando…",
   "producao.diarias.despesaGerada": "Gasto registrado para pago al colaborador en este mes.",
-  "producao.diarias.cobrancaGerada": "Factura generada en Cuentas por cobrar de {cliente}.",
+  "producao.diarias.cobrancaGerada":
+    "Diaria registrada en los finalizados de Cuentas por cobrar de {cliente}. La factura sale en el lanzamiento.",
   "producao.diarias.despesaJaPaga": "El gasto de este mes ya está pagado y no fue modificado.",
   "producao.diarias.cobrancaJaPaga": "La factura de este mes ya fue cobrada y no fue modificada.",
   "producao.diarias.erroFinanceiro": "No fue posible generar el movimiento financiero.",

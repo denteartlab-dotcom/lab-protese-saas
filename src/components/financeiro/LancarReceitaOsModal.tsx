@@ -37,6 +37,7 @@ import {
 import { osExternaAgenda } from "@/lib/agenda-producao-grupo";
 import { prazoFromInstructions, prazoTrabalho } from "@/lib/controle-producao-prazos";
 import { itensDoTrabalho } from "@/lib/relatorio-faturas-modelo3-dados";
+import type { DiariaPendenteReceita } from "@/lib/diarias-colaboradores";
 
 export type LancarReceitaOsForm = {
   tipo: string;
@@ -198,6 +199,10 @@ type Props = {
   todasReceitaSelecionadas: boolean;
   algumasReceitaSelecionadas: boolean;
   valorOsSelecionadas: number;
+  diariasParaReceita?: DiariaPendenteReceita[];
+  diariasSelecionadas?: string[];
+  toggleDiariaReceita?: (chave: string) => void;
+  valorDiariasSelecionadas?: number;
   totalLiquido: number;
   creditoDisponivel: number;
   debitoAberto?: number;
@@ -228,6 +233,7 @@ function BlocoTotaisReceita({
   creditoAplicado = 0,
   totalAReceberComCredito = 0,
   debitoAplicado = 0,
+  diariasSeparadas = 0,
   currency,
 }: {
   valorTotal: string;
@@ -243,6 +249,7 @@ function BlocoTotaisReceita({
   creditoAplicado?: number;
   totalAReceberComCredito?: number;
   debitoAplicado?: number;
+  diariasSeparadas?: number;
   currency: (n: number) => string;
 }) {
   return (
@@ -276,6 +283,12 @@ function BlocoTotaisReceita({
           />
         </div>
       </div>
+      {diariasSeparadas > 0.009 ? (
+        <div className="flex items-center justify-between border-t border-[#e5e7eb] py-2 text-[12px] text-[#374151]">
+          <span>Diárias (outra fatura)</span>
+          <span className="tabular-nums">{currency(diariasSeparadas)}</span>
+        </div>
+      ) : null}
       <div className="flex items-center justify-between border-t border-b border-[#e5e7eb] py-2.5">
         <span className="text-[15px] font-semibold text-[#4a90d9]">Total Líquido</span>
         <span className="text-[15px] font-semibold tabular-nums text-[#4a90d9]">
@@ -356,6 +369,10 @@ export function LancarReceitaOsModal({
   todasReceitaSelecionadas,
   algumasReceitaSelecionadas,
   valorOsSelecionadas,
+  diariasParaReceita = [],
+  diariasSelecionadas = [],
+  toggleDiariaReceita,
+  valorDiariasSelecionadas = 0,
   totalLiquido,
   creditoDisponivel = 0,
   debitoAberto = 0,
@@ -394,6 +411,8 @@ export function LancarReceitaOsModal({
       ? Math.min(creditoDisponivelSeguro, totalNota)
       : 0;
   const totalAReceberComCredito = Math.max(0, totalNota - creditoAplicado);
+  const soDiarias = valorOsSelecionadas <= 0.009 && valorDiariasSelecionadas > 0.009;
+  const baseParcelas = soDiarias ? valorDiariasSelecionadas : totalAReceberComCredito;
   const [codigoBarras, setCodigoBarras] = useState("");
   const [feedbackCodigo, setFeedbackCodigo] = useState<{ tipo: "ok" | "erro"; msg: string } | null>(
     null
@@ -552,7 +571,7 @@ export function LancarReceitaOsModal({
   useEffect(() => {
     const valorParcela =
       numParcelas > 0
-        ? (totalAReceberComCredito / numParcelas).toLocaleString("pt-BR", {
+        ? (baseParcelas / numParcelas).toLocaleString("pt-BR", {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
           })
@@ -584,7 +603,7 @@ export function LancarReceitaOsModal({
     });
   }, [
     numParcelas,
-    totalAReceberComCredito,
+    baseParcelas,
     form.formaPagamento,
     form.conta,
     form.vencimento,
@@ -686,7 +705,9 @@ export function LancarReceitaOsModal({
   if (!open || !portalPronto) return null;
 
   const semOs = form.semOs;
-  const valorBrutoExibicao = valorOsSelecionadas;
+  const valorBrutoExibicao = soDiarias ? valorDiariasSelecionadas : valorOsSelecionadas;
+  const totalLiquidoExibicao = soDiarias ? valorDiariasSelecionadas : totalLiquido;
+  const temLinhasReceita = trabalhosParaReceita.length > 0 || diariasParaReceita.length > 0;
 
   return createPortal(
     <I18nPortal>
@@ -1001,7 +1022,7 @@ export function LancarReceitaOsModal({
                           <input
                             type="checkbox"
                             checked={todasReceitaSelecionadas}
-                            disabled={!form.clienteId || !form.situacaoOs || trabalhosParaReceita.length === 0}
+                            disabled={!form.clienteId || !form.situacaoOs || !temLinhasReceita}
                             ref={(el) => {
                               if (el) {
                                 el.indeterminate =
@@ -1035,17 +1056,18 @@ export function LancarReceitaOsModal({
                           Selecione um cliente e uma situação para listar as OS.
                         </td>
                       </tr>
-                    ) : trabalhosParaReceita.length === 0 ? (
+                    ) : !temLinhasReceita ? (
                       <tr>
                         <td
                           colSpan={10}
                           className="px-4 py-10 text-center text-[13px] text-[#9ca3af]"
                         >
-                          Nenhuma OS encontrada para este cliente e situação.
+                          Nenhuma OS ou diária encontrada para este cliente e situação.
                         </td>
                       </tr>
                     ) : (
-                      trabalhosParaReceita.map((trabalho) => {
+                      <>
+                      {trabalhosParaReceita.map((trabalho) => {
                         const selecionada = osSelecionadas.includes(trabalho.id);
                         const expandida = osExpandidaId === trabalho.id;
                         const det = detalhesLinhaReceitaOs(trabalho, money);
@@ -1171,7 +1193,48 @@ export function LancarReceitaOsModal({
                             ) : null}
                           </Fragment>
                         );
-                      })
+                      })}
+                      {diariasParaReceita.map((diaria) => {
+                        const selecionada = diariasSelecionadas.includes(diaria.chave);
+                        const servico =
+                          diaria.descricao.replace(/^Cobrança sem O\.S\.\s*-?\s*/i, "").trim() ||
+                          diaria.descricao;
+                        return (
+                          <tr
+                            key={diaria.chave}
+                            onClick={() => toggleDiariaReceita?.(diaria.chave)}
+                            className={cn(
+                              "cursor-pointer border-t border-[#e5e7eb] transition-colors",
+                              selecionada ? "bg-[#d4edda]" : "bg-white hover:bg-[#f9fafb]"
+                            )}
+                          >
+                            <td className="px-2 py-2" onClick={(e) => e.stopPropagation()}>
+                              <input
+                                type="checkbox"
+                                checked={selecionada}
+                                onChange={() => toggleDiariaReceita?.(diaria.chave)}
+                                className="h-4 w-4 accent-[#28a745]"
+                              />
+                            </td>
+                            <td className="px-2 py-2 font-medium text-[#374151]">—</td>
+                            <td className="px-2 py-2 text-[#374151]">—</td>
+                            <td className="px-2 py-2 text-[#374151]">1</td>
+                            <td className="px-2 py-2 text-[#374151]">{servico}</td>
+                            <td className="px-2 py-2 text-[#374151]">{diaria.clienteNome || "—"}</td>
+                            <td className="px-2 py-2 text-[#374151]">{diaria.colaboradorNome}</td>
+                            <td className="px-2 py-2 text-right text-[#374151]">
+                              {money(diaria.valor)}
+                            </td>
+                            <td className="px-2 py-2">
+                              <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+                                Diária
+                              </span>
+                            </td>
+                            <td className="px-2 py-2" />
+                          </tr>
+                        );
+                      })}
+                      </>
                     )}
                   </tbody>
                 </table>
@@ -1203,7 +1266,8 @@ export function LancarReceitaOsModal({
                 valorTotal={money(valorBrutoExibicao)}
                 descontoTipo={form.descontoTipo}
                 desconto={form.desconto}
-                totalLiquidoFmt={money(totalLiquido)}
+                totalLiquidoFmt={money(totalLiquidoExibicao)}
+                diariasSeparadas={soDiarias ? 0 : valorDiariasSelecionadas}
                 onDescontoTipo={(tipo) =>
                   setForm((f) => ({
                     ...f,

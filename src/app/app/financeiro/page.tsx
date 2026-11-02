@@ -58,6 +58,15 @@ import {
 } from "@/lib/os-faturamento";
 import { calcularNaoFaturadosContasReceber } from "@/lib/nao-faturados-contas-receber";
 import {
+  DIARIAS_ATUALIZADAS_EVENT,
+  lerDiariasColaboradores,
+  listarDiariasPendentesReceita,
+  marcarCobrancasDiariasFaturadas,
+  salvarDiariasColaboradores,
+  storeDiariasVazio,
+  type DiariasStore,
+} from "@/lib/diarias-colaboradores";
+import {
   filtrarTrabalhoPorSituacaoFaturamento,
   listarTrabalhosNaoFaturados,
   ORDEM_SEGMENTO_FATURAMENTO,
@@ -354,6 +363,8 @@ function FinanceiroReceberConteudo() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [trabalhos, setTrabalhos] = useState<Trabalho[]>([]);
   const [osSelecionadas, setOsSelecionadas] = useState<string[]>([]);
+  const [diariasSelecionadas, setDiariasSelecionadas] = useState<string[]>([]);
+  const [diariasStore, setDiariasStore] = useState<DiariasStore>(storeDiariasVazio);
   const [open, setOpen] = useState(false);
   const [relatorioAberto, setRelatorioAberto] = useState(false);
   const [exportandoContasReceberTela, setExportandoContasReceberTela] = useState(false);
@@ -630,6 +641,24 @@ function FinanceiroReceberConteudo() {
     [cobrancasAtivas, trabalhos]
   );
 
+  useEffect(() => {
+    const hidratar = () => setDiariasStore(lerDiariasColaboradores());
+    hidratar();
+    window.addEventListener(DIARIAS_ATUALIZADAS_EVENT, hidratar);
+    return () => window.removeEventListener(DIARIAS_ATUALIZADAS_EVENT, hidratar);
+  }, []);
+
+  const idsLancamentosReceita = useMemo(() => {
+    return new Set(
+      (data?.lancamentos || []).filter((l) => l.tipo === "receita").map((l) => l.id)
+    );
+  }, [data]);
+
+  const diariasPendentes = useMemo(
+    () => listarDiariasPendentesReceita(diariasStore, idsLancamentosReceita),
+    [diariasStore, idsLancamentosReceita]
+  );
+
   function passaFiltrosReceita(trabalho: Trabalho) {
     if (form.clienteId && trabalho.cliente?.id !== form.clienteId) return false;
     if (trabalhoJaFaturado(trabalho)) return false;
@@ -702,13 +731,28 @@ function FinanceiroReceberConteudo() {
     [trabalhosParaReceita]
   );
 
-  const todasReceitaSelecionadas =
-    idsReceitaVisiveis.length > 0 &&
-    idsReceitaVisiveis.every((id) => osSelecionadas.includes(id));
+  const diariasParaReceita = useMemo(() => {
+    if (!form.clienteId || !form.situacaoOs) return [];
+    return diariasPendentes.filter((diaria) => diaria.clienteId === form.clienteId);
+  }, [diariasPendentes, form.clienteId, form.situacaoOs]);
 
-  const algumasReceitaSelecionadas = idsReceitaVisiveis.some((id) =>
-    osSelecionadas.includes(id)
+  const chavesDiariasVisiveis = useMemo(
+    () => diariasParaReceita.map((diaria) => diaria.chave),
+    [diariasParaReceita]
   );
+
+  const todasReceitaSelecionadas =
+    idsReceitaVisiveis.length + chavesDiariasVisiveis.length > 0 &&
+    idsReceitaVisiveis.every((id) => osSelecionadas.includes(id)) &&
+    chavesDiariasVisiveis.every((chave) => diariasSelecionadas.includes(chave));
+
+  const algumasReceitaSelecionadas =
+    idsReceitaVisiveis.some((id) => osSelecionadas.includes(id)) ||
+    chavesDiariasVisiveis.some((chave) => diariasSelecionadas.includes(chave));
+
+  const valorDiariasSelecionadas = diariasParaReceita
+    .filter((diaria) => diariasSelecionadas.includes(diaria.chave))
+    .reduce((sum, diaria) => sum + diaria.valor, 0);
 
   function trabalhosDaFatura(lancamento: Lancamento, clienteIdContexto?: string) {
     return trabalhosRelacionadosLancamentoFatura(
@@ -833,6 +877,28 @@ function FinanceiroReceberConteudo() {
       grupos.set(chave, grupo);
     });
 
+    diariasPendentes.forEach((diaria) => {
+      const clienteId = diaria.clienteId;
+      if (!clienteId) return;
+      if (idsClientesAtivos.size > 0 && !idsClientesAtivos.has(clienteId)) return;
+      const nome =
+        diaria.clienteNome ||
+        clientes.find((cliente) => cliente.id === clienteId)?.nome?.trim() ||
+        "";
+      if (!nome) return;
+      const grupo = grupos.get(clienteId) || {
+        clienteId,
+        nome,
+        lancamentos: [],
+        aReceber: 0,
+        recebido: 0,
+        adiantamentos: 0,
+        naoFaturados: 0,
+      };
+      grupo.naoFaturados += diaria.valor;
+      grupos.set(clienteId, grupo);
+    });
+
     return Array.from(grupos.values())
       .map((grupo) => ({
         ...grupo,
@@ -849,7 +915,7 @@ function FinanceiroReceberConteudo() {
         return clienteVisivelContasReceber(grupo);
       })
       .sort((a, b) => a.nome.localeCompare(b.nome));
-  }, [receitasFiltradas, trabalhosNaoFaturados, data, dataInicio, dataFinal, idsClientesAtivos]);
+  }, [receitasFiltradas, trabalhosNaoFaturados, diariasPendentes, clientes, data, dataInicio, dataFinal, idsClientesAtivos]);
 
   const creditoDisponivelReceita = useMemo(
     () =>
@@ -966,12 +1032,17 @@ function FinanceiroReceberConteudo() {
           }),
     [trabalhosNaoFaturados, idsClientesAtivos]
   );
-  const totalNaoFaturados = useMemo(
-    () =>
-      calcularNaoFaturadosContasReceber(trabalhosNaoFaturadosAtivos, cobrancasAtivas)
-        .valor,
-    [trabalhosNaoFaturadosAtivos, cobrancasAtivas]
-  );
+  const totalNaoFaturados = useMemo(() => {
+    const base = calcularNaoFaturadosContasReceber(
+      trabalhosNaoFaturadosAtivos,
+      cobrancasAtivas
+    ).valor;
+    const diarias = diariasPendentes.reduce((sum, diaria) => {
+      if (idsClientesAtivos.size > 0 && !idsClientesAtivos.has(diaria.clienteId)) return sum;
+      return sum + diaria.valor;
+    }, 0);
+    return base + diarias;
+  }, [trabalhosNaoFaturadosAtivos, cobrancasAtivas, diariasPendentes, idsClientesAtivos]);
   const valorOsSelecionadas = trabalhosSelecionados.reduce((sum, trabalho) => sum + valorTrabalho(trabalho), 0);
   const valorBruto = form.semOs ? parseDecimal(form.valor || "0") : valorOsSelecionadas;
   const descontoBase = parseDecimal(form.desconto || "0");
@@ -1084,9 +1155,13 @@ function FinanceiroReceberConteudo() {
       setMensagemLancamento("Informe um valor maior que zero.");
       return;
     }
-    if (!form.semOs && trabalhosSelecionados.length === 0) {
+    const diariasDoLancamento = diariasPendentes.filter(
+      (diaria) =>
+        diaria.clienteId === form.clienteId && diariasSelecionadas.includes(diaria.chave)
+    );
+    if (!form.semOs && trabalhosSelecionados.length === 0 && diariasDoLancamento.length === 0) {
       setMensagemLancamentoTipo("erro");
-      setMensagemLancamento("Selecione ao menos uma OS ou marque cobrança sem O.S.");
+      setMensagemLancamento("Selecione ao menos uma OS, uma diária ou marque cobrança sem O.S.");
       return;
     }
     const creditoDisponivel = creditoDisponivelCliente(form.clienteId);
@@ -1109,6 +1184,9 @@ function FinanceiroReceberConteudo() {
     // Sempre cria a Cobrança OS (nota), mesmo com abatimento total de crédito.
     // Antes, cash=0 pulava a fatura e só criava "Desconto com crédito" órfão.
     const deveCriarFaturaReceber = Math.round(totalNota * 100) > 0;
+    const criarFaturaOsOuSemOs =
+      (form.semOs && deveCriarFaturaReceber) ||
+      (!form.semOs && trabalhosSelecionados.length > 0 && deveCriarFaturaReceber);
     const cobrancaQuitadaSoComCredito =
       creditoAplicado > 0.009 && Math.round(totalAReceberComCredito * 100) <= 0;
     const descricaoBase = form.semOs
@@ -1184,7 +1262,7 @@ function FinanceiroReceberConteudo() {
       });
     }
 
-    if (deveCriarFaturaReceber) {
+    if (criarFaturaOsOuSemOs) {
       if (parcelas.length > 1) {
         const res = await fetch("/api/financeiro", {
           method: "POST",
@@ -1374,7 +1452,7 @@ function FinanceiroReceberConteudo() {
     }
     if (
       debitoAplicado > 0.009 &&
-      deveCriarFaturaReceber &&
+      criarFaturaOsOuSemOs &&
       (!mensagemLancamento || mensagemLancamentoTipo !== "erro")
     ) {
       for (const faturaAntiga of faturasDebitoAberto) {
@@ -1396,18 +1474,69 @@ function FinanceiroReceberConteudo() {
         });
       }
     }
+    if (!form.semOs && diariasDoLancamento.length > 0) {
+      const parcelaDiaria = parcelas[0];
+      const diariaRecebida = Boolean(parcelaDiaria?.recebido);
+      const dataDiaria = diariaRecebida
+        ? hojeIso
+        : brShortToIso(parcelaDiaria?.vencimento || form.vencimento || form.data);
+      const formaDiaria = formaPagamentoValida(
+        parcelaDiaria?.formaPagamento || form.formaPagamento
+      );
+      const marcadas: { chave: string; id: string; status: string }[] = [];
+      const persistirDiariasFaturadas = () => {
+        if (marcadas.length === 0) return;
+        const gravado = salvarDiariasColaboradores(
+          marcarCobrancasDiariasFaturadas(lerDiariasColaboradores(), marcadas)
+        );
+        setDiariasStore(gravado);
+      };
+      for (const diaria of diariasDoLancamento) {
+        const res = await fetch("/api/financeiro", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tipo: "receita",
+            clienteId: form.clienteId || undefined,
+            descricao: descricaoReceitaComPlano(diaria.descricao),
+            valor: diaria.valor,
+            data: dataDiaria,
+            status: diariaRecebida ? "pago" : "pendente",
+            formaPagamento: formaDiaria,
+          }),
+        });
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok || !payload?.id) {
+          persistirDiariasFaturadas();
+          setMensagemLancamentoTipo("erro");
+          setMensagemLancamento(
+            typeof payload.error === "string"
+              ? payload.error
+              : "Não foi possível lançar a fatura da diária."
+          );
+          return;
+        }
+        lancamentosCriados.push(payload as Lancamento);
+        marcadas.push({
+          chave: diaria.chave,
+          id: String(payload.id),
+          status: diariaRecebida ? "pago" : "faturada",
+        });
+      }
+      persistirDiariasFaturadas();
+    }
     if (!mensagemLancamento || mensagemLancamentoTipo !== "erro") {
       if (
         alterarEntregue &&
         trabalhosSelecionados.length > 0 &&
-        (deveCriarFaturaReceber || creditoAplicado > 0)
+        (criarFaturaOsOuSemOs || creditoAplicado > 0)
       ) {
         await marcarOsFaturadasComoEntregues();
       }
       if (
         enviarControleEntrega &&
         trabalhosSelecionados.length > 0 &&
-        (deveCriarFaturaReceber || creditoAplicado > 0)
+        (criarFaturaOsOuSemOs || creditoAplicado > 0)
       ) {
         for (const trabalho of trabalhosSelecionados) {
           adicionarTrabalhoControleEntregasAutomatico(
@@ -1466,6 +1595,7 @@ function FinanceiroReceberConteudo() {
       recebido: false,
     });
     setOsSelecionadas([]);
+    setDiariasSelecionadas([]);
     void loadPosMutacao();
     } finally {
       saveEmAndamentoRef.current = false;
@@ -2564,13 +2694,23 @@ function FinanceiroReceberConteudo() {
     });
   }
 
+  function toggleDiariaReceita(chave: string) {
+    setDiariasSelecionadas((atuais) =>
+      atuais.includes(chave) ? atuais.filter((item) => item !== chave) : [...atuais, chave]
+    );
+  }
+
   function toggleSelecionarTodasReceita() {
     if (todasReceitaSelecionadas) {
       setOsSelecionadas((atuais) =>
         atuais.filter((id) => !idsReceitaVisiveis.includes(id))
       );
+      setDiariasSelecionadas((atuais) =>
+        atuais.filter((chave) => !chavesDiariasVisiveis.includes(chave))
+      );
     } else {
       setOsSelecionadas(idsReceitaVisiveis);
+      setDiariasSelecionadas(chavesDiariasVisiveis);
     }
   }
 
@@ -3863,6 +4003,11 @@ function FinanceiroReceberConteudo() {
             onClose={() => setModalNaoFaturados(false)}
             trabalhos={trabalhosNaoFaturadosAtivos}
             valorTrabalho={valorTrabalho}
+            diarias={
+              idsClientesAtivos.size === 0
+                ? diariasPendentes
+                : diariasPendentes.filter((diaria) => idsClientesAtivos.has(diaria.clienteId))
+            }
           />
         </Suspense>
       ) : null}
@@ -3883,6 +4028,10 @@ function FinanceiroReceberConteudo() {
             todasReceitaSelecionadas={todasReceitaSelecionadas}
             algumasReceitaSelecionadas={algumasReceitaSelecionadas}
             valorOsSelecionadas={valorOsSelecionadas}
+            diariasParaReceita={diariasParaReceita}
+            diariasSelecionadas={diariasSelecionadas}
+            toggleDiariaReceita={toggleDiariaReceita}
+            valorDiariasSelecionadas={valorDiariasSelecionadas}
             totalLiquido={totalLiquido}
             creditoDisponivel={creditoDisponivelReceita}
             debitoAberto={debitoAbertoReceita}
@@ -3891,7 +4040,10 @@ function FinanceiroReceberConteudo() {
             formaSelecionadaEhBoleto={formaSelecionadaEhBoleto}
             pixAsaasDisponivel={pixAsaasDisponivel}
             valorTrabalho={valorTrabalho}
-            onLimparOsSelecionadas={() => setOsSelecionadas([])}
+            onLimparOsSelecionadas={() => {
+              setOsSelecionadas([]);
+              setDiariasSelecionadas([]);
+            }}
             money={money}
             currency={currency}
             formatDecimalInput={formatDecimalInput}

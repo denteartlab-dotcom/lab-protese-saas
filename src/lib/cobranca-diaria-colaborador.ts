@@ -16,10 +16,6 @@ type LancamentoReceita = {
   cliente?: { id?: string; nome?: string } | null;
 };
 
-function clienteDoLancamento(lancamento: LancamentoReceita) {
-  return lancamento.cliente?.id || lancamento.clienteId || "";
-}
-
 async function listarReceitas(): Promise<LancamentoReceita[]> {
   const res = await fetch("/api/financeiro?tipo=receita", { credentials: "same-origin" });
   if (!res.ok) {
@@ -74,7 +70,6 @@ export async function sincronizarCobrancaDiariaColaborador(opts: {
     throw new Error("SEM_VALOR");
   }
 
-  const descricao = descricaoCobrancaDiariaColaborador(colaborador, mesCompetencia);
   const existente = await localizarCobrancaDiaria(opts.store, colaborador, mesCompetencia);
   const ref = {
     clienteId,
@@ -90,62 +85,21 @@ export async function sincronizarCobrancaDiariaColaborador(opts: {
     throw erro;
   }
 
-  const clienteAtual = existente ? clienteDoLancamento(existente) : "";
-  if (existente?.id && clienteAtual && clienteAtual !== clienteId && existente.status !== "pago") {
+  // Fatura antiga e ainda em aberto volta para os finalizados: a cobrança não gera fatura.
+  if (existente?.id && existente.status !== "cancelado") {
     const removida = await fetch(`/api/financeiro/${existente.id}`, {
       method: "DELETE",
       credentials: "same-origin",
     });
     if (!removida.ok) {
-      throw new Error("Não foi possível trocar o cliente da fatura da diária.");
+      throw new Error("Não foi possível devolver a diária aos finalizados.");
     }
-  } else if (existente?.id) {
-    const res = await fetch(`/api/financeiro/${existente.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      credentials: "same-origin",
-      body: JSON.stringify({
-        descricao,
-        valor,
-        data: dataVencimento,
-        status: existente.status === "cancelado" ? "pendente" : existente.status || "pendente",
-      }),
-    });
-    if (!res.ok) {
-      throw new Error("Não foi possível atualizar a fatura da diária.");
-    }
-    const atualizado = (await res.json()) as LancamentoReceita;
-    return registrarCobrancaDiariaStore(opts.store, colaborador, mesCompetencia, {
-      id: atualizado.id || existente.id,
-      status: atualizado.status || "pendente",
-      ...ref,
-    });
   }
 
-  const res = await fetch("/api/financeiro", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "same-origin",
-    body: JSON.stringify({
-      tipo: "receita",
-      clienteId,
-      descricao,
-      valor,
-      data: dataVencimento,
-      status: "pendente",
-    }),
-  });
-  if (!res.ok) {
-    throw new Error("Não foi possível gerar a fatura da diária.");
-  }
-  const criado = (await res.json()) as LancamentoReceita & { lancamentos?: LancamentoReceita[] };
-  const lancamento = criado.id ? criado : criado.lancamentos?.[0];
-  if (!lancamento?.id) {
-    throw new Error("Não foi possível gerar a fatura da diária.");
-  }
   return registrarCobrancaDiariaStore(opts.store, colaborador, mesCompetencia, {
-    id: lancamento.id,
-    status: lancamento.status || "pendente",
+    status: "pendente",
+    valor,
+    dataVencimento,
     ...ref,
   });
 }

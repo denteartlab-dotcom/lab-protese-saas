@@ -90,13 +90,27 @@ export type DespesaDiariaRef = {
 };
 
 export type CobrancaDiariaRef = {
-  id: string;
+  /** Id do lançamento só depois que a diária vira fatura. Pendente não tem id. */
+  id?: string;
   status?: string;
   clienteId: string;
   clienteNome?: string;
   colaboradorId?: string;
   colaboradorNome?: string;
   mesCompetencia?: string;
+  valor?: number;
+  dataVencimento?: string;
+};
+
+export type DiariaPendenteReceita = {
+  chave: string;
+  clienteId: string;
+  clienteNome: string;
+  colaboradorNome: string;
+  mesCompetencia: string;
+  valor: number;
+  descricao: string;
+  dataVencimento: string;
 };
 
 export type DiariasStore = {
@@ -210,6 +224,61 @@ export function registrarCobrancaDiariaStore(
       [referenciaCobrancaDiariaColaborador(colaboradorNome, mesCompetencia)]: cobranca,
     },
   };
+}
+
+function cobrancaDiariaJaFaturada(
+  cobranca: CobrancaDiariaRef,
+  lancamentoIdsAtivos?: ReadonlySet<string>
+) {
+  if (!cobranca.id) return false;
+  if (!lancamentoIdsAtivos) return true;
+  return lancamentoIdsAtivos.has(cobranca.id);
+}
+
+/** Diárias escolhidas para um cliente e ainda sem fatura em Contas a receber. */
+export function listarDiariasPendentesReceita(
+  store: DiariasStore,
+  lancamentoIdsAtivos?: ReadonlySet<string>
+): DiariaPendenteReceita[] {
+  const saida: DiariaPendenteReceita[] = [];
+  for (const [chave, cobranca] of Object.entries(store.cobrancas || {})) {
+    if (!cobranca?.clienteId) continue;
+    const status = (cobranca.status || "pendente").toLowerCase();
+    if (status === "pago" || status === "cancelado") continue;
+    const valor = Math.round((Number(cobranca.valor) || 0) * 100) / 100;
+    if (valor <= 0) continue;
+    if (cobrancaDiariaJaFaturada(cobranca, lancamentoIdsAtivos)) continue;
+    const colaboradorNome = cobranca.colaboradorNome?.trim() || "Colaborador";
+    const mesCompetencia = cobranca.mesCompetencia || chave.split(":").pop() || "";
+    saida.push({
+      chave,
+      clienteId: cobranca.clienteId,
+      clienteNome: cobranca.clienteNome?.trim() || "",
+      colaboradorNome,
+      mesCompetencia,
+      valor,
+      descricao: descricaoCobrancaDiariaColaborador(colaboradorNome, mesCompetencia),
+      dataVencimento: cobranca.dataVencimento || dataFimMesCompetencia(mesCompetencia),
+    });
+  }
+  return saida.sort((a, b) => a.descricao.localeCompare(b.descricao, "pt-BR"));
+}
+
+export function marcarCobrancasDiariasFaturadas(
+  store: DiariasStore,
+  itens: { chave: string; id: string; status?: string }[]
+): DiariasStore {
+  const cobrancas = { ...(store.cobrancas || {}) };
+  for (const item of itens) {
+    const atual = cobrancas[item.chave];
+    if (!atual || !item.id) continue;
+    cobrancas[item.chave] = {
+      ...atual,
+      id: item.id,
+      status: item.status || "faturada",
+    };
+  }
+  return { ...store, cobrancas };
 }
 
 export function removerDespesaDiariaStore(
@@ -1128,7 +1197,7 @@ export function sincronizarDiariasStoreNoCadastro(store: DiariasStore) {
   void persistirArmazenamentoImediato(COLABORADORES_STORAGE_KEY, atualizados);
 }
 
-function normalizarStore(raw: Partial<DiariasStore> | null | undefined): DiariasStore {
+export function normalizarStore(raw: Partial<DiariasStore> | null | undefined): DiariasStore {
   const configs: Record<string, ConfigDiariaColaborador> = {};
   if (raw?.configs && typeof raw.configs === "object") {
     for (const [id, config] of Object.entries(raw.configs)) {
@@ -1173,15 +1242,21 @@ function normalizarStore(raw: Partial<DiariasStore> | null | undefined): Diarias
   const cobrancas: Record<string, CobrancaDiariaRef> = {};
   if (raw?.cobrancas && typeof raw.cobrancas === "object") {
     for (const [chave, cobranca] of Object.entries(raw.cobrancas)) {
-      if (!cobranca?.id || !cobranca.clienteId) continue;
+      const clienteId = cobranca?.clienteId?.trim() || "";
+      if (!clienteId) continue;
+      const id = cobranca.id?.trim() || "";
+      const valor = Math.round((Number(cobranca.valor) || 0) * 100) / 100;
+      if (!id && valor <= 0) continue;
       cobrancas[chave] = {
-        id: cobranca.id,
+        ...(id ? { id } : {}),
         status: cobranca.status,
-        clienteId: cobranca.clienteId,
+        clienteId,
         clienteNome: cobranca.clienteNome,
         colaboradorId: cobranca.colaboradorId,
         colaboradorNome: cobranca.colaboradorNome,
         mesCompetencia: cobranca.mesCompetencia,
+        ...(valor > 0 ? { valor } : {}),
+        ...(cobranca.dataVencimento ? { dataVencimento: cobranca.dataVencimento } : {}),
       };
     }
   }

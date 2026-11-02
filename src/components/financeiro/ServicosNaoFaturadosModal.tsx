@@ -12,6 +12,7 @@ import { PaginacaoLista } from "@/components/listagem/PaginacaoLista";
 import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
 import { gerarRelatorioTabelaPdf } from "@/lib/pdf-relatorio-tabela";
 import { expandirTrabalhosNaoFaturadosLinhas } from "@/lib/trabalho-os-segmento";
+import type { DiariaPendenteReceita } from "@/lib/diarias-colaboradores";
 
 export type TrabalhoNaoFaturado = TrabalhoSituacaoBadge & {
   valor?: number;
@@ -27,6 +28,21 @@ type Props = {
   onClose: () => void;
   trabalhos: TrabalhoNaoFaturado[];
   valorTrabalho: (trabalho: TrabalhoNaoFaturado) => number;
+  diarias?: DiariaPendenteReceita[];
+};
+
+type LinhaTabela = {
+  id: string;
+  os: string;
+  cliente: string;
+  servico: string;
+  qtd: string;
+  paciente: string;
+  dentes: string;
+  cor: string;
+  valor: number;
+  situacao: string;
+  trabalho?: TrabalhoNaoFaturado;
 };
 
 const LINHAS_POR_PAGINA = 15;
@@ -46,39 +62,60 @@ function valorLinhaNaoFaturada(
   return valorTrabalho(linha.trabalho);
 }
 
+function rotuloDiaria(diaria: DiariaPendenteReceita) {
+  return diaria.descricao.replace(/^Cobrança sem O\.S\.\s*-?\s*/i, "").trim() || diaria.descricao;
+}
+
 export function ServicosNaoFaturadosModal({
   open,
   onClose,
   trabalhos,
   valorTrabalho,
+  diarias = [],
 }: Props) {
   const [busca, setBusca] = useState("");
   const [pagina, setPagina] = useState(1);
 
-  const linhas = useMemo(
-    () => expandirTrabalhosNaoFaturadosLinhas(trabalhos),
-    [trabalhos]
-  );
+  const linhas = useMemo(() => expandirTrabalhosNaoFaturadosLinhas(trabalhos), [trabalhos]);
+
+  const tabela = useMemo<LinhaTabela[]>(() => {
+    const os: LinhaTabela[] = linhas.map((linha) => ({
+      id: linha.id,
+      os: String(linha.trabalho.numeroOs),
+      cliente: linha.trabalho.cliente?.nome || "—",
+      servico: linha.servico,
+      qtd: linha.qtd,
+      paciente: linha.trabalho.paciente?.nome || "—",
+      dentes: linha.dentes || "",
+      cor: linha.cor || "",
+      valor: valorLinhaNaoFaturada(linha, valorTrabalho),
+      situacao: labelSituacaoOsReceita(linha.trabalho),
+      trabalho: linha.trabalho,
+    }));
+    const extras: LinhaTabela[] = diarias.map((diaria) => ({
+      id: diaria.chave,
+      os: "—",
+      cliente: diaria.clienteNome || "—",
+      servico: rotuloDiaria(diaria),
+      qtd: "1",
+      paciente: diaria.colaboradorNome || "—",
+      dentes: "",
+      cor: "",
+      valor: diaria.valor,
+      situacao: "Diária",
+    }));
+    return [...os, ...extras];
+  }, [linhas, diarias, valorTrabalho]);
 
   const filtrados = useMemo(() => {
     const termo = busca.trim().toLowerCase();
-    if (!termo) return linhas;
-    return linhas.filter((linha) => {
-      const situacao = labelSituacaoOsReceita(linha.trabalho).toLowerCase();
-      return [
-        linha.trabalho.numeroOs,
-        linha.trabalho.cliente?.nome,
-        linha.trabalho.paciente?.nome,
-        linha.servico,
-        linha.qtd,
-        linha.dentes,
-        linha.cor,
-        situacao,
-      ]
+    if (!termo) return tabela;
+    return tabela.filter((linha) =>
+      [linha.os, linha.cliente, linha.paciente, linha.servico, linha.qtd, linha.dentes, linha.cor, linha.situacao]
         .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(termo));
-    });
-  }, [linhas, busca]);
+        .some((value) => String(value).toLowerCase().includes(termo))
+    );
+  }, [tabela, busca]);
 
   const totalPaginas = Math.max(1, Math.ceil(filtrados.length / LINHAS_POR_PAGINA));
   const paginaAtual = Math.min(pagina, totalPaginas);
@@ -90,7 +127,7 @@ export function ServicosNaoFaturadosModal({
 
   useEffect(() => {
     setPagina(1);
-  }, [busca, trabalhos]);
+  }, [busca, trabalhos, diarias]);
 
   async function abrirPdfVisualizador(janelaReservada: Window | null) {
     try {
@@ -109,15 +146,15 @@ export function ServicosNaoFaturadosModal({
           { titulo: "Situação", larguraMm: 20, alinhamento: "center" },
         ],
         linhas: filtrados.map((linha) => [
-          String(linha.trabalho.numeroOs),
-          linha.trabalho.cliente?.nome || "—",
+          linha.os,
+          linha.cliente,
           linha.servico,
           linha.qtd,
-          linha.trabalho.paciente?.nome || "—",
+          linha.paciente,
           linha.dentes || "—",
           linha.cor || "—",
-          money(valorLinhaNaoFaturada(linha, valorTrabalho)),
-          labelSituacaoOsReceita(linha.trabalho),
+          money(linha.valor),
+          linha.situacao,
         ]),
       });
       abrirPdfNoVisualizador(
@@ -229,7 +266,7 @@ export function ServicosNaoFaturadosModal({
                     colSpan={9}
                     className="px-3 py-10 text-center text-[13px] text-[#9ca3af]"
                   >
-                    Nenhum serviço entregue/finalizado pendente de faturamento.
+                    Nenhum serviço entregue/finalizado ou diária pendente de faturamento.
                   </td>
                 </tr>
               ) : (
@@ -238,24 +275,24 @@ export function ServicosNaoFaturadosModal({
                     key={linha.id}
                     className="border-b border-[#f3f4f6] hover:bg-[#fafafa]"
                   >
-                    <td className="px-3 py-2.5 text-[#374151]">{linha.trabalho.numeroOs}</td>
-                    <td className="px-3 py-2.5 text-[#374151]">
-                      {linha.trabalho.cliente?.nome || "—"}
-                    </td>
+                    <td className="px-3 py-2.5 text-[#374151]">{linha.os}</td>
+                    <td className="px-3 py-2.5 text-[#374151]">{linha.cliente}</td>
                     <td className="px-3 py-2.5 text-[#374151]">{linha.servico}</td>
                     <td className="px-3 py-2.5 text-center tabular-nums text-[#374151]">
                       {linha.qtd}
                     </td>
-                    <td className="px-3 py-2.5 text-[#374151]">
-                      {linha.trabalho.paciente?.nome || "—"}
-                    </td>
-                    <td className="px-3 py-2.5 text-[#374151]">{linha.dentes || ""}</td>
-                    <td className="px-3 py-2.5 text-[#374151]">{linha.cor || ""}</td>
-                    <td className="px-3 py-2.5 text-right text-[#374151]">
-                      {money(valorLinhaNaoFaturada(linha, valorTrabalho))}
-                    </td>
+                    <td className="px-3 py-2.5 text-[#374151]">{linha.paciente}</td>
+                    <td className="px-3 py-2.5 text-[#374151]">{linha.dentes}</td>
+                    <td className="px-3 py-2.5 text-[#374151]">{linha.cor}</td>
+                    <td className="px-3 py-2.5 text-right text-[#374151]">{money(linha.valor)}</td>
                     <td className="px-3 py-2.5 text-center">
-                      <SituacaoOsBadgeReceita trabalho={linha.trabalho} />
+                      {linha.trabalho ? (
+                        <SituacaoOsBadgeReceita trabalho={linha.trabalho} />
+                      ) : (
+                        <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+                          Diária
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))

@@ -37,6 +37,8 @@ import {
   formatarHoraDigitada,
   descricaoCobrancaDiariaColaborador,
   dataFimMesCompetencia,
+  listarDiariasPendentesReceita,
+  normalizarStore,
   normalizarConfigDiaria,
   limitarHoraNoPeriodo,
   PERIODO_MANHA_FIM,
@@ -90,7 +92,41 @@ assert.equal(
   descricaoCobrancaDiariaColaborador("Mateus Bonfim", "2026-10").startsWith("Cobrança sem O.S."),
   true
 );
-ok("cobrança da diária cai no mês vigente e entra em contas a receber");
+const storeCobranca = normalizarStore({
+  cobrancas: {
+    "diaria-cobranca:mateus-bonfim:2026-10": {
+      clienteId: "cli-1",
+      clienteNome: "Clinica Sul",
+      colaboradorNome: "Mateus Bonfim",
+      mesCompetencia: "2026-10",
+      valor: 150,
+      status: "pendente",
+    },
+    "diaria-cobranca:ana:2026-10": {
+      id: "lanc-1",
+      clienteId: "cli-1",
+      clienteNome: "Clinica Sul",
+      colaboradorNome: "Ana",
+      mesCompetencia: "2026-10",
+      valor: 80,
+      status: "faturada",
+    },
+    "diaria-cobranca:sem-valor:2026-10": {
+      clienteId: "cli-1",
+      valor: 0,
+      status: "pendente",
+    },
+  },
+});
+const pendentesDiaria = listarDiariasPendentesReceita(storeCobranca, new Set(["lanc-1"]));
+assert.equal(pendentesDiaria.length, 1);
+assert.equal(pendentesDiaria[0]?.clienteId, "cli-1");
+assert.equal(pendentesDiaria[0]?.valor, 150);
+assert.equal(pendentesDiaria[0]?.descricao.startsWith("Cobrança sem O.S."), true);
+const diariasSemFaturaViva = listarDiariasPendentesReceita(storeCobranca, new Set());
+assert.equal(diariasSemFaturaViva.length, 2);
+assert.equal(listarDiariasPendentesReceita(storeCobranca).length, 1);
+ok("cobrança da diária fica pendente nos finalizados até virar fatura separada");
 
 assert.equal(minutosLiquidosTurno("08:00", "18:00", 60), 540);
 assert.equal(horasTrabalhadas("08:00", "18:00", 60), 9);
