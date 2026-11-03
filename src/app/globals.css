@@ -617,6 +617,11 @@ html.modo-tv-producao {
     background-color: rgb(30 58 138 / 0.35);
   }
 
+  /* Lançar receita: linha selecionada. O texto claro do modo noturno some no verde-claro. */
+  .dark .bg-\[\#d4edda\] {
+    background-color: rgb(6 78 59 / 0.92);
+  }
+
   .dark .bg-\[\#eef2f6\] {
     background-color: #0f172a;
   }
