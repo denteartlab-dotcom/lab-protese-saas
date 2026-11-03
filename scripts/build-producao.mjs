@@ -12,6 +12,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { corrigirLoaderFonteGoogle } from "./patch-next-font-google.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const skipTypecheck =
@@ -77,6 +78,11 @@ console.log(
 );
 
 limparCacheNextSePreciso(totalMb, heapMb);
+
+const fonteGoogle = corrigirLoaderFonteGoogle(
+  path.join(root, "node_modules/next/dist/compiled/@next/font/dist/google/loader.js")
+);
+console.log(`    Fonte Google do Next: ${fonteGoogle}`);
 
 run("1/3 prisma generate", "npx", ["prisma", "generate"]);
 run(
