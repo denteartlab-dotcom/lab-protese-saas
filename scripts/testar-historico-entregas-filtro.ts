@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import {
+  aplicarEnderecoNoHistorico,
+  enderecoEtiquetaDeCadastro,
+  entregaControleDoHistorico,
   entregaParaHistorico,
   filtrarHistoricoEntregas,
+  mesclarHistorico,
   normalizarHistorico,
   type EntregaHistorico,
 } from "../src/lib/controle-entregas-historico-core";
@@ -18,6 +22,14 @@ function item(
     situacao: "entregue",
     valor: 0,
     ordensServico: [],
+    nomeDestinatario: "",
+    cep: "",
+    rua: "",
+    numeroEndereco: "",
+    cidade: "",
+    uf: "",
+    bairro: "",
+    complemento: "",
     ...parcial,
   };
 }
@@ -83,6 +95,14 @@ const pedido: EntregaControle = {
   situacao: "entregue",
   valor: 0,
   numeroOs: "123, 119",
+  nomeDestinatario: "João Piski",
+  cep: "18010-000",
+  rua: "Rua A",
+  numeroEndereco: "50",
+  cidade: "Sorocaba",
+  uf: "SP",
+  bairro: "Centro",
+  complemento: "Sala 2",
   ordensServico: [
     { numeroOs: "123", descricao: "Coroa", paciente: "Ana", trabalhoId: "t1" },
     { numeroOs: "119", descricao: "Prótese", paciente: "Ana", trabalhoId: "t2" },
@@ -95,5 +115,56 @@ assert.deepEqual(
   ["Coroa", "Prótese"]
 );
 assert.equal(normalizarHistorico(gravado)?.numeroOs, "123, 119");
+assert.equal(gravado.rua, "Rua A");
+assert.equal(gravado.numeroEndereco, "50");
+
+const reimpressao = entregaControleDoHistorico(gravado);
+assert.equal(reimpressao.numeroOs, "123, 119");
+assert.equal(reimpressao.rua, "Rua A");
+assert.equal(reimpressao.cep, "18010-000");
+assert.equal(reimpressao.nomeDestinatario, "João Piski");
+
+const antigoSemRua = normalizarHistorico({
+  id: "hist-33",
+  destinatario: "Delvani Freitas",
+  numeroOs: "33",
+  dataFinalizado: "2026-07-13T23:03:00.000Z",
+  situacao: "entregue",
+});
+assert.ok(antigoSemRua);
+assert.equal(antigoSemRua.rua, "");
+const doCadastro = aplicarEnderecoNoHistorico(
+  antigoSemRua,
+  enderecoEtiquetaDeCadastro({
+    nome: "Delvani Freitas",
+    endereco: "Rua B, 10, Centro",
+    cidade: "Sorocaba",
+    uf: "sp",
+    cep: "18000-000",
+  })
+);
+assert.equal(doCadastro.rua, "Rua B");
+assert.equal(doCadastro.numeroEndereco, "10");
+assert.equal(doCadastro.bairro, "Centro");
+assert.equal(doCadastro.cidade, "Sorocaba");
+assert.equal(doCadastro.uf, "SP");
+assert.equal(
+  aplicarEnderecoNoHistorico(gravado, enderecoEtiquetaDeCadastro({ rua: "Rua Z" })).rua,
+  "Rua A"
+);
+
+const mesclado = mesclarHistorico(
+  [gravado],
+  [
+    item({
+      id: gravado.id,
+      destinatario: gravado.destinatario,
+      dataFinalizado: gravado.dataFinalizado,
+      numeroOs: gravado.numeroOs,
+    }),
+  ]
+);
+assert.equal(mesclado[0]?.rua, "Rua A");
+assert.equal(mesclado[0]?.cep, "18010-000");
 
 console.log("filtro do historico de entregas ok");

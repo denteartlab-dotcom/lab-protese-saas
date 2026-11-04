@@ -1,4 +1,5 @@
 import { type EntregaControle } from "@/lib/controle-entregas";
+import { partesEnderecoCliente } from "@/lib/cliente-endereco";
 import { parseBrDate } from "@/lib/datas-br";
 import {
   aplicarEspelhoServidor,
@@ -18,7 +19,18 @@ export type OsHistoricoEntrega = {
   paciente: string;
 };
 
-export type EntregaHistorico = {
+export type EnderecoEtiquetaHistorico = {
+  nomeDestinatario: string;
+  cep: string;
+  rua: string;
+  numeroEndereco: string;
+  cidade: string;
+  uf: string;
+  bairro: string;
+  complemento: string;
+};
+
+export type EntregaHistorico = EnderecoEtiquetaHistorico & {
   id: string;
   numeroOs: string;
   destinatario: string;
@@ -30,6 +42,91 @@ export type EntregaHistorico = {
   valor: number;
   ordensServico: OsHistoricoEntrega[];
 };
+
+function textoEndereco(valor: unknown) {
+  return String(valor ?? "").trim();
+}
+
+export function enderecoEtiquetaDoRegistro(
+  item: Partial<EnderecoEtiquetaHistorico> | null | undefined
+): EnderecoEtiquetaHistorico {
+  return {
+    nomeDestinatario: textoEndereco(item?.nomeDestinatario),
+    cep: textoEndereco(item?.cep),
+    rua: textoEndereco(item?.rua),
+    numeroEndereco: textoEndereco(item?.numeroEndereco),
+    cidade: textoEndereco(item?.cidade),
+    uf: textoEndereco(item?.uf).toUpperCase().slice(0, 2),
+    bairro: textoEndereco(item?.bairro),
+    complemento: textoEndereco(item?.complemento),
+  };
+}
+
+export function historicoTemEnderecoEtiqueta(
+  item: Partial<EnderecoEtiquetaHistorico> | null | undefined
+) {
+  const endereco = enderecoEtiquetaDoRegistro(item);
+  return Boolean(
+    endereco.rua ||
+      endereco.numeroEndereco ||
+      endereco.bairro ||
+      endereco.complemento ||
+      endereco.cidade ||
+      endereco.cep
+  );
+}
+
+/** Mantém o endereço já gravado quando uma sincronização chega sem ele. */
+function unirEnderecoEtiqueta(
+  preferido: EntregaHistorico,
+  reserva: EntregaHistorico
+): EntregaHistorico {
+  const endereco = historicoTemEnderecoEtiqueta(preferido)
+    ? enderecoEtiquetaDoRegistro(preferido)
+    : enderecoEtiquetaDoRegistro(reserva);
+  return {
+    ...preferido,
+    ...endereco,
+    nomeDestinatario: preferido.nomeDestinatario || reserva.nomeDestinatario,
+  };
+}
+
+export function enderecoEtiquetaDeCadastro(cadastro: {
+  nome?: string | null;
+  cep?: string | null;
+  rua?: string | null;
+  numero?: string | null;
+  endereco?: string | null;
+  cidade?: string | null;
+  uf?: string | null;
+  bairro?: string | null;
+  complemento?: string | null;
+  observacoes?: string | null;
+}): EnderecoEtiquetaHistorico {
+  const partes = partesEnderecoCliente(cadastro.observacoes, cadastro.endereco);
+  return enderecoEtiquetaDoRegistro({
+    nomeDestinatario: cadastro.nome,
+    cep: cadastro.cep,
+    rua: textoEndereco(cadastro.rua) || partes.rua,
+    numeroEndereco: textoEndereco(cadastro.numero) || partes.numero,
+    cidade: cadastro.cidade,
+    uf: cadastro.uf,
+    bairro: textoEndereco(cadastro.bairro) || partes.bairro,
+    complemento: textoEndereco(cadastro.complemento) || partes.complemento,
+  });
+}
+
+export function aplicarEnderecoNoHistorico(
+  item: EntregaHistorico,
+  endereco: Partial<EnderecoEtiquetaHistorico>
+): EntregaHistorico {
+  if (historicoTemEnderecoEtiqueta(item)) return item;
+  const preenchido = enderecoEtiquetaDoRegistro({
+    ...endereco,
+    nomeDestinatario: item.nomeDestinatario || endereco.nomeDestinatario || item.destinatario,
+  });
+  return { ...item, ...preenchido };
+}
 
 function ordensDoPedido(origem: {
   numeroOs?: string;
@@ -86,6 +183,10 @@ export function normalizarHistorico(item: Partial<EntregaHistorico>): EntregaHis
     situacao,
     valor: Number(item.valor) || 0,
     ordensServico,
+    ...enderecoEtiquetaDoRegistro({
+      ...item,
+      nomeDestinatario: item.nomeDestinatario || destinatario,
+    }),
   };
 }
 
@@ -133,6 +234,47 @@ export function entregaParaHistorico(
     situacao: opcoes.situacao,
     valor: Number(entrega.valor) || 0,
     ordensServico,
+    ...enderecoEtiquetaDoRegistro({
+      nomeDestinatario: entrega.nomeDestinatario || entrega.destinatario,
+      cep: entrega.cep,
+      rua: entrega.rua,
+      numeroEndereco: entrega.numeroEndereco,
+      cidade: entrega.cidade,
+      uf: entrega.uf,
+      bairro: entrega.bairro,
+      complemento: entrega.complemento,
+    }),
+  };
+}
+
+/** Remonta a entrega só para reimprimir a etiqueta que saiu naquele pedido. */
+export function entregaControleDoHistorico(item: EntregaHistorico): EntregaControle {
+  const endereco = enderecoEtiquetaDoRegistro(item);
+  return {
+    id: item.id,
+    dataPedido: item.dataFinalizado,
+    destinatario: item.destinatario,
+    entregador: item.entregador,
+    descricao: item.descricao,
+    dataFinalizado: item.dataFinalizado,
+    nomeRecebedor: item.nomeRecebedor || "",
+    situacao: item.situacao,
+    valor: item.valor,
+    numeroOs: item.numeroOs,
+    ordensServico: item.ordensServico.map((ordem) => ({
+      numeroOs: ordem.numeroOs,
+      descricao: ordem.descricao,
+      paciente: ordem.paciente,
+      trabalhoId: "",
+    })),
+    nomeDestinatario: endereco.nomeDestinatario || item.destinatario,
+    cep: endereco.cep,
+    rua: endereco.rua,
+    numeroEndereco: endereco.numeroEndereco,
+    cidade: endereco.cidade,
+    uf: endereco.uf,
+    bairro: endereco.bairro,
+    complemento: endereco.complemento,
   };
 }
 
@@ -146,15 +288,18 @@ export function mesclarHistorico(
       item.numeroOs &&
       [...mapa.values()].find((h) => h.numeroOs === item.numeroOs);
     if (existentePorOs && item.situacao === "recebido") {
+      const comEndereco = unirEnderecoEtiqueta(item, existentePorOs);
       mapa.set(existentePorOs.id, {
         ...existentePorOs,
+        ...enderecoEtiquetaDoRegistro(comEndereco),
         situacao: "recebido",
         nomeRecebedor: item.nomeRecebedor || existentePorOs.nomeRecebedor,
         dataFinalizado: item.dataFinalizado,
       });
       continue;
     }
-    mapa.set(item.id, item);
+    const anterior = mapa.get(item.id);
+    mapa.set(item.id, anterior ? unirEnderecoEtiqueta(item, anterior) : item);
   }
   return [...mapa.values()].sort(
     (a, b) => new Date(b.dataFinalizado).getTime() - new Date(a.dataFinalizado).getTime()

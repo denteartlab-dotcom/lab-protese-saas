@@ -19,12 +19,14 @@ type ImprimirEtiquetaEntregaModalProps = {
   open: boolean;
   entrega: EntregaControle | null;
   onClose: () => void;
+  layerClassName?: string;
 };
 
 export function ImprimirEtiquetaEntregaModal({
   open,
   entrega,
   onClose,
+  layerClassName,
 }: ImprimirEtiquetaEntregaModalProps) {
   const { t } = useI18n();
   const [config, setConfig] = useState<ConfiguracoesEtiquetaEntrega>(() =>
@@ -96,7 +98,13 @@ export function ImprimirEtiquetaEntregaModal({
   const destinatario = (entrega?.destinatario || "").trim();
 
   return (
-    <Modal open={open} onClose={onClose} title={t("producao.entregas.etiqueta.modalTitulo")} size="lg">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={t("producao.entregas.etiqueta.modalTitulo")}
+      size="lg"
+      layerClassName={layerClassName}
+    >
       {entrega ? (
         <div className="space-y-4">
           <div className="rounded-md border border-sky-200 bg-sky-50 px-4 py-3 text-center text-sm font-semibold text-sky-900">

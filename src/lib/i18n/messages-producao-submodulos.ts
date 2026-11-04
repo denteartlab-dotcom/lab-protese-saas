@@ -379,6 +379,7 @@ const pt = {
   "producao.entregas.historico.vazioFiltro":
     "Nenhuma entrega encontrada para este cliente ou período.",
   "producao.entregas.historico.verOs": "Ver OS e serviços",
+  "producao.entregas.historico.reimprimirEtiqueta": "Imprimir etiqueta novamente",
   "producao.entregas.historico.osServicos": "OS e serviços entregues",
   "producao.entregas.historico.semOs": "Nenhuma OS neste pedido de entrega.",
   "entrega.situacao.pendente": "Pendente",
@@ -773,6 +774,7 @@ const en: Record<keyof typeof pt, string> = {
   "producao.entregas.historico.vazioFiltro":
     "No deliveries found for this client or period.",
   "producao.entregas.historico.verOs": "View work orders and services",
+  "producao.entregas.historico.reimprimirEtiqueta": "Print the label again",
   "producao.entregas.historico.osServicos": "Delivered work orders and services",
   "producao.entregas.historico.semOs": "No work order in this delivery.",
   "entrega.situacao.pendente": "Pending",
@@ -1167,6 +1169,7 @@ const es: Record<keyof typeof pt, string> = {
   "producao.entregas.historico.vazioFiltro":
     "Ninguna entrega encontrada para este cliente o período.",
   "producao.entregas.historico.verOs": "Ver OS y servicios",
+  "producao.entregas.historico.reimprimirEtiqueta": "Imprimir la etiqueta de nuevo",
   "producao.entregas.historico.osServicos": "OS y servicios entregados",
   "producao.entregas.historico.semOs": "Ninguna OS en este pedido de entrega.",
   "entrega.situacao.pendente": "Pendiente",

@@ -7,9 +7,13 @@ import {
 export {
   ENTREGAS_HISTORICO_EVENT,
   ENTREGAS_HISTORICO_STORAGE_KEY,
+  aplicarEnderecoNoHistorico,
   carregarHistoricoEntregas,
+  enderecoEtiquetaDeCadastro,
+  entregaControleDoHistorico,
   entregaParaHistorico,
   excluirHistoricoEntrega,
+  historicoTemEnderecoEtiqueta,
   mesclarHistorico,
   normalizarHistorico,
   registrarHistoricoEntregas,
@@ -20,6 +24,7 @@ export {
 } from "@/lib/controle-entregas-historico-core";
 
 export {
+  entregaParaReimprimirEtiqueta,
   excluirHistoricoEntregaPersistido,
   imprimirHistoricoEntregas,
   labelSituacaoHistorico,

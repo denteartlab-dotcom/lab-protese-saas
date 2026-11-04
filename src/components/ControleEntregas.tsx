@@ -48,6 +48,7 @@ import {
   carregarHistoricoEntregas,
   filtrarHistoricoEntregas,
   ENTREGAS_HISTORICO_EVENT,
+  entregaParaReimprimirEtiqueta,
   excluirHistoricoEntregaPersistido,
   imprimirHistoricoEntregas,
   labelSituacaoHistorico,
@@ -133,6 +134,7 @@ export function ControleEntregas() {
   const [historicoExcluindo, setHistoricoExcluindo] = useState<EntregaHistorico | null>(null);
   const [historicoVisualizando, setHistoricoVisualizando] = useState<EntregaHistorico | null>(null);
   const [imprimindoHistorico, setImprimindoHistorico] = useState(false);
+  const [reimprimindoEtiquetaId, setReimprimindoEtiquetaId] = useState<string | null>(null);
   const [editando, setEditando] = useState<EntregaControle | null>(null);
   const [visualizando, setVisualizando] = useState<EntregaControle | null>(null);
   const [etiquetaImprimindo, setEtiquetaImprimindo] = useState<EntregaControle | null>(null);
@@ -341,6 +343,20 @@ export function ControleEntregas() {
       );
     } finally {
       setConfirmandoEnvio(false);
+    }
+  }
+
+  async function reimprimirEtiquetaDoHistorico(item: EntregaHistorico) {
+    if (reimprimindoEtiquetaId) return;
+    setReimprimindoEtiquetaId(item.id);
+    try {
+      const entrega = await entregaParaReimprimirEtiqueta(item);
+      setHistoricoVisualizando(null);
+      setEtiquetaImprimindo(entrega);
+    } catch (err) {
+      console.error("[controle-entregas] reimprimir etiqueta", err);
+    } finally {
+      setReimprimindoEtiquetaId(null);
     }
   }
 
@@ -656,6 +672,7 @@ export function ControleEntregas() {
         open={Boolean(etiquetaImprimindo)}
         entrega={etiquetaImprimindo}
         onClose={() => setEtiquetaImprimindo(null)}
+        layerClassName={historicoAberto ? "z-[70]" : undefined}
       />
 
       <SituacaoEntregaModal
@@ -778,6 +795,15 @@ export function ControleEntregas() {
                           </button>
                           <button
                             type="button"
+                            onClick={() => void reimprimirEtiquetaDoHistorico(item)}
+                            disabled={reimprimindoEtiquetaId === item.id}
+                            className="rounded p-1 hover:bg-slate-100 hover:text-blue-600 disabled:opacity-50"
+                            title={t("producao.entregas.historico.reimprimirEtiqueta")}
+                          >
+                            <Printer className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => {
                               fecharCamadasEntrega();
                               setHistoricoExcluindo(item);
@@ -842,9 +868,20 @@ export function ControleEntregas() {
                 </table>
               </div>
             )}
-            <Button type="button" size="sm" variant="outline" onClick={() => setHistoricoVisualizando(null)}>
-              {t("common.fechar")}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => void reimprimirEtiquetaDoHistorico(historicoVisualizando)}
+                disabled={reimprimindoEtiquetaId === historicoVisualizando.id}
+              >
+                <Printer className="h-3.5 w-3.5" />
+                {t("producao.entregas.historico.reimprimirEtiqueta")}
+              </Button>
+              <Button type="button" size="sm" variant="outline" onClick={() => setHistoricoVisualizando(null)}>
+                {t("common.fechar")}
+              </Button>
+            </div>
           </div>
         ) : null}
       </Modal>

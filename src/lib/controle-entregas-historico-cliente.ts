@@ -1,10 +1,15 @@
-import { formatarDataHoraEntrega } from "@/lib/controle-entregas";
+import { formatarDataHoraEntrega, type EntregaControle } from "@/lib/controle-entregas";
+import { readStorage } from "@/lib/persisted-storage";
 import { abrirPdfBlobGerandoNoVisualizadorUnificado } from "@/lib/pdf-viewer-unificado";
 import {
+  aplicarEnderecoNoHistorico,
   carregarHistoricoEntregas,
+  enderecoEtiquetaDeCadastro,
+  entregaControleDoHistorico,
   ENTREGAS_HISTORICO_EVENT,
   ENTREGAS_HISTORICO_STORAGE_KEY,
   excluirHistoricoEntrega,
+  historicoTemEnderecoEtiqueta,
   mesclarHistorico,
   normalizarHistorico,
   sincronizarHistoricoEntregasCliente,
@@ -15,8 +20,12 @@ import {
 export {
   ENTREGAS_HISTORICO_EVENT,
   ENTREGAS_HISTORICO_STORAGE_KEY,
+  aplicarEnderecoNoHistorico,
   carregarHistoricoEntregas,
+  enderecoEtiquetaDeCadastro,
+  entregaControleDoHistorico,
   filtrarHistoricoEntregas,
+  historicoTemEnderecoEtiqueta,
   entregaParaHistorico,
   excluirHistoricoEntrega,
   mesclarHistorico,
@@ -30,6 +39,61 @@ export {
 
 export function labelSituacaoHistorico(situacao: SituacaoHistoricoEntrega) {
   return situacao === "recebido" ? "Recebido pelo cliente" : "Entregue ao cliente";
+}
+
+const FORNECEDORES_STORAGE_KEY = "labProteseFornecedores";
+
+type CadastroComEndereco = {
+  nome?: string | null;
+  cep?: string | null;
+  rua?: string | null;
+  numero?: string | null;
+  endereco?: string | null;
+  cidade?: string | null;
+  uf?: string | null;
+  bairro?: string | null;
+  complemento?: string | null;
+  observacoes?: string | null;
+};
+
+function mesmoNome(a: string, b: string) {
+  return a.trim().toLocaleLowerCase("pt-BR") === b.trim().toLocaleLowerCase("pt-BR");
+}
+
+function cadastroPeloNome(lista: CadastroComEndereco[], nome: string) {
+  return lista.find((item) => item.nome && mesmoNome(item.nome, nome));
+}
+
+async function buscarEnderecoCadastroPorNome(nome: string) {
+  const alvo = nome.trim();
+  if (!alvo || typeof window === "undefined") return null;
+
+  try {
+    const res = await fetch("/api/clientes", { cache: "no-store", credentials: "same-origin" });
+    if (res.ok) {
+      const data = (await res.json()) as CadastroComEndereco[];
+      const cliente = Array.isArray(data) ? cadastroPeloNome(data, alvo) : undefined;
+      if (cliente) return enderecoEtiquetaDeCadastro(cliente);
+    }
+  } catch {
+    /* segue para o cadastro local de fornecedor */
+  }
+
+  const fornecedores = readStorage<CadastroComEndereco[]>(FORNECEDORES_STORAGE_KEY, []);
+  const fornecedor = Array.isArray(fornecedores) ? cadastroPeloNome(fornecedores, alvo) : undefined;
+  return fornecedor ? enderecoEtiquetaDeCadastro(fornecedor) : null;
+}
+
+/** Entrega do histórico pronta para a mesma impressão de etiqueta da lista. */
+export async function entregaParaReimprimirEtiqueta(
+  item: EntregaHistorico
+): Promise<EntregaControle> {
+  let atual = item;
+  if (!historicoTemEnderecoEtiqueta(item)) {
+    const endereco = await buscarEnderecoCadastroPorNome(item.destinatario);
+    if (endereco) atual = aplicarEnderecoNoHistorico(item, endereco);
+  }
+  return entregaControleDoHistorico(atual);
 }
 
 export function textoHistoricoEntrega(item: EntregaHistorico) {
