@@ -1248,13 +1248,6 @@ export default function ControlePage() {
   }, [busca, status, dataEntrada, embedAgenda]);
 
   useEffect(() => {
-    if (!editando) return;
-    const html = document.documentElement;
-    html.classList.add("site-zoom-full");
-    return () => html.classList.remove("site-zoom-full");
-  }, [editando]);
-
-  useEffect(() => {
     if (typeof window === "undefined") return;
     try {
       const produtosSalvo =
@@ -3914,7 +3907,7 @@ export default function ControlePage() {
             className={
               embedAgenda
                 ? "flex h-full w-full flex-col overflow-hidden bg-white"
-                : "flex max-h-[94vh] w-full max-w-[96vw] flex-col overflow-hidden rounded border border-slate-200 bg-white shadow-xl"
+                : "flex max-h-[88vh] w-full max-w-[1200px] flex-col overflow-hidden rounded border border-slate-200 bg-white shadow-xl"
             }
           >
             <div className="relative shrink-0 border-b border-slate-100 px-4 py-3 text-center">

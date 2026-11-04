@@ -540,7 +540,6 @@ export function ControleEntregas() {
         </div>
 
         <FormularioRotaEntregaModal
-          embutido
           open={modalAberto}
           editando={editando}
           onClose={fecharModalRota}

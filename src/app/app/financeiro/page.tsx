@@ -3352,7 +3352,6 @@ function FinanceiroReceberConteudo() {
           >
             {pixQrRecebimento ? (
               <PixQrRecebimentoModal
-                embutido
                 open
                 onClose={() => setPixQrRecebimento(null)}
                 dados={pixQrRecebimento}
@@ -3360,7 +3359,6 @@ function FinanceiroReceberConteudo() {
               />
             ) : itensFatura ? (
               <ItensFaturaModalLazy
-                embutido
                 open
                 onClose={() => setItensFatura(null)}
                 linhas={linhasItensFaturaFromTrabalhos(trabalhosDaFatura(itensFatura), formatDate)}
@@ -3467,7 +3465,6 @@ function FinanceiroReceberConteudo() {
           >
             {pixQrRecebimento ? (
               <PixQrRecebimentoModal
-                embutido
                 open
                 onClose={() => setPixQrRecebimento(null)}
                 dados={pixQrRecebimento}
@@ -3476,7 +3473,6 @@ function FinanceiroReceberConteudo() {
             ) : itensFatura ? (
               <Suspense fallback={null}>
                 <ItensFaturaModalLazy
-                  embutido
                   open
                   onClose={() => setItensFatura(null)}
                   linhas={linhasItensFaturaFromTrabalhos(
@@ -3488,7 +3484,6 @@ function FinanceiroReceberConteudo() {
             ) : recebendoCliente ? (
               <Suspense fallback={null}>
                 <LancarRecebimentoModalLazy
-                  embutido
                   open
                   onClose={() => setRecebendoCliente(null)}
                   clienteNome={recebendoCliente.nome}

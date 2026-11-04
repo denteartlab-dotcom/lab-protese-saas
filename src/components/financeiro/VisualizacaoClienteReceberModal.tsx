@@ -1426,20 +1426,15 @@ export function VisualizacaoClienteReceberModal({
           </div>
         ) : null}
         {whatsappExtratoAberto ? (
-          <div className="absolute inset-0 z-30 overflow-auto bg-white">
-            <EnviarExtratoWhatsappModal
-              open
-              onClose={() => setWhatsappExtratoAberto(false)}
-              clienteNome={cliente.nome}
-              telefoneInicial={clienteTelefone}
-              gerarPdf={gerarExtratoPdfBlob}
-              embutido
-            />
-          </div>
+          <EnviarExtratoWhatsappModal
+            open
+            onClose={() => setWhatsappExtratoAberto(false)}
+            clienteNome={cliente.nome}
+            telefoneInicial={clienteTelefone}
+            gerarPdf={gerarExtratoPdfBlob}
+          />
         ) : null}
-        {children ? (
-          <div className="absolute inset-0 z-40 overflow-auto bg-white">{children}</div>
-        ) : null}
+        {children}
       </div>
     </div>
     </I18nPortal>,

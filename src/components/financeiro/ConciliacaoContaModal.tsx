@@ -454,7 +454,6 @@ export function ConciliacaoContaModal({
         contasBancarias={contas
           .filter((c) => !c.excluida)
           .map((c) => ({ nome: c.nome }))}
-        embutido
         salvando={salvandoProcedimento}
       />
     ) : (
@@ -472,7 +471,6 @@ export function ConciliacaoContaModal({
         contasBancarias={contas
           .filter((c) => !c.excluida)
           .map((c) => ({ nome: c.nome }))}
-        embutido
         salvando={salvandoProcedimento}
       />
     )

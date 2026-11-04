@@ -261,7 +261,7 @@ export function HorarioFuncionamentoEditor({
       ) : null}
 
       <Modal
-        open={feriadosAberto && diaIntervaloIdx === null}
+        open={feriadosAberto}
         onClose={() => setFeriadosAberto(false)}
         title="Configurar Feriados"
         size="md"

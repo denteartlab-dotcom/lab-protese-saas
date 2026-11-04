@@ -644,9 +644,7 @@ export function LancarRecebimentoModal({
             Fechar
           </button>
         </div>
-        {children ? (
-          <div className="absolute inset-0 z-20 overflow-auto bg-white">{children}</div>
-        ) : null}
+        {children}
       </div>
     </div>
     </I18nPortal>

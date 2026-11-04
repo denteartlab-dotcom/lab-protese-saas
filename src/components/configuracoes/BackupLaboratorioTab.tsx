@@ -244,8 +244,6 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
       }
       setGdriveAuthUrl(data.authUrl);
       setGdriveCode("");
-      setModalPastaBackupAberto(false);
-      setModalPadraoAberto(false);
       setModalGdriveAberto(true);
       window.open(data.authUrl, "_blank", "noopener,noreferrer");
     } catch {
@@ -589,11 +587,7 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                       type="button"
                       variant="outline"
                       disabled={salvandoAuto}
-                      onClick={() => {
-                        setModalGdriveAberto(false);
-                        setModalPadraoAberto(false);
-                        setModalPastaBackupAberto(true);
-                      }}
+                      onClick={() => setModalPastaBackupAberto(true)}
                       className="inline-flex items-center gap-2 rounded border-emerald-300 bg-white px-4 py-2 text-sm text-emerald-900 hover:bg-emerald-50 dark:border-emerald-700 dark:bg-slate-800 dark:text-emerald-200 dark:hover:bg-emerald-950/50"
                     >
                       <FolderOpen className="h-4 w-4" />
@@ -790,8 +784,6 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                     type="button"
                     variant="outline"
                     onClick={() => {
-                      setModalGdriveAberto(false);
-                      setModalPastaBackupAberto(false);
                       setModalPadraoPreset(undefined);
                       setModalPadraoAberto(true);
                     }}
@@ -803,8 +795,6 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
                     type="button"
                     variant="outline"
                     onClick={() => {
-                      setModalGdriveAberto(false);
-                      setModalPastaBackupAberto(false);
                       setModalPadraoPreset(["conta_bancaria"]);
                       setModalPadraoAberto(true);
                     }}
@@ -877,7 +867,6 @@ export function BackupLaboratorioTab({ onMensagem }: Props) {
       ) : null}
 
       <ModalAbrirPastaBackup
-        embutido
         open={modalPastaBackupAberto}
         onClose={() => setModalPastaBackupAberto(false)}
         onMensagem={onMensagem}

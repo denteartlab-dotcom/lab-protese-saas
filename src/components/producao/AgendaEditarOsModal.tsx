@@ -51,7 +51,7 @@ export function AgendaEditarOsModal({ trabalhoId, onClose, embutido = false }: P
   return (
     <I18nPortal>
       <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-2 md:p-4">
-      <div className="flex h-[94vh] w-full max-w-[96vw] flex-col overflow-hidden rounded border border-slate-200 bg-white shadow-xl">
+      <div className="flex h-[88vh] w-full max-w-[1200px] flex-col overflow-hidden rounded border border-slate-200 bg-white shadow-xl">
         {iframe}
       </div>
     </div>
