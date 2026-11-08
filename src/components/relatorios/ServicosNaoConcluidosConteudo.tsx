@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -29,7 +29,9 @@ import {
 } from "recharts";
 import { CampoDataBr } from "@/components/campo-data-br";
 import { useI18n } from "@/components/i18n-provider";
+import { PaginacaoLista } from "@/components/listagem/PaginacaoLista";
 import { PainelCarregando } from "@/components/ListaCarregando";
+import { Button, Modal } from "@/components/ui";
 import { abrirPdfGerando } from "@/lib/pdf-viewer";
 import {
   exportarServicosNaoConcluidosCsv,
@@ -45,7 +47,11 @@ import {
   type EtapaGrupoRelatorio,
   type FiltrosServicosNaoConcluidos,
   type RelatorioServicosNaoConcluidosPayload,
+  type ServicoVencido,
 } from "@/lib/relatorio-servicos-nao-concluidos";
+
+const PREVIEW_TABELA = 10;
+const LINHAS_POR_PAGINA_MODAL = 20;
 
 const inputDataClass =
   "h-[36px] w-full rounded-lg border border-[#e5e7eb] dark:border-slate-700 bg-white dark:bg-slate-900 pl-8 pr-3 text-[12px] text-[#374151] dark:text-slate-200 shadow-none outline-none focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]/20";
@@ -119,12 +125,12 @@ function CardGrafico({ titulo, children }: { titulo: string; children: React.Rea
 function CardTabela({
   titulo,
   children,
-  linkVerTodos,
+  onVerTodos,
   t,
 }: {
   titulo: string;
   children: React.ReactNode;
-  linkVerTodos?: boolean;
+  onVerTodos?: () => void;
   t: ReturnType<typeof useI18n>["t"];
 }) {
   return (
@@ -133,10 +139,11 @@ function CardTabela({
         <h3 className="text-[13px] font-semibold text-[#374151] dark:text-slate-200">{titulo}</h3>
       </div>
       <div className="flex-1 overflow-x-auto px-2 py-2">{children}</div>
-      {linkVerTodos ? (
+      {onVerTodos ? (
         <div className="border-t border-[#f0f0f0] dark:border-slate-700 px-4 py-2.5 text-center">
           <button
             type="button"
+            onClick={onVerTodos}
             className="text-[12px] font-medium text-[#4a90d9] hover:underline"
           >
             {t("relatorio.comum.verTodos")}
@@ -144,6 +151,94 @@ function CardTabela({
         </div>
       ) : null}
     </div>
+  );
+}
+
+function NomePaciente({ nome }: { nome: string }) {
+  if (!nome.trim() || nome.trim() === "—") return null;
+  return <p className="mt-0.5 text-[11px] font-normal text-[#6b7280] dark:text-slate-400">{nome}</p>;
+}
+
+function BotaoOs({
+  numero,
+  onClick,
+}: {
+  numero: number;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="font-semibold text-[#4a90d9] hover:underline"
+    >
+      {numero}
+    </button>
+  );
+}
+
+function CampoResumoOs({ rotulo, valor }: { rotulo: string; valor: string }) {
+  return (
+    <div>
+      <p className="text-[10px] font-medium uppercase tracking-wide text-[#9ca3af] dark:text-slate-500">
+        {rotulo}
+      </p>
+      <p className="mt-0.5 text-[13px] text-[#374151] dark:text-slate-200">{valor || "—"}</p>
+    </div>
+  );
+}
+
+function ModalOsSimplificada({
+  os,
+  onClose,
+}: {
+  os: ServicoVencido | null;
+  onClose: () => void;
+}) {
+  const { t } = useI18n();
+  if (!os) return null;
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={`${t("relatorio.comum.os")} ${os.numeroOs}`}
+      size="md"
+      layerClassName="z-[60]"
+    >
+      <div className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <CampoResumoOs rotulo={t("relatorio.comum.cliente")} valor={os.cliente} />
+          <CampoResumoOs rotulo={t("relatorio.comum.paciente")} valor={os.paciente} />
+          <CampoResumoOs rotulo={t("relatorio.comum.servico")} valor={os.servico} />
+          <CampoResumoOs rotulo={t("relatorio.comum.etapaAtual")} valor={os.etapaAtual} />
+          <CampoResumoOs rotulo={t("relatorio.comum.situacao")} valor={os.situacao} />
+          <CampoResumoOs rotulo={t("relatorio.comum.responsavel")} valor={os.responsavel} />
+          <CampoResumoOs rotulo={t("relatorio.comum.dataPedido")} valor={os.dataEntrada} />
+          <CampoResumoOs rotulo={t("dashboard.prazoLab")} valor={os.prazo} />
+          <CampoResumoOs
+            rotulo={t("relatorio.comum.diasAtraso")}
+            valor={t("relatorio.comum.dias", { n: os.diasAtraso })}
+          />
+          <CampoResumoOs
+            rotulo={t("relatorio.comum.valor")}
+            valor={formatarMoedaServicosNaoConcluidos(os.valor)}
+          />
+        </div>
+        <div className="flex flex-wrap justify-end gap-2 border-t border-[#f0f0f0] pt-4 dark:border-slate-700">
+          <Button type="button" variant="outline" onClick={onClose}>
+            {t("dashboard.fechar")}
+          </Button>
+          <Link
+            href={`/app/producao/controle?editar=${os.id}`}
+            className="inline-flex items-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
+            onClick={onClose}
+          >
+            {t("dashboard.verOsCompleta")}
+          </Link>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
@@ -163,6 +258,9 @@ export function ServicosNaoConcluidosConteudo() {
   const [dados, setDados] = useState<RelatorioServicosNaoConcluidosPayload | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [exportando, setExportando] = useState(false);
+  const [listaAberta, setListaAberta] = useState<"clientes" | "vencidos" | null>(null);
+  const [paginaLista, setPaginaLista] = useState(1);
+  const [osAberta, setOsAberta] = useState<ServicoVencido | null>(null);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -244,6 +342,34 @@ export function ServicosNaoConcluidosConteudo() {
       valor: e.valor,
       cor: COR_ETAPA[e.etapa],
     })) ?? [];
+
+  const clientesPreview = useMemo(
+    () => dados?.porCliente.slice(0, PREVIEW_TABELA) ?? [],
+    [dados]
+  );
+  const vencidosPreview = useMemo(
+    () => dados?.vencidos.slice(0, PREVIEW_TABELA) ?? [],
+    [dados]
+  );
+  const maiorTempoClientes = dados
+    ? Math.max(...dados.porCliente.map((c) => c.maiorTempoParado), 0)
+    : 0;
+  const valorVencidos = dados?.vencidos.reduce((s, v) => s + v.valor, 0) ?? 0;
+  const itensLista =
+    listaAberta === "clientes" ? (dados?.porCliente.length ?? 0) : (dados?.vencidos.length ?? 0);
+  const totalPaginasLista = Math.max(1, Math.ceil(itensLista / LINHAS_POR_PAGINA_MODAL));
+  const paginaListaAtual = Math.min(paginaLista, totalPaginasLista);
+  const inicioPagina = (paginaListaAtual - 1) * LINHAS_POR_PAGINA_MODAL;
+  const fimPagina = Math.min(inicioPagina + LINHAS_POR_PAGINA_MODAL, itensLista);
+  const clientesPagina =
+    dados?.porCliente.slice(inicioPagina, inicioPagina + LINHAS_POR_PAGINA_MODAL) ?? [];
+  const vencidosPagina =
+    dados?.vencidos.slice(inicioPagina, inicioPagina + LINHAS_POR_PAGINA_MODAL) ?? [];
+
+  function abrirLista(qual: "clientes" | "vencidos") {
+    setPaginaLista(1);
+    setListaAberta(qual);
+  }
 
   return (
     <div className="min-h-[100vh] w-full bg-[#f4f6f8]">
@@ -521,7 +647,11 @@ export function ServicosNaoConcluidosConteudo() {
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
-              <CardTabela titulo={t("relatorio.snc.tabelaPorCliente")} linkVerTodos t={t}>
+              <CardTabela
+                titulo={t("relatorio.snc.tabelaPorCliente")}
+                onVerTodos={() => abrirLista("clientes")}
+                t={t}
+              >
                 <table className="w-full min-w-[420px] text-left text-[12px]">
                   <thead>
                     <tr className="border-b border-[#f0f0f0] dark:border-slate-700 text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af] dark:text-slate-500">
@@ -533,14 +663,14 @@ export function ServicosNaoConcluidosConteudo() {
                     </tr>
                   </thead>
                   <tbody>
-                    {dados.porCliente.length === 0 ? (
+                    {clientesPreview.length === 0 ? (
                       <tr>
                         <td colSpan={5} className="px-2 py-6 text-center text-[#9ca3af] dark:text-slate-500">
                           {t("relatorio.snc.semServicosPeriodo")}
                         </td>
                       </tr>
                     ) : (
-                      dados.porCliente.map((c) => (
+                      clientesPreview.map((c) => (
                         <tr key={c.cliente} className="border-b border-[#f8f8f8] last:border-0">
                           <td className="px-2 py-2.5 font-medium text-[#374151] dark:text-slate-200">{c.cliente}</td>
                           <td className="px-2 py-2.5 text-center tabular-nums">{c.quantidade}</td>
@@ -557,7 +687,7 @@ export function ServicosNaoConcluidosConteudo() {
                       ))
                     )}
                   </tbody>
-                  {dados.porCliente.length > 0 ? (
+                  {clientesPreview.length > 0 ? (
                     <tfoot>
                       <tr className="bg-[#f9fafb] dark:bg-slate-800/70 font-semibold text-[#374151] dark:text-slate-200">
                         <td className="px-2 py-2.5">{t("relatorio.kpi.total")}</td>
@@ -569,9 +699,7 @@ export function ServicosNaoConcluidosConteudo() {
                           {t("relatorio.comum.dias", { n: dados.resumo.tempoMedioParado })}
                         </td>
                         <td className="px-2 py-2.5 text-center">
-                          {t("relatorio.comum.dias", {
-                            n: Math.max(...dados.porCliente.map((c) => c.maiorTempoParado), 0),
-                          })}
+                          {t("relatorio.comum.dias", { n: maiorTempoClientes })}
                         </td>
                       </tr>
                     </tfoot>
@@ -579,7 +707,11 @@ export function ServicosNaoConcluidosConteudo() {
                 </table>
               </CardTabela>
 
-              <CardTabela titulo={t("relatorio.snc.tabelaVencidos")} linkVerTodos t={t}>
+              <CardTabela
+                titulo={t("relatorio.snc.tabelaVencidos")}
+                onVerTodos={() => abrirLista("vencidos")}
+                t={t}
+              >
                 <table className="w-full min-w-[380px] text-left text-[12px]">
                   <thead>
                     <tr className="border-b border-[#f0f0f0] dark:border-slate-700 text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af] dark:text-slate-500">
@@ -591,20 +723,25 @@ export function ServicosNaoConcluidosConteudo() {
                     </tr>
                   </thead>
                   <tbody>
-                    {dados.vencidos.length === 0 ? (
+                    {vencidosPreview.length === 0 ? (
                       <tr>
                         <td colSpan={5} className="px-2 py-6 text-center text-[#9ca3af] dark:text-slate-500">
                           {t("relatorio.snc.semVencidosPeriodo")}
                         </td>
                       </tr>
                     ) : (
-                      dados.vencidos.map((v) => (
+                      vencidosPreview.map((v) => (
                         <tr
-                          key={`${v.numeroOs}-${v.cliente}`}
+                          key={v.id}
                           className="border-b border-[#f8f8f8] last:border-0"
                         >
-                          <td className="px-2 py-2.5 font-medium text-[#374151] dark:text-slate-200">{v.numeroOs}</td>
-                          <td className="px-2 py-2.5 text-[#374151] dark:text-slate-200">{v.cliente}</td>
+                          <td className="px-2 py-2.5">
+                            <BotaoOs numero={v.numeroOs} onClick={() => setOsAberta(v)} />
+                          </td>
+                          <td className="px-2 py-2.5 text-[#374151] dark:text-slate-200">
+                            <span className="font-medium">{v.cliente}</span>
+                            <NomePaciente nome={v.paciente} />
+                          </td>
                           <td className="px-2 py-2.5 text-[#6b7280] dark:text-slate-400">{v.etapaAtual}</td>
                           <td className="px-2 py-2.5 text-center font-semibold text-[#ef4444]">
                             {t("relatorio.comum.dias", { n: v.diasAtraso })}
@@ -616,7 +753,7 @@ export function ServicosNaoConcluidosConteudo() {
                       ))
                     )}
                   </tbody>
-                  {dados.vencidos.length > 0 ? (
+                  {vencidosPreview.length > 0 ? (
                     <tfoot>
                       <tr className="bg-[#f9fafb] dark:bg-slate-800/70 font-semibold text-[#374151] dark:text-slate-200">
                         <td colSpan={3} className="px-2 py-2.5">
@@ -626,9 +763,7 @@ export function ServicosNaoConcluidosConteudo() {
                           {dados.resumo.servicosVencidos}
                         </td>
                         <td className="px-2 py-2.5 text-right text-[#ef4444]">
-                          {formatarMoedaServicosNaoConcluidos(
-                            dados.vencidos.reduce((s, v) => s + v.valor, 0)
-                          )}
+                          {formatarMoedaServicosNaoConcluidos(valorVencidos)}
                         </td>
                       </tr>
                     </tfoot>
@@ -649,6 +784,107 @@ export function ServicosNaoConcluidosConteudo() {
             </p>
           </div>
         )}
+
+        {dados && listaAberta ? (
+          <Modal
+            open
+            onClose={() => setListaAberta(null)}
+            title={
+              listaAberta === "clientes"
+                ? t("relatorio.snc.tabelaPorCliente")
+                : t("relatorio.snc.tabelaVencidos")
+            }
+            size="xl"
+          >
+            {itensLista === 0 ? (
+              <p className="py-8 text-center text-[13px] text-[#9ca3af] dark:text-slate-500">
+                {listaAberta === "clientes"
+                  ? t("relatorio.snc.semServicosPeriodo")
+                  : t("relatorio.snc.semVencidosPeriodo")}
+              </p>
+            ) : listaAberta === "clientes" ? (
+              <table className="w-full min-w-[640px] text-left text-[12px]">
+                <thead>
+                  <tr className="border-b border-[#f0f0f0] text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af] dark:border-slate-700 dark:text-slate-500">
+                    <th className="px-2 py-2">{t("relatorio.comum.cliente")}</th>
+                    <th className="px-2 py-2 text-center">{t("relatorio.comum.qtdeServicos")}</th>
+                    <th className="px-2 py-2 text-right">{t("relatorio.comum.valorTotal")}</th>
+                    <th className="px-2 py-2 text-center">{t("relatorio.comum.tempoMedioParado")}</th>
+                    <th className="px-2 py-2 text-center">{t("relatorio.comum.maiorTempoParado")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {clientesPagina.map((c) => (
+                    <tr key={c.cliente} className="border-b border-[#f8f8f8] last:border-0 dark:border-slate-800">
+                      <td className="px-2 py-2.5 font-medium text-[#374151] dark:text-slate-200">{c.cliente}</td>
+                      <td className="px-2 py-2.5 text-center tabular-nums">{c.quantidade}</td>
+                      <td className="px-2 py-2.5 text-right tabular-nums">
+                        {formatarMoedaServicosNaoConcluidos(c.valorTotal)}
+                      </td>
+                      <td className="px-2 py-2.5 text-center tabular-nums">
+                        {t("relatorio.comum.dias", { n: c.tempoMedioParado })}
+                      </td>
+                      <td className="px-2 py-2.5 text-center tabular-nums">
+                        {t("relatorio.comum.dias", { n: c.maiorTempoParado })}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <table className="w-full min-w-[640px] text-left text-[12px]">
+                <thead>
+                  <tr className="border-b border-[#f0f0f0] text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af] dark:border-slate-700 dark:text-slate-500">
+                    <th className="px-2 py-2">{t("relatorio.comum.os")}</th>
+                    <th className="px-2 py-2">{t("relatorio.comum.cliente")}</th>
+                    <th className="px-2 py-2">{t("relatorio.comum.etapaAtual")}</th>
+                    <th className="px-2 py-2 text-center">{t("relatorio.comum.diasAtraso")}</th>
+                    <th className="px-2 py-2 text-right">{t("relatorio.comum.valor")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {vencidosPagina.map((v) => (
+                    <tr key={v.id} className="border-b border-[#f8f8f8] last:border-0 dark:border-slate-800">
+                      <td className="px-2 py-2.5">
+                        <BotaoOs numero={v.numeroOs} onClick={() => setOsAberta(v)} />
+                      </td>
+                      <td className="px-2 py-2.5 text-[#374151] dark:text-slate-200">
+                        <span className="font-medium">{v.cliente}</span>
+                        <NomePaciente nome={v.paciente} />
+                      </td>
+                      <td className="px-2 py-2.5 text-[#6b7280] dark:text-slate-400">{v.etapaAtual}</td>
+                      <td className="px-2 py-2.5 text-center font-semibold text-[#ef4444]">
+                        {t("relatorio.comum.dias", { n: v.diasAtraso })}
+                      </td>
+                      <td className="px-2 py-2.5 text-right font-semibold text-[#ef4444]">
+                        {formatarMoedaServicosNaoConcluidos(v.valor)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            {itensLista > 0 ? (
+              <div className="mt-3 flex flex-col items-center justify-between gap-2 sm:flex-row">
+                <p className="text-[12px] text-[#6b7280] dark:text-slate-400">
+                  {t("relatorio.comum.registrosIntervalo", {
+                    de: inicioPagina + 1,
+                    ate: fimPagina,
+                    total: itensLista,
+                  })}
+                </p>
+                <PaginacaoLista
+                  pagina={paginaListaAtual}
+                  totalPaginas={totalPaginasLista}
+                  onPagina={setPaginaLista}
+                  className="border-0 py-0"
+                />
+              </div>
+            ) : null}
+          </Modal>
+        ) : null}
+
+        <ModalOsSimplificada os={osAberta} onClose={() => setOsAberta(null)} />
       </div>
     </div>
   );

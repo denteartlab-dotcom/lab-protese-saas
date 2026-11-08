@@ -39,9 +39,16 @@ export type ClienteNaoConcluido = {
 };
 
 export type ServicoVencido = {
+  id: string;
   numeroOs: number;
   cliente: string;
+  paciente: string;
+  servico: string;
   etapaAtual: string;
+  situacao: string;
+  responsavel: string;
+  dataEntrada: string;
+  prazo: string;
   diasAtraso: number;
   valor: number;
 };
@@ -206,14 +213,24 @@ export function calcularRelatorioServicosNaoConcluidos(
 
   const vencidos: ServicoVencido[] = comDias
     .filter((item) => item.atraso > 0)
-    .map((item) => ({
-      numeroOs: item.linha.numeroOs,
-      cliente: item.linha.cliente,
-      etapaAtual: item.linha.etapaAtual,
-      diasAtraso: item.atraso,
-      valor: item.linha.valor,
-    }))
-    .sort((a, b) => b.diasAtraso - a.diasAtraso);
+    .map((item) => {
+      const trabalho = mapaTrabalho.get(item.linha.id);
+      return {
+        id: item.linha.id,
+        numeroOs: item.linha.numeroOs,
+        cliente: item.linha.cliente,
+        paciente: trabalho?.pacienteNome?.trim() || "—",
+        servico: item.linha.servico,
+        etapaAtual: item.linha.etapaAtual,
+        situacao: item.linha.statusLabel,
+        responsavel: item.linha.responsavel,
+        dataEntrada: item.linha.dataEntrada,
+        prazo: item.linha.prazo,
+        diasAtraso: item.atraso,
+        valor: item.linha.valor,
+      };
+    })
+    .sort((a, b) => b.diasAtraso - a.diasAtraso || b.numeroOs - a.numeroOs);
 
   const percentualProducao =
     totalProducao > 0 ? (quantidade / totalProducao) * 100 : 0;
@@ -287,8 +304,7 @@ export function calcularRelatorioServicosNaoConcluidos(
         cliente.quantidade > 0 ? Math.round(cliente.somaDias / cliente.quantidade) : 0,
       maiorTempoParado: cliente.maiorTempoParado,
     }))
-    .sort((a, b) => b.valorTotal - a.valorTotal)
-    .slice(0, 10);
+    .sort((a, b) => b.valorTotal - a.valorTotal);
 
   const agora = new Date();
   return {
@@ -303,7 +319,7 @@ export function calcularRelatorioServicosNaoConcluidos(
     quantidadePorEtapa,
     valorPorEtapa,
     porCliente,
-    vencidos: vencidos.slice(0, 10),
+    vencidos,
     periodoLabel: periodoTextoServicosNaoConcluidos(filtros),
     geradoEm: agora.toLocaleString("pt-BR", {
       day: "2-digit",

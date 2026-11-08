@@ -50,7 +50,7 @@ export async function exportarServicosNaoConcluidosPdf(
     ],
     linhas: dados.vencidos.map((v) => [
       String(v.numeroOs),
-      v.cliente,
+      v.paciente && v.paciente !== "—" ? `${v.cliente} · ${v.paciente}` : v.cliente,
       trImpressao(v.etapaAtual),
       diasAtrasoPdf(v.diasAtraso),
       moeda(v.valor),
@@ -95,10 +95,11 @@ export function exportarServicosNaoConcluidosCsv(
   const periodo = periodoTextoPdf(filtros).replace(/\//g, "-");
   baixarCsv(
     `servicos-nao-concluidos-${periodo}.csv`,
-    ["OS", "Cliente", "Etapa Atual", "Dias de Atraso", "Valor"],
+    ["OS", "Cliente", "Paciente", "Etapa Atual", "Dias de Atraso", "Valor"],
     dados.vencidos.map((v) => [
       v.numeroOs,
       v.cliente,
+      v.paciente,
       v.etapaAtual,
       v.diasAtraso,
       v.valor,
