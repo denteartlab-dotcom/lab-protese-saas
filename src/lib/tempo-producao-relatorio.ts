@@ -311,9 +311,12 @@ export function calcularResumoTempoProducao(linhas: LinhaTempoProducao[]): Resum
       count: atual.count + 1,
     });
   }
-  const etapaMaiorGargalo = [...porEtapa.entries()]
+  const etapaMaiorGargaloBruta = [...porEtapa.entries()]
     .map(([nome, v]) => ({ nome, dias: v.count ? v.total / v.count : 0 }))
-    .sort((a, b) => b.dias - a.dias)[0] ?? null;
+    .sort((a, b) => b.dias - a.dias)[0];
+  const etapaMaiorGargalo = etapaMaiorGargaloBruta
+    ? { nome: etapaMaiorGargaloBruta.nome, dias: Math.round(etapaMaiorGargaloBruta.dias) }
+    : null;
 
   const osCriticasLista = criticas
     .sort((a, b) => b.diasAtraso - a.diasAtraso)

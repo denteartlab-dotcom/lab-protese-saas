@@ -95,7 +95,7 @@ export function ReportSummaryCards({ resumo }: Props) {
           : "—";
       case "gargalo":
         return resumo.etapaMaiorGargalo
-          ? `${resumo.etapaMaiorGargalo.nome} (${resumo.etapaMaiorGargalo.dias}d)`
+          ? `${resumo.etapaMaiorGargalo.nome} (${Math.round(resumo.etapaMaiorGargalo.dias)}d)`
           : "—";
       default:
         return "—";
