@@ -39,7 +39,12 @@ export async function removerInicioProducaoOsServidor(empresaId: string, chave: 
   await salvarJsonStoreTenant(empresaId, TEMPO_PRODUCAO_INICIO_STORAGE_KEY, mapa);
 }
 
-/** Registra início ao entrar em Produção; remove ao sair; reinicia o cronômetro ao retornar. */
+/**
+ * Entrar em Produção começa a contagem naquele dia.
+ * Sair para qualquer outra situação apaga o início e para a contagem.
+ * Voltar para Produção grava um início novo, então os dias recomeçam.
+ * Permanecer em Produção não reinicia o cronômetro.
+ */
 export async function sincronizarTempoProducaoPorMudancaStatus(
   empresaId: string,
   trabalho: { id: string; grupoOsId?: string | null },
@@ -50,11 +55,11 @@ export async function sincronizarTempoProducaoPorMudancaStatus(
   const eraProducao = statusContaTempoProducao(statusAnterior);
   const ehProducao = statusContaTempoProducao(statusNovo);
 
-  if (ehProducao) {
+  if (ehProducao && !eraProducao) {
     await registrarInicioProducaoOsServidor(empresaId, chave);
     return;
   }
-  if (eraProducao) {
+  if (eraProducao && !ehProducao) {
     await removerInicioProducaoOsServidor(empresaId, chave);
   }
 }

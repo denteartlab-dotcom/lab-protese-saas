@@ -64,6 +64,8 @@ import {
   removerTrabalhoControleEntregasAutomaticoServidor,
 } from "@/lib/controle-entregas-automatico";
 import { colaboradorEstaNaListaExcluidos } from "@/lib/colaboradores-listagem";
+import { adicionarHistoricoSituacaoInstrucoes } from "@/lib/historico-situacao-os";
+import { sincronizarTempoProducaoPorMudancaStatus } from "@/lib/tempo-producao-status-servidor";
 import { normalizarColaborador } from "@/lib/utils";
 import { listarUsuariosOnlineEmpresa } from "@/lib/presenca-usuarios";
 import { setorResponsavelOs } from "@/lib/setor-os";
@@ -868,7 +870,20 @@ async function moverTrabalhoTvColunaInterno(
           ? "producao"
           : trabalho.status;
 
-  const payloadStatus: { status: string; dataEntrega?: Date } = { status: novoStatus };
+  const registroStatus = grupo.find((t) => t.id === idPersistir) ?? trabalho;
+  const statusAnteriorTv = registroStatus.status;
+  const situacaoMudou =
+    normalizarChaveStatusOs(statusAnteriorTv) !== normalizarChaveStatusOs(novoStatus);
+
+  const payloadStatus: { status: string; dataEntrega?: Date; instrucoes?: string } = {
+    status: novoStatus,
+  };
+  if (situacaoMudou) {
+    payloadStatus.instrucoes = adicionarHistoricoSituacaoInstrucoes(
+      registroStatus.instrucoes,
+      novoStatus
+    );
+  }
   if (novoStatus === "saiu_entrega" && !trabalho.dataEntrega) {
     const hoje = new Date();
     hoje.setHours(12, 0, 0, 0);
@@ -894,6 +909,15 @@ async function moverTrabalhoTvColunaInterno(
         })
       : Promise.resolve(),
   ]);
+
+  if (situacaoMudou) {
+    await sincronizarTempoProducaoPorMudancaStatus(
+      empresaId,
+      { id: registroStatus.id, grupoOsId: registroStatus.grupoOsId },
+      statusAnteriorTv,
+      novoStatus
+    );
+  }
 
   if (deveRemoverControleEntregasPorStatus(trabalho.status, novoStatus)) {
     try {

@@ -1,18 +1,17 @@
+import { prazoTrabalho } from "@/lib/controle-producao-prazos";
 import { dateToBrShort, parseBrDate } from "@/lib/datas-br";
-import {
-  isTrabalhoAtrasado,
-  localDate,
-  prazoTrabalho,
-} from "@/lib/controle-producao-prazos";
 import {
   MESES_FINANCEIRO_GERAL,
   montarLinhasDetalhe,
+  type LinhaDetalheFinanceiroGeral,
   type TrabalhoFinanceiroGeralInput,
 } from "@/lib/relatorio-financeiro-geral";
 import { normalizarChaveStatusOs } from "@/lib/status-os";
 import {
   chaveInicioProducaoOs,
-  interpretarInicioProducaoOs,
+  diasAtrasoContadosNaProducao,
+  diasNaSituacaoProducao,
+  type OrigemContagemProducao,
 } from "@/lib/tempo-producao-inicio";
 
 export const ETAPAS_RELATORIO = [
@@ -140,29 +139,25 @@ function mesesNoPeriodo(inicio: Date, fim: Date) {
   return meses;
 }
 
-/**
- * Serviços vencidos: só com situação Produção e prazo ultrapassado.
- * Dias contam a partir do prazo; se a OS saiu e voltou para Produção,
- * a contagem reinicia na data da reentrada (início de produção).
- */
-function diasAtrasoTrabalho(
-  trabalho: TrabalhoFinanceiroGeralInput,
-  referencia = localDate(new Date()),
-  inicioProducao?: Date | null
-) {
-  if (!servicoNaoConcluidoRelatorio(trabalho.status)) return 0;
-  if (!isTrabalhoAtrasado(trabalho, "lab", referencia)) return 0;
-  const prazo = prazoTrabalho(trabalho, "lab");
-  if (!prazo) return 0;
-  let base = prazo;
-  if (inicioProducao) {
-    const inicio = localDate(inicioProducao);
-    if (inicio.getTime() > base.getTime()) base = inicio;
+function prazoContagemServico(trabalho: TrabalhoFinanceiroGeralInput) {
+  if (trabalho.dataPrevista) {
+    const prevista = new Date(trabalho.dataPrevista);
+    if (!Number.isNaN(prevista.getTime())) return prevista;
   }
-  const diff = Math.floor(
-    (referencia.getTime() - base.getTime()) / (1000 * 60 * 60 * 24)
-  );
-  return Math.max(0, diff);
+  return prazoTrabalho(trabalho, "lab");
+}
+
+function origemContagemProducao(
+  linha: LinhaDetalheFinanceiroGeral,
+  trabalho: TrabalhoFinanceiroGeralInput,
+  mapaInicioProducao: Record<string, string>
+): OrigemContagemProducao {
+  return {
+    status: linha.status,
+    inicioRegistrado: mapaInicioProducao[chaveInicioProducaoOs(trabalho)] ?? null,
+    instrucoes: trabalho.instrucoes,
+    dataEntrada: trabalho.dataEntrada,
+  };
 }
 
 export function calcularRelatorioServicosNaoConcluidos(
@@ -186,40 +181,38 @@ export function calcularRelatorioServicosNaoConcluidos(
 
   const naoConcluidas = noPeriodo.filter((l) => !l.concluido);
   const totalProducao = noPeriodo.length;
-  const referencia = localDate(new Date());
+  const referencia = new Date();
 
-  const quantidade = naoConcluidas.length;
-  const valorTotalPreso = naoConcluidas.reduce((s, l) => s + l.valor, 0);
+  const comDias = naoConcluidas.map((linha) => {
+    const trabalho = mapaTrabalho.get(linha.id);
+    if (!trabalho) return { linha, parado: 0, atraso: 0 };
+    const origem = origemContagemProducao(linha, trabalho, mapaInicioProducao);
+    return {
+      linha,
+      parado: diasNaSituacaoProducao(origem, referencia),
+      atraso: diasAtrasoContadosNaProducao(
+        { ...origem, prazo: prazoContagemServico(trabalho) },
+        referencia
+      ),
+    };
+  });
+
+  const quantidade = comDias.length;
+  const valorTotalPreso = comDias.reduce((s, item) => s + item.linha.valor, 0);
   const tempoMedioParado =
     quantidade > 0
-      ? Math.round(
-          naoConcluidas.reduce((s, l) => s + l.diasProducao, 0) / quantidade
-        )
+      ? Math.round(comDias.reduce((s, item) => s + item.parado, 0) / quantidade)
       : 0;
 
-  const vencidos: ServicoVencido[] = naoConcluidas
-    .map((l) => {
-      const trabalho = mapaTrabalho.get(l.id);
-      if (!trabalho) return null;
-      const chaveInicio = chaveInicioProducaoOs(trabalho);
-      const inicioProducao = interpretarInicioProducaoOs(
-        mapaInicioProducao[chaveInicio]
-      );
-      const diasAtraso = diasAtrasoTrabalho(
-        trabalho,
-        referencia,
-        inicioProducao
-      );
-      if (diasAtraso <= 0) return null;
-      return {
-        numeroOs: l.numeroOs,
-        cliente: l.cliente,
-        etapaAtual: l.etapaAtual,
-        diasAtraso,
-        valor: l.valor,
-      };
-    })
-    .filter((v): v is ServicoVencido => v !== null)
+  const vencidos: ServicoVencido[] = comDias
+    .filter((item) => item.atraso > 0)
+    .map((item) => ({
+      numeroOs: item.linha.numeroOs,
+      cliente: item.linha.cliente,
+      etapaAtual: item.linha.etapaAtual,
+      diasAtraso: item.atraso,
+      valor: item.linha.valor,
+    }))
     .sort((a, b) => b.diasAtraso - a.diasAtraso);
 
   const percentualProducao =
@@ -230,21 +223,23 @@ export function calcularRelatorioServicosNaoConcluidos(
     mes: MESES_FINANCEIRO_GERAL[mesIdx],
     ano,
     label,
-    valor: naoConcluidas
-      .filter((l) => l.anoEntrada === ano && l.mesEntrada === mesIdx)
-      .reduce((s, l) => s + l.valor, 0),
+    valor: comDias
+      .filter(
+        (item) => item.linha.anoEntrada === ano && item.linha.mesEntrada === mesIdx
+      )
+      .reduce((s, item) => s + item.linha.valor, 0),
   }));
 
   const contagemEtapa = new Map<EtapaGrupoRelatorio, { qtd: number; valor: number }>();
   for (const etapa of ETAPAS_RELATORIO) {
     contagemEtapa.set(etapa, { qtd: 0, valor: 0 });
   }
-  for (const l of naoConcluidas) {
-    const grupo = agruparEtapaRelatorio(l.etapaAtual);
+  for (const item of comDias) {
+    const grupo = agruparEtapaRelatorio(item.linha.etapaAtual);
     const atual = contagemEtapa.get(grupo) ?? { qtd: 0, valor: 0 };
     contagemEtapa.set(grupo, {
       qtd: atual.qtd + 1,
-      valor: atual.valor + l.valor,
+      valor: atual.valor + item.linha.valor,
     });
   }
 
@@ -262,32 +257,36 @@ export function calcularRelatorioServicosNaoConcluidos(
     valor: contagemEtapa.get(etapa)?.valor ?? 0,
   })).filter((e) => e.valor > 0);
 
-  const aggCliente = new Map<string, ClienteNaoConcluido>();
-  for (const l of naoConcluidas) {
-    const existente = aggCliente.get(l.cliente);
+  const aggCliente = new Map<string, ClienteNaoConcluido & { somaDias: number }>();
+  for (const item of comDias) {
+    const cliente = item.linha.cliente;
+    const existente = aggCliente.get(cliente);
     if (!existente) {
-      aggCliente.set(l.cliente, {
-        cliente: l.cliente,
+      aggCliente.set(cliente, {
+        cliente,
         quantidade: 1,
-        valorTotal: l.valor,
-        tempoMedioParado: l.diasProducao,
-        maiorTempoParado: l.diasProducao,
+        valorTotal: item.linha.valor,
+        somaDias: item.parado,
+        tempoMedioParado: 0,
+        maiorTempoParado: item.parado,
       });
       continue;
     }
-    const qtd = existente.quantidade + 1;
-    aggCliente.set(l.cliente, {
-      cliente: l.cliente,
-      quantidade: qtd,
-      valorTotal: existente.valorTotal + l.valor,
-      tempoMedioParado: Math.round(
-        (existente.tempoMedioParado * existente.quantidade + l.diasProducao) / qtd
-      ),
-      maiorTempoParado: Math.max(existente.maiorTempoParado, l.diasProducao),
-    });
+    existente.quantidade += 1;
+    existente.valorTotal += item.linha.valor;
+    existente.somaDias += item.parado;
+    existente.maiorTempoParado = Math.max(existente.maiorTempoParado, item.parado);
   }
 
   const porCliente = [...aggCliente.values()]
+    .map((cliente) => ({
+      cliente: cliente.cliente,
+      quantidade: cliente.quantidade,
+      valorTotal: cliente.valorTotal,
+      tempoMedioParado:
+        cliente.quantidade > 0 ? Math.round(cliente.somaDias / cliente.quantidade) : 0,
+      maiorTempoParado: cliente.maiorTempoParado,
+    }))
     .sort((a, b) => b.valorTotal - a.valorTotal)
     .slice(0, 10);
 

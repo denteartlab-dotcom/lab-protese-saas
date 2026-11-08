@@ -10,6 +10,7 @@ import {
   type ObservacaoEnvioLinha,
 } from "@/lib/solicitacao-envio-types";
 import { obterSolicitacaoEnvioPorId } from "@/lib/solicitacao-envio-servidor";
+import { sincronizarTempoProducaoPorMudancaStatus } from "@/lib/tempo-producao-status-servidor";
 
 function prioridadeForm(valor: string): PrioridadeOsForm {
   if (valor === "alta" || valor === "baixa") return valor;
@@ -182,6 +183,13 @@ export async function aprovarSolicitacaoEnvioCliente(params: {
     where: { id: trabalho.id },
     data: { grupoOsId: trabalho.id },
   });
+
+  await sincronizarTempoProducaoPorMudancaStatus(
+    params.empresaId,
+    { id: trabalho.id, grupoOsId: trabalho.id },
+    "",
+    "producao"
+  );
 
   await registrarNumeroOsUtilizado(params.empresaId, numeroOs);
 
