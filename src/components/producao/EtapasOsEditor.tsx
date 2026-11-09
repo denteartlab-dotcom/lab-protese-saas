@@ -18,6 +18,7 @@ import {
   formatarLinhaEtapaComTempo,
   nomeEtapaSemSetor,
   prazoVencimentoEtapaOs,
+  tempoMinutosEtapa,
   type EtapaCadastro,
   type EtapaOsLinha,
 } from "@/lib/etapas-os";
@@ -39,6 +40,12 @@ import {
   valorMonetarioEtapaServico,
   type ServicoTabelaPrecoOs,
 } from "@/lib/tabela-precos-os";
+import { BotaoMelhorHorarioIa } from "@/components/producao/MelhorHorarioIaModal";
+import {
+  prazosEtapasDoPlano,
+  type EntradaPlanoHorarioOs,
+  type PlanoHorarioOs,
+} from "@/lib/ia-melhor-horario-os";
 
 export type EtapaOsFormLinha = {
   nome: string;
@@ -63,6 +70,12 @@ type Props = {
   onIndiceEtapaAtualChange?: (indice: number) => void;
   /** Exibe os blocos editáveis; false = somente o título "Etapas". */
   exibirLinhas?: boolean;
+  contextoIa?: Omit<
+    EntradaPlanoHorarioOs,
+    "horario" | "ocupacaoPorDia" | "agora" | "etapas" | "dataLancamento"
+  >;
+  onAplicarPlanoIa?: (plano: PlanoHorarioOs) => void;
+  excetoTrabalhoId?: string;
 };
 
 function parseMoneyEtapa(value: string) {
@@ -195,6 +208,9 @@ export function EtapasOsEditor({
   indiceEtapaAtual = 0,
   onIndiceEtapaAtualChange,
   exibirLinhas = true,
+  contextoIa,
+  onAplicarPlanoIa,
+  excetoTrabalhoId,
 }: Props) {
   const [modelosEtapas, setModelosEtapas] = useState<EtapaCadastro[]>([]);
   const [setoresCadastrados, setSetoresCadastrados] = useState<SetorCadastro[]>([]);
@@ -377,13 +393,38 @@ export function EtapasOsEditor({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-sm font-semibold text-slate-800">Etapas</span>
         {exibirLinhas ? (
-          <button
-            type="button"
-            className="rounded bg-emerald-600 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-emerald-700"
-            title="Recurso em teste"
-          >
-            Buscar Melhor data e horário com IA (em teste)
-          </button>
+          <BotaoMelhorHorarioIa
+            disabled={desabilitado}
+            excetoTrabalhoId={excetoTrabalhoId}
+            contexto={{
+              ...contextoIa,
+              dataLancamento,
+              servico: servico?.nome || contextoIa?.servico,
+              prazoTabelaDias: servico?.prazo || contextoIa?.prazoTabelaDias,
+              prazoDentistaDias: servico?.prazoDentista || contextoIa?.prazoDentistaDias,
+              quantidadeDentes,
+              etapas: etapas
+                .filter((etapa) => etapa.nome.trim())
+                .map((etapa) => {
+                  const modelo = modeloEtapa(etapa.nome);
+                  const tempoMedio = Number(modelo?.tempoMedio || 0);
+                  const porElemento = modelo?.calculoPorElemento?.toLowerCase() === "sim";
+                  return {
+                    nome: nomeEtapaSemSetor(etapa.nome),
+                    setor: etapa.setor || setorDaEtapa(etapa.nome)?.nome || "",
+                    minutos: tempoMedio
+                      ? tempoMinutosEtapa(
+                          `${porElemento ? tempoMedio * quantidadeDentes : tempoMedio} min`
+                        )
+                      : 0,
+                  };
+                }),
+            }}
+            onAplicar={(plano) => {
+              onChange(prazosEtapasDoPlano(etapas, plano));
+              onAplicarPlanoIa?.(plano);
+            }}
+          />
         ) : null}
       </div>
 

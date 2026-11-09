@@ -101,6 +101,8 @@ import {
   prazosSalvosNasInstrucoes,
   servicoComPrazoPorNomes,
 } from "@/lib/prazos-servico";
+import { prazosEtapasDoPlano } from "@/lib/ia-melhor-horario-os";
+import { BotaoMelhorHorarioIa } from "@/components/producao/MelhorHorarioIaModal";
 import {
   ARMAZENAMENTO_LAB_PRONTO_EVENT,
 } from "@/lib/armazenamento-laboratorio";
@@ -153,6 +155,7 @@ import {
   formatarLinhaColaborador,
   formatarLinhaEtapaComTempo,
   nomeEtapaSemSetor,
+  tempoMinutosEtapa,
   instrucoesTextoLivre,
   parseComplementosInstrucoesGrupo,
   removerComplementosOsDoCorpo,
@@ -4529,13 +4532,43 @@ export default function OrdemServicoPage() {
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="text-sm font-semibold text-slate-800">Etapas</span>
                       {servicoTemEtapasNaTabela(servicoOsAtual) && exibeLinhasEtapasOs && (
-                        <button
-                          type="button"
-                          className="rounded bg-emerald-600 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-emerald-700"
-                          title="Recurso em teste no Smart Prótese"
-                        >
-                          Buscar Melhor data e horário com IA (em teste)
-                        </button>
+                        <BotaoMelhorHorarioIa
+                          excetoTrabalhoId={editId || undefined}
+                          contexto={{
+                            dataLancamento: form.dataLancamento,
+                            paciente: form.pacienteNome,
+                            cliente:
+                              clientes.find((item) => item.id === form.clienteId)?.nome || "",
+                            dentista: form.dentista,
+                            servico: servicoOsAtual?.nome || form.tipoProtese,
+                            dentes: dentes.join(", "),
+                            quantidadeDentes: quantidadeDentesSelecionados(),
+                            observacoes: form.instrucoes,
+                            casoClinico: form.casoUrgente,
+                            urgente: form.urgente,
+                            repeticao: form.repeticao,
+                            prioridade: form.prioridadeOs,
+                            prazoTabelaDias: servicoOsAtual?.prazo,
+                            prazoDentistaDias: servicoOsAtual?.prazoDentista,
+                            etapas: etapas
+                              .filter((etapa) => etapa.nome.trim())
+                              .map((etapa) => ({
+                                nome: nomeEtapaSemSetor(etapa.nome),
+                                setor: etapa.setor || setorDaEtapa(etapa.nome)?.nome || "",
+                                minutos: tempoMinutosEtapa(tempoCalculadoEtapa(etapa.nome)),
+                              })),
+                          }}
+                          onAplicar={(plano) => {
+                            setForm((current) => ({
+                              ...current,
+                              dataLaboratorio: plano.prazoLaboratorio.data,
+                              horaLaboratorio: plano.prazoLaboratorio.hora,
+                              dataDentista: plano.prazoDentista.data,
+                              horaDentista: plano.prazoDentista.hora || current.horaDentista,
+                            }));
+                            setEtapas((atuais) => prazosEtapasDoPlano(atuais, plano));
+                          }}
+                        />
                       )}
                     </div>
 

@@ -69,6 +69,7 @@ import {
   nomeRepresentanteColaboradorCliente,
 } from "@/lib/cliente-representante";
 import { brShortToIso, parseBrDate } from "@/lib/datas-br";
+import type { PlanoHorarioOs } from "@/lib/ia-melhor-horario-os";
 import { dataEntradaParaApi } from "@/lib/os-data-criacao";
 import { propsInputComSelecaoAoFocar } from "@/lib/input-selecao";
 import {
@@ -4720,6 +4721,40 @@ export default function ControlePage() {
                             indiceEtapaAtual={indiceEtapaAtualEdicao}
                             onIndiceEtapaAtualChange={setIndiceEtapaAtualEdicao}
                             exibirLinhas={exibeLinhasEtapasEdicao}
+                            excetoTrabalhoId={editando.id}
+                            contextoIa={{
+                              paciente: form?.pacienteNome || "",
+                              cliente:
+                                clientesCatalogo.find((item) => item.id === form?.clienteId)
+                                  ?.nome ||
+                                editando.cliente?.nome ||
+                                "",
+                              dentista: form?.dentista || "",
+                              dentes: form?.dentes || editando.dentes || "",
+                              quantidadeDentes: dentesEdicao.length || 1,
+                              observacoes: form?.observacoes || "",
+                              casoClinico: form?.casoUrgente || "",
+                              urgente: Boolean(form?.urgente),
+                              repeticao: Boolean(form?.repeticao),
+                              prioridade: form?.prioridadeOs || "",
+                            }}
+                            onAplicarPlanoIa={(plano: PlanoHorarioOs) => {
+                              setForm((atual) =>
+                                atual
+                                  ? {
+                                      ...atual,
+                                      dataLaboratorio: plano.prazoLaboratorio.data,
+                                      horaLaboratorio: plano.prazoLaboratorio.hora,
+                                      dataDentista: plano.prazoDentista.data,
+                                      horaDentista:
+                                        plano.prazoDentista.hora || atual.horaDentista,
+                                      dataPrevista:
+                                        brShortToIso(plano.prazoLaboratorio.data) ||
+                                        atual.dataPrevista,
+                                    }
+                                  : atual
+                              );
+                            }}
                           />
                         )}
                         {abaServicoEdicao === "produtos" && (
