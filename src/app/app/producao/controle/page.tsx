@@ -71,7 +71,15 @@ import {
 import { brShortToIso, parseBrDate } from "@/lib/datas-br";
 import { dataEntradaParaApi } from "@/lib/os-data-criacao";
 import { propsInputComSelecaoAoFocar } from "@/lib/input-selecao";
-import { calcularDatasPrazoServico } from "@/lib/prazos-servico";
+import {
+  calcularDatasPrazoServico,
+  completarPrazosOsComTabela,
+  linhasInstrucaoPrazosOs,
+  nomeServicoParaPrazo,
+  prazosAoSelecionarServico,
+  prazosSalvosNasInstrucoes,
+  servicoComPrazoPorNomes,
+} from "@/lib/prazos-servico";
 import {
   buscarServicoNaTabela,
   carregarDadosTabelaPrecoOs,
@@ -1231,6 +1239,7 @@ export default function ControlePage() {
   }
   const { mensagemBloqueioUpload } = useArmazenamentoGaleria();
   const editarUrlAbertoRef = useRef(false);
+  const prazosEdicaoAplicadosRef = useRef("");
 
   async function load() {
     const params = new URLSearchParams();
@@ -1625,18 +1634,69 @@ export default function ControlePage() {
     });
   }, [editando, form?.clienteId, clientesCatalogo, itemSelecionadoId, painelEdicaoItem]);
 
+  useEffect(() => {
+    if (!editando) {
+      prazosEdicaoAplicadosRef.current = "";
+      return;
+    }
+    if (prazosEdicaoAplicadosRef.current === editando.id) return;
+    if (categoriasTabelaPreco.length === 0) return;
+    const servico = servicoComPrazoPorNomes(
+      [form?.tipoProtese, ...editItems.map((item) => item.servico), editando.tipoProtese],
+      (nome) => buscarServicoNaTabela(categoriasTabelaPreco, nome)
+    );
+    if (!servico && editItems.length === 0 && !form?.tipoProtese && !editando.tipoProtese) return;
+    prazosEdicaoAplicadosRef.current = editando.id;
+    if (!servico) return;
+    setForm((atual) => {
+      if (!atual) return atual;
+      const completos = completarPrazosOsComTabela({
+        atuais: {
+          dataLaboratorio: atual.dataLaboratorio,
+          horaLaboratorio: atual.horaLaboratorio,
+          dataDentista: atual.dataDentista,
+          horaDentista: atual.horaDentista,
+        },
+        servico,
+        dataBase: parseBrDate(atual.dataLancamento) || new Date(),
+      });
+      if (
+        completos.dataLaboratorio === atual.dataLaboratorio &&
+        completos.dataDentista === atual.dataDentista
+      ) {
+        return atual;
+      }
+      return {
+        ...atual,
+        dataLaboratorio: completos.dataLaboratorio,
+        dataDentista: completos.dataDentista,
+        dataPrevista: brShortToIso(completos.dataLaboratorio) || atual.dataPrevista,
+      };
+    });
+  }, [editando, editItems, categoriasTabelaPreco, form?.tipoProtese]);
+
   function formVazioEdicao(trabalho: Trabalho, todos: Trabalho[] = trabalhos): EditForm {
     const complementos = complementosEdicaoTrabalho(trabalho, todos);
     const instrucoesTexto = instrucoesConsolidadas(trabalho, todos);
     const corpo = instrucoesCorpoSemEtapas(
       instrucoesCorpoSemItens(instrucoesTexto)
     );
-    const dataBr = formatDate(trabalho.dataPrevista);
+    const dataLancamento = formatDate(trabalho.dataEntrada);
+    const salvos = prazosSalvosNasInstrucoes(instrucoesTexto);
+    const prevista = formatDate(trabalho.dataPrevista);
+    const prazos = completarPrazosOsComTabela({
+      atuais: salvos,
+      servico: servicoComPrazoPorNomes([trabalho.tipoProtese], (nome) =>
+        buscarServicoNaTabela(categoriasTabelaPreco, nome)
+      ),
+      dataBase: parseBrDate(dataLancamento) || new Date(),
+      dataPrevistaLaboratorio: /^\d{2}\/\d{2}\/\d{4}$/.test(prevista) ? prevista : "",
+    });
     return {
       clienteId: trabalho.clienteId || trabalho.cliente?.id || "",
       pacienteNome: trabalho.paciente?.nome || "",
       pacienteId: trabalho.pacienteId || trabalho.paciente?.id || "",
-      dataLancamento: formatDate(trabalho.dataEntrada),
+      dataLancamento,
       osExterna: extrairOsExterna(instrucoesTexto),
       caixa: caixaOs(trabalho) || linhaInstrucaoOs(instrucoesTexto, "Caixa:"),
       casoUrgente:
@@ -1663,11 +1723,11 @@ export default function ControlePage() {
       quantidade: "1",
       descontoTipo: "percentual",
       desconto: "0,00",
-      dataPrevista: dateToInput(trabalho.dataPrevista),
-      dataLaboratorio: dataBr,
-      horaLaboratorio: "",
-      dataDentista: dataBr,
-      horaDentista: "",
+      dataPrevista: brShortToIso(prazos.dataLaboratorio) || dateToInput(trabalho.dataPrevista),
+      dataLaboratorio: prazos.dataLaboratorio,
+      horaLaboratorio: prazos.horaLaboratorio,
+      dataDentista: prazos.dataDentista,
+      horaDentista: prazos.horaDentista,
       observacoes: trabalho.observacoes || "",
       observacaoServico: "",
       instrucoesCorpo: complementos.textoLivre || corpo,
@@ -1688,7 +1748,8 @@ export default function ControlePage() {
 
   function prazosDoServicoEdicao(nomeServico: string) {
     const servico = buscarServicoNaTabela(categoriasTabelaPreco, nomeServico);
-    const base = parseBrDate(formatDate(editando?.dataEntrada)) || new Date();
+    const base =
+      parseBrDate(form?.dataLancamento || formatDate(editando?.dataEntrada)) || new Date();
     return servico ? calcularDatasPrazoServico(servico, base) : { dataLaboratorio: "", dataDentista: "" };
   }
 
@@ -1700,8 +1761,6 @@ export default function ControlePage() {
             categoria: categoriaNome,
             tipoProtese: "",
             valor: "R$ 0,00",
-            dataLaboratorio: "",
-            dataDentista: "",
           }
         : atual
     );
@@ -1712,7 +1771,7 @@ export default function ControlePage() {
     if (!servicoRef) {
       setForm((atual) =>
         atual
-          ? { ...atual, tipoProtese: "", valor: "R$ 0,00", dataLaboratorio: "", dataDentista: "" }
+          ? { ...atual, tipoProtese: "", valor: "R$ 0,00" }
           : atual
       );
       return;
@@ -1734,8 +1793,6 @@ export default function ControlePage() {
               tipoProtese: `Transporte: ${servico.nome}`,
               valor: valorFmt,
               quantidade: "1",
-              dataLaboratorio: "",
-              dataDentista: "",
             }
           : atual
       );
@@ -1755,19 +1812,18 @@ export default function ControlePage() {
         }))
       : [];
     const setorServico = setorResponsavelDasEtapas(etapasIniciais, modelosEtapasOs);
-    setForm((atual) =>
-      atual
-        ? {
-            ...atual,
-            tipoProtese: servico.nome,
-            valor: valorFmt,
-            dataLaboratorio: prazos.dataLaboratorio,
-            dataDentista: prazos.dataDentista,
-            dataPrevista: brShortToIso(prazos.dataLaboratorio) || atual.dataPrevista,
-            ...(setorServico ? { setorOs: setorServico } : {}),
-          }
-        : atual
-    );
+    setForm((atual) => {
+      if (!atual) return atual;
+      const datas = prazosAoSelecionarServico(atual, prazos);
+      return {
+        ...atual,
+        tipoProtese: servico.nome,
+        valor: valorFmt,
+        ...datas,
+        dataPrevista: brShortToIso(datas.dataLaboratorio) || atual.dataPrevista,
+        ...(setorServico ? { setorOs: setorServico } : {}),
+      };
+    });
     if (etapasIniciais.length) {
       const cliente = clientesCatalogo.find((item) => item.id === form.clienteId);
       const nomeRep = nomeRepresentanteColaboradorCliente(cliente, colaboradoresOpcoes);
@@ -2751,8 +2807,9 @@ export default function ControlePage() {
       clientesCatalogo,
       editando
     );
+    const base = formVazioEdicao(editando, trabalhos);
     setForm({
-      ...formVazioEdicao(editando, trabalhos),
+      ...base,
       clienteId: form.clienteId,
       pacienteNome: form.pacienteNome,
       pacienteId: form.pacienteId,
@@ -2766,7 +2823,11 @@ export default function ControlePage() {
       instrucoesCorpo: form.instrucoesCorpo,
       tipoRepeticaoOs: form.tipoRepeticaoOs,
       status: form.status,
-      dataPrevista: form.dataPrevista,
+      dataLaboratorio: form.dataLaboratorio || base.dataLaboratorio,
+      horaLaboratorio: form.horaLaboratorio || base.horaLaboratorio,
+      dataDentista: form.dataDentista || base.dataDentista,
+      horaDentista: form.horaDentista || base.horaDentista,
+      dataPrevista: brShortToIso(form.dataLaboratorio) || form.dataPrevista || base.dataPrevista,
       categoria: "",
       tipoProtese: "",
       dentes: "",
@@ -2796,8 +2857,16 @@ export default function ControlePage() {
       clientesCatalogo,
       editando
     );
+    const base = form ? form : formVazioEdicao(editando, trabalhos);
+    const recalculado = formVazioEdicao(editando, trabalhos);
     setForm({
-      ...formVazioEdicao(editando, trabalhos),
+      ...recalculado,
+      dataLaboratorio: base.dataLaboratorio || recalculado.dataLaboratorio,
+      horaLaboratorio: base.horaLaboratorio || recalculado.horaLaboratorio,
+      dataDentista: base.dataDentista || recalculado.dataDentista,
+      horaDentista: base.horaDentista || recalculado.horaDentista,
+      dataPrevista:
+        brShortToIso(base.dataLaboratorio) || base.dataPrevista || recalculado.dataPrevista,
       categoria: "",
       tipoProtese: "",
       dentes: "",
@@ -2911,19 +2980,24 @@ export default function ControlePage() {
       vistos.add(anexo.url);
       return true;
     });
-    const corpo = montarCorpoCabecalhoInstrucoes(
-      form.instrucoesCorpo,
-      {
-        caixa: form.caixa,
-        osExterna: form.osExterna,
-        dentista: form.dentista,
-        casoUrgente: form.casoUrgente,
-        material: form.material,
-        prioridadeOs: form.prioridadeOs,
-        setorOs: form.setorOs,
-      },
-      anexosParaLinhasInstrucoes(anexosUnicos)
-    );
+    const corpo = [
+      montarCorpoCabecalhoInstrucoes(
+        form.instrucoesCorpo,
+        {
+          caixa: form.caixa,
+          osExterna: form.osExterna,
+          dentista: form.dentista,
+          casoUrgente: form.casoUrgente,
+          material: form.material,
+          prioridadeOs: form.prioridadeOs,
+          setorOs: form.setorOs,
+        },
+        anexosParaLinhasInstrucoes(anexosUnicos)
+      ),
+      ...linhasInstrucaoPrazosOs(form),
+    ]
+      .filter(Boolean)
+      .join("\n");
     if (/origem entrada:/i.test(corpo)) return corpo;
     const rotuloExistente = extrairRotuloOrigemEntradaLinha(
       editando?.instrucoes,
@@ -3967,6 +4041,32 @@ export default function ControlePage() {
                   setForm((atual) => {
                     if (!atual) return atual;
                     const next = { ...atual, ...patch };
+                    if (
+                      patch.dataLancamento &&
+                      patch.dataLancamento !== atual.dataLancamento
+                    ) {
+                      const nome = nomeServicoParaPrazo([
+                        next.tipoProtese,
+                        ...editItems.map((item) => item.servico),
+                        editando.tipoProtese,
+                      ]);
+                      const servicoPrazo = nome
+                        ? buscarServicoNaTabela(categoriasTabelaPreco, nome)
+                        : undefined;
+                      if (servicoPrazo) {
+                        const datas = prazosAoSelecionarServico(
+                          next,
+                          calcularDatasPrazoServico(
+                            servicoPrazo,
+                            parseBrDate(patch.dataLancamento) || new Date()
+                          )
+                        );
+                        next.dataLaboratorio = datas.dataLaboratorio;
+                        next.dataDentista = datas.dataDentista;
+                        next.dataPrevista =
+                          brShortToIso(datas.dataLaboratorio) || next.dataPrevista;
+                      }
+                    }
                     if (patch.clienteId && patch.clienteId !== atual.clienteId) {
                       const cliente = clientesCatalogo.find(
                         (item) => item.id === patch.clienteId

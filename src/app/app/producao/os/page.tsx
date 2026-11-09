@@ -92,7 +92,15 @@ import {
   aplicarRepresentanteEmEtapasOs,
   nomeRepresentanteColaboradorCliente,
 } from "@/lib/cliente-representante";
-import { calcularDatasPrazoServico } from "@/lib/prazos-servico";
+import {
+  calcularDatasPrazoServico,
+  completarPrazosOsComTabela,
+  linhasInstrucaoPrazosOs,
+  nomeServicoParaPrazo,
+  prazosAoSelecionarServico,
+  prazosSalvosNasInstrucoes,
+  servicoComPrazoPorNomes,
+} from "@/lib/prazos-servico";
 import {
   ARMAZENAMENTO_LAB_PRONTO_EVENT,
 } from "@/lib/armazenamento-laboratorio";
@@ -487,6 +495,7 @@ export default function OrdemServicoPage() {
   const osNumeroParam = searchParams.get("os");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const trabalhoContextoRef = useRef<TrabalhoEdicao | null>(null);
+  const prazosOsAplicadosRef = useRef("");
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [lancamentosFinanceiros, setLancamentosFinanceiros] = useState<LancamentoFinanceiro[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
@@ -1078,6 +1087,19 @@ export default function OrdemServicoPage() {
         dataEntrada: trabalho.dataEntrada,
       });
 
+      const dataLancamentoEdicao = dateToBrShort(new Date(trabalho.dataEntrada));
+      const prazosEdicao = completarPrazosOsComTabela({
+        atuais: prazosSalvosNasInstrucoes(instrucoesGrupo),
+        servico: servicoComPrazoPorNomes(
+          [...itensCarregados.map((item) => item.servico), trabalho.tipoProtese],
+          (nome) => buscarServicoNaTabela(categoriasTabelaPreco, nome)
+        ),
+        dataBase: parseBrDate(dataLancamentoEdicao) || new Date(trabalho.dataEntrada),
+        dataPrevistaLaboratorio: trabalho.dataPrevista
+          ? dateToBrShort(new Date(trabalho.dataPrevista))
+          : "",
+      });
+
       setForm((current) => ({
         ...current,
         numeroOs: String(trabalho.numeroOs),
@@ -1099,13 +1121,11 @@ export default function OrdemServicoPage() {
         valor: "R$ 0,00",
         descontoTipo: "percentual",
         desconto: "0,00",
-        dataLancamento: dateToBrShort(new Date(trabalho.dataEntrada)),
-        dataLaboratorio: trabalho.dataPrevista
-          ? dateToBrShort(new Date(trabalho.dataPrevista))
-          : "",
-        dataDentista: trabalho.dataPrevista
-          ? dateToBrShort(new Date(trabalho.dataPrevista))
-          : "",
+        dataLancamento: dataLancamentoEdicao,
+        dataLaboratorio: prazosEdicao.dataLaboratorio,
+        horaLaboratorio: prazosEdicao.horaLaboratorio,
+        dataDentista: prazosEdicao.dataDentista,
+        horaDentista: prazosEdicao.horaDentista,
         escala: normalizarEscalaOs(categoriasTabelaCompleta, trabalho.escala),
         cor: trabalho.cor || "",
         materialEnviado: trabalho.material || "",
@@ -1188,6 +1208,49 @@ export default function OrdemServicoPage() {
 
   const categoriasTabelaCompleta = categoriasPorTabelaPreco[tabelaPrecoSelecionada] || [];
   const categoriasTabelaPreco = categoriasSelecionaveisNaOs(categoriasTabelaCompleta);
+
+  useEffect(() => {
+    if (!editId) {
+      prazosOsAplicadosRef.current = "";
+      return;
+    }
+    if (prazosOsAplicadosRef.current === editId) return;
+    if (categoriasTabelaPreco.length === 0) return;
+    const servico = servicoComPrazoPorNomes(
+      itensAdicionados.map((item) => item.servico),
+      (nome) => buscarServicoNaTabela(categoriasTabelaPreco, nome)
+    );
+    if (!servico && itensAdicionados.length === 0) return;
+    prazosOsAplicadosRef.current = editId;
+    if (!servico) return;
+    setForm((current) => {
+      const completos = completarPrazosOsComTabela({
+        atuais: {
+          dataLaboratorio: current.dataLaboratorio,
+          horaLaboratorio: current.horaLaboratorio,
+          dataDentista: current.dataDentista,
+          horaDentista: current.horaDentista,
+        },
+        servico,
+        dataBase: parseBrDate(current.dataLancamento) || new Date(),
+      });
+      if (
+        completos.dataLaboratorio === current.dataLaboratorio &&
+        completos.dataDentista === current.dataDentista &&
+        completos.horaLaboratorio === current.horaLaboratorio &&
+        completos.horaDentista === current.horaDentista
+      ) {
+        return current;
+      }
+      return {
+        ...current,
+        dataLaboratorio: completos.dataLaboratorio,
+        dataDentista: completos.dataDentista,
+        horaLaboratorio: completos.horaLaboratorio,
+        horaDentista: completos.horaDentista,
+      };
+    });
+  }, [editId, itensAdicionados, categoriasTabelaPreco]);
 
   function recarregarTabelaPrecoOs() {
     const dados = carregarDadosTabelaPrecoOs();
@@ -1418,8 +1481,6 @@ export default function OrdemServicoPage() {
         categoria: "",
         tipoProtese: "",
         valor: "R$ 0,00",
-        dataLaboratorio: "",
-        dataDentista: "",
       }));
     }
   }, [categoriasTabelaPreco, tabelaPrecoSelecionada, form.categoria]);
@@ -1565,8 +1626,6 @@ export default function OrdemServicoPage() {
       tipoProtese: "",
       produtoId: "",
       valor: "R$ 0,00",
-      dataLaboratorio: "",
-      dataDentista: "",
     }));
     setEtapas([]);
     setIndiceEtapaAtual(0);
@@ -1584,8 +1643,6 @@ export default function OrdemServicoPage() {
         tipoProtese: "",
         produtoId: "",
         valor: "R$ 0,00",
-        dataLaboratorio: "",
-        dataDentista: "",
       }));
       setEtapas([]);
       setIndiceEtapaAtual(0);
@@ -1633,8 +1690,6 @@ export default function OrdemServicoPage() {
         desconto: descontoServico,
         descontoTipo: descontoCliente.descontoTipo,
         quantidade: "1",
-        dataLaboratorio: "",
-        dataDentista: "",
       }));
       setAvisoAdicionarServico("");
       return;
@@ -1654,8 +1709,6 @@ export default function OrdemServicoPage() {
         desconto: descontoServico,
         descontoTipo: descontoCliente.descontoTipo,
         quantidade: "1",
-        dataLaboratorio: "",
-        dataDentista: "",
       }));
       setAvisoAdicionarServico("");
       return;
@@ -1673,8 +1726,7 @@ export default function OrdemServicoPage() {
       produtoId: "",
       valor: valorFmt,
       desconto: descontoServico,
-      dataLaboratorio: prazos.dataLaboratorio,
-      dataDentista: prazos.dataDentista,
+      ...prazosAoSelecionarServico(current, prazos),
     }));
     if (servicoTemEtapasNaTabela(servico)) {
       setIndiceEtapaAtual(0);
@@ -1777,11 +1829,14 @@ export default function OrdemServicoPage() {
   function atualizarCampoData(campo: CampoData, valorData: string) {
     setForm((current) => {
       const next = { ...current, [campo]: valorData };
-      if (campo === "dataLancamento" && current.tipoProtese) {
-        const prazos = prazosDoServicoSelecionado(current.tipoProtese, valorData);
-        return { ...next, dataLaboratorio: prazos.dataLaboratorio, dataDentista: prazos.dataDentista };
-      }
-      return next;
+      if (campo !== "dataLancamento") return next;
+      const nome = nomeServicoParaPrazo([
+        current.tipoProtese,
+        ...itensAdicionados.map((item) => item.servico),
+      ]);
+      if (!nome) return next;
+      const calculados = prazosDoServicoSelecionado(nome, valorData);
+      return { ...next, ...prazosAoSelecionarServico(next, calculados) };
     });
   }
 
@@ -2852,10 +2907,6 @@ export default function OrdemServicoPage() {
       ),
       escala: "",
       cor: "",
-      dataLaboratorio: "",
-      dataDentista: "",
-      horaLaboratorio: "",
-      horaDentista: "",
       urgente: false,
       repeticao: false,
     }));
@@ -3167,8 +3218,7 @@ export default function OrdemServicoPage() {
       form.prioridadeOs ? linhaPrioridadeOs(form.prioridadeOs) : "",
       form.setorOs ? linhaSetorOs(form.setorOs) : "",
       form.casoUrgente ? `Caso odontológico: ${form.casoUrgente}` : "",
-      form.dataLaboratorio ? `Data laboratório: ${form.dataLaboratorio} ${form.horaLaboratorio}`.trim() : "",
-      form.dataDentista ? `Data dentista: ${form.dataDentista} ${form.horaDentista}`.trim() : "",
+      ...linhasInstrucaoPrazosOs(form),
       etapasParaInstrucoes(),
       deduplicarColaboradores(colaboradores)
         .filter((colaborador) => colaborador.nome.trim())
