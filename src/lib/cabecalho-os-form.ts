@@ -1,4 +1,5 @@
 import { instrucoesTextoLivre } from "@/lib/etapas-os";
+import { linhaOsExterna } from "@/lib/os-externa";
 import { linhaPrioridadeOs, type PrioridadeOsForm } from "@/lib/prioridade-os";
 import { linhaSetorOs } from "@/lib/setor-os";
 
@@ -9,6 +10,7 @@ export const classeCampoCabecalhoOsBloqueado =
 export type CabecalhoOsCampos = {
   dataLancamento: string;
   numeroOs: string;
+  osExterna: string;
   caixa: string;
   casoUrgente: string;
   pacienteNome: string;
@@ -120,7 +122,13 @@ export function montarCorpoCabecalhoInstrucoes(
   instrucoesCorpo: string,
   cabecalho: Pick<
     CabecalhoOsCampos,
-    "caixa" | "dentista" | "casoUrgente" | "material" | "prioridadeOs" | "setorOs"
+    | "caixa"
+    | "dentista"
+    | "casoUrgente"
+    | "material"
+    | "prioridadeOs"
+    | "setorOs"
+    | "osExterna"
   >,
   linhasAnexos = ""
 ) {
@@ -128,6 +136,7 @@ export function montarCorpoCabecalhoInstrucoes(
   return [
     textoLivre,
     cabecalho.material ? `Material enviado: ${cabecalho.material}` : "",
+    linhaOsExterna(cabecalho.osExterna),
     cabecalho.caixa ? `Caixa: ${cabecalho.caixa}` : "",
     cabecalho.dentista ? `Dentista: ${cabecalho.dentista}` : "",
     cabecalho.prioridadeOs ? linhaPrioridadeOs(cabecalho.prioridadeOs) : "",

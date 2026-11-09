@@ -19,7 +19,6 @@ import { DiariasColaboradoresModal } from "@/components/DiariasColaboradoresModa
 import { LeitorCodigoBarrasModal } from "@/components/LeitorCodigoBarrasModal";
 import { InputLeitorCodigoOs } from "@/components/InputLeitorCodigoOs";
 import { CampoDataBr, Select } from "@/components/ui";
-import { extrairNumeroOsCodigo } from "@/lib/codigo-barras-os";
 import type { MessageKey } from "@/lib/i18n";
 import {
   labelStatusTrabalho,
@@ -245,12 +244,10 @@ export function ModuloProducaoColaborador({ userName: _userName, userRole: _user
         limparResultadoPesquisaOs();
         return;
       }
-      const numero = extrairNumeroOsCodigo(bruto);
-      if (!numero) return;
-      setBuscaOs(numero);
+      setBuscaOs(bruto);
       setBuscandoOs(true);
       try {
-        const response = await fetch(`/api/trabalhos?q=${encodeURIComponent(numero)}`, {
+        const response = await fetch(`/api/trabalhos?q=${encodeURIComponent(bruto)}`, {
           cache: "no-store",
         });
         const data = await response.json();

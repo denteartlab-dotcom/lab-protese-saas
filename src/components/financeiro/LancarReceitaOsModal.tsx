@@ -35,6 +35,7 @@ import {
   CONFIG_GERAIS_ATUALIZADA_EVENT,
 } from "@/lib/configuracoes-gerais";
 import { osExternaAgenda } from "@/lib/agenda-producao-grupo";
+import { codigoOsCombina, extrairOsExterna } from "@/lib/os-externa";
 import { prazoFromInstructions, prazoTrabalho } from "@/lib/controle-producao-prazos";
 import { itensDoTrabalho } from "@/lib/relatorio-faturas-modelo3-dados";
 import type { DiariaPendenteReceita } from "@/lib/diarias-colaboradores";
@@ -445,7 +446,11 @@ export function LancarReceitaOsModal({
 
   const aplicarCodigoOs = useCallback(
     (numero: string) => {
-      const trabalho = trabalhosParaReceita.find((t) => String(t.numeroOs) === numero);
+      const trabalho = trabalhosParaReceita.find(
+        (t) =>
+          String(t.numeroOs) === numero ||
+          codigoOsCombina(extrairOsExterna(t.instrucoes), numero)
+      );
       if (trabalho) {
         if (!osSelecionadas.includes(trabalho.id)) toggleOsReceita(trabalho.id);
         setFeedbackCodigo({ tipo: "ok", msg: `OS ${numero} selecionada` });

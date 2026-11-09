@@ -7,6 +7,7 @@ import {
   dataCriacaoOriginalOs,
   garantirDatasEntradaEmpresaAlinhadas,
 } from "@/lib/os-data-criacao";
+import { extrairOsExterna } from "@/lib/os-externa";
 import {
   segmentoEfetivoTrabalho,
   whereGrupoOs,
@@ -391,10 +392,7 @@ async function carregarDadosImpressaoOsInterno({
       : itens.find((item) => item.tipo === "servico")?.notasAbaixo?.[0] || "";
   const materiais = lineValue(linhas, "Material enviado:") || empty(t.material);
   const caixa = lineValue(linhas, "Caixa:");
-  const osExterna =
-    lineValue(linhas, "OS Interna:") ||
-    lineValue(linhas, "OS Externa:") ||
-    lineValue(linhas, "OS externa:");
+  const osExterna = extrairOsExterna(textoInstrucoesGrupo);
   const chavePed = lineValue(linhas, "Chave Ped:") || lineValue(linhas, "Chave ped:");
   const colaborador = colaboradorParaImpressao(textoInstrucoesGrupo);
   const dentistaNome =

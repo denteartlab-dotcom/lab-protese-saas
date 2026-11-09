@@ -20,6 +20,7 @@ import {
 } from "@/lib/modulo-producao-os";
 import { etapaAtualLinhaOsComMapa } from "@/lib/modulo-producao-etapas";
 import { trabalhoVisivelModuloTv } from "@/lib/status-os";
+import { extrairOsExterna } from "@/lib/os-externa";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
 
 export type TrabalhoAgendaGrupo = TrabalhoAgenda & {
@@ -187,10 +188,7 @@ export function instrucoesConsolidadasGrupo(linha: LinhaAgendaGrupoOs) {
 }
 
 export function osExternaAgenda(instrucoes?: string | null) {
-  const line = (instrucoes || "")
-    .split("\n")
-    .find((item) => /^os externa:/i.test(item.trim()));
-  return line?.replace(/^os externa:\s*/i, "").trim() || "";
+  return extrairOsExterna(instrucoes);
 }
 
 export function prazoDentistaTextoAgenda(trabalho: TrabalhoAgendaGrupo) {

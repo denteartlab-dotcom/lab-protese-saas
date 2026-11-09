@@ -107,6 +107,7 @@ export type EtapaAcompanhamentoPublico = EtapaOsLinha & {
 export type TrabalhoAcompanhamentoPublico = {
   id: string;
   numeroOs: number;
+  osExterna?: string;
   segmentoFaturamento: string;
   pacienteNome: string;
   tipoProtese: string;

@@ -8,7 +8,6 @@ import { ConfiguracoesGearMenu } from "@/components/ConfiguracoesGearMenu";
 import { LanguageMenu } from "@/components/header/LanguageMenu";
 import { NotificationsBell } from "@/components/header/NotificationsBell";
 import { LeitorCodigoBarrasModal } from "@/components/LeitorCodigoBarrasModal";
-import { extrairNumeroOsCodigo } from "@/lib/codigo-barras-os";
 import { SiteSearchBar, SiteSearchButton } from "@/components/header/SiteSearchBar";
 import { useI18n } from "@/components/i18n-provider";
 import { usePermissoesApp } from "@/components/PermissoesAppProvider";
@@ -467,19 +466,12 @@ function AppShellInner({
       limparResultadoPesquisaOs();
       return;
     }
-    const numero = extrairNumeroOsCodigo(bruto);
-    if (!numero) {
-      setCodigoBarrasMensagem(
-        t("shell.buscaOs.codigoNaoReconhecido", { codigo: bruto })
-      );
-      return;
-    }
-    setBuscaOs(numero);
+    setBuscaOs(bruto);
 
     setBuscandoOs(true);
     setBuscaOsExecutada(true);
     try {
-      const response = await fetch(`/api/trabalhos?q=${encodeURIComponent(numero)}`, {
+      const response = await fetch(`/api/trabalhos?q=${encodeURIComponent(bruto)}`, {
         cache: "no-store",
       });
       const data = await response.json();
@@ -488,11 +480,11 @@ function AppShellInner({
       setOsSelecionada(resultados.length === 1 ? resultados[0] : null);
       setItemOsSelecionado(null);
       if (resultados.length === 1) {
-        setCodigoBarrasMensagem(`OS ${numero} encontrada.`);
+        setCodigoBarrasMensagem(`OS ${bruto} encontrada.`);
       } else if (resultados.length > 1) {
-        setCodigoBarrasMensagem(`${resultados.length} resultados para OS ${numero}.`);
+        setCodigoBarrasMensagem(`${resultados.length} resultados para OS ${bruto}.`);
       } else {
-        setCodigoBarrasMensagem(`Nenhuma OS encontrada para o código ${numero}.`);
+        setCodigoBarrasMensagem(`Nenhuma OS encontrada para o código ${bruto}.`);
       }
     } finally {
       setBuscandoOs(false);

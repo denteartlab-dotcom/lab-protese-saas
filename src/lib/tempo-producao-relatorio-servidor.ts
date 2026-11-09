@@ -17,6 +17,7 @@ import {
   type TrabalhoModuloOs,
 } from "@/lib/modulo-producao-os";
 import { prisma } from "@/lib/db";
+import { extrairOsExterna } from "@/lib/os-externa";
 import { normalizarColaborador } from "@/lib/utils";
 import { trabalhoParaDetalheTempoProducao } from "@/lib/tempo-producao-detalhe";
 import {
@@ -137,6 +138,7 @@ function trabalhoParaLinha(
   return {
     id: principal.id,
     numeroOs: principal.numeroOs,
+    osExterna: extrairOsExterna(instrucoesGrupo),
     paciente: principal.paciente.nome,
     dentista: principal.cliente.nome,
     tipoServico: principal.tipoProtese,

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { extrairNumeroOsCodigo } from "@/lib/codigo-barras-os";
+import { trabalhoCombinaBuscaOs, whereBuscaTrabalho } from "@/lib/os-externa";
 import { requireEmpresaContext } from "@/lib/empresa-context";
 
 export const dynamic = "force-dynamic";
@@ -15,34 +15,36 @@ export async function GET(request: Request) {
     return NextResponse.json({ resultados: [] });
   }
 
-  const numeroOsStr = extrairNumeroOsCodigo(q);
-  const isNumeroOs = numeroOsStr.length > 0 && /^\d+$/.test(numeroOsStr);
-  const numeroOs = isNumeroOs ? Number(numeroOsStr) : 0;
-
   const trabalhos = await prisma.trabalho.findMany({
     where: {
       empresaId: ctx.empresaId,
-      ...(isNumeroOs
-        ? { numeroOs }
-        : {
-            OR: [
-              { id: q },
-              { paciente: { nome: { contains: q, mode: "insensitive" } } },
-              { cliente: { nome: { contains: q, mode: "insensitive" } } },
-              { tipoProtese: { contains: q, mode: "insensitive" } },
-              { instrucoes: { contains: q, mode: "insensitive" } },
-            ],
-          }),
+      ...whereBuscaTrabalho(q),
     },
     orderBy: { updatedAt: "desc" },
-    take: 20,
+    take: 200,
     include: {
       cliente: { select: { id: true, nome: true } },
       paciente: { select: { id: true, nome: true } },
     },
   });
 
-  const resultados = trabalhos.map((t) => ({
+  const resultados = trabalhos
+    .filter((t) =>
+      trabalhoCombinaBuscaOs(
+        {
+          id: t.id,
+          numeroOs: t.numeroOs,
+          instrucoes: t.instrucoes,
+          pacienteNome: t.paciente?.nome,
+          clienteNome: t.cliente?.nome,
+          tipoProtese: t.tipoProtese,
+        },
+        q,
+        { incluirInstrucoes: true }
+      )
+    )
+    .slice(0, 20)
+    .map((t) => ({
     id: t.id,
     numeroOs: t.numeroOs,
     tipoProtese: t.tipoProtese,

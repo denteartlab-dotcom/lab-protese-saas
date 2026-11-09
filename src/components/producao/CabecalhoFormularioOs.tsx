@@ -270,6 +270,13 @@ export function CabecalhoFormularioOs({
         className={classeBloqueio}
       />
       <Input
+        label={t("producao.os.campo.osExterna")}
+        value={value.osExterna}
+        onChange={(e) => onChange({ osExterna: e.target.value })}
+        disabled={desabilitado}
+        className={classeBloqueio}
+      />
+      <Input
         label={t("producao.os.campo.caixa")}
         value={value.caixa}
         onChange={(e) => onChange({ caixa: e.target.value })}

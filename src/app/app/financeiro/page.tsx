@@ -120,6 +120,7 @@ import { clienteVisivelContasReceber, descricaoExibicaoCobranca, calcularRecebid
 import { paginarLista } from "@/lib/contas-receber-financeiro";
 import { calcularContasRecebidasPeriodo } from "@/lib/lancamento-valor-caixa";
 import { telefoneWhatsappCliente } from "@/lib/cliente-observacoes";
+import { codigoOsCombina, extrairOsExterna } from "@/lib/os-externa";
 import { abrirWhatsAppWebLembreteCobrancaFatura } from "@/lib/mensagem-cobranca-fatura";
 import { fetchPainelFinanceiro } from "@/lib/financeiro-painel-cliente";
 import type { PainelFinanceiroReceita } from "@/lib/financeiro-painel-types";
@@ -623,15 +624,22 @@ function FinanceiroReceberConteudo() {
         if (l.status === "pago" || dateOnly(l.data) >= hoje) return false;
       }
       if (!termo) return true;
+      const osExterna = l.trabalho?.numeroOs
+        ? extrairOsExterna(
+            trabalhos.find((t) => t.numeroOs === l.trabalho?.numeroOs)?.instrucoes
+          )
+        : "";
       return [
         l.cliente?.nome,
         l.descricao,
         l.trabalho?.numeroOs ? String(l.trabalho.numeroOs) : "",
+        osExterna,
       ]
         .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(termo));
+        .some((value) => String(value).toLowerCase().includes(termo)) ||
+        codigoOsCombina(osExterna, termo);
     });
-  }, [data, dataInicio, dataFinal, situacao, busca]);
+  }, [data, dataInicio, dataFinal, situacao, busca, trabalhos]);
 
   const cobrancasAtivas = useMemo(
     () =>

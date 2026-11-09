@@ -3,6 +3,7 @@ import { ptBR } from "date-fns/locale";
 import { parseBrDate } from "@/lib/datas-br";
 import { baixarCsv } from "@/lib/exportar-csv";
 import { baixarExcel } from "@/lib/exportar-excel";
+import { codigoOsCombina } from "@/lib/os-externa";
 import { normalizarColaborador } from "@/lib/utils";
 
 /** Dias parados na etapa atual para destacar visualmente na tabela. */
@@ -25,6 +26,7 @@ export type PrioridadeTempoProducao = "urgente" | "alta" | "normal" | "baixa";
 export type LinhaTempoProducao = {
   id: string;
   numeroOs: number;
+  osExterna?: string;
   paciente: string;
   dentista: string;
   tipoServico: string;
@@ -264,7 +266,9 @@ export function filtrarLinhasTempoProducao(
     if (filtros.apenasCriticos && linha.status !== "critico") return false;
     if (busca) {
       const texto = `${linha.numeroOs} ${linha.paciente} ${linha.dentista}`.toLowerCase();
-      if (!texto.includes(busca)) return false;
+      if (!texto.includes(busca) && !codigoOsCombina(linha.osExterna || "", filtros.busca || "")) {
+        return false;
+      }
     }
     return true;
   });

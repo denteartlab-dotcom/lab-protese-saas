@@ -17,6 +17,7 @@ import { EscalaCorCamposOs } from "@/components/producao/EscalaCorCamposOs";
 import { BadgeCliqueSituacaoEtapa } from "@/components/producao/EtapasOsEditor";
 import { formatDateBr, parseBrDate, dateToBrShort } from "@/lib/datas-br";
 import { dataEntradaParaApi } from "@/lib/os-data-criacao";
+import { extrairOsExterna, linhaOsExterna } from "@/lib/os-externa";
 import { corrigirMojibakeUtf8 } from "@/lib/corrigir-mojibake-utf8";
 import { propsInputComSelecaoAoFocar } from "@/lib/input-selecao";
 import { usePageReady } from "@/hooks/use-page-ready";
@@ -565,6 +566,7 @@ export default function OrdemServicoPage() {
   } | null>(null);
   const [form, setForm] = useState({
     numeroOs: "",
+    osExterna: "",
     clienteId: "",
     pacienteNome: "",
     prioridadeOs: "media" as PrioridadeOsForm,
@@ -1079,6 +1081,7 @@ export default function OrdemServicoPage() {
       setForm((current) => ({
         ...current,
         numeroOs: String(trabalho.numeroOs),
+        osExterna: extrairOsExterna(instrucoesGrupo),
         clienteId: trabalho.clienteId,
         pacienteNome: trabalho.paciente?.nome || "",
         prioridadeOs:
@@ -3006,6 +3009,7 @@ export default function OrdemServicoPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
     setForm({
       numeroOs: nextOs?.numeroOs ? String(nextOs.numeroOs) : "",
+      osExterna: "",
       clienteId: "",
       pacienteNome: "",
       prioridadeOs: "media" as PrioridadeOsForm,
@@ -3157,6 +3161,7 @@ export default function OrdemServicoPage() {
     const corpo = [
       instrucoesTextoLivre(form.instrucoes),
       form.materialEnviado ? `Material enviado: ${form.materialEnviado}` : "",
+      linhaOsExterna(form.osExterna),
       form.caixa ? `Caixa: ${form.caixa}` : "",
       form.dentista ? `Dentista: ${form.dentista}` : "",
       form.prioridadeOs ? linhaPrioridadeOs(form.prioridadeOs) : "",
@@ -3858,6 +3863,11 @@ export default function OrdemServicoPage() {
             dateField(t("producao.os.campo.dataLancamento"), "dataLancamento")
           )}
           <Input label={t("producao.os.campo.numeroOs")} value={form.numeroOs || t("producao.os.campo.gerando")} readOnly />
+          <Input
+            label={t("producao.os.campo.osExterna")}
+            value={form.osExterna}
+            onChange={(e) => setForm({ ...form, osExterna: e.target.value })}
+          />
           <Input label={t("producao.os.campo.caixa")} value={form.caixa} onChange={(e) => setForm({ ...form, caixa: e.target.value })} />
           <Input label={t("producao.os.campo.casoClinico")} value={form.casoUrgente} onChange={(e) => setForm({ ...form, casoUrgente: e.target.value })} />
           <div className="space-y-1">

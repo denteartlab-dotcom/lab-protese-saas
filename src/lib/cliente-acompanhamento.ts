@@ -22,6 +22,7 @@ import {
   situacaoEtapaServico,
 } from "@/lib/modulo-producao-etapas";
 import { clienteNomeComAbreviacao } from "@/lib/cliente-observacoes";
+import { extrairOsExterna } from "@/lib/os-externa";
 import { metaStatusOs, normalizarChaveStatusOs } from "@/lib/status-os";
 import {
   calcularLimitesUrgenciaCliente,
@@ -208,6 +209,7 @@ export function montarAcompanhamentoPublico(
     publicos.push({
       id: principal.id,
       numeroOs: principal.numeroOs,
+      osExterna: extrairOsExterna(instrucoesGrupo),
       segmentoFaturamento: principal.segmentoFaturamento,
       pacienteNome: principal.paciente.nome,
       tipoProtese: principal.tipoProtese,

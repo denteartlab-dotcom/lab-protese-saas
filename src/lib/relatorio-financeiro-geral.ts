@@ -16,6 +16,7 @@ import {
 } from "@/lib/financeiro-lancamentos-relatorio";
 import { itensDaOsModulo, type TrabalhoModuloOs } from "@/lib/modulo-producao-os";
 import { indiceEtapaAtualDeConcluidas } from "@/lib/modulo-producao-etapas";
+import { extrairOsExterna } from "@/lib/os-externa";
 import { calcularNaoFaturadosContasReceber } from "@/lib/nao-faturados-contas-receber";
 import {
   idsTrabalhosFaturadosNoLancamento,
@@ -91,6 +92,7 @@ export type TrabalhoFinanceiroGeralInput = {
 export type LinhaDetalheFinanceiroGeral = {
   id: string;
   numeroOs: number;
+  osExterna?: string;
   cliente: string;
   servico: string;
   valor: number;
@@ -661,6 +663,7 @@ export function montarLinhasDetalhe(
       return {
         id: t.id,
         numeroOs: t.numeroOs,
+        osExterna: extrairOsExterna(t.instrucoes),
         cliente: t.clienteNome,
         servico: t.tipoProtese,
         valor,

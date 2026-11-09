@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma, runWithTenantContext } from "@/lib/db";
-import { extrairNumeroOsCodigo } from "@/lib/codigo-barras-os";
+import { trabalhoCombinaBuscaOs, whereBuscaTrabalho } from "@/lib/os-externa";
 import { requireEmpresaContext } from "@/lib/empresa-context";
 import {
   acaoHttpParaPermissao,
@@ -76,9 +76,6 @@ export async function GET(request: Request) {
   const clienteId = (searchParams.get("clienteId") || "").trim();
   const dataEntrada = searchParams.get("dataEntrada");
   const atrasados = searchParams.get("atrasados") === "1";
-  const numeroOsStr = extrairNumeroOsCodigo(q);
-  const isNumeroOs = numeroOsStr.length > 0 && /^\d+$/.test(numeroOsStr);
-  const numeroOs = isNumeroOs ? Number(numeroOsStr) : 0;
   const dataInicio = dataEntrada ? new Date(`${dataEntrada}T00:00:00`) : null;
   const dataFim = dataEntrada ? new Date(`${dataEntrada}T23:59:59.999`) : null;
   const hoje = new Date();
@@ -104,26 +101,7 @@ export async function GET(request: Request) {
               },
             }
           : {}),
-        ...(q
-          ? isNumeroOs
-            ? { numeroOs }
-            : {
-                OR: [
-                  { id: q },
-                  {
-                    paciente: {
-                      nome: { contains: q, mode: "insensitive" },
-                    },
-                  },
-                  {
-                    cliente: {
-                      nome: { contains: q, mode: "insensitive" },
-                    },
-                  },
-                  { tipoProtese: { contains: q, mode: "insensitive" } },
-                ],
-              }
-          : {}),
+        ...(q ? whereBuscaTrabalho(q) : {}),
       },
       orderBy: { createdAt: "desc" },
       include: {
@@ -133,7 +111,23 @@ export async function GET(request: Request) {
     })
   );
 
-  const precisaCriador = trabalhos.filter((t) =>
+  const encontrados = q
+    ? trabalhos.filter((t) =>
+        trabalhoCombinaBuscaOs(
+          {
+            id: t.id,
+            numeroOs: t.numeroOs,
+            instrucoes: t.instrucoes,
+            pacienteNome: t.paciente?.nome,
+            clienteNome: t.cliente?.nome,
+            tipoProtese: t.tipoProtese,
+          },
+          q
+        )
+      )
+    : trabalhos;
+
+  const precisaCriador = encontrados.filter((t) =>
     precisaNomeCriadorEntrada(t.instrucoes, t.observacoes)
   );
   const numerosOs = [...new Set(precisaCriador.map((t) => t.numeroOs))];
@@ -167,7 +161,7 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json(
-    trabalhos.map((t) => {
+    encontrados.map((t) => {
       const base = rotuloOrigemEntradaDeTexto(t.instrucoes, t.observacoes);
       if (!precisaNomeCriadorEntrada(t.instrucoes, t.observacoes)) {
         return { ...t, origemEntradaLabel: base };

@@ -87,13 +87,21 @@ export function useEntradaLeitorCodigo({
         return true;
       }
       if (!onLido) return false;
+      const semEstrelas = limpo.replace(/^\*+|\*+$/g, "").trim();
+      const codigoInterno =
+        /^\d+$/.test(semEstrelas) || /^OS\s*#?\s*\d+$/i.test(semEstrelas);
       const numero = extrairNumeroOsCodigo(limpo);
-      if (!numero) {
+      if (codigoInterno && numero) {
+        setUltimoBruto(limpo);
+        onLido(numero, limpo);
+        return true;
+      }
+      if (!semEstrelas) {
         onInvalido?.(limpo);
         return false;
       }
       setUltimoBruto(limpo);
-      onLido(numero, limpo);
+      onLido(semEstrelas, limpo);
       return true;
     },
     [onInvalido, onLido, onTextoLido]

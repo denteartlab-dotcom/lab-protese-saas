@@ -159,6 +159,7 @@ import {
   linhaInstrucaoOs,
   montarCorpoCabecalhoInstrucoes,
 } from "@/lib/cabecalho-os-form";
+import { extrairOsExterna } from "@/lib/os-externa";
 import {
   aplicarControleEntregaAposMudancaStatus,
   type TrabalhoParaControleEntrega,
@@ -330,6 +331,7 @@ type EditForm = {
   pacienteNome: string;
   pacienteId: string;
   dataLancamento: string;
+  osExterna: string;
   caixa: string;
   casoUrgente: string;
   prioridadeOs: PrioridadeOsForm;
@@ -1635,6 +1637,7 @@ export default function ControlePage() {
       pacienteNome: trabalho.paciente?.nome || "",
       pacienteId: trabalho.pacienteId || trabalho.paciente?.id || "",
       dataLancamento: formatDate(trabalho.dataEntrada),
+      osExterna: extrairOsExterna(instrucoesTexto),
       caixa: caixaOs(trabalho) || linhaInstrucaoOs(instrucoesTexto, "Caixa:"),
       casoUrgente:
         linhaInstrucaoOs(instrucoesTexto, "Caso odontológico:") ||
@@ -2754,6 +2757,7 @@ export default function ControlePage() {
       pacienteNome: form.pacienteNome,
       pacienteId: form.pacienteId,
       dataLancamento: form.dataLancamento,
+      osExterna: form.osExterna,
       caixa: form.caixa,
       casoUrgente: form.casoUrgente,
       dentista: form.dentista,
@@ -2911,6 +2915,7 @@ export default function ControlePage() {
       form.instrucoesCorpo,
       {
         caixa: form.caixa,
+        osExterna: form.osExterna,
         dentista: form.dentista,
         casoUrgente: form.casoUrgente,
         material: form.material,
@@ -3939,6 +3944,7 @@ export default function ControlePage() {
                 value={{
                   dataLancamento: form.dataLancamento,
                   numeroOs: String(editando.numeroOs),
+                  osExterna: form.osExterna,
                   caixa: form.caixa,
                   casoUrgente: form.casoUrgente,
                   pacienteNome: form.pacienteNome,

@@ -32,6 +32,7 @@ import { PainelCarregando } from "@/components/ListaCarregando";
 import { RelatorioCabecalho } from "@/components/relatorios/RelatorioCabecalho";
 import { Modal } from "@/components/ui";
 import { dateToBrShort } from "@/lib/datas-br";
+import { codigoOsCombina } from "@/lib/os-externa";
 import { TRABALHOS_ATUALIZADOS_EVENT } from "@/lib/trabalhos-events";
 import { abrirPdfGerando } from "@/lib/pdf-viewer";
 import {
@@ -290,6 +291,7 @@ export function RelatorioFinanceiroGeralConteudo() {
       lista = lista.filter(
         (l) =>
           String(l.numeroOs).includes(termo) ||
+          codigoOsCombina(l.osExterna || "", termo) ||
           l.cliente.toLowerCase().includes(termo) ||
           l.servico.toLowerCase().includes(termo) ||
           l.responsavel.toLowerCase().includes(termo)

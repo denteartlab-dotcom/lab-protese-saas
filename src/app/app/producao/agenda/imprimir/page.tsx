@@ -1,4 +1,5 @@
 import { getSession } from "@/lib/auth";
+import { trabalhoCombinaBuscaOs, whereBuscaTrabalho } from "@/lib/os-externa";
 import { prisma, runWithTenantContext } from "@/lib/db";
 import { lerJsonStoreTenant } from "@/lib/json-store-tenant";
 import { MODULO_PRODUCAO_ETAPAS_STORAGE_KEY } from "@/lib/modulo-producao-etapas";
@@ -20,26 +21,13 @@ async function buscarTrabalhosAgenda(
 ) {
   const q = String(Array.isArray(sp.q) ? sp.q[0] : sp.q || "").trim();
   const status = String(Array.isArray(sp.status) ? sp.status[0] : sp.status || "producao");
-  const isNumeroOs = /^\d+$/.test(q);
-  const numeroOs = isNumeroOs ? Number(q) : 0;
 
-  return runWithTenantContext(empresaId, () =>
+  const trabalhos = await runWithTenantContext(empresaId, () =>
     prisma.trabalho.findMany({
     where: {
       empresaId,
       ...(status ? { status } : {}),
-      ...(q
-        ? isNumeroOs
-          ? { numeroOs }
-          : {
-              OR: [
-                { id: q },
-                { paciente: { nome: { contains: q } } },
-                { cliente: { nome: { contains: q } } },
-                { tipoProtese: { contains: q } },
-              ],
-            }
-        : {}),
+      ...(q ? whereBuscaTrabalho(q) : {}),
     },
     orderBy: { createdAt: "desc" },
     include: {
@@ -47,6 +35,20 @@ async function buscarTrabalhosAgenda(
       paciente: { select: { nome: true } },
     },
     })
+  );
+  if (!q) return trabalhos;
+  return trabalhos.filter((t) =>
+    trabalhoCombinaBuscaOs(
+      {
+        id: t.id,
+        numeroOs: t.numeroOs,
+        instrucoes: t.instrucoes,
+        pacienteNome: t.paciente?.nome,
+        clienteNome: t.cliente?.nome,
+        tipoProtese: t.tipoProtese,
+      },
+      q
+    )
   );
 }
 

@@ -100,6 +100,8 @@ const linhaEstruturadaOs = (line: string) => {
     /^Setor:/i.test(t) ||
     /^Data laboratório:/i.test(t) ||
     /^Data dentista:/i.test(t) ||
+    /^OS\s+extern[ao]\s*:/i.test(t) ||
+    /^OS\s+interna\s*:/i.test(t) ||
     /^Item adicionado:/i.test(t)
   );
 };
