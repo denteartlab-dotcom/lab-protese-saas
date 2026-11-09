@@ -3945,8 +3945,6 @@ export default function OrdemServicoPage() {
               </p>
             ) : null}
           </div>
-          <Input label={t("producao.os.campo.casoClinico")} value={form.casoUrgente} onChange={(e) => setForm({ ...form, casoUrgente: e.target.value })} />
-
           <div className="space-y-1">
             <SelectPesquisavel
               label={requiredLabel(t("producao.os.campo.cliente"), Boolean(avisoAdicionarServico))}
@@ -3972,6 +3970,7 @@ export default function OrdemServicoPage() {
               </p>
             ) : null}
           </div>
+          <Input label={t("producao.os.campo.casoClinico")} value={form.casoUrgente} onChange={(e) => setForm({ ...form, casoUrgente: e.target.value })} />
           <Input
             label={t("producao.os.campo.dentista")}
             value={form.dentista}

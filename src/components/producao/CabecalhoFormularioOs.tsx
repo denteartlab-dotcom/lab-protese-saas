@@ -291,14 +291,6 @@ export function CabecalhoFormularioOs({
         disabled={desabilitado}
         className={classeBloqueio}
       />
-      <Input
-        label={t("producao.os.campo.casoClinico")}
-        value={value.casoUrgente}
-        onChange={(e) => onChange({ casoUrgente: e.target.value })}
-        disabled={desabilitado}
-        className={classeBloqueio}
-      />
-
       <div className="space-y-1">
         <SelectPesquisavel
           label={`${t("producao.os.campo.cliente")} ${t("common.obrigatorio")}`}
@@ -319,6 +311,13 @@ export function CabecalhoFormularioOs({
           </p>
         ) : null}
       </div>
+      <Input
+        label={t("producao.os.campo.casoClinico")}
+        value={value.casoUrgente}
+        onChange={(e) => onChange({ casoUrgente: e.target.value })}
+        disabled={desabilitado}
+        className={classeBloqueio}
+      />
 
       <Input
         label={t("producao.os.campo.dentista")}
