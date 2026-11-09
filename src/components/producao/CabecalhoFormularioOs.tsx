@@ -284,17 +284,17 @@ export function CabecalhoFormularioOs({
         className={classeBloqueio}
       />
       <Input
-        label={t("producao.os.campo.casoClinico")}
-        value={value.casoUrgente}
-        onChange={(e) => onChange({ casoUrgente: e.target.value })}
-        disabled={desabilitado}
-        className={classeBloqueio}
-      />
-      <Input
         label={t("producao.os.campo.paciente")}
         value={value.pacienteNome}
         onChange={(e) => onChange({ pacienteNome: e.target.value })}
         placeholder={t("producao.os.campo.pacientePlaceholder")}
+        disabled={desabilitado}
+        className={classeBloqueio}
+      />
+      <Input
+        label={t("producao.os.campo.casoClinico")}
+        value={value.casoUrgente}
+        onChange={(e) => onChange({ casoUrgente: e.target.value })}
         disabled={desabilitado}
         className={classeBloqueio}
       />

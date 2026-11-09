@@ -3919,7 +3919,6 @@ export default function OrdemServicoPage() {
             onChange={(e) => setForm({ ...form, osExterna: e.target.value })}
           />
           <Input label={t("producao.os.campo.caixa")} value={form.caixa} onChange={(e) => setForm({ ...form, caixa: e.target.value })} />
-          <Input label={t("producao.os.campo.casoClinico")} value={form.casoUrgente} onChange={(e) => setForm({ ...form, casoUrgente: e.target.value })} />
           <div className="space-y-1">
             <Input
               label={requiredLabel(t("producao.os.campo.paciente"), Boolean(avisoAdicionarServico))}
@@ -3946,6 +3945,7 @@ export default function OrdemServicoPage() {
               </p>
             ) : null}
           </div>
+          <Input label={t("producao.os.campo.casoClinico")} value={form.casoUrgente} onChange={(e) => setForm({ ...form, casoUrgente: e.target.value })} />
 
           <div className="space-y-1">
             <SelectPesquisavel
