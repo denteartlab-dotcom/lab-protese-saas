@@ -36,6 +36,8 @@ export type EntradaPlanoHorarioOs = {
   etapas: EtapaEntradaPlano[];
   /** Entregas já marcadas por dia (dd/mm/aaaa), sem contar esta OS. */
   ocupacaoPorDia?: Record<string, number>;
+  /** Texto que a pessoa escreveu no diálogo. */
+  pedido?: string;
 };
 
 export type EtapaPlanejada = {
@@ -63,6 +65,8 @@ export type PlanoHorarioOs = {
   prazoDentista: { data: string; hora: string };
   avisoPrazo: string;
   cargaDia: string;
+  /** Resposta do diálogo, com a sequência de dias e horários. */
+  resposta: string;
 };
 
 type Instante = { date: Date; minuto: number };
@@ -208,12 +212,86 @@ function diaUtilAnterior(date: Date, horario: HorarioFuncionamentoConfig) {
   return date;
 }
 
+function semAcento(texto: string) {
+  return texto
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+const NOMES_DIA: Array<[string, number]> = [
+  ["segunda", 1],
+  ["terca", 2],
+  ["quarta", 3],
+  ["quinta", 4],
+  ["sexta", 5],
+  ["sabado", 6],
+  ["domingo", 0],
+];
+
+function pedidoNegaUrgencia(texto: string) {
+  return /nao\s+e\s+urg|sem\s+urg|nao\s+urgente/.test(semAcento(texto));
+}
+
 function trabalhoUrgente(entrada: EntradaPlanoHorarioOs) {
-  const texto = `${entrada.observacoes || ""} ${entrada.casoClinico || ""}`.toLowerCase();
+  const pedido = (entrada.pedido || "").trim();
+  if (pedido && pedidoNegaUrgencia(pedido)) {
+    return "";
+  }
+  const texto = `${entrada.observacoes || ""} ${entrada.casoClinico || ""} ${pedido}`.toLowerCase();
+  if (pedido && /urg[eê]n/.test(pedido) && !pedidoNegaUrgencia(pedido)) {
+    return "Você descreveu este trabalho como urgência.";
+  }
   if (entrada.urgente) return "O serviço foi marcado como urgente.";
   if ((entrada.prioridade || "").toLowerCase() === "alta") return "A prioridade da ordem está alta.";
   if (/urg[eê]n/.test(texto)) return "A observação ou o caso clínico pedem urgência.";
   return "";
+}
+
+function proximoDiaSemana(aPartirDe: Date, diaSemana: number) {
+  const base = new Date(aPartirDe.getFullYear(), aPartirDe.getMonth(), aPartirDe.getDate());
+  const delta = (diaSemana - base.getDay() + 7) % 7;
+  return adicionarDias(base, delta);
+}
+
+function dataEscrita(texto: string, agora: Date) {
+  const match = texto.match(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/);
+  if (!match) return null;
+  const dia = match[1].padStart(2, "0");
+  const mes = match[2].padStart(2, "0");
+  let ano = match[3] ? Number(match[3]) : agora.getFullYear();
+  if (ano < 100) ano += 2000;
+  return parseBrDate(`${dia}/${mes}/${ano}`);
+}
+
+function interpretarPedido(pedido: string, agora: Date) {
+  const bruto = pedido.trim();
+  const norm = semAcento(bruto);
+  let diaInicio: number | null = null;
+  let diaLimite: number | null = null;
+  let resto = norm;
+  for (const [nome, dia] of NOMES_DIA) {
+    const limite = new RegExp(`(?:antes de|ate)\\s+(?:a\\s+|o\\s+)?${nome}`);
+    if (limite.test(resto)) {
+      diaLimite = dia;
+      resto = resto.replace(limite, " ");
+    }
+  }
+  for (const [nome, dia] of NOMES_DIA) {
+    if (new RegExp(`\\b${nome}\\b`).test(resto)) {
+      diaInicio = dia;
+      break;
+    }
+  }
+  const data = dataEscrita(bruto, agora);
+  const dataEhLimite = data ? /(?:antes de|ate)\s+\d{1,2}\//.test(norm) : false;
+  return {
+    diaInicio,
+    diaLimite,
+    inicioPedido: data && !dataEhLimite ? data : null,
+    limitePedido: data && dataEhLimite ? data : null,
+    tarde: /\btarde\b/.test(norm),
+  };
 }
 
 function descreverTrabalho(entrada: EntradaPlanoHorarioOs, urgente: boolean) {
@@ -319,17 +397,41 @@ export function planejarMelhorHorarioOs(entrada: EntradaPlanoHorarioOs): PlanoHo
   const agora = entrada.agora || new Date();
   const motivoUrgencia = trabalhoUrgente(entrada);
   const urgente = Boolean(motivoUrgencia);
-  const inicios = candidatosInicio(entrada, horario, agora);
+  const pedido = interpretarPedido(entrada.pedido || "", agora);
+  let inicios = candidatosInicio(entrada, horario, agora);
   if (!inicios.length) return null;
+  const lancamento = parseBrDate(entrada.dataLancamento.trim()) || agora;
+  const diaPreferido = pedido.inicioPedido
+    ? pedido.inicioPedido
+    : pedido.diaInicio != null
+      ? proximoDiaSemana(lancamento > agora ? lancamento : agora, pedido.diaInicio)
+      : null;
+  if (diaPreferido) {
+    const noDia = inicios.filter((item) => mesmoDia(item.date, diaPreferido));
+    if (noDia.length) inicios = noDia;
+  }
+  if (pedido.tarde) {
+    const aTarde = inicios
+      .map((item) => proximoInstante(item.date, Math.max(item.minuto, 13 * 60), horario))
+      .filter((item): item is Instante => Boolean(item && inicios.some((ini) => mesmoDia(ini.date, item.date))));
+    if (aTarde.length) inicios = aTarde;
+  }
 
   const diasTabela = parseDiasPrazo(entrada.prazoTabelaDias);
-  const limiteTabela = diasTabela
+  const limiteTabelaBruta = diasTabela
     ? parseBrDate(
         formatarData(
           adicionarDias(parseBrDate(entrada.dataLancamento.trim()) || agora, diasTabela)
         )
       )
     : null;
+  const limitePeloDia =
+    pedido.diaLimite != null
+      ? proximoDiaSemana(lancamento > agora ? lancamento : agora, pedido.diaLimite)
+      : null;
+  const limiteTabela = [limiteTabelaBruta, pedido.limitePedido, limitePeloDia]
+    .filter((data): data is Date => Boolean(data))
+    .sort((a, b) => a.getTime() - b.getTime())[0] || null;
 
   let melhor: { inicio: Instante; etapas: EtapaPlanejada[]; fim: Instante; nota: number } | null =
     null;
@@ -382,7 +484,14 @@ export function planejarMelhorHorarioOs(entrada: EntradaPlanoHorarioOs): PlanoHo
       ? `${fimData} ainda não tem outra entrega marcada. É o dia mais folgado para não empurrar esta ordem.`
       : `${fimData} já tem ${carga} entrega${carga === 1 ? "" : "s"} marcada${carga === 1 ? "" : "s"}. Entre os dias que cabem no prazo, este é o menos carregado.`;
 
+  const pedidoAtendido =
+    !diaPreferido || mesmoDia(melhor.inicio.date, diaPreferido)
+      ? ""
+      : `O dia pedido (${formatarData(diaPreferido)}) não cabe no expediente. Montei o melhor dia livre no lugar.`;
   const ideias = [
+    entrada.pedido?.trim()
+      ? `Pelo que você descreveu: ${entrada.pedido.trim()}`
+      : "",
     urgente
       ? "Comece no primeiro horário útil e não deixe a peça parada entre um setor e outro."
       : "Encaixe o início no dia em que a entrega final encontra a agenda mais livre.",
@@ -393,8 +502,33 @@ export function planejarMelhorHorarioOs(entrada: EntradaPlanoHorarioOs): PlanoHo
     melhor.etapas.some((etapa) => etapa.tempoEstimado)
       ? "Cadastre o tempo médio das etapas sem cronômetro para o cálculo ficar exato."
       : "Os tempos saíram do cadastro de cada etapa, no expediente do laboratório.",
+    pedidoAtendido,
     avisoPrazo,
   ].filter(Boolean);
+  const resposta = [
+    entrada.pedido?.trim()
+      ? `Pelo que você descreveu, ${urgente ? "trato como urgência" : "não trato como urgência"}.`
+      : urgente
+        ? "A ordem está marcada como urgência."
+        : "Sem sinal de urgência.",
+    pedidoAtendido,
+    "",
+    "Sequência:",
+    ...melhor.etapas.map(
+      (etapa, index) =>
+        `${index + 1}. ${etapa.nome} (${etapa.setor}) — ${etapa.inicioData} ${etapa.inicioHora} até ${etapa.data} ${etapa.hora} · ${etapa.tempoTexto}`
+    ),
+    "",
+    `Começar ${formatarData(melhor.inicio.date)} às ${formatarHora(melhor.inicio.minuto)}.`,
+    `Prazo do laboratório: ${fimData} às ${fimHora}.`,
+    dataDentista
+      ? `Prazo do dentista: ${dataDentista} às ${horaDentista}.`
+      : "A tabela não marca dias antes para o dentista.",
+    cargaDia,
+    avisoPrazo,
+  ]
+    .filter((linha) => linha !== "")
+    .join("\n");
 
   return {
     descricao: descreverTrabalho(entrada, urgente),
@@ -408,6 +542,7 @@ export function planejarMelhorHorarioOs(entrada: EntradaPlanoHorarioOs): PlanoHo
     prazoDentista: { data: dataDentista, hora: horaDentista },
     avisoPrazo,
     cargaDia,
+    resposta,
   };
 }
 

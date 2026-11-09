@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { parseEtapasInstrucoes } from "@/lib/etapas-os";
 import { dateToBrShort } from "@/lib/datas-br";
 import { carregarHorarioFuncionamento } from "@/lib/horario-funcionamento";
@@ -60,6 +60,15 @@ async function ocupacaoDasOrdens(excetoId?: string) {
   return mapa;
 }
 
+type MensagemDialogo = {
+  autor: "usuario" | "ia";
+  texto: string;
+  plano?: PlanoHorarioOs;
+};
+
+const MENSAGEM_INICIAL =
+  "Descreva o trabalho, diga se é urgência ou não e como quer o prazo. Eu devolvo a sequência de dias e horários.";
+
 export function BotaoMelhorHorarioIa({
   contexto,
   onAplicar,
@@ -69,28 +78,50 @@ export function BotaoMelhorHorarioIa({
   const [aberto, setAberto] = useState(false);
   const [carregando, setCarregando] = useState(false);
   const [plano, setPlano] = useState<PlanoHorarioOs | null>(null);
-  const [avisoAgenda, setAvisoAgenda] = useState("");
+  const [texto, setTexto] = useState("");
+  const [mensagens, setMensagens] = useState<MensagemDialogo[]>([]);
+  const fimDialogo = useRef<HTMLDivElement>(null);
 
-  async function buscar() {
+  useEffect(() => {
+    fimDialogo.current?.scrollIntoView({ block: "end" });
+  }, [mensagens, carregando, aberto]);
+
+  function abrir() {
     setAberto(true);
-    setCarregando(true);
     setPlano(null);
-    setAvisoAgenda("");
+    setTexto("");
+    setMensagens([{ autor: "ia", texto: MENSAGEM_INICIAL }]);
+  }
+
+  async function enviar() {
+    const pedido = texto.trim();
+    if (!pedido || carregando) return;
+    setMensagens((atuais) => [...atuais, { autor: "usuario", texto: pedido }]);
+    setTexto("");
+    setCarregando(true);
+    let avisoAgenda = "";
     let ocupacao: Record<string, number> = {};
     try {
       ocupacao = await ocupacaoDasOrdens(excetoTrabalhoId);
     } catch {
-      setAvisoAgenda(
-        "Não foi possível ler as outras ordens. A sugestão usa só o tempo das etapas e o expediente."
-      );
+      avisoAgenda =
+        "Não consegui ler as outras ordens. A sequência usa o tempo das etapas e o expediente.";
     }
     const sugestao = planejarMelhorHorarioOs({
       ...contexto,
+      pedido,
       agora: new Date(),
       horario: carregarHorarioFuncionamento(),
       ocupacaoPorDia: ocupacao,
     });
+    const resposta = sugestao
+      ? [sugestao.resposta, avisoAgenda].filter(Boolean).join("\n\n")
+      : "Não consegui montar a sequência. Selecione um serviço com etapas e descreva de novo o que precisa.";
     setPlano(sugestao);
+    setMensagens((atuais) => [
+      ...atuais,
+      { autor: "ia", texto: resposta, plano: sugestao || undefined },
+    ]);
     setCarregando(false);
   }
 
@@ -104,7 +135,7 @@ export function BotaoMelhorHorarioIa({
     <>
       <button
         type="button"
-        onClick={() => void buscar()}
+        onClick={abrir}
         disabled={disabled}
         className="rounded bg-emerald-600 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
       >
@@ -115,7 +146,7 @@ export function BotaoMelhorHorarioIa({
           <div className="flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900">
             <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-slate-700">
               <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                Melhor data e horário
+                Planejamento com IA
               </h2>
               <button
                 type="button"
@@ -126,81 +157,48 @@ export function BotaoMelhorHorarioIa({
                 ×
               </button>
             </div>
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-3 text-xs text-slate-700 dark:text-slate-200">
-              {carregando ? <p>Lendo as etapas, o expediente e a agenda do laboratório...</p> : null}
-              {!carregando && !plano ? (
-                <p>Selecione um serviço com etapas para montar o cronograma.</p>
-              ) : null}
-              {plano ? (
-                <>
-                  <p className="leading-relaxed">{plano.descricao}</p>
-                  <p
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3 text-xs text-slate-700 dark:text-slate-200">
+              {mensagens.map((mensagem, index) => (
+                <div
+                  key={`${mensagem.autor}-${index}`}
+                  className={
+                    mensagem.autor === "usuario" ? "flex justify-end" : "flex justify-start"
+                  }
+                >
+                  <div
                     className={
-                      plano.urgente
-                        ? "inline-flex rounded bg-red-600 px-2 py-1 font-semibold text-white"
-                        : "inline-flex rounded bg-slate-200 px-2 py-1 font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-100"
+                      mensagem.autor === "usuario"
+                        ? "max-w-[85%] whitespace-pre-line rounded-lg bg-emerald-600 px-3 py-2 text-white"
+                        : "max-w-[85%] whitespace-pre-line rounded-lg bg-slate-100 px-3 py-2 text-slate-800 dark:bg-slate-800 dark:text-slate-100"
                     }
                   >
-                    {plano.urgente ? "Urgência" : "Sem urgência"} — {plano.motivoUrgencia}
-                  </p>
-                  <div className="grid gap-2 sm:grid-cols-3">
-                    <div className="rounded border border-slate-200 p-2 dark:border-slate-700">
-                      <div className="text-[10px] uppercase text-slate-500">Começar</div>
-                      <div className="font-semibold">
-                        {plano.inicioData} {plano.inicioHora}
-                      </div>
-                    </div>
-                    <div className="rounded border border-emerald-200 bg-emerald-50 p-2 dark:border-emerald-900 dark:bg-emerald-950/40">
-                      <div className="text-[10px] uppercase text-emerald-700 dark:text-emerald-300">
-                        Prazo laboratório
-                      </div>
-                      <div className="font-semibold">
-                        {plano.prazoLaboratorio.data} {plano.prazoLaboratorio.hora}
-                      </div>
-                    </div>
-                    <div className="rounded border border-slate-200 p-2 dark:border-slate-700">
-                      <div className="text-[10px] uppercase text-slate-500">Prazo dentista</div>
-                      <div className="font-semibold">
-                        {plano.prazoDentista.data
-                          ? `${plano.prazoDentista.data} ${plano.prazoDentista.hora}`
-                          : "A tabela não tem dias antes do laboratório"}
-                      </div>
-                    </div>
+                    {mensagem.texto}
                   </div>
-                  <p>{plano.cargaDia}</p>
-                  {avisoAgenda ? <p className="text-amber-700">{avisoAgenda}</p> : null}
-                  <div>
-                    <h3 className="mb-2 font-semibold text-slate-900 dark:text-slate-100">
-                      Como fazer, etapa por etapa
-                    </h3>
-                    <ol className="space-y-2">
-                      {plano.etapas.map((etapa, index) => (
-                        <li
-                          key={`${etapa.nome}-${index}`}
-                          className="rounded border border-slate-200 p-2 dark:border-slate-700"
-                        >
-                          <div className="font-semibold">
-                            {index + 1}. {etapa.nome}
-                            <span className="ml-2 font-normal text-slate-500">{etapa.setor}</span>
-                          </div>
-                          <div>
-                            {etapa.tempoTexto} · {etapa.inicioData} {etapa.inicioHora} até{" "}
-                            {etapa.data} {etapa.hora}
-                          </div>
-                          <p className="mt-1 text-slate-600 dark:text-slate-300">{etapa.ideia}</p>
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
-                  <ul className="list-disc space-y-1 pl-4">
-                    {plano.ideias.map((ideia) => (
-                      <li key={ideia}>{ideia}</li>
-                    ))}
-                  </ul>
-                </>
+                </div>
+              ))}
+              {carregando ? (
+                <p className="text-slate-500">Montando a sequência de dias e horários...</p>
               ) : null}
+              <div ref={fimDialogo} />
             </div>
-            <div className="flex justify-end gap-2 border-t border-slate-100 px-4 py-3 dark:border-slate-700">
+            <div className="border-t border-slate-100 px-4 py-3 dark:border-slate-700">
+              <label className="mb-1 block text-[11px] font-medium text-slate-600 dark:text-slate-300">
+                Descreva o trabalho
+              </label>
+              <textarea
+                value={texto}
+                onChange={(event) => setTexto(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    void enviar();
+                  }
+                }}
+                rows={3}
+                placeholder="Ex.: acrilização caracterizada, sem urgência, começar na quinta de manhã e entregar antes de sexta."
+                className="w-full resize-none rounded border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-emerald-600 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100"
+              />
+              <div className="mt-2 flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setAberto(false)}
@@ -210,12 +208,21 @@ export function BotaoMelhorHorarioIa({
               </button>
               <button
                 type="button"
+                onClick={() => void enviar()}
+                disabled={carregando || !texto.trim()}
+                className="rounded bg-slate-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700 disabled:opacity-50 dark:bg-slate-200 dark:text-slate-900"
+              >
+                Enviar
+              </button>
+              <button
+                type="button"
                 onClick={aplicar}
                 disabled={!plano}
                 className="rounded bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
               >
                 Aplicar estas datas
               </button>
+            </div>
             </div>
           </div>
         </div>
