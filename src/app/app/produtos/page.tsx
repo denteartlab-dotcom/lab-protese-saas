@@ -10,6 +10,7 @@ import { useI18n } from "@/components/i18n-provider";
 import { GerenciarEtiquetasCategoriaModal } from "@/components/GerenciarEtiquetasCategoriaModal";
 import { ListaCarregando } from "@/components/ListaCarregando";
 import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
+import { textoCombinaBusca } from "@/lib/busca-texto";
 import { compararNumero } from "@/lib/listagem-config";
 import { HistoricoMovimentosModal, parseDataBrParaComparacao } from "./HistoricoMovimentosModal";
 import { Button, Input, Modal, Select } from "@/components/ui";
@@ -439,10 +440,10 @@ function ProdutosConteudo() {
     const termo = buscaExcluidos.trim().toLowerCase();
     if (!termo) return produtosExcluidosLista;
     return produtosExcluidosLista.filter((produto) =>
-      [produto.nome, produto.marca || "", produto.etiqueta || "", produto.codigoBarras || ""]
-        .join(" ")
-        .toLowerCase()
-        .includes(termo)
+      textoCombinaBusca(
+        [produto.nome, produto.marca || "", produto.etiqueta || "", produto.codigoBarras || ""].join(" "),
+        termo
+      )
     );
   }, [buscaExcluidos, produtosExcluidosLista]);
 
@@ -465,16 +466,16 @@ function ProdutosConteudo() {
     const termo = busca.trim().toLowerCase();
     if (!termo) return porEstoque;
     return porEstoque.filter((produto) =>
-      [
-        produto.nome,
-        produto.categoria || "",
-        produto.marca || "",
-        produto.etiqueta || "",
-        produto.codigoBarras || "",
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(termo)
+      textoCombinaBusca(
+        [
+          produto.nome,
+          produto.categoria || "",
+          produto.marca || "",
+          produto.etiqueta || "",
+          produto.codigoBarras || "",
+        ].join(" "),
+        termo
+      )
     );
   }, [busca, produtosAtivos, filtroEstoque]);
 

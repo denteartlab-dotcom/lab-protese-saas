@@ -15,6 +15,7 @@ import {
 import { Button, CampoDataBr, CampoHoraBr, Input, Modal, Select, SelectPesquisavel, Textarea } from "@/components/ui";
 import { EscalaCorCamposOs } from "@/components/producao/EscalaCorCamposOs";
 import { BadgeCliqueSituacaoEtapa } from "@/components/producao/EtapasOsEditor";
+import { textoCombinaBusca } from "@/lib/busca-texto";
 import { formatDateBr, parseBrDate, dateToBrShort } from "@/lib/datas-br";
 import { dataEntradaParaApi } from "@/lib/os-data-criacao";
 import { extrairOsExterna, linhaOsExterna } from "@/lib/os-externa";
@@ -1922,7 +1923,7 @@ export default function OrdemServicoPage() {
   }
 
   const materiaisFiltrados = materiais.filter((material) =>
-    material.toLowerCase().includes(buscaMaterial.toLowerCase())
+    textoCombinaBusca(material, buscaMaterial)
   );
 
   function valorComDesconto(valor: number, descontoTipo?: string, desconto?: string) {

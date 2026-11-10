@@ -15,6 +15,7 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
+import { textoCombinaBusca } from "@/lib/busca-texto";
 import { BotoesImprimirExportarToolbar } from "@/components/BotoesImprimirExportarToolbar";
 import { PaginacaoLista } from "@/components/listagem/PaginacaoLista";
 import { MovimentacoesRecebimentoModal } from "@/components/financeiro/MovimentacoesRecebimentoModal";
@@ -636,7 +637,7 @@ function FinanceiroReceberConteudo() {
         osExterna,
       ]
         .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(termo)) ||
+        .some((value) => textoCombinaBusca(String(value), termo)) ||
         codigoOsCombina(osExterna, termo);
     });
   }, [data, dataInicio, dataFinal, situacao, busca, trabalhos]);

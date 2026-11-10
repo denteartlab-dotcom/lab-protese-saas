@@ -1,3 +1,4 @@
+import { idsPacientePorBusca, restringirIds } from "@/lib/busca-texto-sql";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireEmpresaContext } from "@/lib/empresa-context";
@@ -28,11 +29,7 @@ export async function GET(request: Request) {
     where: {
       cliente: { empresaId: ctx.empresaId },
       ...(clienteId ? { clienteId } : {}),
-      ...(q
-        ? {
-            OR: [{ nome: { contains: q } }, { cpf: { contains: q } }],
-          }
-        : {}),
+      ...(q ? restringirIds(await idsPacientePorBusca(ctx.empresaId, q)) : {}),
     },
     orderBy: { nome: "asc" },
     include: { cliente: { select: { id: true, nome: true } } },

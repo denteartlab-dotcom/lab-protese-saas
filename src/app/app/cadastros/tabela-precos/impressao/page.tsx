@@ -10,6 +10,7 @@ import { useI18n } from "@/components/i18n-provider";
 import { PainelConfigImpressaoTabelaPrecos } from "@/components/tabela-precos/PainelConfigImpressaoTabelaPrecos";
 import { PreviewImpressaoTabelaPrecos } from "@/components/tabela-precos/PreviewImpressaoTabelaPrecos";
 import { usePageReady } from "@/hooks/use-page-ready";
+import { textoCombinaBusca } from "@/lib/busca-texto";
 import { abrirPdfGerando } from "@/lib/pdf-viewer";
 import { readStorage } from "@/lib/persisted-storage";
 import {
@@ -97,7 +98,7 @@ export default function ConfiguracaoImpressaoTabelaPrecosPage() {
   const tabelasFiltradas = useMemo(() => {
     const termo = buscaTabela.trim().toLowerCase();
     if (!termo) return tabelasCadastradas;
-    return tabelasCadastradas.filter((item) => item.toLowerCase().includes(termo));
+    return tabelasCadastradas.filter((item) => textoCombinaBusca(item, termo));
   }, [tabelasCadastradas, buscaTabela]);
 
   useEffect(() => {

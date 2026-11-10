@@ -1,3 +1,4 @@
+import { textoCombinaBusca } from "@/lib/busca-texto";
 import { dateToBrShort, parseBrDate } from "@/lib/datas-br";
 import { formaEhBoletoOuCartaoCredito } from "@/lib/formas-pagamento";
 import { desempacotarDespesa } from "@/lib/lancamento-despesa";
@@ -462,9 +463,7 @@ export function filtrarLinhasBoletos(
         linha.ref,
         linha.lancamento.formaPagamento,
         linha.pack.texto,
-      ]
-        .join(" ")
-        .toLowerCase();
-      return blob.includes(termo);
+      ].join(" ");
+      return textoCombinaBusca(blob, termo);
     });
 }

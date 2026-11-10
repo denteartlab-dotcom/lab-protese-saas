@@ -4,6 +4,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Edit3, Eye, Printer, Search, Trash2 } from "lucide-react";
+import { textoCombinaBusca } from "@/lib/busca-texto";
 import { useI18n } from "@/components/i18n-provider";
 import { BreadcrumbProducao } from "@/components/producao/BreadcrumbProducao";
 import { AgendaEditarOsModal } from "@/components/producao/AgendaEditarOsModal";
@@ -237,7 +238,7 @@ export default function AgendaPage() {
         const colab = colaboradorAgendaGrupo(linha);
         if (colaborador === VALOR_SEM_COLABORADOR) {
           if (colab.trim()) return false;
-        } else if (!colab.toLowerCase().includes(colaborador.toLowerCase())) {
+        } else if (!textoCombinaBusca(colab, colaborador)) {
           return false;
         }
       }

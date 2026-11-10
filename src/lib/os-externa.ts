@@ -1,3 +1,4 @@
+import { semAcento } from "@/lib/busca-texto";
 import { extrairNumeroOsCodigo, limparEntradaLeitorCodigo } from "@/lib/codigo-barras-os";
 
 const PREFIXO_OS_EXTERNA = /^os\s+extern[ao]\s*:/i;
@@ -20,7 +21,7 @@ export function linhaOsExterna(valor?: string | null): string {
 }
 
 function variantesCodigo(valor: string): Set<string> {
-  const norm = valor.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+  const norm = semAcento(valor).replace(/[^a-z0-9]/g, "");
   const set = new Set<string>();
   if (!norm) return set;
   set.add(norm);
@@ -60,10 +61,6 @@ export function numeroOsInternoDaBusca(termo: string): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-function termoPareceCodigoOs(termo: string) {
-  return /\d/.test(termo);
-}
-
 type TrabalhoBuscaOs = {
   id?: string;
   numeroOs?: number | null;
@@ -89,35 +86,10 @@ export function trabalhoCombinaBuscaOs(
   const interno = numeroOsInternoDaBusca(q);
   if (interno != null && trabalho.numeroOs === interno) return true;
   if (interno != null) return false;
-  const qLower = q.toLowerCase();
-  if ((trabalho.pacienteNome || "").toLowerCase().includes(qLower)) return true;
-  if ((trabalho.clienteNome || "").toLowerCase().includes(qLower)) return true;
-  if ((trabalho.tipoProtese || "").toLowerCase().includes(qLower)) return true;
-  if (opcoes?.incluirInstrucoes && (trabalho.instrucoes || "").toLowerCase().includes(qLower)) {
-    return true;
-  }
+  const combina = (texto?: string | null) => semAcento(texto).includes(semAcento(q));
+  if (combina(trabalho.pacienteNome)) return true;
+  if (combina(trabalho.clienteNome)) return true;
+  if (combina(trabalho.tipoProtese)) return true;
+  if (opcoes?.incluirInstrucoes && combina(trabalho.instrucoes)) return true;
   return false;
-}
-
-/** Filtro amplo no banco; o resultado ainda passa por `trabalhoCombinaBuscaOs`. */
-export function whereBuscaTrabalho(q: string) {
-  const termo = q.trim();
-  if (!termo) return {};
-  const interno = numeroOsInternoDaBusca(termo);
-  const or: Array<Record<string, unknown>> = [
-    { id: termo },
-    { paciente: { nome: { contains: termo, mode: "insensitive" } } },
-    { cliente: { nome: { contains: termo, mode: "insensitive" } } },
-    { tipoProtese: { contains: termo, mode: "insensitive" } },
-    { instrucoes: { contains: termo, mode: "insensitive" } },
-  ];
-  if (interno != null) or.push({ numeroOs: interno });
-  if (termoPareceCodigoOs(termo)) {
-    or.push(
-      { instrucoes: { contains: "OS Externa:", mode: "insensitive" } },
-      { instrucoes: { contains: "OS Externo:", mode: "insensitive" } },
-      { instrucoes: { contains: "OS Interna:", mode: "insensitive" } }
-    );
-  }
-  return { OR: or };
 }

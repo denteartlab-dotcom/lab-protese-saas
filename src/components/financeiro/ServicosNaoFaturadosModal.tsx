@@ -9,6 +9,7 @@ import {
   type TrabalhoSituacaoBadge,
 } from "@/components/financeiro/SituacaoOsBadgeReceita";
 import { PaginacaoLista } from "@/components/listagem/PaginacaoLista";
+import { textoCombinaBusca } from "@/lib/busca-texto";
 import { abrirPdfNoVisualizador, prepararAbaPdf } from "@/lib/pdf-viewer";
 import { gerarRelatorioTabelaPdf } from "@/lib/pdf-relatorio-tabela";
 import { expandirTrabalhosNaoFaturadosLinhas } from "@/lib/trabalho-os-segmento";
@@ -113,7 +114,7 @@ export function ServicosNaoFaturadosModal({
     return tabela.filter((linha) =>
       [linha.os, linha.cliente, linha.paciente, linha.servico, linha.qtd, linha.dentes, linha.cor, linha.situacao]
         .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(termo))
+        .some((value) => textoCombinaBusca(String(value), termo))
     );
   }, [tabela, busca]);
 

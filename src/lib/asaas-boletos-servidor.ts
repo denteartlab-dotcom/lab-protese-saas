@@ -1,3 +1,4 @@
+import { idsLancamentoPorBusca, restringirIds } from "@/lib/busca-texto-sql";
 import { prisma } from "@/lib/db";
 import { resolverContaDigitalOperacional } from "@/lib/asaas-conta-digital";
 import {
@@ -119,12 +120,7 @@ export async function listarBoletosAsaasEmpresa(
         empresaId,
         tipo: "receita",
         ...(busca
-          ? {
-              OR: [
-                { descricao: { contains: busca, mode: "insensitive" } },
-                { cliente: { nome: { contains: busca, mode: "insensitive" } } },
-              ],
-            }
+          ? restringirIds(await idsLancamentoPorBusca(empresaId, busca))
           : {}),
         ...(filtros.vencimentoDe || filtros.vencimentoAte
           ? {

@@ -8,6 +8,7 @@ import { ModuloCabecalho } from "@/components/ModuloCabecalho";
 import { useI18n } from "@/components/i18n-provider";
 import { BarraConfigListagem } from "@/components/listagem/BarraConfigListagem";
 import { useListagemPaginada } from "@/hooks/use-listagem-paginada";
+import { textoCombinaBusca } from "@/lib/busca-texto";
 import { compararDataIso, compararNumero, compararTextoBr } from "@/lib/listagem-config";
 import { PRODUTOS_ESTOQUE_EVENT } from "@/lib/estoque";
 import { aguardarJobCliente } from "@/lib/jobs/polling-cliente";
@@ -173,8 +174,8 @@ export default function OrcamentosPage() {
         if (!termo) return true;
         return (
           String(orcamento.numeroPedido).includes(termo) ||
-          orcamento.fornecedorNome.toLowerCase().includes(termo) ||
-          rotuloStatusOrcamento(orcamento.status, t).toLowerCase().includes(termo)
+          textoCombinaBusca(orcamento.fornecedorNome, termo) ||
+          textoCombinaBusca(rotuloStatusOrcamento(orcamento.status, t), termo)
         );
       });
   }, [busca, orcamentos, situacao]);

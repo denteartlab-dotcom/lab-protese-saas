@@ -15,6 +15,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import { textoCombinaBusca } from "@/lib/busca-texto";
 import { SelectPesquisavel } from "@/components/SelectPesquisavel";
 import { BotoesExtratoCompartilhar } from "@/components/financeiro/BotoesExtratoCompartilhar";
 import { EnviarExtratoWhatsappModal } from "@/components/financeiro/EnviarExtratoWhatsappModal";
@@ -490,9 +491,8 @@ export function VisualizacaoClienteReceberModal({
           l.descricao,
         ]
           .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
-        if (!texto.includes(termo)) return false;
+          .join(" ");
+        if (!textoCombinaBusca(texto, termo)) return false;
       }
       return true;
     });
@@ -629,9 +629,8 @@ export function VisualizacaoClienteReceberModal({
         linha.paciente,
         linha.numDente,
       ]
-        .join(" ")
-        .toLowerCase();
-      return texto.includes(termo);
+        .join(" ");
+      return textoCombinaBusca(texto, termo);
     });
 
     // Recalcula saldo corrido após filtros de situação/busca.

@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Printer, Wallet } from "lucide-react";
+import { textoCombinaBusca } from "@/lib/busca-texto";
 import { useI18n } from "@/components/i18n-provider";
 import { Button, Modal } from "@/components/ui";
 import {
@@ -432,7 +433,7 @@ export function DiariasColaboradoresModal({ open, onClose }: Props) {
   const filtrados = useMemo(() => {
     const termo = busca.trim().toLowerCase();
     if (!termo) return colaboradores;
-    return colaboradores.filter((item) => item.nome.toLowerCase().includes(termo));
+    return colaboradores.filter((item) => textoCombinaBusca(item.nome, termo));
   }, [busca, colaboradores]);
 
   const nomeMes = useMemo(() => {

@@ -7,6 +7,7 @@ import { ListaCarregando } from "@/components/ListaCarregando";
 import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
 import { ModuloCabecalho } from "@/components/ModuloCabecalho";
 import { useI18n } from "@/components/i18n-provider";
+import { textoCombinaBusca } from "@/lib/busca-texto";
 import { compararTextoBr } from "@/lib/listagem-config";
 import { exibirTelefone, formatarTelefone, PLACEHOLDER_TELEFONE_BR } from "@/lib/validar-documento";
 import {
@@ -130,10 +131,12 @@ export default function PrestadoresPage() {
     if (!termo) return lista;
 
     return lista.filter((prestador) =>
-      [prestador.nome, prestador.tipoServico, prestador.celular, prestador.whatsapp, prestador.email]
-        .join(" ")
-        .toLowerCase()
-        .includes(termo)
+      textoCombinaBusca(
+        [prestador.nome, prestador.tipoServico, prestador.celular, prestador.whatsapp, prestador.email].join(
+          " "
+        ),
+        termo
+      )
     );
   }, [busca, prestadores, prestadoresExcluidos, mostrarExcluidos]);
 

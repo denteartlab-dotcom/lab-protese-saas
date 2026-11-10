@@ -1,3 +1,4 @@
+import { idsCampanhaWhatsappPorBusca, restringirIds } from "@/lib/busca-texto-sql";
 import { prisma } from "@/lib/db";
 import { runWithTenantContext } from "@/lib/prisma-tenant";
 import type { ContatoImportado } from "@/lib/whatsapp-disparos/telefone-br";
@@ -78,14 +79,14 @@ export async function listarCampanhasWhatsapp(
   const where: {
     empresaId: string;
     status?: string | { in: string[] };
-    nome?: { contains: string; mode: "insensitive" };
+    id?: { in: string[] };
   } = { empresaId };
 
   if (opts?.status && opts.status !== "todos") {
     where.status = opts.status;
   }
   if (opts?.busca?.trim()) {
-    where.nome = { contains: opts.busca.trim(), mode: "insensitive" };
+    Object.assign(where, restringirIds(await idsCampanhaWhatsappPorBusca(empresaId, opts.busca)));
   }
 
   const rows = await runWithTenantContext(empresaId, () =>

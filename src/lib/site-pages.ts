@@ -1,3 +1,4 @@
+import { textoCombinaBusca } from "@/lib/busca-texto";
 import type { MessageKey } from "@/lib/i18n";
 
 export type SitePageEntry = {
@@ -52,18 +53,17 @@ export function filtrarPaginasSite(
   termo: string,
   traduzir: (key: MessageKey) => string
 ): SitePageEntry[] {
-  const q = termo.trim().toLowerCase();
+  const q = termo.trim();
   if (!q) return SITE_PAGES.slice(0, 12);
   return SITE_PAGES.filter((page) => {
-    const label = traduzir(page.labelKey).toLowerCase();
-    const section = page.sectionKey ? traduzir(page.sectionKey).toLowerCase() : "";
-    const keys = (page.keywords || []).join(" ").toLowerCase();
-    const href = page.href.toLowerCase();
+    const label = traduzir(page.labelKey);
+    const section = page.sectionKey ? traduzir(page.sectionKey) : "";
+    const keys = (page.keywords || []).join(" ");
     return (
-      label.includes(q) ||
-      section.includes(q) ||
-      keys.includes(q) ||
-      href.includes(q)
+      textoCombinaBusca(label, q) ||
+      textoCombinaBusca(section, q) ||
+      textoCombinaBusca(keys, q) ||
+      textoCombinaBusca(page.href, q)
     );
   });
 }

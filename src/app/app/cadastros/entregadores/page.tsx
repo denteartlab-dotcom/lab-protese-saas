@@ -7,6 +7,7 @@ import { ListaCarregando } from "@/components/ListaCarregando";
 import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
 import { ModuloCabecalho } from "@/components/ModuloCabecalho";
 import { useI18n } from "@/components/i18n-provider";
+import { textoCombinaBusca } from "@/lib/busca-texto";
 import { compararTextoBr } from "@/lib/listagem-config";
 import { exibirTelefone, formatarTelefone, PLACEHOLDER_TELEFONE_BR } from "@/lib/validar-documento";
 import { Modal } from "@/components/ui";
@@ -93,10 +94,10 @@ export default function EntregadoresPage() {
     const lista = mostrarExcluidos ? entregadoresExcluidos : entregadores;
     if (!termo) return lista;
     return lista.filter((entregador) =>
-      [entregador.nome, entregador.celular, entregador.whatsapp, entregador.email]
-        .join(" ")
-        .toLowerCase()
-        .includes(termo)
+      textoCombinaBusca(
+        [entregador.nome, entregador.celular, entregador.whatsapp, entregador.email].join(" "),
+        termo
+      )
     );
   }, [busca, entregadores, entregadoresExcluidos, mostrarExcluidos]);
 

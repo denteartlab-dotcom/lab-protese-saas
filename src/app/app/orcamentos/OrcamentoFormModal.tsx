@@ -4,6 +4,7 @@ import { I18nPortal } from "@/components/I18nPortal";
 import { useI18n } from "@/components/i18n-provider";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Plus, Trash2, X } from "lucide-react";
+import { textoCombinaBusca } from "@/lib/busca-texto";
 import type { MessageKey } from "@/lib/i18n";
 import { propsInputComSelecaoAoFocar } from "@/lib/input-selecao";
 import {
@@ -221,9 +222,8 @@ export function OrcamentoFormModal({
     if (!produto) return false;
     const haystack = [produto.nome, produto.marca, produto.codigoBarras]
       .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
-    return haystack.includes(termo);
+      .join(" ");
+    return textoCombinaBusca(haystack, termo);
   }
 
   const termoBuscaProduto = buscaProduto.trim().toLowerCase();

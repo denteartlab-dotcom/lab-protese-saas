@@ -1,3 +1,4 @@
+import { idsClientePorBusca, restringirIds } from "@/lib/busca-texto-sql";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireEmpresaContext } from "@/lib/empresa-context";
@@ -46,25 +47,13 @@ export async function GET(request: Request) {
   const q = (searchParams.get("q") || "").trim();
   const excluidos = searchParams.get("excluidos") === "1";
 
+  const idsBusca = q ? await idsClientePorBusca(ctx.empresaId, q) : null;
   const clientes = await prisma.cliente.findMany({
     where: {
       empresaId: ctx.empresaId,
       ativo: excluidos ? false : true,
       removidoEm: null,
-      ...(q
-        ? {
-            OR: [
-              { nome: { contains: q, mode: "insensitive" } },
-              { razaoSocial: { contains: q, mode: "insensitive" } },
-              { email: { contains: q, mode: "insensitive" } },
-              { cro: { contains: q, mode: "insensitive" } },
-              { cnpjCpf: { contains: q } },
-              { telefone: { contains: q } },
-              { celular: { contains: q } },
-              { cidade: { contains: q, mode: "insensitive" } },
-            ],
-          }
-        : {}),
+      ...(idsBusca ? restringirIds(idsBusca) : {}),
     },
     orderBy: { nome: "asc" },
     include: { _count: { select: { pacientes: true, trabalhos: true } } },

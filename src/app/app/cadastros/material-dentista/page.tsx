@@ -7,6 +7,7 @@ import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
 import { ModuloCabecalho } from "@/components/ModuloCabecalho";
 import { useI18n } from "@/components/i18n-provider";
 import { Button, Input, Modal } from "@/components/ui";
+import { textoCombinaBusca } from "@/lib/busca-texto";
 import { usePageReady } from "@/hooks/use-page-ready";
 import {
   carregarMateriaisDentistaCadastro,
@@ -36,7 +37,7 @@ export default function MaterialDentistaPage() {
   const filtrados = useMemo(() => {
     const termo = busca.trim().toLowerCase();
     if (!termo) return materiais;
-    return materiais.filter((material) => material.toLowerCase().includes(termo));
+    return materiais.filter((material) => textoCombinaBusca(material, termo));
   }, [busca, materiais]);
 
   const itensListagem = useMemo(

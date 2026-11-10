@@ -3,6 +3,7 @@ import { ptBR } from "date-fns/locale";
 import { parseBrDate } from "@/lib/datas-br";
 import { baixarCsv } from "@/lib/exportar-csv";
 import { baixarExcel } from "@/lib/exportar-excel";
+import { textoCombinaBusca } from "@/lib/busca-texto";
 import { codigoOsCombina } from "@/lib/os-externa";
 import { normalizarColaborador } from "@/lib/utils";
 
@@ -265,8 +266,11 @@ export function filtrarLinhasTempoProducao(
     if (filtros.apenasAtrasados && linha.diasAtraso <= 0) return false;
     if (filtros.apenasCriticos && linha.status !== "critico") return false;
     if (busca) {
-      const texto = `${linha.numeroOs} ${linha.paciente} ${linha.dentista}`.toLowerCase();
-      if (!texto.includes(busca) && !codigoOsCombina(linha.osExterna || "", filtros.busca || "")) {
+      const texto = `${linha.numeroOs} ${linha.paciente} ${linha.dentista}`;
+      if (
+        !textoCombinaBusca(texto, filtros.busca || "") &&
+        !codigoOsCombina(linha.osExterna || "", filtros.busca || "")
+      ) {
         return false;
       }
     }

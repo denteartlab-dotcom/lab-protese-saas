@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from "react-dom";
 import { ChevronDown, Plus } from "lucide-react";
 import { ProdutoCadastroModal } from "@/components/estoque/ProdutoCadastroModal";
+import { textoCombinaBusca } from "@/lib/busca-texto";
 import { calcularPosicaoMenuAbaixo } from "@/lib/dropdown-portal-pos";
 import type { ProdutoCatalogo } from "@/lib/produtos-catalogo";
 import { cn } from "@/lib/utils";
@@ -51,14 +52,14 @@ export function ProdutoEstoqueSelect({
   );
 
   const filtrados = useMemo(() => {
-    const termo = busca.trim().toLowerCase();
+    const termo = busca.trim();
     if (!termo) return produtos;
-    return produtos.filter((produto) => {
-      const nome = produto.nome.toLowerCase();
-      const marca = (produto.marca || "").toLowerCase();
-      const codigo = (produto.codigoBarras || "").toLowerCase();
-      return nome.includes(termo) || marca.includes(termo) || codigo.includes(termo);
-    });
+    return produtos.filter(
+      (produto) =>
+        textoCombinaBusca(produto.nome, termo) ||
+        textoCombinaBusca(produto.marca || "", termo) ||
+        textoCombinaBusca(produto.codigoBarras || "", termo)
+    );
   }, [busca, produtos]);
 
   const atualizarPosMenu = useCallback(() => {

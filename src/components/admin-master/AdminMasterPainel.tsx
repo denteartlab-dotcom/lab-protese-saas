@@ -1,5 +1,6 @@
 "use client";
 
+import { textoCombinaBusca } from "@/lib/busca-texto";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -510,10 +511,10 @@ export function AdminMasterPainel() {
       .filter((empresa) => {
         if (!termo) return true;
         return (
-          empresa.nome.toLowerCase().includes(termo) ||
-          (empresa.responsavel ?? "").toLowerCase().includes(termo) ||
-          (empresa.codigo ?? "").toLowerCase().includes(termo) ||
-          empresa.slug.toLowerCase().includes(termo)
+          textoCombinaBusca(empresa.nome, termo) ||
+          textoCombinaBusca(empresa.responsavel ?? "", termo) ||
+          textoCombinaBusca(empresa.codigo ?? "", termo) ||
+          textoCombinaBusca(empresa.slug, termo)
         );
       })
       .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));

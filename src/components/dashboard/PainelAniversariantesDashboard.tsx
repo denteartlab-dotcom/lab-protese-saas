@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Cake, Search } from "lucide-react";
+import { textoCombinaBusca } from "@/lib/busca-texto";
 import { useI18n } from "@/components/i18n-provider";
 import type { AniversarianteMesItem } from "@/lib/dashboard-clientes-servico";
 import { nomesMesesLocale } from "@/lib/i18n/meses-locale";
@@ -42,7 +43,7 @@ export function PainelAniversariantesDashboard({
   const filtrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
     if (!q) return aniversariantesHoje;
-    return aniversariantesHoje.filter((c) => c.nome.toLowerCase().includes(q));
+    return aniversariantesHoje.filter((c) => textoCombinaBusca(c.nome, q));
   }, [aniversariantesHoje, busca]);
 
   function imprimirPdf() {

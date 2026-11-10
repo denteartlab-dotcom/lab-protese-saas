@@ -12,6 +12,7 @@ import {
 } from "@/lib/cliente-acompanhamento-cliente";
 import { fetchPortalPublico } from "@/lib/portal-publico-cliente";
 import type { PortalPublicoPaginaAcompanhamento } from "@/lib/portal-publico-types";
+import { textoCombinaBusca } from "@/lib/busca-texto";
 import { codigoOsCombina } from "@/lib/os-externa";
 import { normalizarChaveStatusOs } from "@/lib/status-os";
 import { Modal } from "@/components/ui";
@@ -389,8 +390,7 @@ export default function AcompanhamentoClientePage() {
     if (termo) {
       const soNumero = termo.replace(/\D/g, "");
       lista = lista.filter((t) => {
-        const paciente = t.pacienteNome.toLowerCase();
-        if (paciente.includes(termo)) return true;
+        if (textoCombinaBusca(t.pacienteNome, termo)) return true;
         if (codigoOsCombina(t.osExterna || "", termo)) return true;
         if (soNumero && String(t.numeroOs).includes(soNumero)) return true;
         return String(t.numeroOs).includes(termo);

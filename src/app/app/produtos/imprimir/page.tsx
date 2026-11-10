@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { PdfRelatorioProdutosViewer } from "@/components/PdfRelatorioProdutosViewer";
 import { useI18n } from "@/components/i18n-provider";
+import { textoCombinaBusca } from "@/lib/busca-texto";
 import { getProdutosEstoqueExtras } from "@/lib/estoque";
 import { readStorage } from "@/lib/persisted-storage";
 import {
@@ -56,10 +57,10 @@ function filtrarBusca(produtos: ProdutoRelatorioEstoque[], termo: string) {
   const busca = termo.trim().toLowerCase();
   if (!busca) return produtos;
   return produtos.filter((produto) =>
-    [produto.nome, produto.marca || "", produto.etiqueta || "", produto.codigoBarras || ""]
-      .join(" ")
-      .toLowerCase()
-      .includes(busca)
+    textoCombinaBusca(
+      [produto.nome, produto.marca || "", produto.etiqueta || "", produto.codigoBarras || ""].join(" "),
+      busca
+    )
   );
 }
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { trabalhoCombinaBuscaOs, whereBuscaTrabalho } from "@/lib/os-externa";
+import { idsTrabalhoPorBusca, restringirIds } from "@/lib/busca-texto-sql";
+import { trabalhoCombinaBuscaOs } from "@/lib/os-externa";
 import { requireEmpresaContext } from "@/lib/empresa-context";
 
 export const dynamic = "force-dynamic";
@@ -15,10 +16,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ resultados: [] });
   }
 
+  const idsBusca = await idsTrabalhoPorBusca(ctx.empresaId, q);
   const trabalhos = await prisma.trabalho.findMany({
     where: {
       empresaId: ctx.empresaId,
-      ...whereBuscaTrabalho(q),
+      ...restringirIds(idsBusca),
     },
     orderBy: { updatedAt: "desc" },
     take: 200,

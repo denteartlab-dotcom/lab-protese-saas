@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { ImageUp, Tag, Trash2 } from "lucide-react";
 import { CampoDataBr, Input, Select, SelectPesquisavel } from "@/components/ui";
+import { textoCombinaBusca } from "@/lib/busca-texto";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/components/i18n-provider";
 import { type PrioridadeOsForm } from "@/lib/prioridade-os";
@@ -129,7 +130,7 @@ export function CabecalhoFormularioOs({
   }, [clientes, value.clienteId]);
 
   const materiaisFiltrados = materiais.filter((material) =>
-    material.toLowerCase().includes(buscaMaterial.trim().toLowerCase())
+    textoCombinaBusca(material, buscaMaterial)
   );
 
   const totalAnexos = anexosExistentes.length + arquivosNovos.length;

@@ -6,6 +6,7 @@ import { ListaCarregando } from "@/components/ListaCarregando";
 import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
 import { ModuloCabecalho } from "@/components/ModuloCabecalho";
 import { useI18n } from "@/components/i18n-provider";
+import { textoCombinaBusca } from "@/lib/busca-texto";
 import { compararTextoBr } from "@/lib/listagem-config";
 import { Button, Input, Modal, Select } from "@/components/ui";
 import { usePageReady } from "@/hooks/use-page-ready";
@@ -123,10 +124,10 @@ export default function EtapasPage() {
     if (!termo) return lista;
 
     return lista.filter((etapa) =>
-      [etapa.nome, etapa.setor, etapa.tempoMedio, etapa.prazoDias, etapa.calculoPorElemento]
-        .join(" ")
-        .toLowerCase()
-        .includes(termo)
+      textoCombinaBusca(
+        [etapa.nome, etapa.setor, etapa.tempoMedio, etapa.prazoDias, etapa.calculoPorElemento].join(" "),
+        termo
+      )
     );
   }, [busca, etapas, etapasExcluidas, mostrarExcluidas]);
 

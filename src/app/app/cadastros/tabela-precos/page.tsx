@@ -17,6 +17,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import { textoCombinaBusca } from "@/lib/busca-texto";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
 import { ModuloCabecalho } from "@/components/ModuloCabecalho";
 import { useI18n } from "@/components/i18n-provider";
@@ -414,8 +415,8 @@ export default function TabelaPrecosPage() {
     return produtosEstoque.filter(
       (produto) =>
         !termo ||
-        produto.nome.toLowerCase().includes(termo) ||
-        (produto.marca || "").toLowerCase().includes(termo)
+        textoCombinaBusca(produto.nome, termo) ||
+        textoCombinaBusca(produto.marca || "", termo)
     );
   }, [produtosEstoque, buscaProdutoEstoque]);
 
@@ -424,8 +425,8 @@ export default function TabelaPrecosPage() {
     return produtosEstoque.filter(
       (produto) =>
         !termo ||
-        produto.nome.toLowerCase().includes(termo) ||
-        (produto.marca || "").toLowerCase().includes(termo)
+        textoCombinaBusca(produto.nome, termo) ||
+        textoCombinaBusca(produto.marca || "", termo)
     );
   }, [produtosEstoque, buscaProdutoCusto]);
 
@@ -439,11 +440,12 @@ export default function TabelaPrecosPage() {
     return clientesTabela.filter(
       (cliente) =>
         !termo ||
-        cliente.nome.toLowerCase().includes(termo) ||
-        (cliente.cidade || "").toLowerCase().includes(termo) ||
-        configValueFromObservacoes(cliente.observacoes, "Tabela de Preço:")
-          .toLowerCase()
-          .includes(termo)
+        textoCombinaBusca(cliente.nome, termo) ||
+        textoCombinaBusca(cliente.cidade || "", termo) ||
+        textoCombinaBusca(
+          configValueFromObservacoes(cliente.observacoes, "Tabela de Preço:"),
+          termo
+        )
     );
   }, [buscaClienteTabela, clientesTabela]);
 

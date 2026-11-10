@@ -8,6 +8,7 @@ import { ModuloCabecalho } from "@/components/ModuloCabecalho";
 import { useI18n } from "@/components/i18n-provider";
 import { Button, Input, Modal } from "@/components/ui";
 import { usePageReady } from "@/hooks/use-page-ready";
+import { textoCombinaBusca } from "@/lib/busca-texto";
 import { readStorageArray, writeStorage } from "@/lib/persisted-storage";
 
 type Setor = {
@@ -78,7 +79,7 @@ export default function SetoresPage() {
     if (!termo) return lista;
 
     return lista.filter((setor) =>
-      [setor.nome, setor.cor].join(" ").toLowerCase().includes(termo)
+      textoCombinaBusca([setor.nome, setor.cor].join(" "), termo)
     );
   }, [busca, setores, setoresExcluidos, mostrarExcluidos]);
 

@@ -3,6 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown } from "lucide-react";
+import { textoCombinaBusca } from "@/lib/busca-texto";
 import { useI18n } from "@/components/i18n-provider";
 import {
   definicaoFonteImpressao,
@@ -62,10 +63,10 @@ export function CaixaFonteWord({
   const atual = fonte ? definicaoFonteImpressao(fonte) : null;
   const tema = useMemo(() => fontesDoTema(), []);
   const todas = useMemo(() => fontesOrdenadas(), []);
-  const termo = busca.trim().toLocaleLowerCase("pt");
+  const termo = busca.trim();
   const filtradas = useMemo(() => {
     if (!termo) return null;
-    return todas.filter((item) => item.nome.toLocaleLowerCase("pt").includes(termo));
+    return todas.filter((item) => textoCombinaBusca(item.nome, termo));
   }, [termo, todas]);
   const navegaveis = filtradas ?? todas;
 

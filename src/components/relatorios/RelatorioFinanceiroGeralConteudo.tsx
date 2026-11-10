@@ -1,5 +1,6 @@
 "use client";
 
+import { textoCombinaBusca } from "@/lib/busca-texto";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Bar,
@@ -292,9 +293,9 @@ export function RelatorioFinanceiroGeralConteudo() {
         (l) =>
           String(l.numeroOs).includes(termo) ||
           codigoOsCombina(l.osExterna || "", termo) ||
-          l.cliente.toLowerCase().includes(termo) ||
-          l.servico.toLowerCase().includes(termo) ||
-          l.responsavel.toLowerCase().includes(termo)
+          textoCombinaBusca(l.cliente, termo) ||
+          textoCombinaBusca(l.servico, termo) ||
+          textoCombinaBusca(l.responsavel, termo)
       );
     }
     lista.sort((a, b) => {

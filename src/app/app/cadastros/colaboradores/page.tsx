@@ -9,6 +9,7 @@ import { ListaCarregando } from "@/components/ListaCarregando";
 import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
 import { ModuloCabecalho } from "@/components/ModuloCabecalho";
 import { useI18n } from "@/components/i18n-provider";
+import { textoCombinaBusca } from "@/lib/busca-texto";
 import { compararTextoBr } from "@/lib/listagem-config";
 import { exibirTelefone, formatarTelefone, PLACEHOLDER_TELEFONE_BR } from "@/lib/validar-documento";
 import { usePageReady } from "@/hooks/use-page-ready";
@@ -362,10 +363,12 @@ export default function ColaboradoresPage() {
     if (!termo) return lista;
 
     return lista.filter((colaborador) =>
-      [colaborador.nome, colaborador.email, colaborador.celular, colaborador.whatsapp, colaborador.setorAtuacao]
-        .join(" ")
-        .toLowerCase()
-        .includes(termo)
+      textoCombinaBusca(
+        [colaborador.nome, colaborador.email, colaborador.celular, colaborador.whatsapp, colaborador.setorAtuacao].join(
+          " "
+        ),
+        termo
+      )
     );
   }, [busca, colaboradores, colaboradoresExcluidos, mostrarExcluidos]);
 

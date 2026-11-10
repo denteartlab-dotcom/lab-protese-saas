@@ -1,5 +1,6 @@
 import { getSession } from "@/lib/auth";
-import { trabalhoCombinaBuscaOs, whereBuscaTrabalho } from "@/lib/os-externa";
+import { idsTrabalhoPorBusca, restringirIds } from "@/lib/busca-texto-sql";
+import { trabalhoCombinaBuscaOs } from "@/lib/os-externa";
 import { prisma, runWithTenantContext } from "@/lib/db";
 import { lerJsonStoreTenant } from "@/lib/json-store-tenant";
 import { MODULO_PRODUCAO_ETAPAS_STORAGE_KEY } from "@/lib/modulo-producao-etapas";
@@ -22,12 +23,13 @@ async function buscarTrabalhosAgenda(
   const q = String(Array.isArray(sp.q) ? sp.q[0] : sp.q || "").trim();
   const status = String(Array.isArray(sp.status) ? sp.status[0] : sp.status || "producao");
 
+  const idsBusca = q ? await idsTrabalhoPorBusca(empresaId, q) : null;
   const trabalhos = await runWithTenantContext(empresaId, () =>
     prisma.trabalho.findMany({
     where: {
       empresaId,
       ...(status ? { status } : {}),
-      ...(q ? whereBuscaTrabalho(q) : {}),
+      ...(idsBusca ? restringirIds(idsBusca) : {}),
     },
     orderBy: { createdAt: "desc" },
     include: {

@@ -12,10 +12,8 @@ import {
   tipoEntregadorCliente,
 } from "@/lib/cliente-entrega";
 import { readStorage } from "@/lib/persisted-storage";
-import { entregaJaExisteParaOs } from "@/lib/controle-entregas-automatico-cliente";
 import {
   atualizarEntrega,
-  carregarEntregas,
   criarEntrega,
   DESCRICOES_ENTREGA_PADRAO,
   entregaParaFormRota,
@@ -391,10 +389,6 @@ export function FormularioRotaEntregaModal({
     atualizar("nomeDestinatario", nome);
   }
 
-  function osJaNoControle(numeroOs: number) {
-    return entregaJaExisteParaOs(carregarEntregas(), numeroOs, editando?.id);
-  }
-
   function ordemDoTrabalho(trabalho: TrabalhoApi): OsEntregaVinculada {
     return {
       numeroOs: String(trabalho.numeroOs),
@@ -498,8 +492,8 @@ export function FormularioRotaEntregaModal({
   }
 
   function incluirOsSelecionadas() {
-    const escolhidas = osSaiuEntrega.filter(
-      (item) => osSelecionadas.includes(item.numeroOs) && !osJaNoControle(item.numeroOs)
+    const escolhidas = osSaiuEntrega.filter((item) =>
+      osSelecionadas.includes(item.numeroOs)
     );
     incluirOrdens(escolhidas);
   }
@@ -563,18 +557,6 @@ export function FormularioRotaEntregaModal({
             { numeroOs: termo, descricao: "", paciente: "", trabalhoId: "" },
           ]
         : form.ordensServico;
-    const duplicada = ordensServico.find((ordem) => {
-      const numero = Number(ordem.numeroOs);
-      return (
-        Number.isFinite(numero) &&
-        entregaJaExisteParaOs(carregarEntregas(), numero, editando?.id)
-      );
-    });
-    if (duplicada) {
-      alert(t("producao.entregas.rota.osJaCadastrada"));
-      return;
-    }
-
     const payload = formRotaParaEntrega(
       { ...form, ordensServico, numeroOs: textoNumerosOs(ordensServico) },
       parseCurrencyInput
@@ -595,8 +577,6 @@ export function FormularioRotaEntregaModal({
   }
 
   const destinatarioRodape = form.nomeDestinatario.trim() || "—";
-
-  const osPendentes = osSaiuEntrega.filter((item) => !osJaNoControle(item.numeroOs));
 
   return (
     <>
@@ -937,14 +917,12 @@ export function FormularioRotaEntregaModal({
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
                 {osSaiuEntrega.map((item) => {
-                  const jaCadastrada = osJaNoControle(item.numeroOs);
                   return (
                     <tr key={item.id || item.numeroOs} className="hover:bg-slate-50">
                       <td className="px-2 py-2">
                         <input
                           type="checkbox"
                           checked={osSelecionadas.includes(item.numeroOs)}
-                          disabled={jaCadastrada}
                           onChange={() =>
                             setOsSelecionadas((atual) =>
                               atual.includes(item.numeroOs)
@@ -957,14 +935,7 @@ export function FormularioRotaEntregaModal({
                       </td>
                       <td className="px-2 py-2 font-semibold text-slate-700">{item.numeroOs}</td>
                       <td className="px-2 py-2">{item.paciente?.nome || "—"}</td>
-                      <td className="px-2 py-2">
-                        {item.tipoProtese || "—"}
-                        {jaCadastrada ? (
-                          <p className="mt-0.5 text-[10px] text-emerald-700">
-                            {t("producao.entregas.rota.osJaCadastrada")}
-                          </p>
-                        ) : null}
-                      </td>
+                      <td className="px-2 py-2">{item.tipoProtese || "—"}</td>
                       <td className="px-2 py-2 text-right">
                         <button
                           type="button"
@@ -985,7 +956,7 @@ export function FormularioRotaEntregaModal({
           <button
             type="button"
             onClick={incluirOsSelecionadas}
-            disabled={osPendentes.length === 0}
+            disabled={osSaiuEntrega.length === 0}
             className="rounded bg-[#4a90d9] px-4 py-2 text-[11px] font-semibold text-white hover:bg-[#3d7fc4] disabled:opacity-50"
           >
             {t("producao.entregas.rota.cadastrarSelecionadas")}

@@ -1,3 +1,4 @@
+import { idsTrabalhoPorBusca, restringirIds } from "@/lib/busca-texto-sql";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireEmpresaContext } from "@/lib/empresa-context";
@@ -21,14 +22,7 @@ export async function GET(request: Request) {
     where: {
       empresaId: ctx.empresaId,
       ...(clienteId ? { clienteId } : {}),
-      ...(busca
-        ? {
-            OR: [
-              { paciente: { nome: { contains: busca, mode: "insensitive" } } },
-              { tipoProtese: { contains: busca, mode: "insensitive" } },
-            ],
-          }
-        : {}),
+      ...(busca ? restringirIds(await idsTrabalhoPorBusca(ctx.empresaId, busca)) : {}),
     },
     include: {
       paciente: { select: { id: true, nome: true } },

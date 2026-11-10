@@ -1,3 +1,4 @@
+import { textoCombinaBusca } from "@/lib/busca-texto";
 import { dateToBrShort, parseBrDate } from "@/lib/datas-br";
 import {
   carregarNomesEntregadores,
@@ -559,10 +560,9 @@ export function filtrarEntregas(
         entrega.descricao,
         entrega.nomeRecebedor || "",
         entrega.entregador,
-      ]
-        .join(" ")
-        .toLowerCase();
-      if (!haystack.includes(termo)) return false;
+        textoNumerosOs(ordensServicoDaEntrega(entrega)),
+      ].join(" ");
+      if (!textoCombinaBusca(haystack, termo)) return false;
     }
 
     if (filtros.dataInicio || filtros.dataFim) {

@@ -1,5 +1,6 @@
 "use client";
 
+import { textoCombinaBusca } from "@/lib/busca-texto";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
@@ -381,10 +382,8 @@ export function ContaBancariaConteudo() {
     const termo = busca.trim().toLowerCase();
     if (!termo) return lista;
     return lista.filter((c) => {
-      const nomeExibicao = nomeExibicaoContaBancaria(c, t).toLowerCase();
-      return (
-        nomeExibicao.includes(termo) || c.nome.toLowerCase().includes(termo)
-      );
+      const nomeExibicao = nomeExibicaoContaBancaria(c, t);
+      return textoCombinaBusca(nomeExibicao, termo) || textoCombinaBusca(c.nome, termo);
     });
   }, [contas, busca, verExcluidos, t]);
 

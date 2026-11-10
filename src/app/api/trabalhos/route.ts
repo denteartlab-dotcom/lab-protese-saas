@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma, runWithTenantContext } from "@/lib/db";
-import { trabalhoCombinaBuscaOs, whereBuscaTrabalho } from "@/lib/os-externa";
+import { idsTrabalhoPorBusca, restringirIds } from "@/lib/busca-texto-sql";
+import { trabalhoCombinaBuscaOs } from "@/lib/os-externa";
 import { requireEmpresaContext } from "@/lib/empresa-context";
 import {
   acaoHttpParaPermissao,
@@ -81,6 +82,7 @@ export async function GET(request: Request) {
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
 
+  const idsBusca = q ? await idsTrabalhoPorBusca(ctx.empresaId, q) : null;
   const trabalhos = await runWithTenantContext(ctx.empresaId, () =>
     prisma.trabalho.findMany({
       where: {
@@ -101,7 +103,7 @@ export async function GET(request: Request) {
               },
             }
           : {}),
-        ...(q ? whereBuscaTrabalho(q) : {}),
+        ...(idsBusca ? restringirIds(idsBusca) : {}),
       },
       orderBy: { createdAt: "desc" },
       include: {

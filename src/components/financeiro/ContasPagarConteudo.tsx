@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { textoCombinaBusca } from "@/lib/busca-texto";
 import { debounceCallback } from "@/lib/debounce-callback";
 import { BotoesImprimirExportarToolbar } from "@/components/BotoesImprimirExportarToolbar";
 import {
@@ -633,10 +634,8 @@ export function ContasPagarConteudo() {
           lancamento.formaPagamento,
           pack.conta,
           lancamento.descricao,
-        ]
-          .join(" ")
-          .toLowerCase();
-        return blob.includes(termo);
+        ].join(" ");
+        return textoCombinaBusca(blob, termo);
       });
   }, [
     lancamentos,

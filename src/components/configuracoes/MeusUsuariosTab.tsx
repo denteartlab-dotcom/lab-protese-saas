@@ -10,6 +10,7 @@ import {
   type UsuarioListagem,
 } from "@/lib/usuarios-sistema";
 import type { CotasUsuariosEmpresa } from "@/lib/limite-usuarios-empresa";
+import { textoCombinaBusca } from "@/lib/busca-texto";
 import { cn, exibirTexto } from "@/lib/utils";
 import { useI18n } from "@/components/i18n-provider";
 import { ConfirmacaoExclusaoModal } from "@/components/ConfirmacaoExclusaoModal";
@@ -82,10 +83,10 @@ export function MeusUsuariosTab() {
     const termo = busca.trim().toLowerCase();
     if (!termo) return usuarios;
     return usuarios.filter((u) =>
-      [u.name, u.email, u.colaboradorNome || "", rotuloTipoUsuario(u.role)]
-        .join(" ")
-        .toLowerCase()
-        .includes(termo)
+      textoCombinaBusca(
+        [u.name, u.email, u.colaboradorNome || "", rotuloTipoUsuario(u.role)].join(" "),
+        termo
+      )
     );
   }, [busca, usuarios]);
 

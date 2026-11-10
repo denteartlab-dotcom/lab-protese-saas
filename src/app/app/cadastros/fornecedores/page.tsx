@@ -8,6 +8,7 @@ import { ListaCarregando } from "@/components/ListaCarregando";
 import { ListagemPorNome } from "@/components/listagem/listagem-por-nome";
 import { ModuloCabecalho } from "@/components/ModuloCabecalho";
 import { useI18n } from "@/components/i18n-provider";
+import { textoCombinaBusca } from "@/lib/busca-texto";
 import { compararTextoBr } from "@/lib/listagem-config";
 import { exibirTelefone, formatarTelefone, PLACEHOLDER_TELEFONE_BR } from "@/lib/validar-documento";
 import {
@@ -156,10 +157,12 @@ export default function FornecedoresPage() {
     if (!termo) return lista;
 
     return lista.filter((fornecedor) =>
-      [fornecedor.nome, fornecedor.contato, fornecedor.celular, fornecedor.whatsapp, fornecedor.email]
-        .join(" ")
-        .toLowerCase()
-        .includes(termo)
+      textoCombinaBusca(
+        [fornecedor.nome, fornecedor.contato, fornecedor.celular, fornecedor.whatsapp, fornecedor.email].join(
+          " "
+        ),
+        termo
+      )
     );
   }, [busca, fornecedores, fornecedoresExcluidos, mostrarExcluidos]);
 
