@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Zoom global do sistema: 90% em todas as telas (exceto impressão / TV / editores full). */
+/* Zoom global do sistema: 90% no computador (exceto impressão / TV / editores full e celular). */
 :root {
   --site-zoom: 0.9;
 }
@@ -72,6 +72,17 @@ html.site-zoom-full,
 html.modo-tv-producao {
   --site-zoom: 1;
   zoom: 1 !important;
+}
+
+/*
+  Celular e tablet: o zoom de 90% no html faz o Safari e o Chrome
+  deixarem de desenhar img (logo, fotos, anexos). Nessas telas fica 100%.
+*/
+@media (pointer: coarse), (max-width: 820px) {
+  html {
+    --site-zoom: 1 !important;
+    zoom: 1 !important;
+  }
 }
 
 /* Overlay de OS: nova camada de composição evita letras duplicadas no Chrome

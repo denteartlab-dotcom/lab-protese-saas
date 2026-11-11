@@ -322,22 +322,39 @@ function AppShellInner({
   useEffect(() => {
     const html = document.documentElement;
     const body = document.body;
-    if (isPrint) {
-      html.classList.add("site-zoom-full");
-      html.style.zoom = "1";
-      html.style.setProperty("--site-zoom", "1");
-      body.classList.add("site-editor-tela-cheia");
-    } else {
+    const aplicar = () => {
+      const celular =
+        window.matchMedia("(pointer: coarse)").matches ||
+        window.matchMedia("(max-width: 820px)").matches;
+      if (isPrint) {
+        html.classList.add("site-zoom-full");
+        html.style.zoom = "1";
+        html.style.setProperty("--site-zoom", "1");
+        body.classList.add("site-editor-tela-cheia");
+        return;
+      }
       html.classList.remove("site-zoom-full");
-      html.style.zoom = "0.9";
-      html.style.setProperty("--site-zoom", "0.9");
       body.classList.remove("site-editor-tela-cheia");
-    }
+      const zoom = celular ? "1" : "0.9";
+      html.style.zoom = zoom;
+      html.style.setProperty("--site-zoom", zoom);
+    };
+    aplicar();
+    const consultas = [
+      window.matchMedia("(pointer: coarse)"),
+      window.matchMedia("(max-width: 820px)"),
+    ];
+    consultas.forEach((consulta) => consulta.addEventListener("change", aplicar));
     return () => {
+      consultas.forEach((consulta) => consulta.removeEventListener("change", aplicar));
       html.classList.remove("site-zoom-full");
-      html.style.zoom = "0.9";
-      html.style.setProperty("--site-zoom", "0.9");
       body.classList.remove("site-editor-tela-cheia");
+      const celular =
+        window.matchMedia("(pointer: coarse)").matches ||
+        window.matchMedia("(max-width: 820px)").matches;
+      const zoom = celular ? "1" : "0.9";
+      html.style.zoom = zoom;
+      html.style.setProperty("--site-zoom", zoom);
     };
   }, [isPrint]);
 

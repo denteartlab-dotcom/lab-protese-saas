@@ -96,12 +96,19 @@ export default async function RootLayout({
               (function () {
                 try {
                   var html = document.documentElement;
-                  html.style.setProperty("--site-zoom", "0.9");
+                  var celular = false;
+                  try {
+                    celular =
+                      window.matchMedia("(pointer: coarse)").matches ||
+                      window.matchMedia("(max-width: 820px)").matches;
+                  } catch (e2) { /* ignore */ }
+                  var zoom = celular ? "1" : "0.9";
+                  html.style.setProperty("--site-zoom", zoom);
                   if (
                     !html.classList.contains("site-zoom-full") &&
                     !html.classList.contains("modo-tv-producao")
                   ) {
-                    html.style.zoom = "0.9";
+                    html.style.zoom = zoom;
                   }
                 } catch (e) { /* ignore */ }
               })();
