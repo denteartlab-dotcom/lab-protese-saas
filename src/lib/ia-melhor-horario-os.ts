@@ -392,7 +392,171 @@ function candidatosInicio(entrada: EntradaPlanoHorarioOs, horario: HorarioFuncio
   return lista;
 }
 
+function ocupacaoDoDia(entrada: EntradaPlanoHorarioOs, date: Date) {
+  return entrada.ocupacaoPorDia?.[formatarData(date)] || 0;
+}
+
+function diaAbertoOuProximo(date: Date, horario: HorarioFuncionamentoConfig) {
+  if (janelasDoDia(date, horario).length) return date;
+  return proximoInstante(date, 0, horario)?.date || null;
+}
+
+/**
+ * Serviço sem etapas na tabela ainda precisa de prazo.
+ * O fim fica no dia da tabela e muda se esse dia já está cheio.
+ */
+function planejarPrazoSemEtapas(entrada: EntradaPlanoHorarioOs): PlanoHorarioOs | null {
+  const horario = horarioEfetivo(entrada.horario);
+  const agora = entrada.agora || new Date();
+  const motivoUrgencia = trabalhoUrgente(entrada);
+  const urgente = Boolean(motivoUrgencia);
+  const pedido = interpretarPedido(entrada.pedido || "", agora);
+  const lancamento =
+    parseBrDate((entrada.dataLancamento || "").trim()) || new Date(agora);
+  const hoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+  const base = new Date(lancamento.getFullYear(), lancamento.getMonth(), lancamento.getDate());
+  const primeira = base > hoje ? base : hoje;
+  const primeiroAberto = diaAbertoOuProximo(primeira, horario);
+  if (!primeiroAberto) return null;
+
+  const diasTabela = parseDiasPrazo(entrada.prazoTabelaDias);
+  const limiteTabela = diasTabela ? adicionarDias(base, diasTabela) : null;
+  const limiteAberto = limiteTabela
+    ? janelasDoDia(limiteTabela, horario).length
+      ? limiteTabela
+      : diaUtilAnterior(limiteTabela, horario)
+    : null;
+  const diaNomeado = pedido.inicioPedido
+    ? diaAbertoOuProximo(pedido.inicioPedido, horario)
+    : pedido.diaInicio != null
+      ? diaAbertoOuProximo(
+          proximoDiaSemana(base > agora ? base : agora, pedido.diaInicio),
+          horario
+        )
+      : null;
+
+  const dias: Date[] = [];
+  const ultimo = limiteAberto && limiteAberto > primeiroAberto ? limiteAberto : primeiroAberto;
+  let cursor = new Date(primeiroAberto);
+  for (let i = 0; i < 70 && cursor <= ultimo; i += 1) {
+    if (janelasDoDia(cursor, horario).length) dias.push(new Date(cursor));
+    cursor = adicionarDias(cursor, 1);
+  }
+  if (!dias.length) dias.push(primeiroAberto);
+
+  let escolhido = dias[dias.length - 1];
+  if (!urgente) {
+    const menor = Math.min(...dias.map((dia) => ocupacaoDoDia(entrada, dia)));
+    escolhido =
+      [...dias].reverse().find((dia) => ocupacaoDoDia(entrada, dia) === menor) || escolhido;
+  } else {
+    const slot = proximoInstante(
+      primeira,
+      mesmoDia(primeira, hoje) ? agora.getHours() * 60 + agora.getMinutes() : 0,
+      horario
+    );
+    if (slot) escolhido = slot.date;
+  }
+  if (diaNomeado && diaNomeado >= primeiroAberto) escolhido = diaNomeado;
+
+  const janelas = janelasDoDia(escolhido, horario);
+  if (!janelas.length) return null;
+  const abertura = janelas[0][0];
+  const fechamento = janelas[janelas.length - 1][1];
+  const manha = /\bmanha\b/.test(semAcento(entrada.pedido || ""));
+  let minutoFim = fechamento;
+  if (manha) minutoFim = Math.min(12 * 60, fechamento);
+  if (minutoFim <= abertura) minutoFim = fechamento;
+  if (urgente || pedido.tarde) {
+    const preferida = pedido.tarde ? 13 * 60 : agora.getHours() * 60 + agora.getMinutes();
+    const instante = proximoInstante(
+      escolhido,
+      mesmoDia(escolhido, hoje) ? Math.max(abertura, preferida) : pedido.tarde ? 13 * 60 : abertura,
+      horario
+    );
+    if (instante && mesmoDia(instante.date, escolhido)) {
+      minutoFim = pedido.tarde
+        ? Math.min(fechamento, Math.max(instante.minuto, 13 * 60) + 60)
+        : Math.min(fechamento, instante.minuto + 60);
+    }
+  }
+  if (minutoFim <= abertura) minutoFim = fechamento;
+
+  const fimData = formatarData(escolhido);
+  const fimHora = formatarHora(minutoFim);
+  const inicioHora = formatarHora(abertura);
+  const nome = entrada.servico?.trim() || "Produção";
+  const etapa: EtapaPlanejada = {
+    nome,
+    setor: "Laboratório",
+    minutos: Math.max(60, minutoFim - abertura),
+    tempoTexto: "prazo da tabela",
+    inicioData: fimData,
+    inicioHora,
+    data: fimData,
+    hora: fimHora,
+    ideia: "Este serviço não tem etapas na tabela. O prazo segue os dias cadastrados e o dia mais livre da agenda.",
+    tempoEstimado: true,
+  };
+
+  const diasAntes = parseDiasPrazo(entrada.prazoDentistaDias);
+  let dataDentista = "";
+  let horaDentista = "";
+  if (diasAntes > 0) {
+    let dentista = adicionarDias(escolhido, -diasAntes);
+    if (!janelasDoDia(dentista, horario).length) dentista = diaUtilAnterior(dentista, horario);
+    if (dentista < base) dentista = base;
+    if (!janelasDoDia(dentista, horario).length) {
+      dentista = proximoInstante(dentista, 0, horario)?.date || dentista;
+    }
+    dataDentista = formatarData(dentista);
+    const aberturaDentista = janelasDoDia(dentista, horario)[0];
+    horaDentista = formatarHora(aberturaDentista ? aberturaDentista[0] : abertura);
+  }
+
+  const carga = ocupacaoDoDia(entrada, escolhido);
+  const avisoPrazo = limiteTabela
+    ? mesmoDia(escolhido, limiteAberto || limiteTabela)
+      ? `A tabela previa ${formatarData(limiteTabela)}. O prazo do laboratório fica em ${fimData} às ${fimHora}.`
+      : `A tabela previa ${formatarData(limiteTabela)}, mas esse dia está mais cheio. O dia livre dentro do prazo é ${fimData} às ${fimHora}.`
+    : `A tabela deste serviço não tem prazo em dias. O término ficou em ${fimData} às ${fimHora}.`;
+  const cargaDia =
+    carga === 0
+      ? `${fimData} ainda não tem outra entrega marcada.`
+      : `${fimData} já tem ${carga} entrega${carga === 1 ? "" : "s"} marcada${carga === 1 ? "" : "s"}.`;
+  const resposta = [
+    "Este serviço não tem etapas na tabela. Montei o prazo pelos dias cadastrados e pela agenda.",
+    urgente ? "Trato como urgência e deixo o fim no primeiro horário útil." : "Sem sinal de urgência.",
+    "",
+    `Produção de ${nome}: ${fimData}, ${inicioHora} até ${fimHora}.`,
+    `Prazo do laboratório: ${fimData} às ${fimHora}.`,
+    dataDentista
+      ? `Prazo do dentista: ${dataDentista} às ${horaDentista}.`
+      : "A tabela não marca dias antes para o dentista.",
+    cargaDia,
+    avisoPrazo,
+  ].join("\n");
+
+  return {
+    descricao: descreverTrabalho(entrada, urgente),
+    urgente,
+    motivoUrgencia: motivoUrgencia || "Nenhum sinal de urgência na ordem.",
+    ideias: [etapa.ideia, avisoPrazo, cargaDia],
+    etapas: [etapa],
+    inicioData: fimData,
+    inicioHora,
+    prazoLaboratorio: { data: fimData, hora: fimHora },
+    prazoDentista: { data: dataDentista, hora: horaDentista },
+    avisoPrazo,
+    cargaDia,
+    resposta,
+  };
+}
+
 export function planejarMelhorHorarioOs(entrada: EntradaPlanoHorarioOs): PlanoHorarioOs | null {
+  if (!entrada.etapas.some((etapa) => etapa.nome.trim())) {
+    return planejarPrazoSemEtapas(entrada);
+  }
   const horario = horarioEfetivo(entrada.horario);
   const agora = entrada.agora || new Date();
   const motivoUrgencia = trabalhoUrgente(entrada);

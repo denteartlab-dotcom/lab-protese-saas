@@ -116,7 +116,7 @@ export function BotaoMelhorHorarioIa({
     });
     const resposta = sugestao
       ? [sugestao.resposta, avisoAgenda].filter(Boolean).join("\n\n")
-      : "Não consegui montar a sequência. Selecione um serviço com etapas e descreva de novo o que precisa.";
+      : "Não consegui montar a sequência. Confira o expediente do laboratório e descreva de novo o que precisa.";
     setPlano(sugestao);
     setMensagens((atuais) => [
       ...atuais,

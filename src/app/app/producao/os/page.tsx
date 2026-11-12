@@ -4532,8 +4532,7 @@ export default function OrdemServicoPage() {
                   <div className="space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="text-sm font-semibold text-slate-800">Etapas</span>
-                      {servicoTemEtapasNaTabela(servicoOsAtual) && exibeLinhasEtapasOs && (
-                        <BotaoMelhorHorarioIa
+                      <BotaoMelhorHorarioIa
                           excetoTrabalhoId={editId || undefined}
                           contexto={{
                             dataLancamento: form.dataLancamento,
@@ -4569,8 +4568,7 @@ export default function OrdemServicoPage() {
                             }));
                             setEtapas((atuais) => prazosEtapasDoPlano(atuais, plano));
                           }}
-                        />
-                      )}
+                      />
                     </div>
 
                     {!servicoTemEtapasNaTabela(servicoOsAtual) ? (

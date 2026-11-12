@@ -392,8 +392,7 @@ export function EtapasOsEditor({
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-sm font-semibold text-slate-800">Etapas</span>
-        {exibirLinhas ? (
-          <BotaoMelhorHorarioIa
+        <BotaoMelhorHorarioIa
             disabled={desabilitado}
             excetoTrabalhoId={excetoTrabalhoId}
             contexto={{
@@ -425,7 +424,6 @@ export function EtapasOsEditor({
               onAplicarPlanoIa?.(plano);
             }}
           />
-        ) : null}
       </div>
 
       {servicoTemEtapasNaTabela(servico) ? (
