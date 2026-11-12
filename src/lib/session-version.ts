@@ -70,22 +70,41 @@ export async function obterSessionVersionMaster(masterId: string): Promise<numbe
   }
 }
 
+/** Cache de outro processo ainda com a senha antiga: precisa ler o banco. */
+export function precisaRelerVersaoSessao(
+  cache: number | null,
+  tokenSv: number
+): boolean {
+  if (cache == null) return true;
+  return cache !== tokenSv;
+}
+
 export async function sessaoUsuarioVersaoValida(
   userId: string,
   sessionVersion: number | undefined
 ): Promise<boolean> {
+  const tokenSv = sessionVersion ?? 0;
+  const cached = lerCache(cacheUser, userId);
+  if (!precisaRelerVersaoSessao(cached, tokenSv)) return true;
+  // Troca de senha sobe a versão noutro processo. O cache de 15s
+  // rejeitava o token novo e o login não abria.
+  if (cached != null) invalidarCacheSessionVersion(userId);
   const atual = await obterSessionVersionUsuario(userId);
   if (atual == null) return false;
-  return (sessionVersion ?? 0) === atual;
+  return tokenSv === atual;
 }
 
 export async function sessaoMasterVersaoValida(
   masterId: string,
   sessionVersion: number | undefined
 ): Promise<boolean> {
+  const tokenSv = sessionVersion ?? 0;
+  const cached = lerCache(cacheMaster, masterId);
+  if (!precisaRelerVersaoSessao(cached, tokenSv)) return true;
+  if (cached != null) invalidarCacheMasterSessionVersion(masterId);
   const atual = await obterSessionVersionMaster(masterId);
   if (atual == null) return false;
-  return (sessionVersion ?? 0) === atual;
+  return tokenSv === atual;
 }
 
 /** Incrementa e retorna a nova versão (invalida sessões anteriores). */

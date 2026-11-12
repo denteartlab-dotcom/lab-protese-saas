@@ -3,6 +3,7 @@ import type { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import {
   anexarSetCookiesMesmoNome,
+  linhasCookieSessaoAtiva,
   listarValoresCookie,
   serializarSetCookie,
 } from "@/lib/cookie-sessao-bruto";
@@ -119,8 +120,6 @@ export async function createSession(
 
   const cookieStore = await cookies();
   const opcoes = opcoesCookieSessao(maxAge, options?.request);
-  // cookies().set só guarda um nome: o token com Domain fica; a limpeza
-  // host-only sai em anexarCookieSessao, que escreve os dois Set-Cookie.
   cookieStore.set(COOKIE_NAME, token, opcoes);
 }
 
@@ -136,19 +135,9 @@ export async function anexarCookieSessao(
     ttlSegundos: maxAge,
   });
   const opcoes = opcoesCookieSessao(maxAge, options?.request);
-  const linhas = [serializarSetCookie(COOKIE_NAME, token, opcoes)];
-  // Host-only antigo chega antes do Domain e o servidor lia a sessão vencida.
-  if (opcoes.domain) {
-    linhas.unshift(
-      serializarSetCookie(COOKIE_NAME, "", {
-        httpOnly: true,
-        secure: opcoes.secure,
-        sameSite: "lax",
-        path: "/",
-        maxAge: 0,
-      })
-    );
-  }
+  // Host-only e Domain recebem o MESMO token. Max-Age=0 na mesma resposta
+  // faz o Chrome/Safari apagarem o cookie novo e o login não entra.
+  const linhas = linhasCookieSessaoAtiva(COOKIE_NAME, token, opcoes);
   anexarSetCookiesMesmoNome(response.headers, COOKIE_NAME, linhas);
   return response;
 }
@@ -196,9 +185,16 @@ async function tokensSessaoDaRequisicao(): Promise<string[]> {
 
 export async function getSession(): Promise<SessionUser | null> {
   const tokens = await tokensSessaoDaRequisicao();
+  const sessoes: SessionUser[] = [];
   for (let i = tokens.length - 1; i >= 0; i -= 1) {
     const session = await verifySessionToken(tokens[i]);
-    if (!session) continue;
+    if (session?.id) sessoes.push(session);
+  }
+  if (sessoes.length === 0) return null;
+  // Depois da troca de senha o cookie novo tem sv maior. Ele entra na frente
+  // do host-only antigo, que ainda pode ir no mesmo pedido.
+  sessoes.sort((a, b) => (b.sessionVersion ?? 0) - (a.sessionVersion ?? 0));
+  for (const session of sessoes) {
     const ok = await sessaoUsuarioVersaoValida(session.id, session.sessionVersion);
     if (ok) return session;
   }

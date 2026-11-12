@@ -33,22 +33,6 @@ import { LoginLogoCircular } from "@/components/auth/LoginLogoCircular";
 import { MfaChallengePanel } from "@/components/auth/MfaChallengePanel";
 import { lerTemaLocal } from "@/lib/theme-ui";
 
-async function aguardarSessaoConfirmada(): Promise<boolean> {
-  for (let tentativa = 0; tentativa < 6; tentativa += 1) {
-    try {
-      const res = await fetch("/api/auth/me", {
-        credentials: "same-origin",
-        cache: "no-store",
-      });
-      if (res.ok) return true;
-    } catch {
-      /* nova tentativa */
-    }
-    await new Promise((resolve) => window.setTimeout(resolve, 200 + tentativa * 150));
-  }
-  return false;
-}
-
 function destinoDepoisDoLogin(destino: string) {
   const path = destino.startsWith("/") ? destino : `/${destino}`;
   const base = path.split("?")[0] || "/";
@@ -63,14 +47,10 @@ function destinoDepoisDoLogin(destino: string) {
   return path;
 }
 
-async function entrarNoApp(destino: string) {
-  const sessaoOk = await aguardarSessaoConfirmada();
+function entrarNoApp(destino: string) {
   const path = destinoDepoisDoLogin(destino);
-  // Sempre no MESMO host da página (evita 301 apex↔www roubar o cookie).
+  // Mesmo host da página. A senha já foi aceita: entra na hora, sem esperar /api/auth/me.
   const url = `${window.location.origin}${path}`;
-  if (!sessaoOk) {
-    throw new Error("SESSAO_NAO_CONFIRMADA");
-  }
   confirmarSessaoRenovada();
   window.location.assign(url);
 }
@@ -125,7 +105,6 @@ export function LoginForm({
   const [lembrarSenha, setLembrarSenha] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [aguardandoServidor, setAguardandoServidor] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [jaEntrou, setJaEntrou] = useState(jaEntrouInicial);
   const [clientePronto, setClientePronto] = useState(false);
@@ -334,12 +313,10 @@ export function LoginForm({
   async function tentarEntrar(e?: React.FormEvent) {
     e?.preventDefault();
     setLoading(true);
-    setAguardandoServidor(false);
     setError("");
 
-    const avisoLento = window.setTimeout(() => setAguardandoServidor(true), 8000);
     const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), 120_000);
+    const timeoutId = window.setTimeout(() => controller.abort(), 45_000);
 
     const slugLogin =
       empresaSlugSelecionado.trim() ||
@@ -472,21 +449,14 @@ export function LoginForm({
       registrarAtividadeSessao();
       await entrarNoApp(destino);
     } catch (erro) {
-      const abortado =
-        erro instanceof DOMException && erro.name === "AbortError";
-      const sessaoFalhou =
-        erro instanceof Error && erro.message === "SESSAO_NAO_CONFIRMADA";
+      const abortado = erro instanceof DOMException && erro.name === "AbortError";
       setError(
-        sessaoFalhou
-          ? "Login ok, mas o cookie não ficou neste domínio (nginx redireciona apex↔www). Use https://www.denteartlab.com.br/login ou corrija o nginx sem 301 entre os hosts."
-          : abortado
-            ? "O servidor demorou demais para responder. Aguarde e tente de novo."
-            : "Não foi possível conectar ao servidor. Recarregue a página (Ctrl+Shift+R) e tente de novo."
+        abortado
+          ? "O servidor demorou demais para responder. Tente de novo."
+          : "Não foi possível conectar ao servidor. Recarregue a página e tente de novo."
       );
     } finally {
-      window.clearTimeout(avisoLento);
       window.clearTimeout(timeoutId);
-      setAguardandoServidor(false);
       setLoading(false);
     }
   }
@@ -676,13 +646,6 @@ export function LoginForm({
             />
             {t("login.lembrarSenha")}
           </label>
-
-          {aguardandoServidor && loading ? (
-            <p className="rounded-lg bg-amber-50 px-3 py-2 text-[12px] text-amber-800">
-              Primeira entrada após iniciar o servidor pode levar até 1 minuto
-              (compilação local). Aguarde…
-            </p>
-          ) : null}
 
           {empresasDisponiveis.length > 1 ? (
             <div className="space-y-1.5 rounded-lg border border-blue-100 bg-blue-50/70 p-3">

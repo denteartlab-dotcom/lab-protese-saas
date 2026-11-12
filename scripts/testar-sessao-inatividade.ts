@@ -2,7 +2,12 @@
  * Sessão cai após 2h mesmo com o site fechado (cookie/iat).
  * Uso: npx tsx scripts/testar-sessao-inatividade.ts
  */
-import { listarValoresCookie, serializarSetCookie } from "../src/lib/cookie-sessao-bruto";
+import {
+  linhasCookieSessaoAtiva,
+  listarValoresCookie,
+  serializarSetCookie,
+} from "../src/lib/cookie-sessao-bruto";
+import { precisaRelerVersaoSessao } from "../src/lib/session-version";
 import {
   deveEncerrarPorInatividadeLocal,
   paginaIgnoraInatividade,
@@ -125,6 +130,26 @@ const gravado = serializarSetCookie("lab-protese-session", "abc", {
 assert(limpeza.includes("Max-Age=0") && !limpeza.includes("Domain="), "limpa o cookie host-only");
 assert(gravado.includes("Domain=.denteartlab.com.br"), "grava o cookie no domínio do site");
 assert(limpeza !== gravado, "limpeza e sessão são Set-Cookie diferentes");
+
+const linhasLogin = linhasCookieSessaoAtiva("lab-protese-session", "token-novo", {
+  httpOnly: true,
+  secure: true,
+  sameSite: "lax",
+  path: "/",
+  maxAge: 7200,
+  domain: ".denteartlab.com.br",
+});
+assert(linhasLogin.length === 2, "login grava host-only e domínio");
+assert(
+  linhasLogin.every((linha) => linha.includes("token-novo") && !linha.includes("Max-Age=0")),
+  "login não pode apagar o cookie na mesma resposta"
+);
+assert(linhasLogin[0].includes("lab-protese-session=token-novo"), "host-only leva o token novo");
+assert(!linhasLogin[0].includes("Domain="), "primeiro cookie é host-only");
+assert(linhasLogin[1].includes("Domain=.denteartlab.com.br"), "segundo cookie vale no domínio");
+assert(precisaRelerVersaoSessao(4, 5), "senha nova não pode usar o cache da versão antiga");
+assert(!precisaRelerVersaoSessao(5, 5), "versão igual ao cache não precisa reler");
+assert(precisaRelerVersaoSessao(null, 5), "sem cache lê o banco");
 assert(
   !deveEncerrarPorInatividadeLocal(true, true),
   "login novo com relógio local antigo deve permanecer"

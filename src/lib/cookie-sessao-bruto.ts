@@ -58,6 +58,21 @@ function lerSetCookies(headers: Headers): string[] {
   return unico ? [unico] : [];
 }
 
+/**
+ * Token novo no host e, se houver, no domínio pai.
+ * Não manda Max-Age=0 na mesma resposta: o navegador apagava o cookie
+ * que o login acabou de gravar e /api/auth/me respondia 401.
+ */
+export function linhasCookieSessaoAtiva(
+  nome: string,
+  token: string,
+  opcoes: OpcoesSetCookie
+): string[] {
+  const hostOnly = serializarSetCookie(nome, token, { ...opcoes, domain: undefined });
+  if (!opcoes.domain || !token) return [hostOnly];
+  return [hostOnly, serializarSetCookie(nome, token, opcoes)];
+}
+
 /** Grava vários Set-Cookie do mesmo nome sem o mapa do Next apagar o anterior. */
 export function anexarSetCookiesMesmoNome(
   headers: Headers,
